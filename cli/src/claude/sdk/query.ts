@@ -40,6 +40,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
     private cancelControllers = new Map<string, AbortController>()
     private sdkMessages: AsyncIterableIterator<SDKMessage>
     private inputStream = new Stream<SDKMessage>()
+    close: () => Promise<void> = async () => {};
     private canCallTool?: CanCallToolCallback
 
     constructor(
@@ -354,7 +355,7 @@ export function query(config: {
     cleanupMcpConfig = appendMcpConfigArg(spawnArgs, mcpServers)
 
     // Spawn Claude Code process
-    const spawnEnv = withBunRuntimeEnv(process.env, { allowBunBeBun: false })
+    const spawnEnv = withBunRuntimeEnv(config.options?.env ?? process.env, { allowBunBeBun: false })
     logDebug(`Spawning Claude Code process: ${spawnCommand} ${spawnArgs.join(' ')}`)
 
     const child = spawn(spawnCommand, spawnArgs, {
@@ -403,14 +404,31 @@ export function query(config: {
             }
             if (code !== 0) {
                 query.setError(new Error(`Claude Code process exited with code ${code}`))
-            } else {
-                resolve()
             }
+            resolve()
         })
     })
 
     // Create query instance
     const query = new Query(childStdin, child.stdout, processExitPromise, canCallTool)
+
+    // Managed handoff must observe process closure before starting a new identity.
+    query.close = async () => {
+        if (child.exitCode === null && child.signalCode === null) {
+            await killProcessByChildProcess(child);
+        }
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+            await Promise.race([
+                processExitPromise,
+                new Promise<never>((_, reject) => {
+                    timer = setTimeout(() => reject(new Error('旧 Claude 进程未确认退出，禁止账号接管')), 5000);
+                })
+            ]);
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    };
 
     // Handle process errors
     child.on('error', (error) => {
@@ -425,6 +443,7 @@ export function query(config: {
     // Cleanup on exit
     processExitPromise.finally(() => {
         cleanup()
+        process.removeListener('exit', cleanup)
         config.options?.abort?.removeEventListener('abort', cleanup)
         if (process.env.CLAUDE_SDK_MCP_SERVERS) {
             delete process.env.CLAUDE_SDK_MCP_SERVERS

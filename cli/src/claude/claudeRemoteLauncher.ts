@@ -1,4 +1,7 @@
 import React from "react";
+import { ManagedClaudeRemote } from './accounts/managedRemote';
+import { loadAccounts } from './accounts/profiles';
+import { configuration } from '@/configuration';
 import { Session } from "./session";
 import { RemoteModeDisplay } from "@/ui/ink/RemoteModeDisplay";
 import { claudeRemote } from "./claudeRemote";
@@ -56,6 +59,10 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
     }
 
     private async handleSwitchRequest(): Promise<void> {
+        if (process.env.HAPI_CLAUDE_ACCOUNT_HANDOFF === '1') {
+            this.session.client.sendSessionEvent({ type: 'message', message: '账号接管实验版仅支持 remote 模式，禁止切回默认登录的本地模式' });
+            return;
+        }
         logger.debug('[remote]: doSwitch');
         await this.requestExit('switch', async () => {
             await this.abort();
@@ -87,6 +94,12 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
 
         const session = this.session;
         const messageBuffer = this.messageBuffer;
+        const managed = process.env.HAPI_CLAUDE_ACCOUNT_HANDOFF === '1'
+            ? new ManagedClaudeRemote(await loadAccounts(configuration.happyHomeDir))
+            : null;
+        const runRemote = (options: Parameters<typeof claudeRemote>[0]) => managed
+            ? managed.run(options, () => session.thinking || !!session.getRunningAgent())
+            : claudeRemote(options);
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {
             onAbort: () => this.handleAbortRequest(),
@@ -337,7 +350,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                 let modeHash: string | null = null;
                 let mode: EnhancedMode | null = null;
                 try {
-                    await claudeRemote({
+                    await runRemote({
                         sessionId: session.sessionId,
                         path: session.path,
                         allowedTools: session.allowedTools ?? [],
@@ -347,7 +360,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         isAborted: (toolCallId: string) => {
                             return permissionHandler.isAborted(toolCallId);
                         },
-                        nextMessage: async () => {
+                        nextMessage: async (signal?: AbortSignal) => {
                             if (pending) {
                                 let p = pending;
                                 pending = null;
@@ -364,7 +377,9 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 };
                             }
 
-                            let msg = await session.queue.waitForMessagesAndGetAsString(controller.signal);
+                            let msg = await session.queue.waitForMessagesAndGetAsString(
+                                signal ? AbortSignal.any([controller.signal, signal]) : controller.signal
+                            );
 
                             if (msg) {
                                 if ((modeHash && msg.hash !== modeHash) || msg.isolate) {
@@ -420,6 +435,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                     }
                 } catch (e) {
                     logger.debug('[remote]: launch error', e);
+                    if (managed) throw e; // Fail closed: no blind replay after an uncertain handoff.
                     if (!this.exitReason) {
                         session.client.sendSessionEvent({ type: 'message', message: 'Process exited unexpectedly' });
                         continue;

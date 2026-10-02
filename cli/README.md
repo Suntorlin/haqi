@@ -155,3 +155,24 @@ haqi runner start
 
 - `../hub/README.md`
 - `../web/README.md`
+
+### Claude 多账号接管实验版（本地隔离）
+
+当前功能默认关闭。仅在确认使用的是隔离测试账号时开启：
+
+```bash
+export HAPI_CLAUDE_ACCOUNT_HANDOFF=1
+mkdir -p "$HAPI_HOME/claude-accounts/work" "$HAPI_HOME/claude-accounts/personal"
+CLAUDE_CONFIG_DIR="$HAPI_HOME/claude-accounts/work" claude   # 分别完成登录
+CLAUDE_CONFIG_DIR="$HAPI_HOME/claude-accounts/personal" claude
+cat > "$HAPI_HOME/claude-accounts.json" <<'JSON'
+{"version":1,"initialAccount":"work","autoSwitch":false,"profiles":[
+  {"id":"work","email":"work@example.com","configDir":"/绝对路径/.hapi/claude-accounts/work","trustGroup":"同一授权组"},
+  {"id":"personal","email":"personal@example.com","configDir":"/绝对路径/.hapi/claude-accounts/personal","trustGroup":"同一授权组"}
+]}
+JSON
+```
+
+实验版仅支持 HAQI remote 会话；会话中可用 `/account list`、`/account use <id>`、`/account auto on|off`。切换只在回合和工具安全完成后发生；通过 `context_handoff` 交接，HAQI session 保持不变。存在未完成工具、后台 Agent、过长历史或无法核验身份时 fail-closed，不自动重放。
+
+不要把真实邮箱、token 或配置目录提交到仓库；账号 JSON 只存元数据，凭据由 Claude 的隔离配置目录管理。

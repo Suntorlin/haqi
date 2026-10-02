@@ -20,6 +20,8 @@ export async function claudeRemote(opts: {
     path: string,
     mcpServers?: Record<string, any>,
     claudeEnvVars?: Record<string, string>,
+    childEnv?: NodeJS.ProcessEnv,
+    stopChildOnReturn?: boolean,
     claudeArgs?: string[],
     allowedTools: string[],
     hookSettingsPath: string,
@@ -27,7 +29,7 @@ export async function claudeRemote(opts: {
     canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }) => Promise<PermissionResult>,
 
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
+    nextMessage: (signal?: AbortSignal) => Promise<{ message: string, mode: EnhancedMode } | null>,
     onReady: () => void,
     isAborted: (toolCallId: string) => boolean,
 
@@ -41,7 +43,7 @@ export async function claudeRemote(opts: {
 
     // Check if session is valid
     let startFrom = opts.sessionId;
-    if (opts.sessionId && !claudeCheckSession(opts.sessionId, opts.path)) {
+    if (opts.sessionId && !claudeCheckSession(opts.sessionId, opts.path, opts.childEnv?.CLAUDE_CONFIG_DIR)) {
         startFrom = null;
     }
     
@@ -72,12 +74,12 @@ export async function claudeRemote(opts: {
     }
 
     // Set environment variables for Claude Code SDK
-    if (opts.claudeEnvVars) {
+    if (opts.claudeEnvVars && !opts.childEnv) {
         Object.entries(opts.claudeEnvVars).forEach(([key, value]) => {
             process.env[key] = value;
         });
     }
-    process.env.DISABLE_AUTOUPDATER = '1';
+    if (!opts.childEnv) process.env.DISABLE_AUTOUPDATER = '1';
 
     // Get initial message
     const initial = await opts.nextMessage();
@@ -132,6 +134,7 @@ export async function claudeRemote(opts: {
     let mode = initial.mode;
     const sdkOptions: Options = {
         cwd: opts.path,
+        env: opts.childEnv,
         resume: startFrom ?? undefined,
         mcpServers: opts.mcpServers,
         permissionMode: initial.mode.permissionMode,
@@ -178,14 +181,59 @@ export async function claudeRemote(opts: {
     });
 
     updateThinking(true);
+
+    // Claude can start a turn on its own after a result, e.g. when a background
+    // task finishes. Keep reading its output while waiting for the next user
+    // message, otherwise that turn is only forwarded once the user sends
+    // something, and every later reply lags one message behind.
+    const iterator = response[Symbol.asyncIterator]();
+    let nextSdkMessage: Promise<IteratorResult<SDKMessage>> | null = null;
+    let nextUserMessage: ReturnType<typeof opts.nextMessage> | null = null;
+    // Cancels a wait that is still pending when we exit, so it cannot take a
+    // message meant for the next launch.
+    const userWait = new AbortController();
     try {
         logger.debug(`[claudeRemote] Starting to iterate over response`);
 
-        for await (const message of response) {
+        while (true) {
+            if (!nextSdkMessage) {
+                nextSdkMessage = iterator.next();
+                nextSdkMessage.catch(() => {});
+            }
+            const event = nextUserMessage
+                ? await Promise.race([
+                    nextSdkMessage.then((result) => ({ source: 'sdk' as const, result })),
+                    nextUserMessage.then((next) => ({ source: 'user' as const, next })),
+                ])
+                : { source: 'sdk' as const, result: await nextSdkMessage };
+
+            // Push next message
+            if (event.source === 'user') {
+                nextUserMessage = null;
+                if (!event.next) {
+                    messages.end();
+                    return;
+                }
+                mode = event.next.mode;
+                updateThinking(true);
+                messages.push({ type: 'user', message: { role: 'user', content: event.next.message } });
+                continue;
+            }
+
+            nextSdkMessage = null;
+            if (event.result.done) {
+                break;
+            }
+            const message = event.result.value;
             logger.debugLargeJson(`[claudeRemote] Message ${message.type}`, message);
 
             // Handle messages
             opts.onMessage(message);
+
+            // Claude is working again, possibly on a turn it started itself
+            if (message.type === 'assistant') {
+                updateThinking(true);
+            }
 
             // Handle special system messages
             if (message.type === 'system' && message.subtype === 'init') {
@@ -198,7 +246,7 @@ export async function claudeRemote(opts: {
                 // Start a watcher for to detect the session id
                 if (systemInit.session_id) {
                     logger.debug(`[claudeRemote] Waiting for session file to be written to disk: ${systemInit.session_id}`);
-                    const projectDir = getProjectPath(opts.path);
+                    const projectDir = getProjectPath(opts.path, opts.childEnv?.CLAUDE_CONFIG_DIR);
                     const found = await awaitFileExist(join(projectDir, `${systemInit.session_id}.jsonl`));
                     logger.debug(`[claudeRemote] Session file found: ${systemInit.session_id} ${found}`);
                     opts.onSessionFound(systemInit.session_id);
@@ -222,14 +270,11 @@ export async function claudeRemote(opts: {
                 // Send ready event
                 opts.onReady();
 
-                // Push next message
-                const next = await opts.nextMessage();
-                if (!next) {
-                    messages.end();
-                    return;
+                // Wait for the next message without blocking the stream
+                if (!nextUserMessage) {
+                    nextUserMessage = opts.nextMessage(userWait.signal);
+                    nextUserMessage.catch(() => {});
                 }
-                mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } });
             }
 
             // Handle tool result
@@ -253,6 +298,10 @@ export async function claudeRemote(opts: {
             throw e;
         }
     } finally {
+        userWait.abort();
+        messages.end();
+        if (opts.stopChildOnReturn) await response.close();
+        iterator.return?.().catch(() => {});
         updateThinking(false);
     }
 }
