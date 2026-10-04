@@ -102,7 +102,7 @@ describe('readClaudeTeamSnapshotForSession', () => {
         const snapshot = readClaudeTeamSnapshotForSession('session-456')
 
         // Regardless of filesystem enumeration order, worker-1 should be active
-        const worker = snapshot?.members.find(m => m.name === 'worker-1')
+        const worker = snapshot?.members?.find(m => m.name === 'worker-1')
         expect(worker?.status).toBe('active')
     })
 })

@@ -16,6 +16,14 @@ const RATE_LIMIT_ROWS: ReadonlyArray<{ key: ClaudeRateLimitType; labelKey: strin
     { key: 'overage', labelKey: 'usage.rateLimit.overage' }
 ]
 
+const USAGE_KIND_LABEL_KEYS: Record<string, string> = {
+    session: 'usage.rateLimit.fiveHour',
+    weekly_all: 'usage.rateLimit.weeklyAll',
+    weekly_sonnet: 'usage.rateLimit.weeklySonnet',
+    weekly_opus: 'usage.rateLimit.weeklyOpus',
+    overage: 'usage.rateLimit.overage'
+}
+
 function formatTokens(value: number): string {
     if (value >= 1_000_000) {
         return `${(value / 1_000_000).toFixed(value < 10_000_000 ? 1 : 0)}M`
@@ -94,9 +102,11 @@ export function UsagePanel(props: UsagePanelProps) {
         return { percentage, text }
     }, [props.contextSize, props.contextWindowTokens])
 
+    const usageLimits = props.rateLimitSnapshot?.usageLimits
+
     const hasAnyRateLimit = useMemo(() => {
         const snap = props.rateLimitSnapshot
-        return Boolean(snap && (snap.five_hour || snap.seven_day || snap.seven_day_opus || snap.seven_day_sonnet || snap.overage))
+        return Boolean(snap && (snap.five_hour || snap.seven_day || snap.seven_day_opus || snap.seven_day_sonnet || snap.overage || snap.usageLimits?.length))
     }, [props.rateLimitSnapshot])
 
     return (
@@ -133,6 +143,24 @@ export function UsagePanel(props: UsagePanelProps) {
 
                 {!hasAnyRateLimit ? (
                     <div className="text-[10px] text-[var(--app-hint)]">{t('usage.noRateLimitData')}</div>
+                ) : usageLimits?.length ? (
+                    usageLimits.map((limit, index) => {
+                        const labelKey = USAGE_KIND_LABEL_KEYS[limit.kind]
+                        const label = limit.kind === 'weekly_scoped' && limit.label
+                            ? t('usage.rateLimit.weeklyModel', { label: limit.label })
+                            : labelKey ? t(labelKey) : (limit.label ?? limit.kind)
+                        const pct = typeof limit.percent === 'number' ? limit.percent : null
+                        const status = limit.severity && limit.severity !== 'normal' ? 'rejected' : 'allowed'
+                        return (
+                            <ProgressRow
+                                key={`${limit.kind}:${limit.label ?? index}`}
+                                label={label}
+                                percentage={pct}
+                                color={utilizationToColorClass((pct ?? 0) / 100, status)}
+                                secondaryText={limit.resetsAt ? formatResetsIn(limit.resetsAt, now, t) : null}
+                            />
+                        )
+                    })
                 ) : (
                     RATE_LIMIT_ROWS.map(({ key, labelKey }) => {
                         const entry = props.rateLimitSnapshot?.[key]
