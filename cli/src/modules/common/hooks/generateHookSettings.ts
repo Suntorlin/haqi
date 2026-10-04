@@ -93,7 +93,7 @@ export function generateHookSettingsFile(
     // explicitly resolve from the CLI package or `@/runtime/assets` (and the
     // rest of the `@/*` aliases) fail before any child-agent event is sent.
     const hookArgs = !isBunCompiled() && args[0]?.endsWith('/src/index.ts')
-        ? ['--cwd', dirname(args[0]), ...args]
+        ? ['--cwd', dirname(dirname(args[0])), ...args]
         : args;
     const hookCommand = shellJoin([command, ...hookArgs]);
 
