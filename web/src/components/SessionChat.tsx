@@ -6,6 +6,7 @@ import type {
     AttachmentMetadata,
     ConversationTurn,
     McpServerSummary,
+    QueueEntry,
     QueueState,
     QueueStatusResponse,
     SessionUsageOverview,
@@ -1040,21 +1041,69 @@ export function SessionChat(props: {
             return
         }
 
-        const result = await props.api.enqueueQueueMessage(props.session.id, payload)
+        const previousQueue = codexQueueState
+            ?? (codexQueueStatus
+                ? { ...codexQueueStatus, entries: [] }
+                : null)
+        const preview = buildQueuePreviewFromText(payload.text) ?? ''
+        const optimisticEntry: QueueEntry = {
+            id: `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            index: previousQueue?.entries.length ?? 0,
+            preview,
+            fullText: payload.text,
+            modeHash: 'optimistic',
+            isolate: true,
+            deferredUserMessage: true,
+            enqueuedAt: Date.now()
+        }
+        const optimisticQueue: QueueState = previousQueue
+            ? {
+                ...previousQueue,
+                pendingCount: previousQueue.pendingCount + 1,
+                inQueue: true,
+                nextPreview: previousQueue.nextPreview ?? preview,
+                entries: [...previousQueue.entries, optimisticEntry]
+            }
+            : {
+                pendingCount: 1,
+                inQueue: true,
+                taskRunning: props.session.thinking,
+                nextPreview: preview,
+                entries: [optimisticEntry]
+            }
+
+        // Render the queued message before waiting for the CLI RPC. The server
+        // response below remains authoritative and replaces this temporary row.
+        applyQueueState(optimisticQueue, { enqueuedText: payload.text })
+        applyCodexQueueSummary(optimisticQueue)
+
+        let result
+        try {
+            result = await props.api.enqueueQueueMessage(props.session.id, payload)
+        } catch (error) {
+            applyQueueState(previousQueue)
+            applyCodexQueueSummary(previousQueue)
+            throw error
+        }
         if (!result.success) {
             const message = result.error ?? t('queue.dialog.actionError')
             setCodexQueueError(message)
             if (result.queue) {
                 applyQueueState(result.queue)
                 applyCodexQueueSummary(result.queue)
+            } else {
+                applyQueueState(previousQueue)
+                applyCodexQueueSummary(previousQueue)
             }
             haptic.notification('error')
             throw new Error(message)
         }
 
         setCodexQueueError(null)
-        applyQueueState(result.queue ?? null, { enqueuedText: payload.text })
-        applyCodexQueueSummary(result.queue ?? null)
+        if (result.queue) {
+            applyQueueState(result.queue, { enqueuedText: payload.text })
+            applyCodexQueueSummary(result.queue)
+        }
 
         if (result.sessionId && result.sessionId !== props.session.id) {
             navigate({
@@ -1062,7 +1111,7 @@ export function SessionChat(props: {
                 params: { sessionId: result.sessionId }
             })
         }
-    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, navigate, applyQueueState])
+    }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, navigate, applyQueueState, codexQueueState, codexQueueStatus, buildQueuePreviewFromText])
 
     const runCodexQueueAction = useCallback(async (
         action: () => Promise<{ success: boolean; error?: string; queue?: QueueState | null }>
