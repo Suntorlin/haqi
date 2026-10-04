@@ -70,7 +70,7 @@ describe('Store schema repair', () => {
         rmSync(dir, { recursive: true, force: true })
     })
 
-    it('runs v8 to v11 migration chain and creates report tables', () => {
+    it('runs the v8+ migration chain to the current version and creates report tables', () => {
         const dir = mkdtempSync(join(tmpdir(), 'haqi-store-repair-'))
         const dbPath = join(dir, 'hapi.db')
 
@@ -87,7 +87,7 @@ describe('Store schema repair', () => {
         const migrated = new Store(dbPath)
         const migratedDb = (migrated as unknown as { db: Database }).db
         const versionRow = migratedDb.prepare('PRAGMA user_version').get() as { user_version: number } | undefined
-        expect(versionRow?.user_version).toBe(11)
+        expect(versionRow?.user_version).toBe(13)
 
         const placeholders = REPORT_TABLES.map(() => '?').join(', ')
         const rows = migratedDb.prepare(

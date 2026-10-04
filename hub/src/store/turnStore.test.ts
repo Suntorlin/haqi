@@ -325,4 +325,76 @@ describe('TurnStore projection', () => {
         expect(turns[0]?.assistantPreview).toBe('The answer is 42.')
         expect(turns[0]?.assistantPreview).not.toContain('Deep reasoning')
     })
+
+    it('keeps tool machinery, model ids, and heartbeats out of previews', () => {
+        const store = new Store(':memory:')
+        const session = store.sessions.getOrCreateSession('turn-preview-garbage', {}, null, 'default')
+
+        store.messages.addMessage(session.id, makeUserMessage('run the build'))
+        // Thinking-only message whose model id sits right next to the content.
+        store.messages.addMessage(session.id, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'assistant',
+                    message: { model: 'claude-fable-5', role: 'assistant', content: [{ type: 'thinking', thinking: 'hmm' }] }
+                }
+            }
+        })
+        // Tool call with a shell command in its input.
+        store.messages.addMessage(session.id, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'assistant',
+                    message: {
+                        model: 'claude-fable-5',
+                        role: 'assistant',
+                        content: [{ type: 'tool_use', id: 'toolu_1', name: 'Bash', input: { command: 'make build' } }]
+                    }
+                }
+            }
+        })
+        // Tool result with shell output.
+        store.messages.addMessage(session.id, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'user',
+                    message: {
+                        role: 'user',
+                        content: [{
+                            type: 'tool_result',
+                            tool_use_id: 'toolu_1',
+                            content: [{ type: 'text', text: '15:- grep output\nShell cwd was reset to /tmp' }]
+                        }]
+                    }
+                }
+            }
+        })
+        // Heartbeat frame for the running tool.
+        store.messages.addMessage(session.id, {
+            role: 'agent',
+            content: {
+                type: 'output',
+                data: {
+                    type: 'tool_progress',
+                    tool_use_id: 'toolu_1-heartbeat-0',
+                    tool_name: 'Bash',
+                    parent_tool_use_id: 'toolu_1',
+                    elapsed_time_seconds: 30,
+                    heartbeat: true
+                }
+            }
+        })
+        store.messages.addMessage(session.id, makeAgentTextMessage('Build finished.'))
+
+        const turns = store.turns.getTurns(session.id, 20)
+        expect(turns).toHaveLength(1)
+        expect(turns[0]?.userPreview).toBe('run the build')
+        expect(turns[0]?.assistantPreview).toBe('Build finished.')
+    })
 })

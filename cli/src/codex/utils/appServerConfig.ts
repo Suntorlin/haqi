@@ -15,13 +15,20 @@ function resolveApprovalPolicy(mode: EnhancedMode): ApprovalPolicy {
     switch (mode.permissionMode) {
         case 'default': return 'untrusted';
         case 'read-only': return 'never';
-        case 'safe-yolo': return 'on-failure';
-        case 'yolo': return 'on-failure';
-        case 'auto-approve': return 'on-failure';
+        case 'safe-yolo': return 'on-request';
+        case 'yolo': return 'never';
+        case 'auto-approve': return 'never';
         default: {
             throw new Error(`Unknown permission mode: ${mode.permissionMode}`);
         }
     }
+}
+
+function normalizeApprovalPolicyOverride(value: CodexCliOverrides['approvalPolicy'] | undefined): ApprovalPolicy | undefined {
+    if (value === 'on-failure') {
+        return 'on-request';
+    }
+    return value;
 }
 
 function resolveSandbox(mode: EnhancedMode): SandboxMode {
@@ -88,7 +95,7 @@ export function buildThreadStartParams(args: {
     const sandbox = resolveSandbox(args.mode);
     const allowCliOverrides = args.mode.permissionMode === 'default';
     const cliOverrides = allowCliOverrides ? args.cliOverrides : undefined;
-    const resolvedApprovalPolicy = cliOverrides?.approvalPolicy ?? approvalPolicy;
+    const resolvedApprovalPolicy = normalizeApprovalPolicyOverride(cliOverrides?.approvalPolicy) ?? approvalPolicy;
     const resolvedSandbox = cliOverrides?.sandbox ?? sandbox;
 
     const config = buildMcpServerConfig(args.mcpServers);
@@ -155,7 +162,7 @@ export function buildTurnStartParams(args: {
     const allowCliOverrides = args.mode?.permissionMode === 'default';
     const cliOverrides = allowCliOverrides ? args.cliOverrides : undefined;
     const approvalPolicy = args.overrides?.approvalPolicy
-        ?? cliOverrides?.approvalPolicy
+        ?? normalizeApprovalPolicyOverride(cliOverrides?.approvalPolicy)
         ?? (args.mode ? resolveApprovalPolicy(args.mode) : undefined);
     if (approvalPolicy) {
         params.approvalPolicy = approvalPolicy;

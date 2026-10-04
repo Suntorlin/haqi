@@ -284,6 +284,10 @@ export function isCodexContent(content: unknown): boolean {
     return isObject(content) && content.type === 'codex'
 }
 
+export function isAgentOutputContent(content: unknown): boolean {
+    return isObject(content) && content.type === 'output'
+}
+
 export function normalizeAgentRecord(
     messageId: string,
     localId: string | null,

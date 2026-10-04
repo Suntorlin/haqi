@@ -1,4 +1,4 @@
-export type ApprovalPolicy = 'untrusted' | 'on-failure' | 'on-request' | 'never';
+export type ApprovalPolicy = 'untrusted' | 'on-request' | 'never';
 export type SandboxMode = 'read-only' | 'workspace-write' | 'danger-full-access';
 export type ServiceTier = 'fast' | 'flex';
 

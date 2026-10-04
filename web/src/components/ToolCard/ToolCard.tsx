@@ -1,4 +1,5 @@
 import type { ToolCallBlock } from '@/chat/types'
+import { TOOL_PROGRESS_STALE_AFTER_MS, type ToolProgressSignal } from '@/chat/toolProgress'
 import type { ApiClient } from '@/api/client'
 import type { SessionMetadataSummary } from '@/types/api'
 import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -83,7 +84,7 @@ function writeDiffDetailToolId(toolId: string | null, mode: 'push' | 'replace'):
     window.history.pushState(window.history.state, '', nextUrl)
 }
 
-function ElapsedView(props: { from: number; active: boolean }) {
+function ElapsedView(props: { from: number; active: boolean; signal?: ToolProgressSignal | null }) {
     const [now, setNow] = useState(() => Date.now())
 
     useEffect(() => {
@@ -97,9 +98,25 @@ function ElapsedView(props: { from: number; active: boolean }) {
     const elapsed = (now - props.from) / 1000
     if (!Number.isFinite(elapsed)) return null
 
+    // Backend heartbeats (tool_progress) prove the tool is really alive; the
+    // local timer alone would keep ticking even if the backend died.
+    const signalAgeMs = props.signal ? now - props.signal.at : null
+    const stale = signalAgeMs !== null && signalAgeMs > TOOL_PROGRESS_STALE_AFTER_MS
+
     return (
-        <span className="font-mono text-xs text-[var(--app-hint)]">
+        <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[var(--app-hint)]">
             {elapsed.toFixed(1)}s
+            {signalAgeMs !== null && !stale && (
+                <span
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                    title={`Backend heartbeat ${Math.max(0, Math.round(signalAgeMs / 1000))}s ago`}
+                />
+            )}
+            {stale && (
+                <span className="text-amber-500" title="The backend stopped sending tool heartbeats">
+                    no signal {Math.round(signalAgeMs! / 1000)}s
+                </span>
+            )}
         </span>
     )
 }
@@ -446,6 +463,18 @@ function ToolCardInner(props: ToolCardProps) {
     const runningAgentNames = formatRunningAgentNames(taskRunningAgents)
     const taskSummary = renderTaskSummary(props.block, props.metadata)
     const runningFrom = props.block.tool.startedAt ?? props.block.tool.createdAt
+    const toolProgressMap = chatContext.toolProgress ?? null
+    let progressSignal = toolProgressMap?.get(props.block.tool.id) ?? null
+    if (toolProgressMap) {
+        // Task cards: a heartbeat from any child tool proves the subagent is alive.
+        for (const child of props.block.children) {
+            if (child.kind !== 'tool-call') continue
+            const childSignal = toolProgressMap.get(child.tool.id)
+            if (childSignal && (!progressSignal || childSignal.at > progressSignal.at)) {
+                progressSignal = childSignal
+            }
+        }
+    }
     const showInline = !presentation.minimal && toolName !== 'Task' && !isTurnChangesTool
     const CompactToolView = showInline ? getToolViewComponent(toolName) : null
     const FullToolView = getToolFullViewComponent(toolName)
@@ -616,7 +645,7 @@ function ToolCardInner(props: ToolCardProps) {
                     <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">
                         {toolTitle}
                     </span>
-                    <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                    <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                 </div>
                 {compactDetail ? (
                     <div className="mt-1 pl-4 text-[11px] text-[var(--app-hint)]">
@@ -967,7 +996,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     </div>
 
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                                        <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                                         <span className={statusColorClass(props.block.tool.state)}>
                                             <StatusIcon state={props.block.tool.state} />
                                         </span>
@@ -1012,7 +1041,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     </div>
 
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                                        <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                                         <span className={statusColorClass(props.block.tool.state)}>
                                             <StatusIcon state={props.block.tool.state} />
                                         </span>
@@ -1057,7 +1086,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         </div>
 
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} />
+                                            <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                                             <span className={statusColorClass(props.block.tool.state)}>
                                                 <StatusIcon state={props.block.tool.state} />
                                             </span>

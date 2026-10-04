@@ -180,10 +180,62 @@ function extractTextSnippet(value: unknown, depth: number = 0): string | null {
 
 function extractSnippetFromMessageContent(content: unknown): string | null {
     const envelope = unwrapRoleWrappedRecordEnvelope(content)
-    if (envelope) {
-        return extractTextSnippet(envelope.content)
+    const value = envelope ? envelope.content : content
+    const outputSnippet = extractClaudeOutputSnippet(value)
+    if (outputSnippet !== undefined) {
+        return outputSnippet
     }
-    return extractTextSnippet(content)
+    return extractTextSnippet(value)
+}
+
+// Claude SDK passthrough records ({ type: 'output', data }) carry a lot of
+// machinery: tool results, tool_progress heartbeats, model ids, system frames.
+// Blindly crawling them for strings fills turn previews with shell output and
+// "claude-*" model names, so only assistant text blocks may contribute.
+// Returns undefined for non-output content so callers fall back to the
+// generic crawler.
+function extractClaudeOutputSnippet(value: unknown): string | null | undefined {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        return undefined
+    }
+    const record = value as Record<string, unknown>
+    if (record.type !== 'output') {
+        return undefined
+    }
+
+    const dataValue = record.data
+    if (!dataValue || typeof dataValue !== 'object' || Array.isArray(dataValue)) {
+        return null
+    }
+    const data = dataValue as Record<string, unknown>
+    if (data.isMeta || data.isCompactSummary || data.type !== 'assistant') {
+        return null
+    }
+
+    const message = data.message
+    if (!message || typeof message !== 'object' || Array.isArray(message)) {
+        return null
+    }
+    const blocks = (message as Record<string, unknown>).content
+    if (typeof blocks === 'string') {
+        return normalizePreviewText(blocks)
+    }
+    if (!Array.isArray(blocks)) {
+        return null
+    }
+    for (const block of blocks) {
+        if (!block || typeof block !== 'object' || Array.isArray(block)) {
+            continue
+        }
+        const blockRecord = block as Record<string, unknown>
+        if (blockRecord.type === 'text' && typeof blockRecord.text === 'string') {
+            const snippet = normalizePreviewText(blockRecord.text)
+            if (snippet) {
+                return snippet
+            }
+        }
+    }
+    return null
 }
 
 function extractCodexFinalAssistantSnippet(content: unknown): string | null | undefined {

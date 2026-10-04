@@ -123,6 +123,26 @@ export class SDKToLogConverter {
     convert(sdkMessage: SDKMessage): RawJSONLines | null {
         const uuid = randomUUID()
         const timestamp = new Date().toISOString()
+        // Progress/heartbeat events (Bash heartbeats etc.) carry the RUNNING
+        // TOOL's id in parent_tool_use_id, not a Task sidechain id. Pass them
+        // through without threading them into the parent-uuid chains, so they
+        // never become parents of real messages and cannot pollute sidechain
+        // tracking.
+        if ((sdkMessage as any).type === 'tool_progress') {
+            return {
+                parentUuid: this.lastUuid,
+                isSidechain: false,
+                userType: 'external' as const,
+                cwd: this.context.cwd,
+                sessionId: this.context.sessionId,
+                version: this.context.version,
+                gitBranch: this.context.gitBranch,
+                uuid,
+                timestamp,
+                ...(sdkMessage as any),
+                type: 'tool_progress'
+            } as any
+        }
         let parentUuid = this.lastUuid;
         let isSidechain = false;
         if (sdkMessage.parent_tool_use_id) {

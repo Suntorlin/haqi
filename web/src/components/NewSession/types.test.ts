@@ -6,9 +6,11 @@ describe('NewSession model options', () => {
         const claudeValues = MODEL_OPTIONS.claude.map((option) => option.value)
         expect(claudeValues).toEqual([
             'auto',
+            'claude-fable-5',
             'sonnet',
             'opus',
             'haiku',
+            'claude-opus-5-5',
             'claude-sonnet-4-6',
             'claude-opus-4-6',
             'claude-haiku-4-5-20251001'
@@ -17,6 +19,12 @@ describe('NewSession model options', () => {
 
     it('includes latest Codex model presets', () => {
         const codexValues = MODEL_OPTIONS.codex.map((option) => option.value)
+        expect(codexValues).toContain('gpt-6-astra')
+        expect(codexValues).toContain('gpt-6-sol')
+        expect(codexValues).toContain('gpt-6-luna')
+        expect(codexValues).toContain('gpt-5.6-sol')
+        expect(codexValues).toContain('gpt-5.6-terra')
+        expect(codexValues).toContain('gpt-5.6-luna')
         expect(codexValues).toContain('gpt-5.5')
         expect(codexValues).toContain('gpt-5.4')
         expect(codexValues).toContain('gpt-5.4-mini')
@@ -51,5 +59,7 @@ it('filters model options by agent flavor', () => {
 
     expect(claudeValues.every((value) => value === 'auto' || value === 'sonnet' || value === 'opus' || value === 'haiku' || value.startsWith('claude-') || value.startsWith('us.anthropic.') || value.startsWith('global.anthropic.'))).toBe(true)
     expect(claudeValues).not.toContain('gpt-5.5')
+    expect(claudeValues).toContain('claude-opus-5-5')
+    expect(codexValues).toContain('gpt-6-luna')
     expect(codexValues.filter((value) => value === 'gpt-5.5')).toHaveLength(1)
 })

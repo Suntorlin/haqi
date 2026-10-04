@@ -455,6 +455,55 @@ describe('SDKToLogConverter', () => {
         })
     })
 
+    describe('Tool progress messages', () => {
+        it('passes tool_progress through without touching the parent chain', () => {
+            const assistant: SDKAssistantMessage = {
+                type: 'assistant',
+                message: {
+                    role: 'assistant',
+                    content: [{ type: 'tool_use', id: 'toolu_bash', name: 'Bash', input: {} }]
+                }
+            }
+            const assistantLog = converter.convert(assistant)
+
+            const heartbeat = (n: number): SDKMessage => ({
+                type: 'tool_progress',
+                tool_use_id: `toolu_bash-heartbeat-${n}`,
+                tool_name: 'Bash',
+                parent_tool_use_id: 'toolu_bash',
+                elapsed_time_seconds: (n + 1) * 30,
+                heartbeat: true
+            } as any)
+
+            const hb0 = converter.convert(heartbeat(0))
+            const hb1 = converter.convert(heartbeat(1))
+
+            expect(hb0).toMatchObject({
+                type: 'tool_progress',
+                isSidechain: false,
+                parentUuid: assistantLog?.uuid,
+                tool_use_id: 'toolu_bash-heartbeat-0',
+                elapsed_time_seconds: 30,
+                heartbeat: true
+            })
+            // Heartbeats must not become parents of anything, not even of
+            // the next heartbeat.
+            expect(hb1?.parentUuid).toBe(assistantLog?.uuid)
+
+            // The next real message still chains to the assistant message.
+            const toolResult: SDKUserMessage = {
+                type: 'user',
+                message: {
+                    role: 'user',
+                    content: [{ type: 'tool_result', tool_use_id: 'toolu_bash', content: 'ok' }]
+                }
+            }
+            const resultLog = converter.convert(toolResult)
+            expect(resultLog?.parentUuid).toBe(assistantLog?.uuid)
+            expect(resultLog?.isSidechain).toBe(false)
+        })
+    })
+
     describe('Tool results with mode', () => {
         it('should add mode to tool result when available in responses', () => {
             const responses = new Map<string, { approved: boolean; mode?: ClaudePermissionMode; reason?: string }>()

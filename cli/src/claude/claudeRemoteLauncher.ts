@@ -347,7 +347,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                         isAborted: (toolCallId: string) => {
                             return permissionHandler.isAborted(toolCallId);
                         },
-                        nextMessage: async () => {
+                        nextMessage: async (signal?: AbortSignal) => {
                             if (pending) {
                                 let p = pending;
                                 pending = null;
@@ -364,7 +364,9 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                                 };
                             }
 
-                            let msg = await session.queue.waitForMessagesAndGetAsString(controller.signal);
+                            let msg = await session.queue.waitForMessagesAndGetAsString(
+                                signal ? AbortSignal.any([controller.signal, signal]) : controller.signal
+                            );
 
                             if (msg) {
                                 if ((modeHash && msg.hash !== modeHash) || msg.isolate) {

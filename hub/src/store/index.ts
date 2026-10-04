@@ -50,7 +50,7 @@ export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
 
-const SCHEMA_VERSION: number = 12
+const SCHEMA_VERSION: number = 13
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -227,6 +227,13 @@ export class Store {
         if (currentVersion === 11 && SCHEMA_VERSION >= 12) {
             this.migrateFromV11ToV12()
             this.setUserVersion(12)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 12 && SCHEMA_VERSION >= 13) {
+            this.migrateFromV12ToV13()
+            this.setUserVersion(13)
             this.initSchema()
             return
         }
@@ -1046,6 +1053,22 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v11->v12 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV12ToV13(): void {
+        // Turn previews before v13 were built by blindly crawling message
+        // JSON, which pulled in tool output and model ids. Rebuild them all
+        // with the strict assistant-text-only extractor.
+        try {
+            this.db.exec('BEGIN')
+            const turnStore = new TurnStore(this.db)
+            turnStore.rebuildAllTurns()
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite conversation turn preview rebuild failed during v12->v13 migration: ${message}`)
         }
     }
 

@@ -27,7 +27,7 @@ export async function claudeRemote(opts: {
     canCallTool: (toolName: string, input: unknown, mode: EnhancedMode, options: { signal: AbortSignal }) => Promise<PermissionResult>,
 
     // Dynamic parameters
-    nextMessage: () => Promise<{ message: string, mode: EnhancedMode } | null>,
+    nextMessage: (signal?: AbortSignal) => Promise<{ message: string, mode: EnhancedMode } | null>,
     onReady: () => void,
     isAborted: (toolCallId: string) => boolean,
 
@@ -178,14 +178,68 @@ export async function claudeRemote(opts: {
     });
 
     updateThinking(true);
+
+    // Claude can start a turn on its own after a result, e.g. when a background
+    // task finishes. Keep reading its output while waiting for the next user
+    // message, otherwise that turn is only forwarded once the user sends
+    // something, and every later reply lags one message behind.
+    const iterator = response[Symbol.asyncIterator]();
+    let nextSdkMessage: Promise<IteratorResult<SDKMessage>> | null = null;
+    let nextUserMessage: ReturnType<typeof opts.nextMessage> | null = null;
+    // Cancels a wait that is still pending when we exit, so it cannot take a
+    // message meant for the next launch.
+    const userWait = new AbortController();
+    // Set when the user queue asks us to stop (mode change / shutdown) while
+    // Claude is mid-turn: finish the running turn first, then exit.
+    let exitAfterTurn = false;
     try {
         logger.debug(`[claudeRemote] Starting to iterate over response`);
 
-        for await (const message of response) {
+        while (true) {
+            if (!nextSdkMessage) {
+                nextSdkMessage = iterator.next();
+                nextSdkMessage.catch(() => {});
+            }
+            const event = nextUserMessage
+                ? await Promise.race([
+                    nextSdkMessage.then((result) => ({ source: 'sdk' as const, result })),
+                    nextUserMessage.then((next) => ({ source: 'user' as const, next })),
+                ])
+                : { source: 'sdk' as const, result: await nextSdkMessage };
+
+            // Push next message
+            if (event.source === 'user') {
+                nextUserMessage = null;
+                if (!event.next) {
+                    if (thinking) {
+                        // A relaunch is pending, but killing the stream now
+                        // would abort the turn Claude is still working on.
+                        exitAfterTurn = true;
+                        continue;
+                    }
+                    messages.end();
+                    return;
+                }
+                mode = event.next.mode;
+                updateThinking(true);
+                messages.push({ type: 'user', message: { role: 'user', content: event.next.message } });
+                continue;
+            }
+
+            nextSdkMessage = null;
+            if (event.result.done) {
+                break;
+            }
+            const message = event.result.value;
             logger.debugLargeJson(`[claudeRemote] Message ${message.type}`, message);
 
             // Handle messages
             opts.onMessage(message);
+
+            // Claude is working again, possibly on a turn it started itself
+            if (message.type === 'assistant') {
+                updateThinking(true);
+            }
 
             // Handle special system messages
             if (message.type === 'system' && message.subtype === 'init') {
@@ -219,17 +273,20 @@ export async function claudeRemote(opts: {
                     isCompactCommand = false;
                 }
 
-                // Send ready event
-                opts.onReady();
-
-                // Push next message
-                const next = await opts.nextMessage();
-                if (!next) {
+                if (exitAfterTurn) {
+                    logger.debug('[claudeRemote] Turn finished with a pending relaunch, exiting');
                     messages.end();
                     return;
                 }
-                mode = next.mode;
-                messages.push({ type: 'user', message: { role: 'user', content: next.message } });
+
+                // Send ready event
+                opts.onReady();
+
+                // Wait for the next message without blocking the stream
+                if (!nextUserMessage) {
+                    nextUserMessage = opts.nextMessage(userWait.signal);
+                    nextUserMessage.catch(() => {});
+                }
             }
 
             // Handle tool result
@@ -253,6 +310,8 @@ export async function claudeRemote(opts: {
             throw e;
         }
     } finally {
+        userWait.abort();
+        iterator.return?.().catch(() => {});
         updateThinking(false);
     }
 }
