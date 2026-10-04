@@ -9,6 +9,7 @@ import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMe
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
+import type { ToolProgressSignal } from '@/chat/toolProgress'
 import { useTranslation } from '@/lib/use-translation'
 
 function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void }) {
@@ -118,6 +119,7 @@ export function HappyThread(props: {
     messagesVersion: number
     forceScrollToken: number
     density: SessionListDensity
+    toolProgress?: ReadonlyMap<string, ToolProgressSignal> | null
 }) {
     const viewportRef = useRef<HTMLDivElement | null>(null)
     const {
@@ -156,7 +158,8 @@ export function HappyThread(props: {
             disabled: props.disabled,
             density: props.density,
             onRefresh: props.onRefresh,
-            onRetryMessage: props.onRetryMessage
+            onRetryMessage: props.onRetryMessage,
+            toolProgress: props.toolProgress
         }}>
             <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport

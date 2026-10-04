@@ -17,6 +17,7 @@ import type {
 import type { ChatBlock, NormalizedMessage } from '@/chat/types'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { normalizeDecryptedMessage } from '@/chat/normalize'
+import { extractToolProgress } from '@/chat/toolProgress'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
 import { HappyComposer, type CodexSendMode } from '@/components/AssistantChat/HappyComposer'
@@ -678,6 +679,11 @@ export function SessionChat(props: {
         }
         return normalized
     }, [props.messages, props.session.id, props.viewMode])
+
+    const toolProgress = useMemo(
+        () => (props.viewMode === 'brief' ? null : extractToolProgress(props.messages)),
+        [props.messages, props.viewMode]
+    )
 
     const latestCodexPlan = useMemo(
         () => extractLatestCodexPlan(normalizedMessages),
@@ -1521,6 +1527,7 @@ export function SessionChat(props: {
                             messagesVersion={props.messagesVersion}
                             forceScrollToken={forceScrollToken}
                             density={props.density ?? 'comfortable'}
+                            toolProgress={toolProgress}
                         />
                     )}
 
@@ -1528,6 +1535,7 @@ export function SessionChat(props: {
                         <LiveActivityBar
                             messages={props.messages}
                             visible={props.session.thinking === true}
+                            toolProgress={toolProgress}
                         />
                     )}
 

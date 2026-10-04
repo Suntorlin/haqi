@@ -192,6 +192,9 @@ export async function claudeRemote(opts: {
     // Cancels a wait that is still pending when we exit, so it cannot take a
     // message meant for the next launch.
     const userWait = new AbortController();
+    // Set when the user queue asks us to stop (mode change / shutdown) while
+    // Claude is mid-turn: finish the running turn first, then exit.
+    let exitAfterTurn = false;
     try {
         logger.debug(`[claudeRemote] Starting to iterate over response`);
 
@@ -211,6 +214,12 @@ export async function claudeRemote(opts: {
             if (event.source === 'user') {
                 nextUserMessage = null;
                 if (!event.next) {
+                    if (thinking) {
+                        // A relaunch is pending, but killing the stream now
+                        // would abort the turn Claude is still working on.
+                        exitAfterTurn = true;
+                        continue;
+                    }
                     messages.end();
                     return;
                 }
@@ -265,6 +274,12 @@ export async function claudeRemote(opts: {
                         opts.onCompletionEvent('Compaction completed');
                     }
                     isCompactCommand = false;
+                }
+
+                if (exitAfterTurn) {
+                    logger.debug('[claudeRemote] Turn finished with a pending relaunch, exiting');
+                    messages.end();
+                    return;
                 }
 
                 // Send ready event

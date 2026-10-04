@@ -27,7 +27,7 @@ const MODEL_ENV_NAMES: Record<'claude' | 'codex', string> = {
 
 const DEFAULT_MODEL_CANDIDATES: Record<'claude' | 'codex', string[]> = {
     claude: ['claude-sonnet-4-20250514', 'claude-sonnet-4', 'claude-3-7-sonnet'],
-    codex: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5', 'gpt-5.4', 'gpt-5-codex', 'gpt-5.1-codex', 'gpt-5', 'gpt-4.1']
+    codex: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.6', 'gpt-5.5', 'gpt-5.4', 'gpt-5-codex', 'gpt-5.1-codex', 'gpt-5', 'gpt-4.1']
 }
 
 const MODEL_PROVIDER_PREFIXES: Record<'claude' | 'codex', string[]> = {

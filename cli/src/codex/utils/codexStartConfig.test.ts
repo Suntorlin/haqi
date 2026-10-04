@@ -111,6 +111,25 @@ describe('buildCodexStartConfig', () => {
         expect(config.config).not.toHaveProperty('model_reasoning_effort');
     });
 
+    it('keeps asking on request for safe-yolo and legacy on-failure overrides', () => {
+        const safeYolo = buildCodexStartConfig({
+            message: 'hello',
+            mode: { permissionMode: 'safe-yolo' },
+            first: false,
+            mcpServers
+        });
+        const legacy = buildCodexStartConfig({
+            message: 'hello',
+            mode: { permissionMode: 'default' },
+            first: false,
+            mcpServers,
+            cliOverrides: { approvalPolicy: 'on-failure' }
+        });
+
+        expect(safeYolo['approval-policy']).toBe('on-request');
+        expect(legacy['approval-policy']).toBe('on-request');
+    });
+
     it('enables plan tool when collaboration mode is plan', () => {
         const config = buildCodexStartConfig({
             message: 'hello',

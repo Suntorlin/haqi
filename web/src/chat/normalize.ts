@@ -2,7 +2,7 @@ import { unwrapRoleWrappedRecordEnvelope } from '@hapi/protocol/messages'
 import { safeStringify } from '@hapi/protocol'
 import type { DecryptedMessage } from '@/types/api'
 import type { NormalizedMessage } from '@/chat/types'
-import { isCodexContent, isSkippableAgentContent, normalizeAgentRecord } from '@/chat/normalizeAgent'
+import { isAgentOutputContent, isCodexContent, isSkippableAgentContent, normalizeAgentRecord } from '@/chat/normalizeAgent'
 import { normalizeUserRecord } from '@/chat/normalizeUser'
 
 export function normalizeDecryptedMessage(message: DecryptedMessage): NormalizedMessage | null {
@@ -42,6 +42,12 @@ export function normalizeDecryptedMessage(message: DecryptedMessage): Normalized
         }
         const normalized = normalizeAgentRecord(message.id, message.localId, message.createdAt, record.content, record.meta)
         if (!normalized && isCodexContent(record.content)) {
+            return null
+        }
+        if (!normalized && isAgentOutputContent(record.content)) {
+            // Unhandled SDK passthrough types (tool_progress heartbeats,
+            // command_lifecycle, …) are internal signals; never render them
+            // as raw JSON text bubbles.
             return null
         }
         return normalized

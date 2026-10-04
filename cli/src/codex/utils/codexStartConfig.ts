@@ -8,7 +8,7 @@ function resolveApprovalPolicy(mode: EnhancedMode): CodexSessionConfig['approval
     switch (mode.permissionMode) {
         case 'default': return 'untrusted';
         case 'read-only': return 'never';
-        case 'safe-yolo': return 'never';
+        case 'safe-yolo': return 'on-request';
         case 'yolo': return 'never';
         case 'auto-approve': return 'never';
         default: {
@@ -20,7 +20,9 @@ function resolveApprovalPolicy(mode: EnhancedMode): CodexSessionConfig['approval
 function normalizeApprovalPolicy(
     value: CodexCliOverrides['approvalPolicy'] | CodexSessionConfig['approval-policy'] | undefined
 ): CodexSessionConfig['approval-policy'] | undefined {
-    return value === 'on-failure' ? 'never' : value;
+    // 'on-failure' is no longer accepted; keep asking on request rather than
+    // silently turning approvals off.
+    return value === 'on-failure' ? 'on-request' : value;
 }
 
 function resolveSandbox(mode: EnhancedMode): CodexSessionConfig['sandbox'] {
