@@ -94,11 +94,21 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
 
         const session = this.session;
         const messageBuffer = this.messageBuffer;
-        const managed = process.env.HAPI_CLAUDE_ACCOUNT_HANDOFF === '1'
-            ? new ManagedClaudeRemote(await loadAccounts(configuration.happyHomeDir))
-            : null;
+        let managed: ManagedClaudeRemote | null = null;
+        if (process.env.HAPI_CLAUDE_ACCOUNT_HANDOFF === '1') {
+            const config = await loadAccounts(configuration.happyHomeDir);
+            const selected = process.env.HAPI_CLAUDE_ACCOUNT || config.initialAccount;
+            if (!config.profiles.some(p => p.id === selected && p.enabled !== false)) throw new Error('所选账号不存在或已停用');
+            managed = new ManagedClaudeRemote({ ...config, initialAccount: selected,
+                autoSwitch: process.env.HAPI_CLAUDE_ACCOUNT_AUTO ? process.env.HAPI_CLAUDE_ACCOUNT_AUTO === '1' : config.autoSwitch });
+        }
         const runRemote = (options: Parameters<typeof claudeRemote>[0]) => managed
-            ? managed.run(options, () => session.thinking || !!session.getRunningAgent())
+            ? managed.run({ ...options, onAccountState: (state) => {
+                session.client.updateMetadata(metadata => ({ ...metadata,
+                    claudeAccount: state,
+                    rateLimitSnapshot: metadata.claudeAccount?.id === state.id ? metadata.rateLimitSnapshot : undefined
+                }));
+            } }, () => session.thinking || !!session.getRunningAgent())
             : claudeRemote(options);
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {

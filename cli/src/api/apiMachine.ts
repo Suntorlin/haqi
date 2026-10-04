@@ -4,6 +4,8 @@
 
 import { io, type Socket } from 'socket.io-client'
 import { stat } from 'node:fs/promises'
+import { readPool, savePool, checkPoolAccount } from '@/claude/accounts/registry'
+import { ClaudeAccountSelectionSchema } from '@hapi/protocol/schemas'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
@@ -91,6 +93,9 @@ export class ApiMachineClient {
         })
 
         registerCommonHandlers(this.rpcHandlerManager, process.cwd())
+        this.rpcHandlerManager.registerHandler('claude-accounts-get', () => readPool(configuration.happyHomeDir))
+        this.rpcHandlerManager.registerHandler('claude-accounts-save', (input: unknown) => savePool(configuration.happyHomeDir, input))
+        this.rpcHandlerManager.registerHandler('claude-accounts-check', (input: unknown) => checkPoolAccount(configuration.happyHomeDir, input))
 
         this.rpcHandlerManager.registerHandler<PathExistsRequest, PathExistsResponse>('path-exists', async (params) => {
             const rawPaths = Array.isArray(params?.paths) ? params.paths : []
@@ -167,7 +172,9 @@ export class ApiMachineClient {
                 throw new Error('Directory is required')
             }
 
+            const claudeAccount = params.claudeAccount === undefined ? undefined : ClaudeAccountSelectionSchema.parse(params.claudeAccount)
             const result = await spawnSession({
+                claudeAccount,
                 directory,
                 sessionId,
                 resumeSessionId,

@@ -27,6 +27,7 @@ import { CliThread } from '@/components/AssistantChat/CliThread'
 import { LiveActivityBar } from '@/components/AssistantChat/LiveActivityBar'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
+import { AccountQuota } from '@/components/ClaudeAccounts/Quota'
 import { SessionHeader } from '@/components/SessionHeader'
 import { TeamPanel } from '@/components/TeamPanel'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -1350,6 +1351,13 @@ export function SessionChat(props: {
                 api={props.api}
                 onSessionDeleted={props.onBack}
             />
+
+            {props.session.metadata?.flavor === 'claude' && <div className="border-b border-[var(--app-border)] px-4 py-2 text-xs" aria-label="当前 Claude 账号">
+                {props.session.metadata.claudeAccount ? <>
+                    <span>当前账号：{props.session.metadata.claudeAccount.email} · {props.session.metadata.claudeAccount.automatic ? '自动切换' : '固定账号'} · {{ verified: '身份已核验', switching: '正在停止旧进程', handoff: '正在接管上下文', active: '使用中', blocked: '需要处理' }[props.session.metadata.claudeAccount.status]}</span>
+                    <AccountQuota snapshot={props.session.metadata.rateLimitSnapshot} />
+                </> : <span className="text-[var(--app-hint)]">当前账号：机器默认登录（未纳入账号池，身份未知）</span>}
+            </div>}
 
             {(props.session.teamState || (props.session.agentState?.runningAgents?.length ?? 0) > 0 || props.session.agentState?.runningAgent) && (
                 <TeamPanel

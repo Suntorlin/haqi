@@ -1,3 +1,4 @@
+import type { ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
 import type {
     AttachmentMetadata,
     AuthResponse,
@@ -929,6 +930,15 @@ export class ApiClient {
         )
     }
 
+    async getClaudeAccounts(machineId: string): Promise<ClaudeAccountPoolView> {
+        return this.request(`/api/machines/${encodeURIComponent(machineId)}/claude-accounts`)
+    }
+    async saveClaudeAccounts(machineId: string, data: Pick<ClaudeAccountPoolView, 'pool' | 'revision'>): Promise<ClaudeAccountPoolView> {
+        return this.request(`/api/machines/${encodeURIComponent(machineId)}/claude-accounts/save`, { method: 'POST', body: JSON.stringify(data) })
+    }
+    async checkClaudeAccount(machineId: string, id: string): Promise<{ email: string; checkedAt: number }> {
+        return this.request(`/api/machines/${encodeURIComponent(machineId)}/claude-accounts/check`, { method: 'POST', body: JSON.stringify({ id }) })
+    }
     async spawnSession(
         machineId: string,
         directory: string,
@@ -939,11 +949,12 @@ export class ApiClient {
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
-        previewUrl?: string
+        previewUrl?: string,
+        claudeAccount?: ClaudeAccountSelection
     ): Promise<SpawnResponse> {
         return await this.request<SpawnResponse>(`/api/machines/${encodeURIComponent(machineId)}/spawn`, {
             method: 'POST',
-            body: JSON.stringify({ directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, previewUrl })
+            body: JSON.stringify({ directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, previewUrl, claudeAccount })
         })
     }
 

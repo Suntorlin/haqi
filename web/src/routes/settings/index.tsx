@@ -1,3 +1,4 @@
+import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
 import { useState, useRef, useEffect, useMemo, useCallback, useId, type ChangeEvent, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
@@ -1051,6 +1052,7 @@ export default function SettingsPage() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
+                    <ClaudeAccountsSettings api={api} machines={machines} />
                     <SettingsSection
                         title={t('settings.group.general.title')}
                         description={t('settings.group.general.description')}

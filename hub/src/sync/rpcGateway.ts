@@ -1,3 +1,4 @@
+import type { ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
 import type {
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
@@ -180,6 +181,10 @@ export class RpcGateway {
         await this.sessionRpc(sessionId, 'killSession', {})
     }
 
+    async claudeAccounts(machineId: string, operation: 'get' | 'save' | 'check', payload: unknown = {}): Promise<unknown> {
+        return this.machineRpc(machineId, `claude-accounts-${operation}`, payload)
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,
@@ -190,13 +195,14 @@ export class RpcGateway {
         yolo?: boolean,
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
-        resumeSessionId?: string
+        resumeSessionId?: string,
+        claudeAccount?: ClaudeAccountSelection
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         try {
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, resumeSessionId }
+                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, resumeSessionId, claudeAccount }
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>

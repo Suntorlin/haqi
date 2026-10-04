@@ -8,7 +8,8 @@ const ProfileSchema = z.object({
     email: z.email(),
     configDir: z.string().refine(isAbsolute),
     // Same trust group explicitly authorizes sharing this conversation's context.
-    trustGroup: z.string().min(1).max(80)
+    trustGroup: z.string().min(1).max(80),
+    enabled: z.boolean().optional()
 }).strict();
 export const AccountsSchema = z.object({
     version: z.literal(1),

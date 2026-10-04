@@ -105,7 +105,7 @@ export class AccountHandoff {
 
     automaticTarget(): AccountProfile | undefined {
         if (!this.automatic || !this.quotaRejected || this.ledger.unsafeReason()) return undefined;
-        return this.config.profiles.find(p => p.trustGroup === this.current.trustGroup && !this.exhausted.has(p.id) && !this.visited.has(p.id));
+        return this.config.profiles.find(p => p.enabled !== false && p.trustGroup === this.current.trustGroup && !this.exhausted.has(p.id) && !this.visited.has(p.id));
     }
 
     get waitingForQuota(): boolean { return this.quotaRejected; }
@@ -113,17 +113,17 @@ export class AccountHandoff {
     async prepare(id: string, cwd: string, isBusy: () => boolean, verify: (profile: AccountProfile) => Promise<void>): Promise<{ profile: AccountProfile; prompt: string }> {
         if (this.switching) throw new Error('账号切换已经在进行中');
         const profile = this.config.profiles.find(p => p.id === id);
-        if (!profile) throw new Error('账号不存在');
+        if (!profile || profile.enabled === false) throw new Error('账号不存在或已停用');
         if (profile.id === this.current.id) throw new Error('已经使用这个账号');
         if (profile.trustGroup !== this.current.trustGroup) throw new Error('禁止跨授权组迁移会话上下文');
         if (isBusy()) throw new Error('会话仍在执行，暂不能切换账号');
-        const prompt = this.ledger.build(cwd);
+        this.ledger.build(cwd);
         this.switching = true;
         try {
             await verify(profile);
             // A background turn can start while the read-only identity check is pending.
             if (isBusy() || this.ledger.unsafeReason()) throw new Error('身份检查期间会话重新变为忙碌，切换已取消');
-            return { profile, prompt };
+            return { profile, prompt: this.ledger.build(cwd) };
         } finally { this.switching = false; }
     }
 
