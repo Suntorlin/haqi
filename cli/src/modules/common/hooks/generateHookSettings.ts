@@ -1,8 +1,9 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { writeFileSync, mkdirSync, unlinkSync, existsSync } from 'node:fs';
 import { configuration } from '@/configuration';
 import { logger } from '@/ui/logger';
 import { getHappyCliCommand } from '@/utils/spawnHappyCLI';
+import { isBunCompiled } from '@/projectPath';
 import { CLAUDE_HOOK_EVENTS, type ClaudeHookEventName } from '@/claude/hooks';
 
 type HookCommandConfig = {
@@ -87,7 +88,14 @@ export function generateHookSettingsFile(
         '--token',
         token
     ]);
-    const hookCommand = shellJoin([command, ...args]);
+    // Bun resolves tsconfig path aliases from its working directory. Claude
+    // runs hooks with the user's project as cwd, so source-mode hooks must
+    // explicitly resolve from the CLI package or `@/runtime/assets` (and the
+    // rest of the `@/*` aliases) fail before any child-agent event is sent.
+    const hookArgs = !isBunCompiled() && args[0]?.endsWith('/src/index.ts')
+        ? ['--cwd', dirname(args[0]), ...args]
+        : args;
+    const hookCommand = shellJoin([command, ...hookArgs]);
 
     const settings = buildHookSettings(hookCommand, options.hooksEnabled);
 

@@ -15,6 +15,11 @@ export class ManagedClaudeRemote {
     readonly handoff: AccountHandoff;
     private initialized = false;
     private poisoned = false;
+    // The outer launcher creates a new `claudeRemote` after every abort. A
+    // resumed transcript needs one synthetic continuation prompt only on the
+    // first launch; replaying it here makes Abort immediately start the turn
+    // again.
+    private hasLaunched = false;
 
     constructor(config: AccountsConfig, private readonly verify = verifyAccount) {
         this.handoff = new AccountHandoff(config);
@@ -39,7 +44,7 @@ export class ManagedClaudeRemote {
         let sessionId = opts.sessionId;
         let lastMode: EnhancedMode | null = null;
         let quotaNoticeSent = false;
-        const resumeRequested = Boolean(sessionId || opts.claudeArgs?.some((arg, index) =>
+        const resumeRequested = !this.hasLaunched && Boolean(sessionId || opts.claudeArgs?.some((arg, index) =>
             ['--resume', '--continue', '-c', '-r'].includes(arg) && (arg !== '--resume' || Boolean(opts.claudeArgs?.[index + 1]))
         ));
         let resumeSeedConsumed = false;
@@ -57,6 +62,7 @@ export class ManagedClaudeRemote {
                 report(`正在停止旧进程，准备由 ${prepared.profile.email} 接管当前 HAQI 会话`);
             };
             try {
+                this.hasLaunched = true;
                 await claudeRemote({
                     ...opts,
                     sessionId,
