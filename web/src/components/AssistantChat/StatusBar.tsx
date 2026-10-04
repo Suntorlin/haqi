@@ -160,7 +160,9 @@ export function StatusBar(props: {
     const showUsageButton = props.agentFlavor === 'claude'
         && (typeof props.contextSize === 'number' || Boolean(props.rateLimitSnapshot))
 
+    const sessionPercent = props.rateLimitSnapshot?.usageLimits?.find((limit) => limit.kind === 'session')?.percent
     const fiveHourUtilization = props.rateLimitSnapshot?.five_hour?.utilization
+        ?? (typeof sessionPercent === 'number' ? sessionPercent / 100 : undefined)
     const remainingPercent = typeof fiveHourUtilization === 'number'
         ? Math.max(0, Math.round((1 - fiveHourUtilization) * 100))
         : null

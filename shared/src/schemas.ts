@@ -43,12 +43,26 @@ export const ClaudeRateLimitEntrySchema = z.object({
 })
 export type ClaudeRateLimitEntry = z.infer<typeof ClaudeRateLimitEntrySchema>
 
+// One row of the oauth usage API's `limits` projection. `kind` is the server's
+// window id (session, weekly_all, weekly_scoped, ...); `label` carries the
+// server-supplied model bucket name for scoped windows (e.g. 'Fable').
+export const ClaudeUsageLimitSchema = z.object({
+    kind: z.string().min(1).max(40),
+    label: z.string().max(60).optional(),
+    percent: z.number().min(0).max(100).optional(),
+    resetsAt: z.number().optional(),
+    severity: z.string().max(20).optional(),
+    observedAt: z.number()
+})
+export type ClaudeUsageLimit = z.infer<typeof ClaudeUsageLimitSchema>
+
 export const ClaudeRateLimitSnapshotSchema = z.object({
     five_hour: ClaudeRateLimitEntrySchema.optional(),
     seven_day: ClaudeRateLimitEntrySchema.optional(),
     seven_day_opus: ClaudeRateLimitEntrySchema.optional(),
     seven_day_sonnet: ClaudeRateLimitEntrySchema.optional(),
-    overage: ClaudeRateLimitEntrySchema.optional()
+    overage: ClaudeRateLimitEntrySchema.optional(),
+    usageLimits: z.array(ClaudeUsageLimitSchema).max(16).optional()
 })
 export type ClaudeRateLimitSnapshot = z.infer<typeof ClaudeRateLimitSnapshotSchema>
 

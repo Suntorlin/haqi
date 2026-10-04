@@ -10,6 +10,7 @@ import { Future } from "@/utils/future";
 import { SDKAssistantMessage, SDKMessage, SDKUserMessage } from "./sdk";
 import { formatClaudeMessageForInk } from "@/ui/messageFormatterInk";
 import { logger } from "@/ui/logger";
+import { fetchClaudeUsageLimits } from "./utils/claudeUsage";
 import { SDKToLogConverter } from "./utils/sdkToLogConverter";
 import { PLAN_FAKE_REJECT } from "./sdk/prompts";
 import { EnhancedMode } from "./loop";
@@ -111,6 +112,21 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
             } }, () => session.thinking || !!session.getRunningAgent())
             : claudeRemote(options);
 
+        // rate_limit_event only carries one representative window; poll the oauth
+        // usage API for the full set (weekly + model-scoped buckets like Fable).
+        let lastUsagePoll = 0;
+        const pollUsage = (minIntervalMs: number) => {
+            const startedAt = Date.now();
+            if (startedAt - lastUsagePoll < minIntervalMs) return;
+            lastUsagePoll = startedAt;
+            const configDir = managed ? managed.handoff.current.configDir : process.env.CLAUDE_CONFIG_DIR;
+            void fetchClaudeUsageLimits(configDir).then((limits) => {
+                if (limits && limits.length > 0) session.updateUsageLimits(limits);
+            });
+        };
+        pollUsage(0);
+        const usageTimer = setInterval(() => pollUsage(0), 5 * 60_000);
+
         this.setupAbortHandlers(session.client.rpcHandlerManager, {
             onAbort: () => this.handleAbortRequest(),
             onSwitch: () => this.handleSwitchRequest()
@@ -154,6 +170,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                 if (info && typeof info === 'object') {
                     session.updateRateLimitSnapshot(info as Parameters<typeof session.updateRateLimitSnapshot>[0]);
                 }
+                pollUsage(60_000);
                 return;
             }
 
@@ -478,6 +495,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                 }
             }
         } finally {
+            clearInterval(usageTimer);
             if (this.permissionHandler) {
                 this.permissionHandler.reset();
                 this.permissionHandler.dispose();

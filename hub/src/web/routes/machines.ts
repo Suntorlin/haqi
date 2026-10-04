@@ -65,9 +65,15 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
                 const meta = session.metadata
                 if (meta?.machineId !== id || !meta.claudeAccount || !meta.rateLimitSnapshot) continue
                 const snapshot = usage[meta.claudeAccount.id] ??= {}
-                for (const [bucket, value] of Object.entries(meta.rateLimitSnapshot)) {
-                    const key = bucket as keyof typeof snapshot
+                const { usageLimits, ...buckets } = meta.rateLimitSnapshot
+                for (const [bucket, value] of Object.entries(buckets)) {
+                    const key = bucket as Exclude<keyof typeof snapshot, 'usageLimits'>
                     if (value && (!snapshot[key] || value.observedAt > snapshot[key]!.observedAt)) snapshot[key] = value
+                }
+                if (usageLimits?.length) {
+                    const newest = Math.max(...usageLimits.map(l => l.observedAt))
+                    const current = snapshot.usageLimits?.length ? Math.max(...snapshot.usageLimits.map(l => l.observedAt)) : -1
+                    if (newest > current) snapshot.usageLimits = usageLimits
                 }
             }
             return c.json({ ...data, usage })

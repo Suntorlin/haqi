@@ -9,6 +9,7 @@ import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
 import type { ClaudeHookEvent as SessionHookData } from './hooks';
 import { readClaudeTeamSnapshotForSession } from './utils/claudeTeamSnapshot';
 import { applyRateLimitEvent, type SdkRateLimitInfo } from './utils/rateLimitSnapshot';
+import type { ClaudeUsageLimit } from '@hapi/protocol/schemas';
 
 type LocalLaunchFailure = {
     message: string;
@@ -114,6 +115,13 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         this.client.updateMetadata((metadata) => ({
             ...metadata,
             rateLimitSnapshot: applyRateLimitEvent(metadata.rateLimitSnapshot, info)
+        }));
+    };
+
+    updateUsageLimits = (limits: ClaudeUsageLimit[]): void => {
+        this.client.updateMetadata((metadata) => ({
+            ...metadata,
+            rateLimitSnapshot: { ...(metadata.rateLimitSnapshot ?? {}), usageLimits: limits }
         }));
     };
 
