@@ -240,7 +240,7 @@ export function StatusBar(props: {
                             {remainingPercent === null ? t('usage.label') : t('usage.remainingShort', { percent: remainingPercent })}
                         </button>
                         {usageOpen ? (
-                            <div className="absolute right-0 top-full z-30 mt-1.5">
+                            <div className="absolute bottom-full right-0 z-30 mb-1.5">
                                 <UsagePanel
                                     contextSize={props.contextSize}
                                     contextWindowTokens={props.contextWindowTokens}
