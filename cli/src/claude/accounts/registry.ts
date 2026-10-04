@@ -39,7 +39,9 @@ export function savePool(home: string, input: unknown): Promise<ClaudeAccountPoo
             const path = await realpath(configDir);
             const child = relative(rootReal, path);
             if (!child || child.startsWith('..') || isAbsolute(child)) throw new Error('不允许使用目录外的账号链接');
-            profiles.push({ ...profile, configDir });
+            const authHome = join(configDir, 'home');
+            await mkdir(authHome, { recursive: true, mode: 0o700 });
+            profiles.push({ ...profile, configDir, authHome });
         }
         const file = join(home, 'claude-accounts.json');
         const temp = `${file}.${randomUUID()}.tmp`;

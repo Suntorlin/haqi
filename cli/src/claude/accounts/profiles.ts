@@ -7,6 +7,9 @@ const ProfileSchema = z.object({
     id: z.string().regex(/^[a-z0-9_-]{1,40}$/),
     email: z.email(),
     configDir: z.string().refine(isAbsolute),
+    // Claude subscription sessions are stored in $HOME/.claude.json, so this
+    // must be isolated separately from CLAUDE_CONFIG_DIR.
+    authHome: z.string().refine(isAbsolute).optional(),
     // Same trust group explicitly authorizes sharing this conversation's context.
     trustGroup: z.string().min(1).max(80),
     enabled: z.boolean().optional()
@@ -38,6 +41,7 @@ export async function loadAccounts(home: string): Promise<AccountsConfig> {
             throw new Error('账号标识、邮箱与配置目录必须唯一');
         }
         profile.configDir = path;
+        profile.authHome = profile.authHome ? await realpath(profile.authHome) : join(path, 'home');
         ids.add(profile.id); paths.add(path); emails.add(email);
     }
     if (!ids.has(config.initialAccount)) throw new Error('初始账号不在配置中');
@@ -53,6 +57,7 @@ export function accountEnvironment(base: NodeJS.ProcessEnv, profile: AccountProf
         }
     }
     env.CLAUDE_CONFIG_DIR = profile.configDir;
+    env.HOME = profile.authHome || join(profile.configDir, 'home');
     env.DISABLE_AUTOUPDATER = '1';
     return env;
 }
@@ -68,7 +73,7 @@ export async function verifyAccount(executable: string, cwd: string, env: NodeJS
     const value = (() => { try { return JSON.parse(output) as unknown; } catch { return null; } })();
     const status = z.object({ loggedIn: z.boolean(), email: z.string().optional(), authMethod: z.string().optional() }).safeParse(value);
     if (status.success && !status.data.loggedIn) {
-        throw new Error(`账号 ${profile.email} 尚未在隔离目录登录，请先执行 CLAUDE_CONFIG_DIR="${profile.configDir}" claude auth login`);
+        throw new Error(`账号 ${profile.email} 尚未在隔离目录登录，请先执行 HOME="${profile.authHome || join(profile.configDir, 'home')}" CLAUDE_CONFIG_DIR="${profile.configDir}" claude auth login`);
     }
     const parsed = z.object({
         loggedIn: z.literal(true),

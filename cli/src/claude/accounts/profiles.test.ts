@@ -9,5 +9,6 @@ describe('managed Claude account environment', () => {
         expect(env.ANTHROPIC_API_KEY).toBeUndefined();
         expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
         expect(env.CLAUDE_CONFIG_DIR).toBe('/tmp/hapi-accounts/work');
+        expect(env.HOME).toBe('/tmp/hapi-accounts/work/home');
     });
 });
