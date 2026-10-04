@@ -65,11 +65,16 @@ export async function verifyAccount(executable: string, cwd: string, env: NodeJS
             else resolve(stdout);
         });
     });
+    const value = (() => { try { return JSON.parse(output) as unknown; } catch { return null; } })();
+    const status = z.object({ loggedIn: z.boolean(), email: z.string().optional(), authMethod: z.string().optional() }).safeParse(value);
+    if (status.success && !status.data.loggedIn) {
+        throw new Error(`账号 ${profile.email} 尚未在隔离目录登录，请先执行 CLAUDE_CONFIG_DIR="${profile.configDir}" claude auth login`);
+    }
     const parsed = z.object({
         loggedIn: z.literal(true),
         email: z.string(),
         authMethod: z.literal('claude.ai')
-    }).safeParse((() => { try { return JSON.parse(output); } catch { return null; } })());
+    }).safeParse(value);
     if (!parsed.success || parsed.data.email.toLowerCase() !== profile.email.toLowerCase()) {
         throw new Error('实际登录身份或鉴权方式与账号配置不符，已阻止启动');
     }
