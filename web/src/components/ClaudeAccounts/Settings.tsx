@@ -58,8 +58,8 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
         </label>
         {!pool.profiles.length && <p className="text-sm text-[var(--app-hint)]">{t('settings.claudeAccounts.empty')}</p>}
         {pool.profiles.map((profile, index) => <fieldset disabled={working} key={profile.id} className="flex flex-col gap-2 rounded-lg border border-[var(--app-divider)] p-2">
-            <div className="flex items-center gap-3">
-                <input className={`${field} flex-1`} type="email" aria-label={t('settings.claudeAccounts.emailLabel', { index: index + 1 })} placeholder="user@example.com" value={profile.email} onChange={e => { update(index, { email: e.target.value }); setChecks(old => ({ ...old, [profile.id]: '' })) }} />
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <input className={`${field} min-w-[180px] flex-1`} type="email" aria-label={t('settings.claudeAccounts.emailLabel', { index: index + 1 })} placeholder="user@example.com" value={profile.email} onChange={e => { update(index, { email: e.target.value }); setChecks(old => ({ ...old, [profile.id]: '' })) }} />
                 <label className="flex shrink-0 items-center gap-1 text-xs">
                     <input type="radio" name={`claude-default-${machineId}`} checked={pool.initialAccount === profile.id} disabled={!profile.enabled} onChange={() => change({ ...pool, initialAccount: profile.id })} />
                     {t('settings.claudeAccounts.default')}

@@ -14,12 +14,12 @@ export function SessionAccountInline({ account, snapshot }: { account: ClaudeAcc
     const blocked = account.status === 'blocked'
     const transient = account.status === 'switching' || account.status === 'handoff'
     return (
-        <span className="inline-flex shrink-0 items-center gap-1">
+        <span className="flex min-w-0 basis-full flex-wrap items-center gap-x-1 gap-y-0.5">
             <span className="max-w-[200px] truncate">{account.email}</span>
-            {sessionReset ? <span className="shrink-0">· {t('sessionAccount.reset5h', { time: new Date(sessionReset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}</span> : null}
-            {weeklyReset ? <span className="shrink-0">· {t('sessionAccount.reset7d', { time: new Date(weeklyReset * 1000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span> : null}
-            {blocked ? <span className="shrink-0 text-red-500">· {t('claudeAccount.status.blocked')}</span> : null}
-            {transient ? <span className="shrink-0 text-blue-500">· {t('claudeAccount.status.switching')}</span> : null}
+            {sessionReset ? <span className="hidden whitespace-nowrap sm:inline">· {t('sessionAccount.reset5h', { time: new Date(sessionReset * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}</span> : null}
+            {weeklyReset ? <span className="hidden whitespace-nowrap sm:inline">· {t('sessionAccount.reset7d', { time: new Date(weeklyReset * 1000).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) })}</span> : null}
+            {blocked ? <span className="whitespace-nowrap text-red-500">· {t('claudeAccount.status.blocked')}</span> : null}
+            {transient ? <span className="whitespace-nowrap text-blue-500">· {t('claudeAccount.status.switching')}</span> : null}
         </span>
     )
 }
