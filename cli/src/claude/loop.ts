@@ -45,6 +45,9 @@ interface LoopOptions {
 
 export async function loop(opts: LoopOptions) {
 
+    if (process.env.HAPI_CLAUDE_ACCOUNT_HANDOFF === '1' && opts.startingMode !== 'remote') {
+        throw new Error('账号接管实验版需要 --happy-starting-mode remote，不允许使用本地默认账号');
+    }
     // Get log path for debug display
     const logPath = logger.logFilePath;
     const startedBy = opts.startedBy ?? 'terminal';

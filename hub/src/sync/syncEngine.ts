@@ -1,3 +1,4 @@
+import type { ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
 /**
  * Sync Engine for HAPI Telegram Bot (Direct Connect)
  *
@@ -1763,6 +1764,10 @@ ${note.content}
         })
     }
 
+    async claudeAccounts(machineId: string, operation: 'get' | 'save' | 'check', payload: unknown = {}): Promise<unknown> {
+        return this.rpcGateway.claudeAccounts(machineId, operation, payload)
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,
@@ -1774,7 +1779,8 @@ ${note.content}
         sessionType?: 'simple' | 'worktree',
         worktreeName?: string,
         resumeSessionId?: string,
-        previewUrl?: string | null
+        previewUrl?: string | null,
+        claudeAccount?: ClaudeAccountSelection
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
         const result = await this.rpcGateway.spawnSession(
@@ -1787,7 +1793,8 @@ ${note.content}
             yolo,
             sessionType,
             worktreeName,
-            resumeSessionId
+            resumeSessionId,
+            claudeAccount
         )
 
         if (result.type === 'success' && previewUrl) {

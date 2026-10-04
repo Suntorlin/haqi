@@ -52,6 +52,44 @@ export const ClaudeRateLimitSnapshotSchema = z.object({
 })
 export type ClaudeRateLimitSnapshot = z.infer<typeof ClaudeRateLimitSnapshotSchema>
 
+
+// Public account metadata only. Credentials and filesystem paths never cross RPC.
+export const ClaudeAccountProfileSchema = z.object({
+    id: z.string().regex(/^[a-z0-9_-]{1,40}$/),
+    email: z.email(),
+    trustGroup: z.string().min(1).max(80),
+    enabled: z.boolean().default(true)
+}).strict()
+export const ClaudeAccountPoolSchema = z.object({
+    initialAccount: z.string(),
+    autoSwitch: z.boolean(),
+    profiles: z.array(ClaudeAccountProfileSchema).max(10)
+}).strict().superRefine((pool, ctx) => {
+    const ids = pool.profiles.map(p => p.id)
+    const emails = pool.profiles.map(p => p.email.toLowerCase())
+    if (new Set(ids).size !== ids.length || new Set(emails).size !== emails.length)
+        ctx.addIssue({ code: 'custom', message: '账号标识和邮箱必须唯一' })
+    if (pool.profiles.length && !pool.profiles.some(p => p.id === pool.initialAccount && p.enabled))
+        ctx.addIssue({ code: 'custom', message: '默认账号必须存在且已启用' })
+})
+export const ClaudeAccountSelectionSchema = z.object({
+    accountId: z.string().regex(/^[a-z0-9_-]{1,40}$/),
+    automatic: z.boolean()
+}).strict()
+export const ClaudeAccountRuntimeSchema = z.object({
+    id: z.string(), email: z.string(), automatic: z.boolean(),
+    status: z.enum(['verified', 'switching', 'handoff', 'active', 'blocked']),
+    updatedAt: z.number()
+})
+export type ClaudeAccountPool = z.infer<typeof ClaudeAccountPoolSchema>
+export type ClaudeAccountSelection = z.infer<typeof ClaudeAccountSelectionSchema>
+export type ClaudeAccountRuntime = z.infer<typeof ClaudeAccountRuntimeSchema>
+export type ClaudeAccountPoolView = {
+    pool: ClaudeAccountPool
+    revision: string
+    usage?: Record<string, ClaudeRateLimitSnapshot>
+}
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
@@ -85,6 +123,7 @@ export const MetadataSchema = z.object({
     archiveReason: z.string().optional(),
     flavor: z.string().nullish(),
     worktree: WorktreeMetadataSchema.optional(),
+    claudeAccount: ClaudeAccountRuntimeSchema.optional(),
     rateLimitSnapshot: ClaudeRateLimitSnapshotSchema.optional()
 })
 

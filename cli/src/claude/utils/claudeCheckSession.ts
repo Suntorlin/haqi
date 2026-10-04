@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getProjectPath } from "./path";
 
-export function claudeCheckSession(sessionId: string, path: string) {
-    const projectDir = getProjectPath(path);
+export function claudeCheckSession(sessionId: string, path: string, configDir?: string) {
+    const projectDir = getProjectPath(path, configDir);
 
     // Check if session id is in the project dir
     const sessionFile = join(projectDir, `${sessionId}.jsonl`);

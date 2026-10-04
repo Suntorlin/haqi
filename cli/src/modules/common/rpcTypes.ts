@@ -1,4 +1,7 @@
+import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
+
 export interface SpawnSessionOptions {
+    claudeAccount?: ClaudeAccountSelection
     machineId?: string
     directory: string
     sessionId?: string

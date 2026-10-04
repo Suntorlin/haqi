@@ -1,3 +1,4 @@
+import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
 import { useState, useRef, useEffect, useMemo, useCallback, useId, type ChangeEvent, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
@@ -44,6 +45,7 @@ const imageUploadCompressionTargetSizes: ImageUploadCompressionTargetSize[] = ['
 const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
 
 type SettingsGroupExpandedState = {
+    claudeAccounts: boolean
     general: boolean
     interaction: boolean
     dataDiagnostics: boolean
@@ -52,6 +54,7 @@ type SettingsGroupExpandedState = {
 
 function getDefaultSettingsGroupExpandedState(): SettingsGroupExpandedState {
     return {
+        claudeAccounts: false,
         general: true,
         interaction: true,
         dataDiagnostics: false,
@@ -74,6 +77,7 @@ function readSettingsGroupExpandedState(): SettingsGroupExpandedState {
             return defaults
         }
         return {
+            claudeAccounts: typeof parsed.claudeAccounts === 'boolean' ? parsed.claudeAccounts : defaults.claudeAccounts,
             general: typeof parsed.general === 'boolean' ? parsed.general : defaults.general,
             interaction: typeof parsed.interaction === 'boolean' ? parsed.interaction : defaults.interaction,
             dataDiagnostics: typeof parsed.dataDiagnostics === 'boolean' ? parsed.dataDiagnostics : defaults.dataDiagnostics,
@@ -246,6 +250,7 @@ export default function SettingsPage() {
     const [isImageCompressionLevelOpen, setIsImageCompressionLevelOpen] = useState(false)
     const [isImageCompressionTargetSizeOpen, setIsImageCompressionTargetSizeOpen] = useState(false)
     const [groupExpandedState, setGroupExpandedState] = useState<SettingsGroupExpandedState>(() => readSettingsGroupExpandedState())
+    const isClaudeAccountsGroupExpanded = groupExpandedState.claudeAccounts
     const isGeneralGroupExpanded = groupExpandedState.general
     const isInteractionGroupExpanded = groupExpandedState.interaction
     const isDataDiagnosticsGroupExpanded = groupExpandedState.dataDiagnostics
@@ -689,6 +694,13 @@ export default function SettingsPage() {
         setIsVoiceOpen(false)
     }
 
+    const handleClaudeAccountsGroupToggle = () => {
+        setGroupExpandedState((previousState) => ({
+            ...previousState,
+            claudeAccounts: !previousState.claudeAccounts
+        }))
+    }
+
     const handleGeneralGroupToggle = () => {
         setGroupExpandedState((previousState) => {
             const nextGeneralExpanded = !previousState.general
@@ -1051,6 +1063,14 @@ export default function SettingsPage() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
+                    <SettingsSection
+                        title={t('settings.group.claudeAccounts.title')}
+                        description={t('settings.group.claudeAccounts.description')}
+                        isExpanded={isClaudeAccountsGroupExpanded}
+                        onToggle={handleClaudeAccountsGroupToggle}
+                    >
+                        <ClaudeAccountsSettings api={api} machines={machines} />
+                    </SettingsSection>
                     <SettingsSection
                         title={t('settings.group.general.title')}
                         description={t('settings.group.general.description')}

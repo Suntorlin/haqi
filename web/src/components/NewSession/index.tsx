@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { ClaudeAccountSelector } from '@/components/ClaudeAccounts/Selector'
+import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
@@ -91,6 +93,8 @@ export function NewSession(props: {
     )
 
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
+    const [claudeAccount, setClaudeAccount] = useState<ClaudeAccountSelection | undefined>()
+    useEffect(() => { setClaudeAccount(undefined) }, [machineId])
     const [directory, setDirectory] = useState(props.initialDirectory ?? '')
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
@@ -347,7 +351,8 @@ export function NewSession(props: {
                 yolo: yoloMode,
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,
-                previewUrl: sessionSettings.previewUrl
+                previewUrl: sessionSettings.previewUrl,
+                ...(agent === 'claude' && claudeAccount ? { claudeAccount } : {})
             })
 
             if (result.type === 'success') {
@@ -478,6 +483,7 @@ export function NewSession(props: {
                 isDisabled={isFormDisabled}
                 onAgentChange={setAgent}
             />
+            {agent === 'claude' && <ClaudeAccountSelector api={props.api} machineId={machineId} selection={claudeAccount} onChange={setClaudeAccount} disabled={isFormDisabled} />}
             <ModelSelector
                 agent={agent}
                 model={model}

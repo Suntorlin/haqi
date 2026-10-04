@@ -180,6 +180,7 @@ export interface CanCallToolCallback {
  * Query options
  */
 export interface QueryOptions {
+    env?: NodeJS.ProcessEnv
     abort?: AbortSignal
     additionalDirectories?: string[]
     allowedTools?: string[]

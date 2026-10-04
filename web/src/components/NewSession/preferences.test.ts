@@ -72,7 +72,7 @@ describe('NewSession preferences', () => {
 
     it('returns null on invalid stored model/think values', () => {
         localStorage.setItem('hapi:newSession:thinkEffortByAgent', JSON.stringify({
-            claude: 'xhigh'
+            claude: 'ultra-think'
         }))
         localStorage.setItem('hapi:newSession:modelByAgent', JSON.stringify({
             claude: 'unknown-model'

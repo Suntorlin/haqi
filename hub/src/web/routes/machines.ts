@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import {
+    ClaudeAccountSelectionSchema, ClaudeAccountPoolSchema,
     CodexCredentialActivateRequestSchema,
     CodexCredentialImportRequestSchema,
     CodexCredentialSaveCurrentRequestSchema
@@ -10,6 +11,7 @@ import type { WebAppEnv } from '../middleware/auth'
 import { requireMachine } from './guards'
 
 const spawnBodySchema = z.object({
+    claudeAccount: ClaudeAccountSelectionSchema.optional(),
     directory: z.string().min(1),
     agent: z.enum(['claude', 'codex', 'cursor', 'gemini', 'opencode']).optional(),
     model: z.string().optional(),
@@ -48,6 +50,46 @@ function normalizePreviewUrl(raw: string | undefined): { ok: true; value?: strin
 
 export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
+
+    app.get('/machines/:id/claude-accounts', async c => {
+        const engine = getSyncEngine()
+        if (!engine) return c.json({ error: 'Not connected' }, 503)
+        const id = c.req.param('id')
+        const machine = requireMachine(c, engine, id)
+        if (machine instanceof Response) return machine
+        try {
+            const data = await engine.claudeAccounts(id, 'get') as import('@hapi/protocol/schemas').ClaudeAccountPoolView
+            if (!data?.pool || !ClaudeAccountPoolSchema.safeParse(data.pool).success) throw new Error('Runner 不支持账号管理，请升级隔离版 Runner')
+            const usage: Record<string, import('@hapi/protocol/schemas').ClaudeRateLimitSnapshot> = {}
+            for (const session of engine.getSessionsByNamespace(c.get('namespace'))) {
+                const meta = session.metadata
+                if (meta?.machineId !== id || !meta.claudeAccount || !meta.rateLimitSnapshot) continue
+                const snapshot = usage[meta.claudeAccount.id] ??= {}
+                for (const [bucket, value] of Object.entries(meta.rateLimitSnapshot)) {
+                    const key = bucket as keyof typeof snapshot
+                    if (value && (!snapshot[key] || value.observedAt > snapshot[key]!.observedAt)) snapshot[key] = value
+                }
+            }
+            return c.json({ ...data, usage })
+        } catch { return c.json({ error: '账号管理不可用：请确认隔离 Runner 已启动并支持此功能' }, 503) }
+    })
+    for (const operation of ['save', 'check'] as const) {
+        app.post(`/machines/:id/claude-accounts/${operation}`, async c => {
+            const engine = getSyncEngine()
+            if (!engine) return c.json({ error: 'Not connected' }, 503)
+            const id = c.req.param('id')
+            const machine = requireMachine(c, engine, id)
+            if (machine instanceof Response) return machine
+            const schema = operation === 'save' ? z.object({ pool: ClaudeAccountPoolSchema, revision: z.string() }).strict() : z.object({ id: z.string().regex(/^[a-z0-9_-]{1,40}$/) }).strict()
+            const parsed = schema.safeParse(await c.req.json().catch(() => null))
+            if (!parsed.success) return c.json({ error: '账号配置无效：邮箱、标识、默认账号或顺序需要检查' }, 400)
+            try {
+                const result = await engine.claudeAccounts(id, operation, parsed.data)
+                if (result && typeof result === 'object' && 'error' in result) return c.json({ error: String(result.error) }, 400)
+                return c.json(result as object)
+            } catch { return c.json({ error: '操作失败，请检查登录状态或刷新配置后重试' }, 503) }
+        })
+    }
 
     app.get('/machines', (c) => {
         const engine = getSyncEngine()
@@ -98,7 +140,8 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             parsed.data.sessionType,
             parsed.data.worktreeName,
             undefined,
-            previewUrl.value
+            previewUrl.value,
+            parsed.data.claudeAccount
         )
         return c.json(result)
     })

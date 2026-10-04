@@ -1,9 +1,8 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { existsSync } from 'node:fs'
-import { serveStatic } from 'hono/bun'
 import { configuration } from '../configuration'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import type { SyncEngine } from '../sync/syncEngine'
@@ -226,32 +225,27 @@ from GitHub Pages instead of through the relay tunnel.
         return app
     }
 
-    app.use('/assets/*', async (c, next) => {
-        await serveStatic({ root: distDir })(c, next)
-        if (!c.finalized) {
-            return c.text('Asset not found', 404)
-        }
-    })
-
-    app.use('*', async (c, next) => {
-        if (c.req.path.startsWith('/api')) {
-            await next()
-            return
-        }
-
-        await serveStatic({ root: distDir })(c, next)
-        if (!c.finalized && isStaticAssetRequest(c.req.path)) {
-            return c.text('Asset not found', 404)
-        }
-    })
+    // Hono's Bun serveStatic adapter does not finalize the context reliably on
+    // the Bun versions used by the isolated runner. Serve the built files
+    // explicitly so every branch returns a Response (and never leaks paths).
+    const serveBuiltFile = (pathname: string): Response | null => {
+        const filePath = resolve(distDir, `.${pathname}`)
+        const root = resolve(distDir)
+        if (filePath !== root && !filePath.startsWith(`${root}/`)) return null
+        if (!existsSync(filePath)) return null
+        return new Response(Bun.file(filePath))
+    }
 
     app.get('*', async (c, next) => {
         if (c.req.path.startsWith('/api')) {
-            await next()
-            return
+            return await next()
         }
 
-        return await serveStatic({ root: distDir, path: 'index.html' })(c, next)
+        if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return await next()
+        if (isStaticAssetRequest(c.req.path) || c.req.path.startsWith('/assets/')) {
+            return serveBuiltFile(c.req.path) ?? c.text('Asset not found', 404)
+        }
+        return serveBuiltFile('/index.html') ?? c.text('Mini App is not built', 503)
     })
 
     return app

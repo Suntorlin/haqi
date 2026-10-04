@@ -4,6 +4,7 @@ import type { SpawnResponse } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
 
 type SpawnInput = {
+    claudeAccount?: import('@hapi/protocol/schemas').ClaudeAccountSelection
     machineId: string
     directory: string
     agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
@@ -38,7 +39,8 @@ export function useSpawnSession(api: ApiClient | null): {
                 input.yolo,
                 input.sessionType,
                 input.worktreeName,
-                input.previewUrl
+                input.previewUrl,
+                input.claudeAccount
             )
         },
         onSuccess: () => {

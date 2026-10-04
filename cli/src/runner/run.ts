@@ -23,6 +23,7 @@ import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { join } from 'path';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
+import { configuration } from '@/configuration';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -313,7 +314,16 @@ export async function startRunner(): Promise<void> {
       try {
 
         // Resolve authentication token if provided
-        let extraEnv: Record<string, string> = {};
+        let extraEnv: Record<string, string> = { HAPI_CLAUDE_ACCOUNT_HANDOFF: '0', HAPI_CLAUDE_ACCOUNT: '', HAPI_CLAUDE_ACCOUNT_AUTO: '' };
+        if (options.claudeAccount) {
+          if (agent !== 'claude' || options.token || options.resumeSessionId) throw new Error('账号池只支持新建 Claude 会话，不能与外部 token/resume 混用');
+          const { loadAccounts } = await import('../claude/accounts/profiles');
+          const config = await loadAccounts(configuration.happyHomeDir);
+          if (!config.profiles.some(p => p.id === options.claudeAccount!.accountId && p.enabled !== false)) throw new Error('所选账号不存在或已停用');
+          extraEnv.HAPI_CLAUDE_ACCOUNT_HANDOFF = '1';
+          extraEnv.HAPI_CLAUDE_ACCOUNT = options.claudeAccount.accountId;
+          extraEnv.HAPI_CLAUDE_ACCOUNT_AUTO = options.claudeAccount.automatic ? '1' : '0';
+        }
         if (options.token) {
           if (options.agent === 'codex') {
 

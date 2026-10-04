@@ -160,6 +160,16 @@ export function StatusBar(props: {
     const showUsageButton = props.agentFlavor === 'claude'
         && (typeof props.contextSize === 'number' || Boolean(props.rateLimitSnapshot))
 
+    const fiveHourUtilization = props.rateLimitSnapshot?.five_hour?.utilization
+    const remainingPercent = typeof fiveHourUtilization === 'number'
+        ? Math.max(0, Math.round((1 - fiveHourUtilization) * 100))
+        : null
+    const usageTone = remainingPercent !== null && remainingPercent <= 10
+        ? 'text-red-500'
+        : remainingPercent !== null && remainingPercent <= 30
+            ? 'text-amber-500'
+            : 'text-[var(--app-hint)] hover:text-[var(--app-text)]'
+
     const permissionMode = props.permissionMode
     const runningAgents = props.agentState?.runningAgents ?? (props.agentState?.runningAgent ? [props.agentState.runningAgent] : [])
     const displayPermissionMode = permissionMode
@@ -224,13 +234,13 @@ export function StatusBar(props: {
                         <button
                             type="button"
                             onClick={() => setUsageOpen((prev) => !prev)}
-                            className="rounded-full border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] transition-colors hover:text-[var(--app-text)]"
+                            className={`rounded-full border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] transition-colors ${usageTone}`}
                             title={t('usage.tooltip')}
                         >
-                            {t('usage.label')}
+                            {remainingPercent === null ? t('usage.label') : t('usage.remainingShort', { percent: remainingPercent })}
                         </button>
                         {usageOpen ? (
-                            <div className="absolute right-0 top-full z-30 mt-1.5">
+                            <div className="absolute bottom-full right-0 z-30 mb-1.5">
                                 <UsagePanel
                                     contextSize={props.contextSize}
                                     contextWindowTokens={props.contextWindowTokens}

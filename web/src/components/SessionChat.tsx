@@ -27,6 +27,7 @@ import { CliThread } from '@/components/AssistantChat/CliThread'
 import { LiveActivityBar } from '@/components/AssistantChat/LiveActivityBar'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
+import { SessionAccountBar } from '@/components/ClaudeAccounts/SessionAccountBar'
 import { SessionHeader } from '@/components/SessionHeader'
 import { TeamPanel } from '@/components/TeamPanel'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -1350,6 +1351,10 @@ export function SessionChat(props: {
                 api={props.api}
                 onSessionDeleted={props.onBack}
             />
+
+            {props.session.metadata?.flavor === 'claude' && props.session.metadata.claudeAccount && (
+                <SessionAccountBar account={props.session.metadata.claudeAccount} snapshot={props.session.metadata.rateLimitSnapshot} />
+            )}
 
             {(props.session.teamState || (props.session.agentState?.runningAgents?.length ?? 0) > 0 || props.session.agentState?.runningAgent) && (
                 <TeamPanel

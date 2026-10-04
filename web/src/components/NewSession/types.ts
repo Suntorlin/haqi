@@ -41,15 +41,20 @@ export function getThinkEffortOptions(agent: AgentType): { value: ThinkEffort; l
 export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
     claude: [
         { value: 'auto', label: 'Default (recommended)' },
+        { value: 'claude-fable-5', label: 'Fable 5' },
         { value: 'sonnet', label: 'Sonnet (latest)' },
         { value: 'opus', label: 'Opus (latest)' },
         { value: 'haiku', label: 'Haiku (latest)' },
+        { value: 'claude-opus-5-5', label: 'Opus 5.5' },
         { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
         { value: 'claude-opus-4-6', label: 'Opus 4.6' },
         { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
     ],
     codex: [
         { value: 'auto', label: 'Auto' },
+        { value: 'gpt-6-astra', label: 'GPT-6 Astra' },
+        { value: 'gpt-6-sol', label: 'GPT-6 Sol' },
+        { value: 'gpt-6-luna', label: 'GPT-6 Luna' },
         { value: 'gpt-5.6-sol', label: 'GPT-5.6 Sol' },
         { value: 'gpt-5.6-terra', label: 'GPT-5.6 Terra' },
         { value: 'gpt-5.6-luna', label: 'GPT-5.6 Luna' },
