@@ -103,15 +103,6 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
             managed = new ManagedClaudeRemote({ ...config, initialAccount: selected,
                 autoSwitch: process.env.HAPI_CLAUDE_ACCOUNT_AUTO ? process.env.HAPI_CLAUDE_ACCOUNT_AUTO === '1' : config.autoSwitch });
         }
-        const runRemote = (options: Parameters<typeof claudeRemote>[0]) => managed
-            ? managed.run({ ...options, onAccountState: (state) => {
-                session.client.updateMetadata(metadata => ({ ...metadata,
-                    claudeAccount: state,
-                    rateLimitSnapshot: metadata.claudeAccount?.id === state.id ? metadata.rateLimitSnapshot : undefined
-                }));
-            } }, () => session.thinking || !!session.getRunningAgent())
-            : claudeRemote(options);
-
         // rate_limit_event only carries one representative window; poll the oauth
         // usage API for the full set (weekly + model-scoped buckets like Fable).
         let lastUsagePoll = 0;
@@ -126,6 +117,19 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         };
         pollUsage(0);
         const usageTimer = setInterval(() => pollUsage(0), 5 * 60_000);
+
+        const runRemote = (options: Parameters<typeof claudeRemote>[0]) => managed
+            ? managed.run({ ...options, onAccountState: (state) => {
+                session.client.updateMetadata(metadata => ({ ...metadata,
+                    claudeAccount: state,
+                    rateLimitSnapshot: metadata.claudeAccount?.id === state.id ? metadata.rateLimitSnapshot : undefined
+                }));
+                // Account identity (re)published, possibly clearing the snapshot
+                // above on first verify or handoff — refresh for the active dir.
+                lastUsagePoll = 0;
+                pollUsage(0);
+            } }, () => session.thinking || !!session.getRunningAgent())
+            : claudeRemote(options);
 
         this.setupAbortHandlers(session.client.rpcHandlerManager, {
             onAbort: () => this.handleAbortRequest(),
