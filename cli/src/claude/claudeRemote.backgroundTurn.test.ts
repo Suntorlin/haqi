@@ -82,6 +82,43 @@ function textOf(message: SDKMessage): string | null {
 }
 
 describe('Claude remote turns started by Claude itself', () => {
+    it('can resume a copied transcript idle and waits for the first real message', async () => {
+        const dir = mkdtempSync(join(tmpdir(), 'haqi-claude-idle-resume-'))
+        try {
+            process.env.HAPI_CLAUDE_PATH = writeFakeClaudeExecutable(dir)
+            const mode: EnhancedMode = { permissionMode: 'default' }
+            const texts: string[] = []
+            let nextMessageCalls = 0
+            const remoteRun = claudeRemote({
+                sessionId: 'existing-session',
+                path: dir,
+                startWithoutMessage: true,
+                allowedTools: [],
+                mcpServers: {},
+                hookSettingsPath: join(dir, 'hook-settings.json'),
+                canCallTool: async () => ({ behavior: 'allow', updatedInput: {} }),
+                isAborted: () => false,
+                nextMessage: async () => {
+                    nextMessageCalls += 1
+                    if (nextMessageCalls === 1) return { message: '真实的新任务', mode }
+                    return null
+                },
+                onReady: () => {},
+                onSessionFound: () => {},
+                onMessage: (message) => {
+                    const text = textOf(message)
+                    if (text) texts.push(text)
+                }
+            })
+
+            await remoteRun
+            expect(nextMessageCalls).toBe(2)
+            expect(texts).toEqual(['STARTED'])
+        } finally {
+            rmSync(dir, { recursive: true, force: true })
+        }
+    }, 10_000)
+
     it('forwards a turn that starts while waiting for the next user message', async () => {
         const dir = mkdtempSync(join(tmpdir(), 'haqi-claude-background-turn-'))
         try {

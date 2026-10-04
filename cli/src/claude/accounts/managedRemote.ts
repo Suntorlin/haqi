@@ -44,11 +44,16 @@ export class ManagedClaudeRemote {
         let sessionId = opts.sessionId;
         let lastMode: EnhancedMode | null = null;
         let quotaNoticeSent = false;
-        const resumeRequested = !this.hasLaunched && Boolean(sessionId || opts.claudeArgs?.some((arg, index) =>
-            ['--resume', '--continue', '-c', '-r'].includes(arg) && (arg !== '--resume' || Boolean(opts.claudeArgs?.[index + 1]))
-        ));
-        let resumeSeedConsumed = false;
         while (!opts.signal?.aborted) {
+            const resumeRequested = !this.hasLaunched && Boolean(sessionId || opts.claudeArgs?.some((arg, index) =>
+                ['--resume', '--continue', '-c', '-r'].includes(arg) && (arg !== '--resume' || Boolean(opts.claudeArgs?.[index + 1]))
+            ));
+            // A manually switched account already has the copied native transcript.
+            // Start the resumed Claude process idle; injecting a synthetic prompt
+            // would create an unsolicited duplicate turn after an otherwise idle
+            // account switch.
+            const resumeWithoutMessage = resumeRequested && process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE === '1';
+            let resumeSeedConsumed = false;
             let prepared: Prepared | null = null;
             const prepare = async (id: string) => {
                 prepared = await this.handoff.prepare(id, opts.path, busy, verify);
@@ -68,10 +73,11 @@ export class ManagedClaudeRemote {
                     sessionId,
                     childEnv: envFor(this.handoff.current),
                     stopChildOnReturn: true,
+                    startWithoutMessage: resumeWithoutMessage,
                     onSessionFound: id => { sessionId = id; opts.onSessionFound(id); },
                     onMessage: message => { this.handoff.observe(message); if (message.type === 'assistant') publish('active'); opts.onMessage(message); },
                     nextMessage: async signal => {
-                        if (resumeRequested && !resumeSeedConsumed) {
+                        if (resumeRequested && !resumeWithoutMessage && !resumeSeedConsumed) {
                             resumeSeedConsumed = true;
                             lastMode = lastMode ?? { permissionMode: 'default' };
                             return { message: '继续当前会话。不要重复已经完成的工作。', mode: lastMode };

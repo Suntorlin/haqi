@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { claudeRemote } from '../claudeRemote';
 import { ManagedClaudeRemote } from './managedRemote';
 import type { AccountsConfig } from './profiles';
@@ -29,6 +29,12 @@ function options(sessionId: string | null): Parameters<typeof claudeRemote>[0] {
 }
 
 beforeEach(() => vi.clearAllMocks());
+
+const previousResumeIdle = process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE;
+afterEach(() => {
+    if (previousResumeIdle === undefined) delete process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE;
+    else process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE = previousResumeIdle;
+});
 
 describe('受管理 Claude 会话中止后的恢复', () => {
     it('首次恢复历史时继续一次，中止后必须等待用户，不能自动续跑', async () => {
@@ -79,5 +85,22 @@ describe('受管理 Claude 会话中止后的恢复', () => {
             expect(await opts.nextMessage()).toEqual(message);
         });
         await managed.run(restarted, () => false);
+    });
+
+    it('显式切换账号时从历史会话空闲启动，不注入继续提示词', async () => {
+        process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE = '1';
+        const managed = new ManagedClaudeRemote(config, vi.fn(async () => {}));
+        const initial = options('existing-session');
+        const message = { message: '切换账号后的新任务', mode: { permissionMode: 'default' as const } };
+        initial.nextMessage = vi.fn(async () => message);
+        const controller = new AbortController();
+        vi.mocked(claudeRemote).mockImplementationOnce(async (opts) => {
+            expect(opts.startWithoutMessage).toBe(true);
+            expect(await opts.nextMessage()).toEqual(message);
+            controller.abort();
+        });
+
+        await managed.run({ ...initial, signal: controller.signal }, () => false);
+        expect(initial.nextMessage).toHaveBeenCalledOnce();
     });
 });

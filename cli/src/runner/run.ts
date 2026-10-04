@@ -316,7 +316,12 @@ export async function startRunner(): Promise<void> {
       try {
 
         // Resolve authentication token if provided
-        let extraEnv: Record<string, string> = { HAPI_CLAUDE_ACCOUNT_HANDOFF: '0', HAPI_CLAUDE_ACCOUNT: '', HAPI_CLAUDE_ACCOUNT_AUTO: '' };
+        let extraEnv: Record<string, string> = {
+          HAPI_CLAUDE_ACCOUNT_HANDOFF: '0',
+          HAPI_CLAUDE_ACCOUNT: '',
+          HAPI_CLAUDE_ACCOUNT_AUTO: '',
+          HAPI_CLAUDE_ACCOUNT_RESUME_IDLE: '0'
+        };
         if (options.claudeAccount) {
           if (agent !== 'claude' || options.token) throw new Error('账号池只支持 Claude 会话，不能与外部 token 混用');
           const { loadAccounts } = await import('../claude/accounts/profiles');
@@ -340,6 +345,10 @@ export async function startRunner(): Promise<void> {
           extraEnv.HAPI_CLAUDE_ACCOUNT_HANDOFF = '1';
           extraEnv.HAPI_CLAUDE_ACCOUNT = options.claudeAccount.accountId;
           extraEnv.HAPI_CLAUDE_ACCOUNT_AUTO = options.claudeAccount.automatic ? '1' : '0';
+          // The transcript is copied into the target account directory above;
+          // an explicit account switch must wait for the next real user message
+          // instead of manufacturing a new turn on startup.
+          if (options.resumeSessionId) extraEnv.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE = '1';
         }
         if (options.token) {
           if (options.agent === 'codex') {

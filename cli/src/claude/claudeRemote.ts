@@ -22,6 +22,9 @@ export async function claudeRemote(opts: {
     claudeEnvVars?: Record<string, string>,
     childEnv?: NodeJS.ProcessEnv,
     stopChildOnReturn?: boolean,
+    // Start a resumed Claude process in an idle state. Used by an explicit
+    // account switch so changing credentials does not create a new model turn.
+    startWithoutMessage?: boolean,
     claudeArgs?: string[],
     allowedTools: string[],
     hookSettingsPath: string,
@@ -83,15 +86,17 @@ export async function claudeRemote(opts: {
 
     // Get initial message
     const initial = await opts.nextMessage();
-    if (!initial) { // No initial message - exit
+    if (!initial && !opts.startWithoutMessage) { // No initial message - exit
         return;
     }
 
+    const initialMode: EnhancedMode = initial?.mode ?? { permissionMode: 'default' };
+
     // Handle special commands
-    const specialCommand = parseSpecialCommand(initial.message);
+    const specialCommand = initial ? parseSpecialCommand(initial.message) : null;
 
     // Handle /clear command
-    if (specialCommand.type === 'clear') {
+    if (specialCommand?.type === 'clear') {
         if (opts.onCompletionEvent) {
             opts.onCompletionEvent('Context was reset');
         }
@@ -103,7 +108,7 @@ export async function claudeRemote(opts: {
 
     // Handle /compact command
     let isCompactCommand = false;
-    if (specialCommand.type === 'compact') {
+    if (specialCommand?.type === 'compact') {
         logger.debug('[claudeRemote] /compact command detected - will process as normal but with compaction behavior');
         isCompactCommand = true;
         if (opts.onCompletionEvent) {
@@ -117,34 +122,34 @@ export async function claudeRemote(opts: {
 
     const customSystemPrompt = pureContextMode
         ? undefined
-        : (initial.mode.customSystemPrompt
+        : (initialMode.customSystemPrompt
             ? (normalizedSystemPrompt
-                ? `${initial.mode.customSystemPrompt}\n\n${normalizedSystemPrompt}`
-                : initial.mode.customSystemPrompt)
+                ? `${initialMode.customSystemPrompt}\n\n${normalizedSystemPrompt}`
+                : initialMode.customSystemPrompt)
             : undefined);
     const appendSystemPrompt = pureContextMode
         ? undefined
-        : (initial.mode.appendSystemPrompt
+        : (initialMode.appendSystemPrompt
             ? (normalizedSystemPrompt
-                ? `${initial.mode.appendSystemPrompt}\n\n${normalizedSystemPrompt}`
-                : initial.mode.appendSystemPrompt)
+                ? `${initialMode.appendSystemPrompt}\n\n${normalizedSystemPrompt}`
+                : initialMode.appendSystemPrompt)
             : (normalizedSystemPrompt || undefined));
 
     // Prepare SDK options
-    let mode = initial.mode;
+    let mode = initialMode;
     const sdkOptions: Options = {
         cwd: opts.path,
         env: opts.childEnv,
         resume: startFrom ?? undefined,
         mcpServers: opts.mcpServers,
-        permissionMode: initial.mode.permissionMode,
-        model: initial.mode.model,
-        effort: initial.mode.thinkEffort,
-        fallbackModel: initial.mode.fallbackModel,
+        permissionMode: initialMode.permissionMode,
+        model: initialMode.model,
+        effort: initialMode.thinkEffort,
+        fallbackModel: initialMode.fallbackModel,
         customSystemPrompt,
         appendSystemPrompt,
-        allowedTools: initial.mode.allowedTools ? initial.mode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
-        disallowedTools: initial.mode.disallowedTools,
+        allowedTools: initialMode.allowedTools ? initialMode.allowedTools.concat(opts.allowedTools) : opts.allowedTools,
+        disallowedTools: initialMode.disallowedTools,
         canCallTool: (toolName: string, input: unknown, options: { signal: AbortSignal }) => opts.canCallTool(toolName, input, mode, options),
         abort: opts.signal,
         pathToClaudeCodeExecutable: getDefaultClaudeCodePath(),
@@ -166,13 +171,15 @@ export async function claudeRemote(opts: {
 
     // Push initial message
     let messages = new PushableAsyncIterable<SDKUserMessage>();
-    messages.push({
-        type: 'user',
-        message: {
-            role: 'user',
-            content: initial.message,
-        },
-    });
+    if (initial) {
+        messages.push({
+            type: 'user',
+            message: {
+                role: 'user',
+                content: initial.message,
+            },
+        });
+    }
 
     // Start the loop
     const response = query({
@@ -180,18 +187,21 @@ export async function claudeRemote(opts: {
         options: sdkOptions,
     });
 
-    updateThinking(true);
+    updateThinking(Boolean(initial));
 
     // Claude can start a turn on its own after a result, e.g. when a background
     // task finishes. Keep reading its output while waiting for the next user
     // message, otherwise that turn is only forwarded once the user sends
     // something, and every later reply lags one message behind.
     const iterator = response[Symbol.asyncIterator]();
-    let nextSdkMessage: Promise<IteratorResult<SDKMessage>> | null = null;
-    let nextUserMessage: ReturnType<typeof opts.nextMessage> | null = null;
     // Cancels a wait that is still pending when we exit, so it cannot take a
     // message meant for the next launch.
     const userWait = new AbortController();
+    let nextSdkMessage: Promise<IteratorResult<SDKMessage>> | null = null;
+    let nextUserMessage: ReturnType<typeof opts.nextMessage> | null = initial
+        ? null
+        : opts.nextMessage(userWait.signal);
+    nextUserMessage?.catch(() => {});
     // Set when the user queue asks us to stop (mode change / shutdown) while
     // Claude is mid-turn: finish the running turn first, then exit.
     let exitAfterTurn = false;
@@ -246,8 +256,9 @@ export async function claudeRemote(opts: {
 
             // Handle special system messages
             if (message.type === 'system' && message.subtype === 'init') {
-                // Start thinking when session initializes
-                updateThinking(true);
+                // A resumed process started without a message is idle after
+                // initialization; the first real user message starts thinking.
+                updateThinking(Boolean(initial));
 
                 const systemInit = message as SDKSystemMessage;
 
@@ -259,6 +270,9 @@ export async function claudeRemote(opts: {
                     const found = await awaitFileExist(join(projectDir, `${systemInit.session_id}.jsonl`));
                     logger.debug(`[claudeRemote] Session file found: ${systemInit.session_id} ${found}`);
                     opts.onSessionFound(systemInit.session_id);
+                }
+                if (!initial) {
+                    opts.onReady();
                 }
             }
 
