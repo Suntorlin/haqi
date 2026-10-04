@@ -73,9 +73,9 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
             </div>
             {checks[profile.id] && <p role="status" className="text-xs">{checks[profile.id]}</p>}
             <details open className="text-xs text-[var(--app-hint)]"><summary className="cursor-pointer">登录说明（首次需要本人授权）</summary>
-                <p className="mt-2">在所选机器的终端，将 HAPI_HOME 设为该 Runner 的数据目录后执行：</p>
-                <code className="mt-1 block break-all rounded bg-[var(--app-subtle-bg)] p-2">{`HAPI_HOME="${'${HAPI_HOME:-$HOME/.hapi-haqi3}'}" HOME="${'${HAPI_HOME:-$HOME/.hapi-haqi3}'}/claude-accounts/${profile.id}/home" CLAUDE_CONFIG_DIR="${'${HAPI_HOME:-$HOME/.hapi-haqi3}'}/claude-accounts/${profile.id}" claude auth login`}</code>
-                <p className="mt-1">必须同时隔离 HOME 和 CLAUDE_CONFIG_DIR；否则 Claude 可能显示登录成功，但会写入全局账号。haqi3 的默认数据目录是 ~/.hapi-haqi3。请选择上面填写的邮箱；完成后点“检查登录”。</p>
+                <p className="mt-2">在所选机器的图形界面终端执行（macOS 需要已解锁的登录钥匙串，不要通过 SSH，也不要设置 HOME）：</p>
+                <code className="mt-1 block break-all rounded bg-[var(--app-subtle-bg)] p-2">{`CLAUDE_CONFIG_DIR="${'${HAPI_HOME:-$HOME/.hapi-haqi3}'}/claude-accounts/${profile.id}" claude auth login`}</code>
+                <p className="mt-1">HAPI_HOME 以该 Runner 实际数据目录为准（haqi3 默认 ~/.hapi-haqi3）。Claude Code 会按此目录在钥匙串建立独立凭据条目，不影响全局登录。请选择上面填写的邮箱；完成后点“检查登录”。移除配置不会注销账号或删除凭据。</p>
             </details>
         </fieldset>)}
         <div className="flex flex-wrap gap-2">
