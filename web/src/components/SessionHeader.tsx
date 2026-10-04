@@ -8,6 +8,7 @@ import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
+import { SessionAccountInline } from '@/components/ClaudeAccounts/SessionAccountBar'
 
 function getSessionTitle(session: Session): string {
     if (session.metadata?.name) {
@@ -274,6 +275,12 @@ export function SessionHeader(props: {
                             </span>
                             {worktreeBranch ? (
                                 <span>{t('session.item.worktree')}: {worktreeBranch}</span>
+                            ) : null}
+                            {session.metadata?.flavor === 'claude' && session.metadata.claudeAccount ? (
+                                <SessionAccountInline
+                                    account={session.metadata.claudeAccount}
+                                    snapshot={session.metadata.rateLimitSnapshot}
+                                />
                             ) : null}
                         </div>
                     </div>
