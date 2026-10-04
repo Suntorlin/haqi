@@ -939,6 +939,11 @@ export class ApiClient {
     async checkClaudeAccount(machineId: string, id: string): Promise<{ email: string; checkedAt: number }> {
         return this.request(`/api/machines/${encodeURIComponent(machineId)}/claude-accounts/check`, { method: 'POST', body: JSON.stringify({ id }) })
     }
+    async switchClaudeAccount(sessionId: string, accountId: string, automatic: boolean): Promise<{ type: 'success'; sessionId: string }> {
+        return this.request(`/api/sessions/${encodeURIComponent(sessionId)}/claude-account`, {
+            method: 'POST', body: JSON.stringify({ accountId, automatic })
+        })
+    }
     async spawnSession(
         machineId: string,
         directory: string,

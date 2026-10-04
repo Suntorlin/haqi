@@ -4,6 +4,18 @@ import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useTranslation } from '@/lib/use-translation'
 import { accountsKey } from './Settings'
 
+export function remainingLabel(snapshot: import('@hapi/protocol/schemas').ClaudeRateLimitSnapshot | undefined): string | undefined {
+    if (snapshot?.five_hour?.status === 'rejected') return '0%'
+    const session = snapshot?.usageLimits?.find(limit => limit.kind === 'session')
+    const percent = typeof session?.percent === 'number'
+        ? session.percent
+        : typeof snapshot?.five_hour?.utilization === 'number'
+            ? snapshot.five_hour.utilization * 100
+            : undefined
+    if (percent === undefined) return undefined
+    return `${Math.max(0, Math.round(100 - percent))}%`
+}
+
 export function ClaudeAccountSelector({ api, machineId, selection, onChange, disabled }: {
     api: ApiClient; machineId: string | null; selection?: ClaudeAccountSelection;
     onChange: (selection?: ClaudeAccountSelection) => void; disabled: boolean
@@ -32,10 +44,17 @@ export function ClaudeAccountSelector({ api, machineId, selection, onChange, dis
                 <option value="">{t('newSession.claudeAccount.machineDefault')}</option>
                 {profiles.map((p) => (
                     <option key={p.id} value={p.id}>
-                        {p.email}{pool.initialAccount === p.id ? ` · ${t('newSession.claudeAccount.default')}` : ''}
+                        {p.email}
+                        {pool.initialAccount === p.id ? ` · ${t('newSession.claudeAccount.default')}` : ''}
+                        {remainingLabel(query.data?.usage?.[p.id]) !== undefined
+                            ? ` · ${t('newSession.claudeAccount.remaining', { percent: remainingLabel(query.data?.usage?.[p.id])! })}`
+                            : ` · ${t('newSession.claudeAccount.remainingUnknown')}`}
                     </option>
                 ))}
             </select>
+            <p className="text-[11px] text-[var(--app-hint)]">
+                {t('newSession.claudeAccount.autoSwitch', { state: pool.autoSwitch ? t('newSession.claudeAccount.enabled') : t('newSession.claudeAccount.disabled') })}
+            </p>
         </div>
     )
 }

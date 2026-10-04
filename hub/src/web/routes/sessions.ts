@@ -1,5 +1,5 @@
 import { getPermissionModesForFlavor, isModelModeAllowedForFlavor, isPermissionModeAllowedForFlavor, toSessionSummary } from '@hapi/protocol'
-import { ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
+import { ClaudeAccountSelectionSchema, ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
@@ -37,6 +37,11 @@ const previewUrlSchema = z.object({
 const previewUrlHistoryQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(100).optional()
 })
+
+const switchClaudeAccountSchema = z.object({
+    accountId: z.string().regex(/^[a-z0-9_-]{1,40}$/),
+    automatic: z.boolean().default(false)
+}).strict()
 
 const spawnFromExistingSessionSchema = z.object({
     inheritHistory: z.boolean()
@@ -539,6 +544,18 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         return c.json({ type: 'success', sessionId: result.sessionId })
+    })
+
+    app.post('/sessions/:id/claude-account', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) return sessionResult
+        const parsed = switchClaudeAccountSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: '账号选择无效' }, 400)
+        const result = await engine.switchClaudeAccount(sessionResult.sessionId, c.get('namespace'), ClaudeAccountSelectionSchema.parse(parsed.data))
+        if (result.type === 'error') return c.json({ error: result.message }, 409)
+        return c.json(result)
     })
 
     app.post('/sessions/:id/spawn', async (c) => {

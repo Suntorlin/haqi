@@ -3,6 +3,9 @@ import type { EnhancedMode } from '../loop';
 import { AccountHandoff } from './handoff';
 import { accountEnvironment, type AccountProfile, type AccountsConfig, verifyAccount } from './profiles';
 import { getDefaultClaudeCodePath } from '../sdk/utils';
+import { copyFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { getProjectPath } from '../utils/path';
 
 type RemoteOptions = Parameters<typeof claudeRemote>[0] & { onAccountState?: (state: import('@hapi/protocol/schemas').ClaudeAccountRuntime) => void };
 type Prepared = { profile: AccountProfile; prompt: string };
@@ -27,9 +30,6 @@ export class ManagedClaudeRemote {
         });
         const report = (message: string) => opts.onCompletionEvent?.(message);
         if (!this.initialized) {
-            if (opts.sessionId || opts.claudeArgs?.some(arg => ['--resume', '--continue', '-c', '-r'].includes(arg))) {
-                throw new Error('实验版只支持新建的受管理会话，不能直接接管未记录历史的旧会话');
-            }
             await verify(this.handoff.current);
             report(`账号已核验：${this.handoff.current.email}；自动切换${this.handoff.automatic ? '开启' : '关闭'}`);
             publish('verified');
@@ -39,10 +39,20 @@ export class ManagedClaudeRemote {
         let sessionId = opts.sessionId;
         let lastMode: EnhancedMode | null = null;
         let quotaNoticeSent = false;
+        const resumeRequested = Boolean(sessionId || opts.claudeArgs?.some((arg, index) =>
+            ['--resume', '--continue', '-c', '-r'].includes(arg) && (arg !== '--resume' || Boolean(opts.claudeArgs?.[index + 1]))
+        ));
+        let resumeSeedConsumed = false;
         while (!opts.signal?.aborted) {
             let prepared: Prepared | null = null;
             const prepare = async (id: string) => {
                 prepared = await this.handoff.prepare(id, opts.path, busy, verify);
+                if (sessionId) {
+                    const source = join(getProjectPath(opts.path, this.handoff.current.configDir), `${sessionId}.jsonl`);
+                    const targetDir = getProjectPath(opts.path, prepared.profile.configDir);
+                    await mkdir(targetDir, { recursive: true, mode: 0o700 });
+                    await copyFile(source, join(targetDir, `${sessionId}.jsonl`));
+                }
                 publish('switching');
                 report(`正在停止旧进程，准备由 ${prepared.profile.email} 接管当前 HAQI 会话`);
             };
@@ -55,6 +65,11 @@ export class ManagedClaudeRemote {
                     onSessionFound: id => { sessionId = id; opts.onSessionFound(id); },
                     onMessage: message => { this.handoff.observe(message); if (message.type === 'assistant') publish('active'); opts.onMessage(message); },
                     nextMessage: async signal => {
+                        if (resumeRequested && !resumeSeedConsumed) {
+                            resumeSeedConsumed = true;
+                            lastMode = lastMode ?? { permissionMode: 'default' };
+                            return { message: '继续当前会话。不要重复已经完成的工作。', mode: lastMode };
+                        }
                         if (seed) {
                             const initial = seed; seed = null;
                             this.handoff.ledger.startTurn();
@@ -104,8 +119,11 @@ export class ManagedClaudeRemote {
             this.handoff.commit(next.profile);
             publish('handoff');
             opts.onSessionReset?.();
-            sessionId = null;
-            seed = { message: next.prompt, mode: lastMode };
+            // Keep the same Claude session ID. The runner copied the transcript
+            // into the target account directory, so Claude resumes natively and
+            // does not need a lossy context_handoff prompt.
+            sessionId = sessionId ?? null;
+            seed = { message: '继续当前会话。不要重复已经完成的工作。', mode: lastMode };
             quotaNoticeSent = false;
             report(`账号切换为 ${next.profile.email}，正在通过 context_handoff 接管；HAQI 会话保持不变`);
         }

@@ -1,4 +1,5 @@
 import { useId, useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { Session } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
@@ -9,6 +10,8 @@ import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
 import { SessionAccountInline } from '@/components/ClaudeAccounts/SessionAccountBar'
+import { accountsKey } from '@/components/ClaudeAccounts/Settings'
+import { remainingLabel } from '@/components/ClaudeAccounts/Selector'
 
 function getSessionTitle(session: Session): string {
     if (session.metadata?.name) {
@@ -144,6 +147,14 @@ export function SessionHeader(props: {
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
     const displayThinkEffort = session.metadata?.thinkEffort?.trim()
     const displayServiceTier = session.metadata?.serviceTier?.trim()
+    const accountQuery = useQuery({
+        queryKey: accountsKey(session.metadata?.machineId ?? ''),
+        queryFn: () => api!.getClaudeAccounts(session.metadata!.machineId!),
+        enabled: Boolean(api && session.metadata?.flavor === 'claude' && session.metadata?.machineId),
+        retry: false
+    })
+    const [accountSwitching, setAccountSwitching] = useState(false)
+    const [accountSwitchError, setAccountSwitchError] = useState<string | null>(null)
     const sidebarToggleLabel = props.sidebarVisible
         ? t('sessions.sidebar.hideDesktop')
         : t('sessions.sidebar.showDesktop')
@@ -214,6 +225,23 @@ export function SessionHeader(props: {
             })
     }
 
+    const handleAccountSwitch = async (accountId: string) => {
+        if (!api || !accountId || accountId === session.metadata?.claudeAccount?.id) return
+        const profile = accountQuery.data?.pool.profiles.find(item => item.id === accountId)
+        if (!profile) return
+        setAccountSwitching(true)
+        setAccountSwitchError(null)
+        try {
+            const result = await api.switchClaudeAccount(session.id, accountId, accountQuery.data?.pool.autoSwitch ?? false)
+            props.onOpenSession?.(result.sessionId)
+        } catch (error) {
+            const message = error instanceof Error ? error.message : t('sessionAccount.switchFailed')
+            setAccountSwitchError(message)
+        } finally {
+            setAccountSwitching(false)
+        }
+    }
+
     // In Telegram, don't render header (Telegram provides its own)
     if (isTelegramApp()) {
         return null
@@ -281,6 +309,24 @@ export function SessionHeader(props: {
                                     account={session.metadata.claudeAccount}
                                     snapshot={session.metadata.rateLimitSnapshot}
                                 />
+                            ) : null}
+                            {session.metadata?.flavor === 'claude' && accountQuery.data?.pool.profiles.length ? (
+                                <>
+                                <select
+                                    aria-label={t('sessionAccount.switch')}
+                                    value={session.metadata.claudeAccount?.id ?? ''}
+                                    disabled={accountSwitching}
+                                    onChange={(event) => void handleAccountSwitch(event.target.value)}
+                                    className="max-w-[220px] rounded border border-[var(--app-divider)] bg-transparent px-1 text-xs"
+                                >
+                                    {!session.metadata.claudeAccount ? <option value="">{t('sessionAccount.machineDefault')}</option> : null}
+                                    {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
+                                        const remaining = remainingLabel(accountQuery.data?.usage?.[profile.id])
+                                        return <option key={profile.id} value={profile.id}>{profile.email}{remaining ? ` · ${remaining}` : ''}</option>
+                                    })}
+                                </select>
+                                {accountSwitchError ? <span role="alert" className="text-red-500">{accountSwitchError}</span> : null}
+                                </>
                             ) : null}
                         </div>
                     </div>

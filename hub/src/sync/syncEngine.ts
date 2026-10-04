@@ -1780,7 +1780,8 @@ ${note.content}
         worktreeName?: string,
         resumeSessionId?: string,
         previewUrl?: string | null,
-        claudeAccount?: ClaudeAccountSelection
+        claudeAccount?: ClaudeAccountSelection,
+        sourceClaudeAccountId?: string
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
         const result = await this.rpcGateway.spawnSession(
@@ -1794,7 +1795,8 @@ ${note.content}
             sessionType,
             worktreeName,
             resumeSessionId,
-            claudeAccount
+            claudeAccount,
+            sourceClaudeAccountId
         )
 
         if (result.type === 'success' && previewUrl) {
@@ -1806,6 +1808,51 @@ ${note.content}
             }
         }
 
+        return result
+    }
+
+    /** Stop an active Claude process and resume the same native transcript under another account. */
+    async switchClaudeAccount(
+        sessionId: string,
+        namespace: string,
+        claudeAccount: ClaudeAccountSelection
+    ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
+        const access = this.sessionCache.resolveSessionAccess(sessionId, namespace)
+        if (!access.ok) return { type: 'error', message: access.reason === 'access-denied' ? 'Session access denied' : 'Session not found' }
+        const session = access.session
+        const metadata = session.metadata
+        if (metadata?.flavor !== 'claude' || typeof metadata.path !== 'string' || typeof metadata.claudeSessionId !== 'string') {
+            return { type: 'error', message: '该会话没有可恢复的 Claude 原生历史' }
+        }
+        if (session.thinking || (session.agentState?.runningAgents?.length ?? 0) > 0) {
+            return { type: 'error', message: '会话仍在执行，请等待当前回合完成后再切换账号' }
+        }
+        const machineId = metadata.machineId
+        if (!machineId || !this.machineCache.getOnlineMachinesByNamespace(namespace).some(machine => machine.id === machineId)) {
+            return { type: 'error', message: '原会话所在机器不在线' }
+        }
+        if (session.active) await this.rpcGateway.killSession(session.id)
+        const deadline = Date.now() + 15_000
+        while (this.getSession(session.id)?.active && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 250))
+        if (this.getSession(session.id)?.active) return { type: 'error', message: '旧会话仍在运行，未执行切换' }
+        const result = await this.spawnSession(
+            machineId,
+            metadata.path,
+            'claude',
+            metadata.model,
+            metadata.thinkEffort as 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh' | undefined,
+            metadata.serviceTier as 'fast' | 'flex' | undefined,
+            session.permissionMode === 'bypassPermissions',
+            'simple',
+            undefined,
+            metadata.claudeSessionId,
+            undefined,
+            claudeAccount,
+            metadata.claudeAccount?.id
+        )
+        if (result.type !== 'success') return result
+        if (!await this.waitForSessionActive(result.sessionId)) return { type: 'error', message: '切换后的会话未能启动' }
+        if (result.sessionId !== session.id) await this.sessionCache.mergeSessions(session.id, result.sessionId, namespace)
         return result
     }
 

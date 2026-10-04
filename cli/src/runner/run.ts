@@ -22,8 +22,10 @@ import { normalizeClaudeModelValue } from '@hapi/protocol';
 import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
 import { join } from 'path';
+import { homedir } from 'os';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
 import { configuration } from '@/configuration';
+import { getProjectPath } from '@/claude/utils/path';
 
 export async function startRunner(): Promise<void> {
   // We don't have cleanup function at the time of server construction
@@ -316,10 +318,25 @@ export async function startRunner(): Promise<void> {
         // Resolve authentication token if provided
         let extraEnv: Record<string, string> = { HAPI_CLAUDE_ACCOUNT_HANDOFF: '0', HAPI_CLAUDE_ACCOUNT: '', HAPI_CLAUDE_ACCOUNT_AUTO: '' };
         if (options.claudeAccount) {
-          if (agent !== 'claude' || options.token || options.resumeSessionId) throw new Error('账号池只支持新建 Claude 会话，不能与外部 token/resume 混用');
+          if (agent !== 'claude' || options.token) throw new Error('账号池只支持 Claude 会话，不能与外部 token 混用');
           const { loadAccounts } = await import('../claude/accounts/profiles');
           const config = await loadAccounts(configuration.happyHomeDir);
-          if (!config.profiles.some(p => p.id === options.claudeAccount!.accountId && p.enabled !== false)) throw new Error('所选账号不存在或已停用');
+          const target = config.profiles.find(p => p.id === options.claudeAccount!.accountId && p.enabled !== false);
+          if (!target) throw new Error('所选账号不存在或已停用');
+          // Native Claude resume reads the transcript from CLAUDE_CONFIG_DIR. Account
+          // profiles are isolated, so copy only the selected conversation before
+          // launching; no credentials or other project history cross the boundary.
+          if (options.resumeSessionId) {
+            const source = options.sourceClaudeAccountId
+              ? config.profiles.find(p => p.id === options.sourceClaudeAccountId)?.configDir
+              : process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
+            if (!source) throw new Error('原账号不存在，无法保留会话历史');
+            const sourceFile = join(getProjectPath(directory, source), `${options.resumeSessionId}.jsonl`);
+            const targetDir = getProjectPath(directory, target.configDir);
+            const targetFile = join(targetDir, `${options.resumeSessionId}.jsonl`);
+            await fs.mkdir(targetDir, { recursive: true, mode: 0o700 });
+            await fs.copyFile(sourceFile, targetFile);
+          }
           extraEnv.HAPI_CLAUDE_ACCOUNT_HANDOFF = '1';
           extraEnv.HAPI_CLAUDE_ACCOUNT = options.claudeAccount.accountId;
           extraEnv.HAPI_CLAUDE_ACCOUNT_AUTO = options.claudeAccount.automatic ? '1' : '0';
