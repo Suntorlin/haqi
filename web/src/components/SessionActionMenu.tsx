@@ -373,7 +373,11 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 </button>
 
                 {onTags ? (
-                    <div className="relative">
+                    <div
+                        className="relative"
+                        onMouseEnter={() => setTagsSubmenuOpen(true)}
+                        onMouseLeave={() => setTagsSubmenuOpen(false)}
+                    >
                         <button
                             type="button"
                             role="menuitem"
@@ -381,6 +385,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                             aria-expanded={tagsSubmenuOpen}
                             className={`${baseItemClassName} justify-between hover:bg-[var(--app-subtle-bg)]`}
                             onClick={handleTagsSubmenuToggle}
+                            onFocus={() => setTagsSubmenuOpen(true)}
                         >
                             <span className="flex min-w-0 items-center gap-3">
                                 <TagIcon className="text-[var(--app-hint)]" />
