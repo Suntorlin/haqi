@@ -53,6 +53,30 @@ const updateTeamStateSchema = z.object({
     teamState: z.unknown().nullable()
 })
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/**
+ * Web-only session fields (currently tags and the user-visible name) are not
+ * known to old/long-running CLI processes. Their metadata updates are full
+ * snapshots, so preserve those fields when an older client omits them.
+ * Explicit values, including an empty tags array, still win.
+ */
+export function preserveWebSessionMetadata(current: unknown, incoming: unknown): unknown {
+    if (!isRecord(current) || !isRecord(incoming)) {
+        return incoming
+    }
+
+    const merged = { ...incoming }
+    for (const key of ['tags', 'name'] as const) {
+        if (!Object.prototype.hasOwnProperty.call(incoming, key) && key in current) {
+            merged[key] = current[key]
+        }
+    }
+    return merged
+}
+
 export type SessionHandlersDeps = {
     store: Store
     resolveSessionAccess: ResolveSessionAccess
@@ -157,9 +181,10 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
             return
         }
 
+        const metadataForStore = preserveWebSessionMetadata(sessionAccess.value.metadata, metadata)
         const result = store.sessions.updateSessionMetadata(
             sid,
-            metadata,
+            metadataForStore,
             expectedVersion,
             sessionAccess.value.namespace
         )
@@ -179,7 +204,7 @@ export function registerSessionHandlers(socket: CliSocketWithData, deps: Session
                 body: {
                     t: 'update-session' as const,
                     sid,
-                    metadata: { version: result.version, value: metadata },
+                    metadata: { version: result.version, value: result.value },
                     agentState: null
                 }
             }
