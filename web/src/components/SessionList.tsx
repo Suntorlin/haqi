@@ -316,12 +316,13 @@ function SessionItem(props: {
     onSelect: (sessionId: string) => void
     showPath?: boolean
     api: ApiClient | null
+    availableTags?: string[]
     selected?: boolean
     density: SessionListDensity
     forceOffline?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, showPath = true, api, selected = false, density, forceOffline = false } = props
+    const { session: s, onSelect, showPath = true, api, availableTags = [], selected = false, density, forceOffline = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -528,6 +529,7 @@ function SessionItem(props: {
                 isOpen={tagsOpen}
                 onClose={() => setTagsOpen(false)}
                 tags={s.metadata?.tags ?? []}
+                availableTags={availableTags}
                 onSave={setTags}
                 isPending={isPending}
             />
@@ -764,6 +766,7 @@ function OfflineSectionRow(props: {
 
 export function SessionList(props: {
     sessions: SessionSummary[]
+    availableTags?: string[]
     onSelect: (sessionId: string) => void
     onNewSession: (preset?: NewSessionPreset) => void
     onQuickCreateInProject?: (preset?: NewSessionPreset) => void
@@ -775,7 +778,7 @@ export function SessionList(props: {
     density?: SessionListDensity
 }) {
     const { t } = useTranslation()
-    const { renderHeader = true, api, selectedSessionId, density = 'comfortable' } = props
+    const { renderHeader = true, api, selectedSessionId, density = 'comfortable', availableTags = [] } = props
     const { projectQuickCreateEnabled } = useProjectQuickCreate()
     const baseGroups = useMemo(
         () => groupSessionsByDirectory(props.sessions),
@@ -1011,6 +1014,7 @@ export function SessionList(props: {
                                             onSelect={props.onSelect}
                                             showPath={false}
                                             api={api}
+                                            availableTags={availableTags}
                                             selected={row.session.id === selectedSessionId}
                                             density={density}
                                             forceOffline={row.forceOffline}

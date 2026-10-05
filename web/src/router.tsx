@@ -577,6 +577,7 @@ function SessionsPage() {
                     <div className="min-h-0 flex-1">
                         <SessionList
                             sessions={visibleSessions}
+                            availableTags={sessionTags}
                             selectedSessionId={selectedSessionId}
                             onSelect={selectSession}
                             onNewSession={openNewSession}

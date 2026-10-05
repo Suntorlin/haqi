@@ -99,6 +99,7 @@ export default {
   'dialog.rename.error': '重命名失败，请重试。',
   'dialog.tags.title': '管理会话标签',
   'dialog.tags.placeholder': '标签1, 标签2',
+  'dialog.tags.existing': '已有标签（点击快速选择）',
   'dialog.tags.hint': '用逗号分隔，最多 20 个标签；留空可清除标签。',
   'dialog.tags.saving': '保存中…',
   'dialog.tags.error': '标签保存失败，请检查格式后重试。',

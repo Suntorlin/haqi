@@ -12,6 +12,7 @@ type SessionTagsDialogProps = {
     isOpen: boolean
     onClose: () => void
     tags: string[]
+    availableTags?: string[]
     onSave: (tags: string[]) => Promise<void>
     isPending: boolean
 }
@@ -25,7 +26,7 @@ function normalizeTags(value: string): string[] {
 
 export function SessionTagsDialog(props: SessionTagsDialogProps) {
     const { t } = useTranslation()
-    const { isOpen, onClose, tags, onSave, isPending } = props
+    const { isOpen, onClose, tags, availableTags = [], onSave, isPending } = props
     const [value, setValue] = useState('')
     const [error, setError] = useState<string | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
@@ -39,6 +40,21 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
             inputRef.current?.select()
         }, 100)
     }, [isOpen, tags])
+
+    const quickSelectTags = Array.from(new Set([...availableTags, ...tags]))
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
+
+    const toggleTag = (tag: string) => {
+        const selectedTags = normalizeTags(value)
+        const nextTags = selectedTags.includes(tag)
+            ? selectedTags.filter((selectedTag) => selectedTag !== tag)
+            : [...selectedTags, tag]
+        setValue(nextTags.join(', '))
+        setError(null)
+        inputRef.current?.focus()
+    }
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault()
@@ -73,6 +89,33 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                         className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
                         disabled={isPending}
                     />
+                    {quickSelectTags.length ? (
+                        <div className="flex flex-col gap-2">
+                            <div className="text-xs font-medium text-[var(--app-hint)]">
+                                {t('dialog.tags.existing')}
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {quickSelectTags.map((tag) => {
+                                    const isSelected = normalizeTags(value).includes(tag)
+                                    return (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => toggleTag(tag)}
+                                            disabled={isPending}
+                                            aria-pressed={isSelected}
+                                            className={`rounded-full px-2.5 py-1 text-xs transition-colors ${isSelected
+                                                ? 'bg-[var(--app-link)] text-white'
+                                                : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                            }`}
+                                        >
+                                            #{tag}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    ) : null}
                     <div className="text-xs text-[var(--app-hint)]">{t('dialog.tags.hint')}</div>
 
                     {error ? (

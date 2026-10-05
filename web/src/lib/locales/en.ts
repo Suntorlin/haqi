@@ -99,6 +99,7 @@ export default {
   'dialog.rename.error': 'Failed to rename. Please try again.',
   'dialog.tags.title': 'Manage session tags',
   'dialog.tags.placeholder': 'tag-one, tag-two',
+  'dialog.tags.existing': 'Existing tags (click to select)',
   'dialog.tags.hint': 'Separate with commas; up to 20 tags. Leave empty to clear tags.',
   'dialog.tags.saving': 'Saving…',
   'dialog.tags.error': 'Failed to save tags. Check the format and try again.',
