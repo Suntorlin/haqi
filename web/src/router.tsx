@@ -214,6 +214,7 @@ function CloseIcon(props: { className?: string }) {
 type NewSessionSearch = {
     directory?: string
     machineId?: string
+    tag?: string
 }
 
 type SessionsLayoutContextValue = {
@@ -231,12 +232,16 @@ function useSessionsLayoutContext() {
 function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     const directory = preset?.directory
     const machineId = preset?.machineId
+    const tag = preset?.tag
     const next: NewSessionSearch = {}
     if (directory) {
         next.directory = directory
     }
     if (machineId) {
         next.machineId = machineId
+    }
+    if (tag) {
+        next.tag = tag
     }
     return next
 }
@@ -302,13 +307,16 @@ function SessionsPage() {
     }, [refetch])
 
     const openNewSession = useCallback((preset?: NewSessionPreset) => {
-        const resolvedPreset = preset ?? selectedSessionPreset
+        const resolvedPreset = {
+            ...(preset ?? selectedSessionPreset),
+            ...(selectedSessionTag ? { tag: selectedSessionTag } : {})
+        }
         setMobileSidebarOpen(false)
         navigate({
             to: '/sessions/new',
             search: toNewSessionSearch(resolvedPreset)
         })
-    }, [navigate, selectedSessionPreset])
+    }, [navigate, selectedSessionPreset, selectedSessionTag])
 
     const quickCreateInProject = useCallback(async (preset?: NewSessionPreset) => {
         if (isQuickCreatingSession) {
@@ -359,6 +367,20 @@ function SessionsPage() {
                 return
             }
 
+            if (selectedSessionTag) {
+                try {
+                    await api.updateSessionTags(result.sessionId, [selectedSessionTag])
+                } catch (error) {
+                    console.error('Failed to apply session tag after quick create', error)
+                    addToast({
+                        title: t('newSession.tagAttachFailed'),
+                        body: selectedSessionTag,
+                        sessionId: result.sessionId,
+                        url: ''
+                    })
+                }
+            }
+
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
             navigate({
                 to: '/sessions/$sessionId',
@@ -374,10 +396,12 @@ function SessionsPage() {
         }
     }, [
         addToast,
+        api,
         isQuickCreatingSession,
         navigate,
         openNewSession,
         queryClient,
+        selectedSessionTag,
         spawnSession,
         t
     ])
@@ -850,13 +874,28 @@ function NewSessionPage() {
     const search = useSearch({ from: '/sessions/new' })
     const goBack = useAppGoBack()
     const queryClient = useQueryClient()
+    const { addToast } = useToast()
+    const { t } = useTranslation()
     const { machines, isLoading: machinesLoading, error: machinesError } = useMachines(api, true)
 
     const handleCancel = useCallback(() => {
         navigate({ to: '/sessions' })
     }, [navigate])
 
-    const handleSuccess = useCallback((sessionId: string) => {
+    const handleSuccess = useCallback(async (sessionId: string) => {
+        if (search.tag) {
+            try {
+                await api.updateSessionTags(sessionId, [search.tag])
+            } catch (error) {
+                console.error('Failed to apply session tag after create', error)
+                addToast({
+                    title: t('newSession.tagAttachFailed'),
+                    body: search.tag,
+                    sessionId,
+                    url: ''
+                })
+            }
+        }
         void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
         // Replace current page with /sessions to clear spawn flow from history
         navigate({ to: '/sessions', replace: true })
@@ -867,7 +906,7 @@ function NewSessionPage() {
                 params: { sessionId },
             })
         })
-    }, [navigate, queryClient])
+    }, [addToast, api, navigate, queryClient, search.tag, t])
     const formId = 'new-session-page-form'
     const submitDisabled = Boolean(machinesLoading || machinesError)
 
@@ -2001,6 +2040,7 @@ const newSessionRoute = createRoute({
     validateSearch: (search: Record<string, unknown>): NewSessionSearch => {
         const directoryRaw = typeof search.directory === 'string' ? search.directory : undefined
         const machineIdRaw = typeof search.machineId === 'string' ? search.machineId : undefined
+        const tagRaw = typeof search.tag === 'string' ? search.tag : undefined
 
         const result: NewSessionSearch = {}
         if (directoryRaw && directoryRaw.trim().length > 0) {
@@ -2008,6 +2048,9 @@ const newSessionRoute = createRoute({
         }
         if (machineIdRaw && machineIdRaw.trim().length > 0) {
             result.machineId = machineIdRaw
+        }
+        if (tagRaw && tagRaw.trim().length > 0) {
+            result.tag = tagRaw.trim().toLowerCase()
         }
         return result
     },

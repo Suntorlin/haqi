@@ -157,6 +157,7 @@ export default {
   'newSession.yolo.desc': '启动时使用危险的代理标志。',
   'newSession.create': '创建',
   'newSession.creating': '创建中…',
+  'newSession.tagAttachFailed': '会话已创建，但标签添加失败。',
 
   // Spawn session (old component)
   'spawn.title': '创建会话',

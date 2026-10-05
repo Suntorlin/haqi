@@ -70,7 +70,7 @@ export function NewSession(props: {
     initialDirectory?: string
     initialMachineId?: string
     formId?: string
-    onSuccess: (sessionId: string) => void
+    onSuccess: (sessionId: string) => void | Promise<void>
     onCancel: () => void
 }) {
     const { haptic } = usePlatform()
@@ -377,7 +377,7 @@ export function NewSession(props: {
                     worktreeName: worktreeName.trim(),
                     previewUrl: normalizedPreviewUrl.value ?? ''
                 })
-                props.onSuccess(result.sessionId)
+                await props.onSuccess(result.sessionId)
                 return
             }
 

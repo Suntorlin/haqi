@@ -74,6 +74,7 @@ type SessionListRow =
 export type NewSessionPreset = {
     directory?: string
     machineId?: string
+    tag?: string
 }
 
 function getGroupDisplayName(directory: string): string {

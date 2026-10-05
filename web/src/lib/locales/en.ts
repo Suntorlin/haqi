@@ -155,6 +155,7 @@ export default {
   'newSession.yolo.desc': 'Uses dangerous agent flags when spawning.',
   'newSession.create': 'Create',
   'newSession.creating': 'Creating…',
+  'newSession.tagAttachFailed': 'Session created, but the tag could not be applied.',
 
   // Spawn session (old component)
   'spawn.title': 'Create Session',
