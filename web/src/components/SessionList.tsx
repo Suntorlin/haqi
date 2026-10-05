@@ -22,6 +22,7 @@ import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
+import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
@@ -43,7 +44,6 @@ type SessionGroup = {
     directory: string
     displayName: string
     sessions: SessionSummary[]
-    latestUpdatedAt: number
     hasActiveSession: boolean
 }
 
@@ -98,26 +98,15 @@ function groupSessionsByDirectory(sessions: SessionSummary[]): SessionGroup[] {
     return Array.from(groups.entries())
         .map(([directory, groupSessions]) => {
             const sortedSessions = [...groupSessions].sort((a, b) => {
-                const rankA = a.active ? (a.pendingRequestsCount > 0 ? 0 : 1) : 2
-                const rankB = b.active ? (b.pendingRequestsCount > 0 ? 0 : 1) : 2
-                if (rankA !== rankB) return rankA - rankB
-                return b.updatedAt - a.updatedAt
+                if (a.createdAt !== b.createdAt) return b.createdAt - a.createdAt
+                return a.id.localeCompare(b.id)
             })
-            const latestUpdatedAt = groupSessions.reduce(
-                (max, s) => (s.updatedAt > max ? s.updatedAt : max),
-                -Infinity
-            )
             const hasActiveSession = groupSessions.some(s => s.active)
             const displayName = getGroupDisplayName(directory)
 
-            return { directory, displayName, sessions: sortedSessions, latestUpdatedAt, hasActiveSession }
+            return { directory, displayName, sessions: sortedSessions, hasActiveSession }
         })
-        .sort((a, b) => {
-            if (a.hasActiveSession !== b.hasActiveSession) {
-                return a.hasActiveSession ? -1 : 1
-            }
-            return b.latestUpdatedAt - a.latestUpdatedAt
-        })
+        .sort((a, b) => a.directory.localeCompare(b.directory))
 }
 
 function getGroupMachineId(group: SessionGroup): string | undefined {
@@ -337,6 +326,7 @@ function SessionItem(props: {
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
+    const [tagsOpen, setTagsOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
@@ -345,6 +335,7 @@ function SessionItem(props: {
     const {
         archiveSession,
         renameSession,
+        setTags,
         deleteSession,
         spawnSameConfigSession,
         duplicateSession,
@@ -473,6 +464,18 @@ function SessionItem(props: {
                             {s.metadata?.path ?? s.id}
                         </div>
                     ) : null}
+                    {s.metadata?.tags?.length ? (
+                        <div className="flex flex-wrap gap-1">
+                            {s.metadata.tags.map((tag) => (
+                                <span
+                                    key={tag}
+                                    className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                >
+                                    #{tag}
+                                </span>
+                            ))}
+                        </div>
+                    ) : null}
                     {!isCompact ? (
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
                             <span className="inline-flex items-center gap-2">
@@ -505,6 +508,7 @@ function SessionItem(props: {
                 onClose={() => setMenuOpen(false)}
                 sessionActive={s.active}
                 onRename={() => setRenameOpen(true)}
+                onTags={() => setTagsOpen(true)}
                 onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
@@ -517,6 +521,14 @@ function SessionItem(props: {
                 onClose={() => setRenameOpen(false)}
                 currentName={sessionName}
                 onRename={renameSession}
+                isPending={isPending}
+            />
+
+            <SessionTagsDialog
+                isOpen={tagsOpen}
+                onClose={() => setTagsOpen(false)}
+                tags={s.metadata?.tags ?? []}
+                onSave={setTags}
                 isPending={isPending}
             />
 

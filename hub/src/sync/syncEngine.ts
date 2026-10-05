@@ -935,6 +935,10 @@ export class SyncEngine {
         await this.sessionCache.renameSession(sessionId, name)
     }
 
+    async setSessionTags(sessionId: string, tags: string[]): Promise<void> {
+        await this.sessionCache.setSessionTags(sessionId, tags)
+    }
+
     async setSessionPreviewUrl(sessionId: string, previewUrl: string | null): Promise<void> {
         await this.sessionCache.setPreviewUrl(sessionId, previewUrl)
     }

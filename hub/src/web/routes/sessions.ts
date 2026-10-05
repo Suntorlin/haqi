@@ -30,6 +30,14 @@ const renameSessionSchema = z.object({
     name: z.string().min(1).max(255)
 })
 
+const sessionTagsSchema = z.object({
+    tags: z.array(z.string().trim().min(1).max(40)).max(20)
+}).strict()
+
+function normalizeSessionTags(tags: string[]): string[] {
+    return Array.from(new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)))
+}
+
 const previewUrlSchema = z.object({
     url: z.string().max(2048).nullable()
 })
@@ -204,23 +212,13 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return engine
         }
 
-        const getPendingCount = (s: Session) => s.agentState?.requests ? Object.keys(s.agentState.requests).length : 0
-
         const namespace = c.get('namespace')
         const sessions = engine.getSessionsByNamespace(namespace)
             .sort((a, b) => {
-                // Active sessions first
-                if (a.active !== b.active) {
-                    return a.active ? -1 : 1
-                }
-                // Within active sessions, sort by pending requests count
-                const aPending = getPendingCount(a)
-                const bPending = getPendingCount(b)
-                if (a.active && aPending !== bPending) {
-                    return bPending - aPending
-                }
-                // Then by updatedAt
-                return b.updatedAt - a.updatedAt
+                // Keep the list stable while live session state changes. Activity,
+                // queue depth and updatedAt are displayed as status, not ordering.
+                if (a.createdAt !== b.createdAt) return b.createdAt - a.createdAt
+                return a.id.localeCompare(b.id)
             })
             .map(toSessionSummary)
 
@@ -948,6 +946,36 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to rename session'
             // Map concurrency/version errors to 409 conflict
+            if (message.includes('concurrently') || message.includes('version')) {
+                return c.json({ error: message }, 409)
+            }
+            return c.json({ error: message }, 500)
+        }
+    })
+
+    app.patch('/sessions/:id/tags', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = sessionTagsSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body: tags must contain at most 20 non-empty values' }, 400)
+        }
+
+        try {
+            const tags = normalizeSessionTags(parsed.data.tags)
+            await engine.setSessionTags(sessionResult.sessionId, tags)
+            return c.json({ ok: true, tags })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to update session tags'
             if (message.includes('concurrently') || message.includes('version')) {
                 return c.json({ error: message }, 409)
             }

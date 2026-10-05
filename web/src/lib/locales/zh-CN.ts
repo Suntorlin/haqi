@@ -49,6 +49,7 @@ export default {
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',
   'sessions.search.placeholder': '搜索会话…',
+  'sessions.tags.all': '全部标签',
   'groups.search.placeholder': '搜索群组…',
   'sessions.sidebar.resize': '调整侧边栏宽度',
   'sessions.sidebar.open': '打开会话侧边栏',
@@ -82,6 +83,7 @@ export default {
 
   // Session actions
   'session.action.rename': '重命名',
+  'session.action.tags': '管理标签',
   'session.action.newSameConfig': '新建（同配置）',
   'session.action.duplicate': '复制（含历史）',
   'session.action.archive': '归档',
@@ -95,6 +97,11 @@ export default {
   'dialog.rename.save': '保存',
   'dialog.rename.saving': '保存中…',
   'dialog.rename.error': '重命名失败，请重试。',
+  'dialog.tags.title': '管理会话标签',
+  'dialog.tags.placeholder': '标签1, 标签2',
+  'dialog.tags.hint': '用逗号分隔，最多 20 个标签；留空可清除标签。',
+  'dialog.tags.saving': '保存中…',
+  'dialog.tags.error': '标签保存失败，请检查格式后重试。',
 
   'dialog.archive.title': '归档会话',
   'dialog.archive.description': '确定要归档 "{name}" 吗？这将断开活动会话。',

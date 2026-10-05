@@ -10,8 +10,9 @@ function buildSessionSearchFields(session: SessionSummary): string[] {
     const name = (session.metadata?.name ?? '').toLowerCase()
     const summary = (session.metadata?.summary?.text ?? '').toLowerCase()
     const path = (session.metadata?.path ?? '').toLowerCase()
+    const tags = (session.metadata?.tags ?? []).map((tag) => tag.toLowerCase())
     const sessionId = session.id.toLowerCase()
-    return [title, name, summary, path, sessionId]
+    return [title, name, summary, path, sessionId, ...tags]
 }
 
 export function matchesSessionSearch(session: SessionSummary, query: string): boolean {

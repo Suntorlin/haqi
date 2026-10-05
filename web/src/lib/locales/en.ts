@@ -49,6 +49,7 @@ export default {
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
   'sessions.search.placeholder': 'Search sessions…',
+  'sessions.tags.all': 'All tags',
   'groups.search.placeholder': 'Search groups…',
   'sessions.sidebar.resize': 'Resize sidebar',
   'sessions.sidebar.open': 'Open sessions sidebar',
@@ -82,6 +83,7 @@ export default {
 
   // Session actions
   'session.action.rename': 'Rename',
+  'session.action.tags': 'Manage tags',
   'session.action.newSameConfig': 'New (same config)',
   'session.action.duplicate': 'Duplicate (with history)',
   'session.action.archive': 'Archive',
@@ -95,6 +97,11 @@ export default {
   'dialog.rename.save': 'Save',
   'dialog.rename.saving': 'Saving…',
   'dialog.rename.error': 'Failed to rename. Please try again.',
+  'dialog.tags.title': 'Manage session tags',
+  'dialog.tags.placeholder': 'tag-one, tag-two',
+  'dialog.tags.hint': 'Separate with commas; up to 20 tags. Leave empty to clear tags.',
+  'dialog.tags.saving': 'Saving…',
+  'dialog.tags.error': 'Failed to save tags. Check the format and try again.',
   'dialog.archive.title': 'Archive Session',
   'dialog.archive.description': 'Are you sure you want to archive "{name}"? This will disconnect active session.',
   'dialog.archive.confirm': 'Archive',

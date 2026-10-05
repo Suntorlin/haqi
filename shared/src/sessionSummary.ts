@@ -5,6 +5,7 @@ export type SessionSummaryMetadata = {
     name?: string
     path: string
     machineId?: string
+    tags?: string[]
     model?: string
     thinkEffort?: string
     serviceTier?: string
@@ -16,6 +17,7 @@ export type SessionSummaryMetadata = {
 
 export type SessionSummary = {
     id: string
+    createdAt: number
     active: boolean
     thinking: boolean
     activeAt: number
@@ -33,6 +35,7 @@ export function toSessionSummary(session: Session): SessionSummary {
         name: session.metadata.name,
         path: session.metadata.path,
         machineId: session.metadata.machineId ?? undefined,
+        tags: session.metadata.tags,
         model: session.metadata.model,
         thinkEffort: session.metadata.thinkEffort,
         serviceTier: session.metadata.serviceTier,
@@ -49,6 +52,7 @@ export function toSessionSummary(session: Session): SessionSummary {
 
     return {
         id: session.id,
+        createdAt: session.createdAt,
         active: session.active,
         thinking: session.thinking,
         activeAt: session.activeAt,

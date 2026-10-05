@@ -256,6 +256,7 @@ function SessionsPage() {
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
+    const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
@@ -280,10 +281,21 @@ function SessionsPage() {
         }
     }, [selectedSessionId, sessions])
 
-    const visibleSessions = useMemo(
-        () => filterSessionsBySearch(sessions, sessionSearchQuery),
-        [sessions, sessionSearchQuery]
-    )
+    const sessionTags = useMemo(() => Array.from(new Set(
+        sessions.flatMap((session) => session.metadata?.tags ?? [])
+    )).sort((a, b) => a.localeCompare(b)), [sessions])
+
+    useEffect(() => {
+        if (selectedSessionTag && !sessionTags.includes(selectedSessionTag)) {
+            setSelectedSessionTag(null)
+        }
+    }, [selectedSessionTag, sessionTags])
+
+    const visibleSessions = useMemo(() => {
+        const searched = filterSessionsBySearch(sessions, sessionSearchQuery)
+        if (!selectedSessionTag) return searched
+        return searched.filter((session) => session.metadata?.tags?.includes(selectedSessionTag))
+    }, [sessions, sessionSearchQuery, selectedSessionTag])
 
     const handleRefresh = useCallback(() => {
         void refetch()
@@ -532,6 +544,27 @@ function SessionsPage() {
                             placeholder={t('sessions.search.placeholder')}
                             className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
                         />
+                        {sessionTags.length ? (
+                            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedSessionTag(null)}
+                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${selectedSessionTag === null ? 'bg-[var(--app-link)] text-white' : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'}`}
+                                >
+                                    {t('sessions.tags.all')}
+                                </button>
+                                {sessionTags.map((tag) => (
+                                    <button
+                                        key={tag}
+                                        type="button"
+                                        onClick={() => setSelectedSessionTag(tag)}
+                                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${selectedSessionTag === tag ? 'bg-[var(--app-link)] text-white' : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'}`}
+                                    >
+                                        #{tag}
+                                    </button>
+                                ))}
+                            </div>
+                        ) : null}
                     </div>
                 </div>
 

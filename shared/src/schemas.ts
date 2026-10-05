@@ -107,6 +107,7 @@ export type ClaudeAccountPoolView = {
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),
+    tags: z.array(z.string().min(1).max(40)).max(20).optional(),
     version: z.string().optional(),
     name: z.string().optional(),
     os: z.string().optional(),

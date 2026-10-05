@@ -278,6 +278,31 @@ export class SessionCache {
         this.refreshSession(sessionId)
     }
 
+    async setSessionTags(sessionId: string, tags: string[]): Promise<void> {
+        const session = this.sessions.get(sessionId) ?? this.refreshSession(sessionId)
+        if (!session) {
+            throw new Error('Session not found')
+        }
+
+        const currentMetadata = session.metadata ?? { path: '', host: '' }
+        const result = this.store.sessions.updateSessionMetadata(
+            sessionId,
+            { ...currentMetadata, tags },
+            session.metadataVersion,
+            session.namespace,
+            { touchUpdatedAt: false }
+        )
+
+        if (result.result === 'error') {
+            throw new Error('Failed to update session tags')
+        }
+        if (result.result === 'version-mismatch') {
+            throw new Error('Session was modified concurrently. Please try again.')
+        }
+
+        this.refreshSession(sessionId)
+    }
+
     async updateSessionMetadata(
         sessionId: string,
         updater: (metadata: Session['metadata']) => Session['metadata']

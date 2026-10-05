@@ -24,6 +24,7 @@ export function useSessionActions(
     setServiceTier: (serviceTier: SessionServiceTier) => Promise<void>
     setCollaborationMode: (mode: 'default' | 'plan') => Promise<void>
     renameSession: (name: string) => Promise<void>
+    setTags: (tags: string[]) => Promise<void>
     deleteSession: () => Promise<void>
     spawnSameConfigSession: () => Promise<string>
     duplicateSession: () => Promise<string>
@@ -144,6 +145,16 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const tagsMutation = useMutation({
+        mutationFn: async (tags: string[]) => {
+            if (!api || !sessionId) {
+                throw new Error('Session unavailable')
+            }
+            await api.updateSessionTags(sessionId, tags)
+        },
+        onSuccess: () => void invalidateSession(),
+    })
+
     const deleteMutation = useMutation({
         mutationFn: async () => {
             if (!api || !sessionId) {
@@ -209,6 +220,7 @@ export function useSessionActions(
         setServiceTier: serviceTierMutation.mutateAsync,
         setCollaborationMode: collaborationModeMutation.mutateAsync,
         renameSession: renameMutation.mutateAsync,
+        setTags: tagsMutation.mutateAsync,
         deleteSession: deleteMutation.mutateAsync,
         spawnSameConfigSession: async () => await spawnFromExistingSession(false),
         duplicateSession: async () => await spawnFromExistingSession(true),
@@ -223,6 +235,7 @@ export function useSessionActions(
             || serviceTierMutation.isPending
             || collaborationModeMutation.isPending
             || renameMutation.isPending
+            || tagsMutation.isPending
             || deleteMutation.isPending
             || resumeMutation.isPending
             || spawnFromExistingMutation.isPending,

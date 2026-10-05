@@ -14,6 +14,7 @@ type SessionActionMenuProps = {
     onClose: () => void
     sessionActive: boolean
     onRename: () => void
+    onTags?: () => void
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onArchive: () => void
@@ -105,6 +106,15 @@ function DuplicateIcon(props: { className?: string }) {
     )
 }
 
+function TagIcon(props: { className?: string }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
+            <path d="M20.59 13.41 11 3.83V3H4v7h.83l9.58 9.59a2 2 0 0 0 2.83 0l3.35-3.35a2 2 0 0 0 0-2.83Z" />
+            <circle cx="7.5" cy="6.5" r=".5" fill="currentColor" />
+        </svg>
+    )
+}
+
 function TrashIcon(props: { className?: string }) {
     return (
         <svg
@@ -141,6 +151,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onClose,
         sessionActive,
         onRename,
+        onTags,
         onSpawnSameConfig,
         onDuplicate,
         onArchive,
@@ -157,6 +168,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const handleRename = () => {
         onClose()
         onRename()
+    }
+
+    const handleTags = () => {
+        if (!onTags) return
+        onClose()
+        onTags()
     }
 
     const handleArchive = () => {
@@ -296,6 +313,18 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     <EditIcon className="text-[var(--app-hint)]" />
                     {t('session.action.rename')}
                 </button>
+
+                {onTags ? (
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        onClick={handleTags}
+                    >
+                        <TagIcon className="text-[var(--app-hint)]" />
+                        {t('session.action.tags')}
+                    </button>
+                ) : null}
 
                 {onSpawnSameConfig ? (
                     <button

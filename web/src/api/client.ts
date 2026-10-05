@@ -988,6 +988,14 @@ export class ApiClient {
         })
     }
 
+    async updateSessionTags(sessionId: string, tags: string[]): Promise<string[]> {
+        const result = await this.request<{ ok: true; tags: string[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/tags`, {
+            method: 'PATCH',
+            body: JSON.stringify({ tags })
+        })
+        return result.tags
+    }
+
     async deleteSession(sessionId: string): Promise<void> {
         await this.request(`/api/sessions/${encodeURIComponent(sessionId)}`, {
             method: 'DELETE'

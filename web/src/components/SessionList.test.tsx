@@ -27,6 +27,7 @@ function renderWithProviders(ui: React.ReactElement) {
 function createSession(overrides: Partial<SessionSummary> = {}): SessionSummary {
     return {
         id: 'session-1',
+        createdAt: Date.now(),
         active: false,
         thinking: false,
         activeAt: Date.now(),

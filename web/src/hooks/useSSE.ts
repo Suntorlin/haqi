@@ -34,13 +34,8 @@ const INVALIDATION_BATCH_MS = 16
 type SessionPatch = Partial<Pick<Session, 'active' | 'thinking' | 'activeAt' | 'updatedAt' | 'permissionMode' | 'modelMode'>>
 
 function sortSessionSummaries(left: SessionSummary, right: SessionSummary): number {
-    if (left.active !== right.active) {
-        return left.active ? -1 : 1
-    }
-    if (left.active && left.pendingRequestsCount !== right.pendingRequestsCount) {
-        return right.pendingRequestsCount - left.pendingRequestsCount
-    }
-    return right.updatedAt - left.updatedAt
+    if (left.createdAt !== right.createdAt) return right.createdAt - left.createdAt
+    return left.id.localeCompare(right.id)
 }
 
 function hasRecordShape(value: unknown): value is Record<string, unknown> {
