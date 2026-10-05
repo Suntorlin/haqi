@@ -84,6 +84,8 @@ export default {
   // Session actions
   'session.action.rename': 'Rename',
   'session.action.tags': 'Manage tags',
+  'session.action.editTags': 'Edit tags…',
+  'session.action.noTags': 'No existing tags',
   'session.action.newSameConfig': 'New (same config)',
   'session.action.duplicate': 'Duplicate (with history)',
   'session.action.archive': 'Archive',

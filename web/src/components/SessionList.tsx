@@ -507,10 +507,14 @@ function SessionItem(props: {
             <SessionActionMenu
                 isOpen={menuOpen}
                 onClose={() => setMenuOpen(false)}
-                sessionActive={s.active}
-                onRename={() => setRenameOpen(true)}
-                onTags={() => setTagsOpen(true)}
-                onSpawnSameConfig={handleSpawnSameConfig}
+            sessionActive={s.active}
+            onRename={() => setRenameOpen(true)}
+            onTags={() => setTagsOpen(true)}
+            tags={s.metadata?.tags ?? []}
+            availableTags={availableTags}
+            onTagsChange={setTags}
+            tagsPending={isPending}
+            onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
                 onDelete={() => setDeleteOpen(true)}

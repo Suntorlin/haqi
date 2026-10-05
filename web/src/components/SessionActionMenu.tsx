@@ -15,6 +15,10 @@ type SessionActionMenuProps = {
     sessionActive: boolean
     onRename: () => void
     onTags?: () => void
+    tags?: string[]
+    availableTags?: string[]
+    onTagsChange?: (tags: string[]) => Promise<void>
+    tagsPending?: boolean
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onArchive: () => void
@@ -115,6 +119,25 @@ function TagIcon(props: { className?: string }) {
     )
 }
 
+function ChevronRightIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <polyline points="9 18 15 12 9 6" />
+        </svg>
+    )
+}
+
 function TrashIcon(props: { className?: string }) {
     return (
         <svg
@@ -152,6 +175,10 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         sessionActive,
         onRename,
         onTags,
+        tags = [],
+        availableTags = [],
+        onTagsChange,
+        tagsPending = false,
         onSpawnSameConfig,
         onDuplicate,
         onArchive,
@@ -161,9 +188,17 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     } = props
     const menuRef = useRef<HTMLDivElement | null>(null)
     const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
+    const [tagsSubmenuOpen, setTagsSubmenuOpen] = useState(false)
+    const [submenuSide, setSubmenuSide] = useState<'left' | 'right'>('right')
+    const [submenuTags, setSubmenuTags] = useState(tags)
     const internalId = useId()
     const resolvedMenuId = menuId ?? `session-action-menu-${internalId}`
     const headingId = `${resolvedMenuId}-heading`
+
+    const quickSelectTags = Array.from(new Set([...availableTags, ...tags]))
+        .map((tag) => tag.trim().toLowerCase())
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b))
 
     const handleRename = () => {
         onClose()
@@ -174,6 +209,22 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!onTags) return
         onClose()
         onTags()
+    }
+
+    const handleTagsSubmenuToggle = () => {
+        setSubmenuTags(tags)
+        setTagsSubmenuOpen((open) => !open)
+    }
+
+    const handleTagToggle = (tag: string) => {
+        if (!onTagsChange || tagsPending) return
+        const nextTags = submenuTags.includes(tag)
+            ? submenuTags.filter((selectedTag) => selectedTag !== tag)
+            : [...submenuTags, tag]
+        setSubmenuTags(nextTags)
+        void onTagsChange(nextTags).catch(() => {
+            setSubmenuTags(tags)
+        })
     }
 
     const handleArchive = () => {
@@ -230,6 +281,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     useEffect(() => {
         if (!isOpen) {
             setMenuPosition(null)
+            setTagsSubmenuOpen(false)
             return
         }
 
@@ -261,6 +313,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             window.removeEventListener('scroll', handleReflow, true)
         }
     }, [isOpen, onClose, updatePosition])
+
+    useLayoutEffect(() => {
+        if (!tagsSubmenuOpen || !menuRef.current) return
+        const menuRect = menuRef.current.getBoundingClientRect()
+        setSubmenuSide(menuRect.right + 236 > window.innerWidth ? 'left' : 'right')
+    }, [tagsSubmenuOpen])
 
     useEffect(() => {
         if (!isOpen) return
@@ -315,15 +373,67 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 </button>
 
                 {onTags ? (
-                    <button
-                        type="button"
-                        role="menuitem"
-                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
-                        onClick={handleTags}
-                    >
-                        <TagIcon className="text-[var(--app-hint)]" />
-                        {t('session.action.tags')}
-                    </button>
+                    <div className="relative">
+                        <button
+                            type="button"
+                            role="menuitem"
+                            aria-haspopup="menu"
+                            aria-expanded={tagsSubmenuOpen}
+                            className={`${baseItemClassName} justify-between hover:bg-[var(--app-subtle-bg)]`}
+                            onClick={handleTagsSubmenuToggle}
+                        >
+                            <span className="flex min-w-0 items-center gap-3">
+                                <TagIcon className="text-[var(--app-hint)]" />
+                                {t('session.action.tags')}
+                            </span>
+                            <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--app-hint)]" />
+                        </button>
+
+                        {tagsSubmenuOpen ? (
+                            <div
+                                role="menu"
+                                aria-label={t('session.action.tags')}
+                                className={`absolute top-0 z-10 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg ${submenuSide === 'right' ? 'left-full ml-2' : 'right-full mr-2'}`}
+                            >
+                                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                    {t('session.action.tags')}
+                                </div>
+                                {quickSelectTags.length ? quickSelectTags.map((tag) => {
+                                    const isSelected = submenuTags.includes(tag)
+                                    return (
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            role="menuitemcheckbox"
+                                            aria-checked={isSelected}
+                                            disabled={!onTagsChange || tagsPending}
+                                            className={`${baseItemClassName} justify-between hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50`}
+                                            onClick={() => handleTagToggle(tag)}
+                                        >
+                                            <span>#{tag}</span>
+                                            <span className={`text-sm ${isSelected ? 'text-[var(--app-link)]' : 'text-transparent'}`} aria-hidden="true">
+                                                ✓
+                                            </span>
+                                        </button>
+                                    )
+                                }) : (
+                                    <div className="px-3 py-2 text-sm text-[var(--app-hint)]">
+                                        {t('session.action.noTags')}
+                                    </div>
+                                )}
+                                <div className="my-1 border-t border-[var(--app-divider)]" />
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                                    onClick={handleTags}
+                                >
+                                    <EditIcon className="text-[var(--app-hint)]" />
+                                    {t('session.action.editTags')}
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
                 ) : null}
 
                 {onSpawnSameConfig ? (
