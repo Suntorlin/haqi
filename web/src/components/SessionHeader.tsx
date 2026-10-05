@@ -11,7 +11,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
 import { SessionAccountInline } from '@/components/ClaudeAccounts/SessionAccountBar'
 import { accountsKey } from '@/components/ClaudeAccounts/Settings'
-import { remainingLabel } from '@/components/ClaudeAccounts/Selector'
+import { quotaOptionLabel } from '@/components/ClaudeAccounts/Selector'
 
 function getSessionTitle(session: Session): string {
     if (session.metadata?.name) {
@@ -321,8 +321,8 @@ export function SessionHeader(props: {
                                 >
                                     {!session.metadata.claudeAccount ? <option value="">{t('sessionAccount.machineDefault')}</option> : null}
                                     {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
-                                        const remaining = remainingLabel(accountQuery.data?.usage?.[profile.id])
-                                        return <option key={profile.id} value={profile.id}>{profile.email}{remaining ? ` · ${remaining}` : ''}</option>
+                                        const quota = quotaOptionLabel(accountQuery.data?.usage?.[profile.id], t)
+                                        return <option key={profile.id} value={profile.id}>{profile.email}{quota ? ` · ${quota}` : ''}</option>
                                     })}
                                 </select>
                                 {accountSwitchError ? <span role="alert" className="text-red-500">{accountSwitchError}</span> : null}

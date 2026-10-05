@@ -191,6 +191,32 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const [tagsSubmenuOpen, setTagsSubmenuOpen] = useState(false)
     const [submenuSide, setSubmenuSide] = useState<'left' | 'right'>('right')
     const [submenuTags, setSubmenuTags] = useState(tags)
+    const submenuCloseTimer = useRef<number | null>(null)
+
+    const cancelSubmenuClose = useCallback(() => {
+        if (submenuCloseTimer.current !== null) {
+            window.clearTimeout(submenuCloseTimer.current)
+            submenuCloseTimer.current = null
+        }
+    }, [])
+
+    const openTagsSubmenu = useCallback(() => {
+        cancelSubmenuClose()
+        setTagsSubmenuOpen((open) => {
+            if (!open) setSubmenuTags(tags)
+            return true
+        })
+    }, [cancelSubmenuClose, tags])
+
+    const scheduleTagsSubmenuClose = useCallback(() => {
+        cancelSubmenuClose()
+        submenuCloseTimer.current = window.setTimeout(() => {
+            submenuCloseTimer.current = null
+            setTagsSubmenuOpen(false)
+        }, 200)
+    }, [cancelSubmenuClose])
+
+    useEffect(() => cancelSubmenuClose, [cancelSubmenuClose])
     const internalId = useId()
     const resolvedMenuId = menuId ?? `session-action-menu-${internalId}`
     const headingId = `${resolvedMenuId}-heading`
@@ -212,6 +238,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     }
 
     const handleTagsSubmenuToggle = () => {
+        cancelSubmenuClose()
         setSubmenuTags(tags)
         setTagsSubmenuOpen((open) => !open)
     }
@@ -282,6 +309,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         if (!isOpen) {
             setMenuPosition(null)
             setTagsSubmenuOpen(false)
+            cancelSubmenuClose()
             return
         }
 
@@ -312,7 +340,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             window.removeEventListener('resize', handleReflow)
             window.removeEventListener('scroll', handleReflow, true)
         }
-    }, [isOpen, onClose, updatePosition])
+    }, [isOpen, onClose, updatePosition, cancelSubmenuClose])
 
     useLayoutEffect(() => {
         if (!tagsSubmenuOpen || !menuRef.current) return
@@ -375,8 +403,8 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 {onTags ? (
                     <div
                         className="relative"
-                        onMouseEnter={() => setTagsSubmenuOpen(true)}
-                        onMouseLeave={() => setTagsSubmenuOpen(false)}
+                        onMouseEnter={openTagsSubmenu}
+                        onMouseLeave={scheduleTagsSubmenuClose}
                     >
                         <button
                             type="button"
@@ -385,7 +413,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                             aria-expanded={tagsSubmenuOpen}
                             className={`${baseItemClassName} justify-between hover:bg-[var(--app-subtle-bg)]`}
                             onClick={handleTagsSubmenuToggle}
-                            onFocus={() => setTagsSubmenuOpen(true)}
+                            onFocus={openTagsSubmenu}
                         >
                             <span className="flex min-w-0 items-center gap-3">
                                 <TagIcon className="text-[var(--app-hint)]" />
@@ -395,10 +423,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                         </button>
 
                         {tagsSubmenuOpen ? (
+                            // pl/pr hover bridge covers the gap so the pointer never leaves the wrapper mid-crossing
+                            <div className={`absolute top-0 z-10 ${submenuSide === 'right' ? 'left-full pl-2' : 'right-full pr-2'}`}>
                             <div
                                 role="menu"
                                 aria-label={t('session.action.tags')}
-                                className={`absolute top-0 z-10 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg ${submenuSide === 'right' ? 'left-full ml-2' : 'right-full mr-2'}`}
+                                className="min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg"
                             >
                                 <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
                                     {t('session.action.tags')}
@@ -436,6 +466,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                                     <EditIcon className="text-[var(--app-hint)]" />
                                     {t('session.action.editTags')}
                                 </button>
+                            </div>
                             </div>
                         ) : null}
                     </div>
