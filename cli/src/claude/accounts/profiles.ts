@@ -57,17 +57,22 @@ export function accountEnvironment(base: NodeJS.ProcessEnv, profile: AccountProf
     return env;
 }
 
+const CHECK_FAILED = '账号身份检查失败，请在隔离目录内登录后重试';
+
 /** Read-only identity check. Never return raw CLI stdout/stderr (may contain secrets). */
 export async function verifyAccount(executable: string, cwd: string, env: NodeJS.ProcessEnv, profile: AccountProfile): Promise<void> {
-    const output = await new Promise<string>((resolve, reject) => {
+    const { exitedNonZero, output } = await new Promise<{ exitedNonZero: boolean; output: string }>((resolve, reject) => {
         execFile(executable, ['auth', 'status', '--json'], { cwd, env, timeout: 15_000, maxBuffer: 64 * 1024 }, (error, stdout) => {
-            if (error) reject(new Error('账号身份检查失败，请在隔离目录内登录后重试'));
-            else resolve(stdout);
+            // A logged-out `auth status` exits 1 but still prints its JSON. A spawn error, timeout or signal means the check never ran.
+            if (error && typeof error.code !== 'number') reject(new Error(CHECK_FAILED));
+            else resolve({ exitedNonZero: error !== null, output: stdout });
         });
     });
     const value = (() => { try { return JSON.parse(output) as unknown; } catch { return null; } })();
     const status = z.object({ loggedIn: z.boolean(), email: z.string().optional(), authMethod: z.string().optional() }).safeParse(value);
-    if (status.success && !status.data.loggedIn) {
+    const loggedOut = status.success && !status.data.loggedIn;
+    if (exitedNonZero && !loggedOut) throw new Error(CHECK_FAILED);
+    if (loggedOut) {
         throw new Error(`账号 ${profile.email} 尚未在隔离目录登录，请先执行 CLAUDE_CONFIG_DIR="${profile.configDir}" claude auth login`);
     }
     const parsed = z.object({

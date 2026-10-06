@@ -67,7 +67,7 @@ type ErrorPayload = {
     error?: unknown
 }
 
-function parseErrorCode(bodyText: string): string | undefined {
+export function parseErrorCode(bodyText: string): string | undefined {
     try {
         const parsed = JSON.parse(bodyText) as ErrorPayload
         return typeof parsed.error === 'string' ? parsed.error : undefined

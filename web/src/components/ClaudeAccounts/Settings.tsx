@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClaudeAccountPoolSchema, type ClaudeAccountPool, type ClaudeAccountPoolView } from '@hapi/protocol/schemas'
-import type { ApiClient } from '@/api/client'
+import { ApiError, parseErrorCode, type ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
 import { useTranslation } from '@/lib/use-translation'
 import { AccountQuota } from './Quota'
@@ -9,6 +9,12 @@ import { AccountQuota } from './Quota'
 const field = 'w-full min-w-0 rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50'
 const button = 'rounded-lg border border-[var(--app-divider)] px-2.5 py-1.5 text-xs hover:bg-[var(--app-subtle-bg)] disabled:opacity-40'
 export const accountsKey = (machineId: string) => ['claude-accounts', machineId] as const
+// Claude keys its keychain entry by the literal CLAUDE_CONFIG_DIR string, while the runner passes the symlink-resolved path
+// (claude-accounts may be a symlink). `cd -P` makes the login land on the entry the runner will look up; if cd fails nothing runs.
+const loginCommand = (id: string) => `(cd -P "\${HAPI_HOME:-$HOME/.hapi}/claude-accounts/${id}" && CLAUDE_CONFIG_DIR="$PWD" claude auth login)`
+// The hub answers failures as {"error": "..."}; show that text rather than "HTTP 400 : {json}" so commands in it stay copyable.
+const failure = (error: unknown, fallback: string) =>
+    (error instanceof ApiError && error.body ? parseErrorCode(error.body) : undefined) ?? (error instanceof Error ? error.message : fallback)
 
 function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
     const { t } = useTranslation()
@@ -30,13 +36,13 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
             const updated = await api.saveClaudeAccounts(machineId, { pool: parsed.data, revision: draft.revision })
             cache.setQueryData(accountsKey(machineId), updated); setDraft(updated); setDirty(false)
             setNotice(t('settings.claudeAccounts.saved'))
-        } catch (error) { setNotice(error instanceof Error ? error.message : t('settings.claudeAccounts.saveFailed')) }
+        } catch (error) { setNotice(failure(error, t('settings.claudeAccounts.saveFailed'))) }
         finally { setWorking(false) }
     }
     const check = async (id: string) => {
         setWorking(true)
         try { const result = await api.checkClaudeAccount(machineId, id); setChecks(old => ({ ...old, [id]: t('settings.claudeAccounts.checkOk', { email: result.email }) })) }
-        catch (error) { setChecks(old => ({ ...old, [id]: error instanceof Error ? error.message : t('settings.claudeAccounts.checkFailed') })) }
+        catch (error) { setChecks(old => ({ ...old, [id]: failure(error, t('settings.claudeAccounts.checkFailed')) })) }
         finally { setWorking(false) }
     }
     if (query.isPending) return <p role="status" className="text-sm text-[var(--app-hint)]">{t('settings.claudeAccounts.loading')}</p>
@@ -94,7 +100,7 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
         <details className="text-xs text-[var(--app-hint)]">
             <summary className="cursor-pointer">{t('settings.claudeAccounts.help')}</summary>
             <p className="mt-2">{t('settings.claudeAccounts.help.login')}</p>
-            {pool.profiles.map(p => <code key={p.id} className="mt-1 block break-all rounded bg-[var(--app-subtle-bg)] p-2">{`CLAUDE_CONFIG_DIR="$HAPI_HOME/claude-accounts/${p.id}" claude auth login`}</code>)}
+            {pool.profiles.map(p => <code key={p.id} className="mt-1 block break-all rounded bg-[var(--app-subtle-bg)] p-2">{loginCommand(p.id)}</code>)}
             <p className="mt-2">{t('settings.claudeAccounts.help.notes')}</p>
         </details>
     </div>

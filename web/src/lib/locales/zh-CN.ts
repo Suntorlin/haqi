@@ -446,7 +446,7 @@ export default {
   'settings.claudeAccounts.checkFailed': '尚未登录',
   'settings.claudeAccounts.help': '登录说明',
   'settings.claudeAccounts.help.login': '在所选机器的图形界面终端执行登录命令（macOS 需已解锁登录钥匙串，不要通过 SSH）：',
-  'settings.claudeAccounts.help.notes': 'HAPI_HOME 为该 Runner 的数据目录。登录时选择上面填写的邮箱，完成后点「检查登录」。凭据只保存在对应机器，移除配置不会注销账号；额度来自会话观测，自动接管为实验功能。',
+  'settings.claudeAccounts.help.notes': 'HAPI_HOME 为该 Runner 的数据目录（默认 ~/.hapi）。登录时选择上面填写的邮箱，完成后点「检查登录」。凭据只保存在对应机器，移除配置不会注销账号；额度来自会话观测，自动接管为实验功能。',
   'claudeAccounts.quota.unknown': '额度未知 · 等待会话返回限额信息',
   'claudeAccounts.quota.usageUnknown': '用量未知',
   'claudeAccounts.quota.used': '已用 {percent}%',

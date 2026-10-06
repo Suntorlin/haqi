@@ -444,7 +444,7 @@ export default {
   'settings.claudeAccounts.checkFailed': 'Not logged in yet',
   'settings.claudeAccounts.help': 'Login & notes',
   'settings.claudeAccounts.help.login': 'Run the login command in a desktop terminal on the selected machine (macOS needs an unlocked login keychain; do not run it over SSH):',
-  'settings.claudeAccounts.help.notes': 'HAPI_HOME is the runner\'s data directory. Sign in with the matching email, then click "Check login". Credentials stay on that machine; removing an entry does not log the account out. Quota comes from session observations, and automatic takeover is experimental.',
+  'settings.claudeAccounts.help.notes': 'HAPI_HOME is the runner\'s data directory (default ~/.hapi). Sign in with the matching email, then click "Check login". Credentials stay on that machine; removing an entry does not log the account out. Quota comes from session observations, and automatic takeover is experimental.',
   'claudeAccounts.quota.unknown': 'Quota unknown · waiting for session rate-limit info',
   'claudeAccounts.quota.usageUnknown': 'usage unknown',
   'claudeAccounts.quota.used': 'used {percent}%',
