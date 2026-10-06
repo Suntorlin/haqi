@@ -569,7 +569,7 @@ function SessionsPage() {
                             className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
                         />
                         {sessionTags.length ? (
-                            <div className="mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
+                            <div className="session-tag-scroll mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
                                 <button
                                     type="button"
                                     onClick={() => setSelectedSessionTag(null)}

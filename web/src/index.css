@@ -176,6 +176,16 @@ body {
     background: transparent;
 }
 
+/* Keep tag filters horizontally scrollable without showing a scrollbar. */
+.session-tag-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.session-tag-scroll::-webkit-scrollbar {
+    display: none;
+}
+
 /* Markdown styles */
 .markdown-content a { color: var(--app-link); text-decoration: underline; }
 .markdown-content code { background: var(--app-inline-code-bg); padding: 0.15em 0.35em; border-radius: 3px; font-size: 0.8em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
