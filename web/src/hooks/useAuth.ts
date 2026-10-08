@@ -41,6 +41,78 @@ function isUnauthorizedAuthError(error: unknown): boolean {
     return error instanceof ApiError && error.status === 401 && error.code !== 'not_bound'
 }
 
+// Reusing a still-valid JWT on reload skips the /api/auth round trip before any data loads.
+const AUTH_CACHE_PREFIX = 'hapi_auth_cache::'
+const CACHED_TOKEN_MIN_TTL_MS = 2 * 60_000
+
+type CachedAuth = {
+    token: string
+    user: AuthResponse['user']
+    source: string
+}
+
+function getAuthCacheKey(baseUrl: string): string {
+    return `${AUTH_CACHE_PREFIX}${baseUrl}`
+}
+
+// FNV-1a of the access token: detects a changed token without storing it twice.
+function fingerprintAuthSource(source: AuthSource): string | null {
+    if (source.type !== 'accessToken') {
+        return null
+    }
+    let hash = 0x811c9dc5
+    for (let i = 0; i < source.token.length; i += 1) {
+        hash ^= source.token.charCodeAt(i)
+        hash = Math.imul(hash, 0x01000193)
+    }
+    return (hash >>> 0).toString(16)
+}
+
+function readCachedAuth(baseUrl: string, source: AuthSource): CachedAuth | null {
+    const fingerprint = fingerprintAuthSource(source)
+    if (!fingerprint) {
+        return null
+    }
+    try {
+        const raw = localStorage.getItem(getAuthCacheKey(baseUrl))
+        if (!raw) {
+            return null
+        }
+        const parsed = JSON.parse(raw) as Partial<CachedAuth>
+        if (parsed.source !== fingerprint || typeof parsed.token !== 'string' || !parsed.user || typeof parsed.user !== 'object') {
+            return null
+        }
+        const expMs = decodeJwtExpMs(parsed.token)
+        if (!expMs || expMs - Date.now() < CACHED_TOKEN_MIN_TTL_MS) {
+            return null
+        }
+        return { token: parsed.token, user: parsed.user, source: fingerprint }
+    } catch {
+        return null
+    }
+}
+
+function writeCachedAuth(baseUrl: string, source: AuthSource, auth: AuthResponse): void {
+    const fingerprint = fingerprintAuthSource(source)
+    if (!fingerprint) {
+        return
+    }
+    try {
+        const cached: CachedAuth = { token: auth.token, user: auth.user, source: fingerprint }
+        localStorage.setItem(getAuthCacheKey(baseUrl), JSON.stringify(cached))
+    } catch {
+        // Ignore storage errors
+    }
+}
+
+function clearCachedAuth(baseUrl: string): void {
+    try {
+        localStorage.removeItem(getAuthCacheKey(baseUrl))
+    } catch {
+        // Ignore storage errors
+    }
+}
+
 export function useAuth(authSource: AuthSource | null, baseUrl: string): {
     token: string | null
     user: AuthResponse['user'] | null
@@ -98,6 +170,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
             try {
                 const client = new ApiClient('', { baseUrl })
                 const auth = await client.authenticate(getAuthPayload(currentSource))
+                writeCachedAuth(baseUrl, currentSource, auth)
                 tokenRef.current = auth.token
                 setToken(auth.token)
                 setUser(auth.user)
@@ -116,6 +189,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                     return null
                 }
                 if (isUnauthorizedAuthError(error)) {
+                    clearCachedAuth(baseUrl)
                     tokenRef.current = null
                     setToken(null)
                     setUser(null)
@@ -178,6 +252,24 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
             : null
     ), [baseUrl, refreshAuth, token])
 
+    // Declared before the auth effect so a server switch resets state before the
+    // auth effect restores or requests a token for the new server.
+    const lastBaseUrlRef = useRef(baseUrl)
+    useEffect(() => {
+        if (lastBaseUrlRef.current === baseUrl) {
+            return
+        }
+        lastBaseUrlRef.current = baseUrl
+        tokenRef.current = null
+        refreshPromiseRef.current = null
+        lastRefreshAttemptRef.current = 0
+        setToken(null)
+        setUser(null)
+        setError(null)
+        setNeedsBinding(false)
+        setRequiresLogin(false)
+    }, [baseUrl])
+
     useEffect(() => {
         let isCancelled = false
 
@@ -189,6 +281,18 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                 return
             }
 
+            const cached = readCachedAuth(baseUrl, authSource)
+            if (cached) {
+                tokenRef.current = cached.token
+                setToken(cached.token)
+                setUser(cached.user)
+                setError(null)
+                setNeedsBinding(false)
+                setRequiresLogin(false)
+                setIsLoading(false)
+                return
+            }
+
             setIsLoading(true)
             setError(null)
             setNeedsBinding(false)
@@ -197,6 +301,7 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                 const client = new ApiClient('', { baseUrl }) // temporary for auth call
                 const auth = await client.authenticate(getAuthPayload(authSource))
                 if (isCancelled) return
+                writeCachedAuth(baseUrl, authSource, auth)
                 setToken(auth.token)
                 setUser(auth.user)
                 setNeedsBinding(false)
@@ -211,8 +316,12 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
                     setRequiresLogin(false)
                     return
                 }
+                const rejected = authSource.type === 'accessToken' && isUnauthorizedAuthError(e)
+                if (rejected) {
+                    clearCachedAuth(baseUrl)
+                }
                 setNeedsBinding(false)
-                setRequiresLogin(authSource.type === 'accessToken' && isUnauthorizedAuthError(e))
+                setRequiresLogin(rejected)
                 setError(e instanceof Error ? e.message : 'Auth failed')
             } finally {
                 if (!isCancelled) {
@@ -227,17 +336,6 @@ export function useAuth(authSource: AuthSource | null, baseUrl: string): {
             isCancelled = true
         }
     }, [authSource, baseUrl])
-
-    useEffect(() => {
-        tokenRef.current = null
-        refreshPromiseRef.current = null
-        lastRefreshAttemptRef.current = 0
-        setToken(null)
-        setUser(null)
-        setError(null)
-        setNeedsBinding(false)
-        setRequiresLogin(false)
-    }, [baseUrl])
 
     useEffect(() => {
         if (!token || !authSource) {

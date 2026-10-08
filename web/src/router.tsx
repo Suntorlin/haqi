@@ -705,6 +705,9 @@ function SessionPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId' })
     const {
         session,
+        isFetching: sessionFetching,
+        error: sessionError,
+        notFound: sessionNotFound,
         refetch: refetchSession,
     } = useSession(api, sessionId)
     const { viewMode, setViewMode } = useChatViewMode()
@@ -816,9 +819,28 @@ function SessionPage() {
     }, [refetchMessages, refetchSession, refetchTurns])
 
     if (!session) {
+        if (sessionError && !sessionFetching) {
+            return (
+                <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+                    <div className="max-w-sm text-sm text-[var(--app-hint)]">
+                        {sessionNotFound ? t('session.load.notFound') : t('session.load.failed')}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {sessionNotFound ? null : (
+                            <Button size="sm" onClick={() => void refetchSession()}>
+                                {t('session.load.retry')}
+                            </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => navigate({ to: '/sessions' })}>
+                            {t('session.load.back')}
+                        </Button>
+                    </div>
+                </div>
+            )
+        }
         return (
             <div className="flex-1 flex items-center justify-center p-4">
-                <LoadingState label="Loading session…" className="text-sm" />
+                <LoadingState label={t('loading.session')} className="text-sm" />
             </div>
         )
     }

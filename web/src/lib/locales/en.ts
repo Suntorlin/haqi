@@ -7,6 +7,10 @@ export default {
   'loading.files': 'Loading files…',
   'loading.messages': 'Loading messages…',
   'loading.machines': 'Loading machines…',
+  'session.load.notFound': 'Session not found. It may have been deleted or replaced when it was resumed.',
+  'session.load.failed': 'Failed to load session.',
+  'session.load.retry': 'Retry',
+  'session.load.back': 'Back to sessions',
 
   // Login / Auth
   'login.title': 'HAQI',

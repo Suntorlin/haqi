@@ -7,6 +7,10 @@ export default {
   'loading.files': '加载文件…',
   'loading.messages': '加载消息…',
   'loading.machines': '加载机器…',
+  'session.load.notFound': '会话不存在，可能已被删除，或在恢复时被新会话替换。',
+  'session.load.failed': '会话加载失败。',
+  'session.load.retry': '重试',
+  'session.load.back': '返回会话列表',
 
   // Login / Auth
   'login.title': 'HAQI',

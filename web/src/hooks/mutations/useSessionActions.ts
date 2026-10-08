@@ -4,6 +4,7 @@ import type { ApiClient } from '@/api/client'
 import type { PermissionMode } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
 import { clearMessageWindow } from '@/lib/message-window-store'
+import { removeCachedSessionDetail } from '@/lib/session-detail-cache'
 import { isKnownFlavor } from '@/lib/agentFlavorUtils'
 
 type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
@@ -166,6 +167,7 @@ export function useSessionActions(
             if (!sessionId) return
             queryClient.removeQueries({ queryKey: queryKeys.session(sessionId) })
             clearMessageWindow(sessionId)
+            removeCachedSessionDetail(sessionId)
             await queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
         },
     })

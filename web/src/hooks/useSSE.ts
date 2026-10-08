@@ -12,6 +12,7 @@ import type {
 } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
 import { clearMessageWindow, ingestIncomingMessages } from '@/lib/message-window-store'
+import { removeCachedSessionDetail } from '@/lib/session-detail-cache'
 
 type SSESubscription = {
     all?: boolean
@@ -494,6 +495,7 @@ export function useSSE(options: {
                     void queryClient.removeQueries({ queryKey: queryKeys.session(event.sessionId) })
                     void queryClient.removeQueries({ queryKey: queryKeys.turns(event.sessionId) })
                     clearMessageWindow(event.sessionId)
+                    removeCachedSessionDetail(event.sessionId)
                 } else if (isSessionRecord(event.data) && event.data.id === event.sessionId) {
                     queryClient.setQueryData<SessionResponse>(queryKeys.session(event.sessionId), { session: event.data })
                     upsertSessionSummary(event.data)
