@@ -55,16 +55,30 @@ function findWebappDistDir(): { distDir: string; indexHtmlPath: string } {
     return { distDir, indexHtmlPath: join(distDir, 'index.html') }
 }
 
-function serveEmbeddedAsset(asset: EmbeddedWebAsset): Response {
-    return new Response(Bun.file(asset.sourcePath), {
-        headers: {
-            'Content-Type': asset.mimeType
-        }
-    })
+// Vite fingerprints everything under /assets/, so those can be cached forever. The entry
+// points that reference them must revalidate: Cloudflare caches .js at the edge for hours,
+// which kept serving the previous sw.js (and its precached index.html) after a deploy.
+function webCacheControl(pathname: string): string | null {
+    if (pathname.startsWith('/assets/')) {
+        return 'public, max-age=31536000, immutable'
+    }
+    if (pathname === '/sw.js' || pathname === '/index.html' || pathname === '/manifest.webmanifest') {
+        return 'no-cache'
+    }
+    return null
+}
+
+function serveEmbeddedAsset(asset: EmbeddedWebAsset, pathname: string): Response {
+    const headers: Record<string, string> = { 'Content-Type': asset.mimeType }
+    const cacheControl = webCacheControl(pathname)
+    if (cacheControl) {
+        headers['Cache-Control'] = cacheControl
+    }
+    return new Response(Bun.file(asset.sourcePath), { headers })
 }
 
 function isStaticAssetRequest(pathname: string): boolean {
-    return /\.(?:js|css|map|json|wasm|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)
+    return /\.(?:js|css|map|json|webmanifest|wasm|png|jpe?g|gif|svg|webp|ico|woff2?|ttf)$/i.test(pathname)
 }
 
 function createWebApp(options: {
@@ -191,7 +205,7 @@ from GitHub Pages instead of through the relay tunnel.
 
             const asset = embeddedAssetMap.get(c.req.path)
             if (asset) {
-                return serveEmbeddedAsset(asset)
+                return serveEmbeddedAsset(asset, c.req.path)
             }
 
             if (c.req.path.startsWith('/assets/') || isStaticAssetRequest(c.req.path)) {
@@ -207,7 +221,7 @@ from GitHub Pages instead of through the relay tunnel.
                 return
             }
 
-            return serveEmbeddedAsset(indexHtmlAsset)
+            return serveEmbeddedAsset(indexHtmlAsset, '/index.html')
         })
 
         return app
@@ -233,7 +247,8 @@ from GitHub Pages instead of through the relay tunnel.
         const root = resolve(distDir)
         if (filePath !== root && !filePath.startsWith(`${root}/`)) return null
         if (!existsSync(filePath)) return null
-        return new Response(Bun.file(filePath))
+        const cacheControl = webCacheControl(pathname)
+        return new Response(Bun.file(filePath), cacheControl ? { headers: { 'Cache-Control': cacheControl } } : undefined)
     }
 
     app.get('*', async (c, next) => {
