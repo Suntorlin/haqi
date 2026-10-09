@@ -1,4 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useQueryClient } from '@tanstack/react-query'
 import {
     Navigate,
@@ -15,6 +18,7 @@ import {
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
 import { SessionList, type NewSessionPreset } from '@/components/SessionList'
+import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
 import { NewSession } from '@/components/NewSession'
 import {
     loadLastSessionConfig,
@@ -246,6 +250,25 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
+function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: () => void }) {
+    const { tag, selected, onSelect } = props
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tag })
+
+    return (
+        <button
+            ref={setNodeRef}
+            type="button"
+            {...attributes}
+            {...listeners}
+            onClick={onSelect}
+            style={{ transform: CSS.Transform.toString(transform), transition }}
+            className={`shrink-0 cursor-grab select-none rounded-full px-2.5 py-1 text-xs transition-colors active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''} ${selected ? 'bg-[var(--app-link)] text-white' : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'}`}
+        >
+            #{tag}
+        </button>
+    )
+}
+
 function SessionsPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -262,6 +285,12 @@ function SessionsPage() {
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
     const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
+    const [sessionTagOrder, setSessionTagOrder] = useState<string[]>(loadSessionTagOrder)
+    const tagSensors = useSensors(
+        useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    )
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
     const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
@@ -289,6 +318,23 @@ function SessionsPage() {
     const sessionTags = useMemo(() => Array.from(new Set(
         sessions.flatMap((session) => session.metadata?.tags ?? [])
     )).sort((a, b) => a.localeCompare(b)), [sessions])
+    const orderedSessionTags = useMemo(
+        () => applySessionTagOrder(sessionTags, sessionTagOrder),
+        [sessionTags, sessionTagOrder]
+    )
+
+    useEffect(() => {
+        persistSessionTagOrder(sessionTagOrder)
+    }, [sessionTagOrder])
+
+    const handleTagDragEnd = ({ active, over }: DragEndEvent) => {
+        if (!over || active.id === over.id) return
+        setSessionTagOrder((previous) => moveSessionTag(
+            applySessionTagOrder(sessionTags, previous),
+            String(active.id),
+            String(over.id)
+        ))
+    }
 
     useEffect(() => {
         if (selectedSessionTag && !sessionTags.includes(selectedSessionTag)) {
@@ -577,16 +623,18 @@ function SessionsPage() {
                                 >
                                     {t('sessions.tags.all')}
                                 </button>
-                                {sessionTags.map((tag) => (
-                                    <button
-                                        key={tag}
-                                        type="button"
-                                        onClick={() => setSelectedSessionTag(tag)}
-                                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${selectedSessionTag === tag ? 'bg-[var(--app-link)] text-white' : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'}`}
-                                    >
-                                        #{tag}
-                                    </button>
-                                ))}
+                                <DndContext sensors={tagSensors} onDragEnd={handleTagDragEnd}>
+                                    <SortableContext items={orderedSessionTags} strategy={horizontalListSortingStrategy}>
+                                        {orderedSessionTags.map((tag) => (
+                                            <SortableSessionTag
+                                                key={tag}
+                                                tag={tag}
+                                                selected={selectedSessionTag === tag}
+                                                onSelect={() => setSelectedSessionTag(tag)}
+                                            />
+                                        ))}
+                                    </SortableContext>
+                                </DndContext>
                             </div>
                         ) : null}
                     </div>
@@ -601,7 +649,7 @@ function SessionsPage() {
                     <div className="min-h-0 flex-1">
                         <SessionList
                             sessions={visibleSessions}
-                            availableTags={sessionTags}
+                            availableTags={orderedSessionTags}
                             selectedSessionId={selectedSessionId}
                             onSelect={selectSession}
                             onNewSession={openNewSession}
