@@ -2187,10 +2187,6 @@ ${note.content}
                         ? metadata.cursorSessionId
                         : metadata.claudeSessionId
 
-        if (!resumeToken) {
-            return { type: 'error', message: 'Resume session ID unavailable', code: 'resume_unavailable' }
-        }
-
         const onlineMachines = this.machineCache.getOnlineMachinesByNamespace(namespace)
         if (onlineMachines.length === 0) {
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
@@ -2212,7 +2208,7 @@ ${note.content}
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
         }
 
-        const spawnResult = await this.rpcGateway.spawnSession(
+        const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
             metadata.path,
             flavor,
@@ -2222,8 +2218,16 @@ ${note.content}
             undefined,
             undefined,
             undefined,
-            resumeToken
+            resumeSessionId
         )
+
+        // Sessions that never produced a native transcript have no resume token, and
+        // a stale token fails the native resume; fall back to a fresh agent process
+        // that inherits the hub-side history via merge (same as copy history).
+        let spawnResult = resumeToken ? await spawn(resumeToken) : await spawn(undefined)
+        if (spawnResult.type !== 'success' && resumeToken) {
+            spawnResult = await spawn(undefined)
+        }
 
         if (spawnResult.type !== 'success') {
             return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
