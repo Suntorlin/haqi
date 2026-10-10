@@ -135,17 +135,6 @@ body {
     }
 }
 
-/* Desktop-only: move the sidebar scrollbar to the left without flipping content. */
-@media (min-width: 1024px) {
-    .desktop-scrollbar-left {
-        direction: rtl;
-    }
-
-    .desktop-scrollbar-left > * {
-        direction: ltr;
-    }
-}
-
 /* Unified slim scrollbar style for session list + chat content */
 .app-scrollbar {
     scrollbar-width: thin;
@@ -176,13 +165,15 @@ body {
     background: transparent;
 }
 
-/* Keep tag filters horizontally scrollable without showing a scrollbar. */
-.session-tag-scroll {
+/* Keep tag filters and the session list scrollable without showing a scrollbar. */
+.session-tag-scroll,
+.session-list-scroll {
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
 
-.session-tag-scroll::-webkit-scrollbar {
+.session-tag-scroll::-webkit-scrollbar,
+.session-list-scroll::-webkit-scrollbar {
     display: none;
 }
 
