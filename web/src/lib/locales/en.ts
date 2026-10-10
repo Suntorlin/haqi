@@ -45,6 +45,7 @@ export default {
   // Sessions page
   'sessions.count': '{n} sessions in {m} projects',
   'sessions.new': 'New Session',
+  'sessions.reorder': 'Drag to reorder',
   'sessions.newInProject': 'New Session in this project',
   'sessions.quickCreate.failed': 'Quick create failed',
   'sessions.projectOffline.section': 'Offline projects',

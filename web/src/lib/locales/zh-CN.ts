@@ -45,6 +45,7 @@ export default {
   // Sessions page
   'sessions.count': '{n} 个会话，{m} 个项目',
   'sessions.new': '新建会话',
+  'sessions.reorder': '拖动调整顺序',
   'sessions.newInProject': '在此项目中新建会话',
   'sessions.quickCreate.failed': '快速创建失败',
   'sessions.projectOffline.section': '离线项目',

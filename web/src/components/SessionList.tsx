@@ -36,6 +36,12 @@ import {
     persistSessionGroupOrder,
     reconcileSessionGroupOrder
 } from '@/components/sessionGroupOrder'
+import {
+    applySessionItemOrder,
+    loadSessionItemOrder,
+    moveSessionItem,
+    persistSessionItemOrder
+} from '@/components/sessionItemOrder'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -246,6 +252,25 @@ const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div
     }
 )
 
+function GripIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className={props.className}
+            aria-hidden="true"
+        >
+            <circle cx="9" cy="6" r="1.8" />
+            <circle cx="15" cy="6" r="1.8" />
+            <circle cx="9" cy="12" r="1.8" />
+            <circle cx="15" cy="12" r="1.8" />
+            <circle cx="9" cy="18" r="1.8" />
+            <circle cx="15" cy="18" r="1.8" />
+        </svg>
+    )
+}
+
 function BulbIcon(props: { className?: string }) {
     return (
         <svg
@@ -333,6 +358,14 @@ function SessionItem(props: {
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
     const itemRef = useRef<HTMLDivElement | null>(null)
+    const {
+        attributes: dragAttributes,
+        listeners: dragListeners,
+        setNodeRef: setSortableNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: s.id })
 
     const {
         archiveSession,
@@ -402,8 +435,12 @@ function SessionItem(props: {
     return (
         <>
             <div
-                ref={itemRef}
-                className="group/session-item relative"
+                ref={(node) => {
+                    itemRef.current = node
+                    setSortableNodeRef(node)
+                }}
+                style={{ transform: CSS.Transform.toString(transform), transition }}
+                className={`group/session-item relative ${isDragging ? 'z-10 bg-[var(--app-bg)] opacity-70' : ''}`}
                 onMouseEnter={() => setIsQuickArchiveVisible(true)}
                 onMouseLeave={() => setIsQuickArchiveVisible(false)}
                 onFocusCapture={() => setIsQuickArchiveVisible(true)}
@@ -492,6 +529,17 @@ function SessionItem(props: {
                             ) : null}
                         </div>
                     ) : null}
+                </button>
+
+                <button
+                    type="button"
+                    {...dragAttributes}
+                    {...dragListeners}
+                    className="absolute inset-y-0 left-0 flex w-3 cursor-grab touch-none select-none items-center justify-center text-[var(--app-hint)] opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-md:opacity-40"
+                    title={t('sessions.reorder')}
+                    aria-label={t('sessions.reorder')}
+                >
+                    <GripIcon className="h-3 w-3" />
                 </button>
 
                 <SessionQuickArchiveButton
@@ -805,9 +853,13 @@ export function SessionList(props: {
         () => new Map()
     )
     const [isOfflineProjectsCollapsed, setIsOfflineProjectsCollapsed] = useState(true)
+    const [sessionItemOrder, setSessionItemOrder] = useState<string[]>(() => loadSessionItemOrder())
     const groups = useMemo(
-        () => applySessionGroupOrder(baseGroups, groupOrder),
-        [baseGroups, groupOrder]
+        () => applySessionGroupOrder(baseGroups, groupOrder).map((group) => ({
+            ...group,
+            sessions: applySessionItemOrder(group.sessions, sessionItemOrder)
+        })),
+        [baseGroups, groupOrder, sessionItemOrder]
     )
     const sortableGroupDirectories = useMemo(
         () => groups.map((group) => group.directory),
@@ -840,6 +892,10 @@ export function SessionList(props: {
     useEffect(() => {
         persistSessionGroupOrder(groupOrder)
     }, [groupOrder])
+
+    useEffect(() => {
+        persistSessionItemOrder(sessionItemOrder)
+    }, [sessionItemOrder])
 
     const isProjectForcedOffline = (directory: string): boolean => projectOfflineDirectories.has(directory)
     const isProjectForcedOfflineGroup = (group: SessionGroup): boolean => isProjectForcedOffline(group.directory)
@@ -895,8 +951,20 @@ export function SessionList(props: {
 
     const handleGroupDragEnd = ({ active, over }: DragEndEvent) => {
         if (!over || active.id === over.id) return
-        const sourceDirectory = String(active.id)
-        const targetDirectory = String(over.id)
+        const sourceId = String(active.id)
+        const targetId = String(over.id)
+        const sourceGroup = groups.find((group) => group.sessions.some((session) => session.id === sourceId))
+        if (sourceGroup) {
+            // Session drag: only reorder within the same group and the same online/offline half.
+            const source = sourceGroup.sessions.find((session) => session.id === sourceId)
+            const target = sourceGroup.sessions.find((session) => session.id === targetId)
+            if (!source || !target || source.active !== target.active) return
+            const groupIds = sourceGroup.sessions.map((session) => session.id)
+            setSessionItemOrder((prev) => moveSessionItem(prev, groupIds, sourceId, targetId))
+            return
+        }
+        const sourceDirectory = sourceId
+        const targetDirectory = targetId
         setGroupOrder((prev) => {
             const reconciled = reconcileSessionGroupOrder(prev, baseDirectories)
             return moveSessionGroup(reconciled, sourceDirectory, targetDirectory)
@@ -912,6 +980,11 @@ export function SessionList(props: {
             isOfflineProjectsCollapsed
         ),
         [groups, collapseOverrides, offlineCollapseOverrides, projectOfflineDirectories, isOfflineProjectsCollapsed]
+    )
+
+    const sortableSessionIds = useMemo(
+        () => rows.flatMap((row) => row.type === 'session' ? [row.session.id] : []),
+        [rows]
     )
 
     return (
@@ -941,6 +1014,10 @@ export function SessionList(props: {
                         items={sortableGroupDirectories}
                         strategy={verticalListSortingStrategy}
                     >
+                        <SortableContext
+                            items={sortableSessionIds}
+                            strategy={verticalListSortingStrategy}
+                        >
                         <Virtuoso
                             data={rows}
                             style={{ height: '100%' }}
@@ -1028,6 +1105,7 @@ export function SessionList(props: {
                                 )
                             }}
                         />
+                        </SortableContext>
                     </SortableContext>
                 </DndContext>
             </div>
