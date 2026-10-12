@@ -1945,6 +1945,10 @@ ${note.content}
             : undefined
         const duplicatedName = this.buildDuplicateSessionName(sourceSession)
 
+        // Claude transcripts live in the owning account's config dir. Pin the new session to
+        // that account so the runner can resume it (and copy the transcript if needed).
+        const sourceClaudeAccount = flavor === 'claude' ? metadata.claudeAccount : undefined
+
         const spawn = async (resumeSessionId?: string) => await this.spawnSession(
             machine.id,
             directory,
@@ -1956,7 +1960,11 @@ ${note.content}
             sessionType,
             undefined,
             resumeSessionId,
-            previewUrl
+            previewUrl,
+            resumeSessionId && sourceClaudeAccount
+                ? { accountId: sourceClaudeAccount.id, automatic: sourceClaudeAccount.automatic }
+                : undefined,
+            resumeSessionId ? sourceClaudeAccount?.id : undefined
         )
 
         let spawnResult = await spawn(resumeToken)

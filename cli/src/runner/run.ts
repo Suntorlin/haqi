@@ -340,7 +340,7 @@ export async function startRunner(): Promise<void> {
             const targetDir = getProjectPath(directory, target.configDir);
             const targetFile = join(targetDir, `${options.resumeSessionId}.jsonl`);
             await fs.mkdir(targetDir, { recursive: true, mode: 0o700 });
-            await fs.copyFile(sourceFile, targetFile);
+            if (sourceFile !== targetFile) await fs.copyFile(sourceFile, targetFile);
           }
           extraEnv.HAPI_CLAUDE_ACCOUNT_HANDOFF = '1';
           extraEnv.HAPI_CLAUDE_ACCOUNT = options.claudeAccount.accountId;
