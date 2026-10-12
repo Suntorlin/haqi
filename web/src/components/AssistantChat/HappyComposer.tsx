@@ -40,6 +40,8 @@ import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { StatusBar } from '@/components/AssistantChat/StatusBar'
 import { ComposerButtons } from '@/components/AssistantChat/ComposerButtons'
 import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
+import { MobileComposerAction, MobileComposerToggle, MobileComposerToolPanel } from '@/components/AssistantChat/MobileComposerParts'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 
 export interface TextInputState {
@@ -555,6 +557,9 @@ export function HappyComposer(props: {
         selection: { start: 0, end: 0 }
     })
     const [showSettings, setShowSettings] = useState(false)
+    const isMobileLayout = useIsMobileLayout()
+    const [showToolPanel, setShowToolPanel] = useState(false)
+    const mobileComposerRef = useRef<HTMLDivElement | null>(null)
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
@@ -1054,6 +1059,29 @@ export function HappyComposer(props: {
         setShowSettings(prev => !prev)
     }, [haptic])
 
+    // Mobile: the "+" panel and the model/permission overlay close on outside tap or Escape,
+    // because their toggle buttons are not permanently visible like on desktop.
+    useEffect(() => {
+        if (!isMobileLayout || (!showToolPanel && !showSettings)) return
+        const close = () => {
+            setShowToolPanel(false)
+            setShowSettings(false)
+        }
+        const handlePointerDown = (event: PointerEvent) => {
+            if (mobileComposerRef.current?.contains(event.target as Node)) return
+            close()
+        }
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') close()
+        }
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [isMobileLayout, showToolPanel, showSettings])
+
     const handleSubmit = useCallback((event?: ReactFormEvent<HTMLFormElement>) => {
         if (event) {
             event.preventDefault()
@@ -1311,6 +1339,232 @@ export function HappyComposer(props: {
         handleSuggestionSelect
     ])
 
+    const inlineQueuePanel = showInlineQueuePanel ? (
+        <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                    {t('queue.dialog.title')}
+                </span>
+                <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                </span>
+                <span
+                    className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
+                    title={inlineQueueHeadline}
+                >
+                    {inlineQueueHeadline}
+                </span>
+                <button
+                    type="button"
+                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleCodexQueueOpen}
+                    disabled={controlsDisabled || !onCodexQueueOpen}
+                >
+                    {t('queue.inline.open')}
+                </button>
+            </div>
+
+            {codexQueueInlinePanelMode === 'full' ? (
+                <div className="mt-2 space-y-1">
+                    {codexQueueEntries.length > 0 ? (
+                        <>
+                            {codexQueueEntries.slice(0, 5).map((entry, index) => {
+                                const previewText = entry.preview || t('queue.dialog.emptyMessage')
+
+                                return (
+                                    <div
+                                        key={entry.id}
+                                        className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
+                                    >
+                                        <span className="text-[10px] text-[var(--app-hint)]">
+                                            #{index + 1}
+                                        </span>
+                                        <span
+                                            className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
+                                        >
+                                            {previewText}
+                                        </span>
+                                        <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
+                                            {new Date(entry.enqueuedAt).toLocaleTimeString([], {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                            {codexQueueEntries.length > 5 ? (
+                                <div className="px-1 text-[11px] text-[var(--app-hint)]">
+                                    +{codexQueueEntries.length - 5}
+                                </div>
+                            ) : null}
+                        </>
+                    ) : inlineQueuePendingCount > 0 ? (
+                        <div className="px-1 text-xs text-[var(--app-hint)]">
+                            {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                        </div>
+                    ) : (
+                        <div className="px-1 text-xs text-[var(--app-hint)]">
+                            {t('queue.dialog.empty')}
+                        </div>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    ) : null
+
+    const attachmentsRow = attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
+        <div className="flex flex-wrap gap-2 px-4 pt-3">
+            {restoredDraftAttachments.map((attachment) => (
+                <div
+                    key={`draft:${attachment.path}`}
+                    className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                    title={attachment.path}
+                >
+                    <span className="max-w-[180px] truncate">
+                        {attachment.filename}
+                    </span>
+                    <button
+                        type="button"
+                        className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        onClick={() => {
+                            handleRemoveDraftAttachment(attachment)
+                        }}
+                        aria-label={`Remove ${attachment.filename}`}
+                    >
+                        ×
+                    </button>
+                </div>
+            ))}
+            <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
+        </div>
+    ) : null
+
+    if (isMobileLayout) {
+        const hasDraft = hasText || hasAnyAttachments
+        const showStop = threadIsRunning && !(hasDraft && canSend)
+        const toggleToolPanel = () => {
+            haptic('light')
+            if (!showToolPanel) {
+                textareaRef.current?.blur()
+                setShowSettings(false)
+            }
+            setShowToolPanel(!showToolPanel)
+        }
+        const closePanelThen = (action: () => void) => () => {
+            setShowToolPanel(false)
+            action()
+        }
+
+        return (
+            <div
+                ref={mobileComposerRef}
+                className={`social-bar relative z-10 shrink-0 border-t border-[var(--social-bar-border)] ${cliMode ? 'cli-composer' : ''}`}
+                style={{ paddingBottom: isIOSPWA ? 'max(env(safe-area-inset-bottom), 0.5rem)' : '0.5rem' }}
+            >
+                <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
+                    {overlays}
+
+                    {inlineQueuePanel}
+
+                    {attachmentsRow}
+
+                    <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
+                        <div className="relative flex items-end gap-2 px-2.5 pt-2 data-[dragging=true]:bg-[var(--app-subtle-bg)]">
+                            {!active ? (
+                                <div className="absolute inset-x-2.5 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-[19px] bg-[var(--social-cell-bg)] pl-4 pr-1.5 text-[14px] text-[var(--app-hint)]">
+                                    <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
+                                    <button
+                                        type="button"
+                                        onClick={onOfflineWake}
+                                        disabled={!onOfflineWake || offlineWakePending}
+                                        className="shrink-0 rounded-full bg-[var(--social-accent)] px-3.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+                                    >
+                                        {offlineWakePending
+                                            ? (offlineWakingLabel ?? t('session.waking'))
+                                            : (offlineWakeLabel ?? t('session.wake'))}
+                                    </button>
+                                </div>
+                            ) : null}
+
+                            <MobileComposerToggle open={showToolPanel} onClick={toggleToolPanel} />
+
+                            <div className="flex min-h-[38px] min-w-0 flex-1 items-center rounded-[19px] bg-[var(--social-cell-bg)] px-3.5 py-[7px]">
+                                {cliMode ? (
+                                    <span className="mr-1.5 shrink-0 select-none text-sm font-semibold text-[var(--cli-prompt-color,#3b82f6)]">{'❯'}</span>
+                                ) : null}
+                                <ComposerPrimitive.Input
+                                    ref={textareaRef}
+                                    autoFocus={false}
+                                    placeholder={showContinueHint ? t('misc.typeMessage') : t('mobile.composer.placeholder')}
+                                    disabled={controlsDisabled || isSendButtonLoading}
+                                    maxRows={6}
+                                    submitOnEnter={!isTouch && enterBehavior === 'send'}
+                                    cancelOnEscape={false}
+                                    onChange={handleChange}
+                                    onSelect={handleSelect}
+                                    onKeyDown={handleKeyDown}
+                                    onPaste={handlePaste}
+                                    onFocus={() => {
+                                        setShowToolPanel(false)
+                                        setShowSettings(false)
+                                    }}
+                                    className={`w-full flex-1 resize-none bg-transparent text-[16px] leading-[22px] text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono' : ''}`}
+                                />
+                            </div>
+
+                            <MobileComposerAction
+                                hasDraft={hasDraft}
+                                canSend={canSend}
+                                isSending={isSendButtonLoading}
+                                showStop={showStop}
+                                abortDisabled={abortDisabled}
+                                isAborting={isAborting}
+                                voiceEnabled={voiceEnabled}
+                                voiceStatus={voiceStatus}
+                                controlsDisabled={controlsDisabled}
+                                onSend={() => {
+                                    setShowToolPanel(false)
+                                    void sendComposerNow()
+                                }}
+                                onAbort={handleAbort}
+                                onVoiceToggle={onVoiceToggle ?? (() => {})}
+                            />
+                        </div>
+                    </ComposerPrimitive.AttachmentDropzone>
+
+                    {showToolPanel ? (
+                        <MobileComposerToolPanel
+                            controlsDisabled={controlsDisabled}
+                            showSettingsButton={showSettingsButton}
+                            onSettings={closePanelThen(handleSettingsToggle)}
+                            showTerminalButton={showTerminalButton}
+                            onTerminal={closePanelThen(onTerminal ?? (() => {}))}
+                            showStatusButton={showStatusButton}
+                            statusDisabled={controlsDisabled || threadIsRunning}
+                            onStatus={closePanelThen(handleCodexStatus)}
+                            showQueueButton={showQueueButton}
+                            queuePendingCount={Math.max(0, codexQueuePendingCount)}
+                            onQueue={closePanelThen(handleCodexQueueOpen)}
+                            showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
+                            planModeEnabled={isCodexPlanMode}
+                            onPlanModeToggle={handleCodexPlanModeToggle}
+                            showSendModeToggle={supportsQueueControls}
+                            sendMode={codexSendMode}
+                            onSendModeToggle={() => handleCodexSendModeChange(codexSendMode === 'queue' ? 'direct' : 'queue')}
+                            showSwitchButton={showSwitchButton}
+                            switchDisabled={switchDisabled}
+                            onSwitch={closePanelThen(() => { void handleSwitch() })}
+                            voiceEnabled={voiceEnabled}
+                            voiceActive={voiceStatus === 'connected' || voiceStatus === 'connecting'}
+                            onVoiceToggle={closePanelThen(onVoiceToggle ?? (() => {}))}
+                        />
+                    ) : null}
+                </ComposerPrimitive.Root>
+            </div>
+        )
+    }
+
     return (
         <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
             <div className="mx-auto w-full max-w-content">
@@ -1354,106 +1608,9 @@ export function HappyComposer(props: {
                                 </div>
                             ) : null}
 
-                            {showInlineQueuePanel ? (
-                                <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                            {t('queue.dialog.title')}
-                                        </span>
-                                        <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
-                                            {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                                        </span>
-                                        <span
-                                            className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
-                                            title={inlineQueueHeadline}
-                                        >
-                                            {inlineQueueHeadline}
-                                        </span>
-                                        <button
-                                            type="button"
-                                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
-                                            onClick={handleCodexQueueOpen}
-                                            disabled={controlsDisabled || !onCodexQueueOpen}
-                                        >
-                                            {t('queue.inline.open')}
-                                        </button>
-                                    </div>
+                            {inlineQueuePanel}
 
-                                    {codexQueueInlinePanelMode === 'full' ? (
-                                        <div className="mt-2 space-y-1">
-                                            {codexQueueEntries.length > 0 ? (
-                                                <>
-                                                    {codexQueueEntries.slice(0, 5).map((entry, index) => {
-                                                        const previewText = entry.preview || t('queue.dialog.emptyMessage')
-
-                                                        return (
-                                                            <div
-                                                                key={entry.id}
-                                                                className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
-                                                            >
-                                                                <span className="text-[10px] text-[var(--app-hint)]">
-                                                                    #{index + 1}
-                                                                </span>
-                                                                <span
-                                                                    className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
-                                                                >
-                                                                    {previewText}
-                                                                </span>
-                                                                <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
-                                                                    {new Date(entry.enqueuedAt).toLocaleTimeString([], {
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    })}
-                                                                </span>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                    {codexQueueEntries.length > 5 ? (
-                                                        <div className="px-1 text-[11px] text-[var(--app-hint)]">
-                                                            +{codexQueueEntries.length - 5}
-                                                        </div>
-                                                    ) : null}
-                                                </>
-                                            ) : inlineQueuePendingCount > 0 ? (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                                                </div>
-                                            ) : (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                    {t('queue.dialog.empty')}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : null}
-
-                            {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 px-4 pt-3">
-                                    {restoredDraftAttachments.map((attachment) => (
-                                        <div
-                                            key={`draft:${attachment.path}`}
-                                            className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
-                                            title={attachment.path}
-                                        >
-                                            <span className="max-w-[180px] truncate">
-                                                {attachment.filename}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                                onClick={() => {
-                                                    handleRemoveDraftAttachment(attachment)
-                                                }}
-                                                aria-label={`Remove ${attachment.filename}`}
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                    <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
-                                </div>
-                            ) : null}
+                            {attachmentsRow}
 
                             <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
                                 {cliMode && (

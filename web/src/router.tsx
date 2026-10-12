@@ -17,7 +17,12 @@ import {
 } from '@tanstack/react-router'
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
-import { SessionList, type NewSessionPreset } from '@/components/SessionList'
+import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
+import { ActiveStoriesStrip } from '@/components/mobile/ActiveStoriesStrip'
+import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { ChevronLeftIcon, ClearIcon, FolderStackIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
+import { GroupAvatar, PairAvatar } from '@/components/mobile/SessionAvatar'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
 import { NewSession } from '@/components/NewSession'
 import {
@@ -57,7 +62,7 @@ import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/button'
-import type { GroupDetail } from '@/types/api'
+import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
@@ -269,6 +274,46 @@ function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: (
     )
 }
 
+type MobileSessionListMode = 'recent' | 'projects'
+
+const MOBILE_SESSION_LIST_MODE_KEY = 'hapi:mobileSessionListMode:v1'
+
+function loadMobileSessionListMode(): MobileSessionListMode {
+    try {
+        return window.localStorage.getItem(MOBILE_SESSION_LIST_MODE_KEY) === 'projects' ? 'projects' : 'recent'
+    } catch {
+        return 'recent'
+    }
+}
+
+function persistMobileSessionListMode(mode: MobileSessionListMode): void {
+    try {
+        window.localStorage.setItem(MOBILE_SESSION_LIST_MODE_KEY, mode)
+    } catch {
+    }
+}
+
+function MobileSearchField(props: { value: string; onChange: (value: string) => void; placeholder: string }) {
+    return (
+        <label className="flex h-9 items-center gap-2 rounded-[10px] bg-[var(--social-search-bg)] px-3 text-[var(--app-hint)]">
+            <SearchIcon className="h-4 w-4 shrink-0" />
+            <input
+                value={props.value}
+                onChange={(event) => props.onChange(event.target.value)}
+                placeholder={props.placeholder}
+                className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--app-fg)] outline-none placeholder:text-[var(--app-hint)]"
+                type="search"
+                enterKeyHint="search"
+            />
+            {props.value ? (
+                <button type="button" onClick={() => props.onChange('')} className="shrink-0 opacity-70" aria-label="Clear">
+                    <ClearIcon className="h-4 w-4" />
+                </button>
+            ) : null}
+        </label>
+    )
+}
+
 function SessionsPage() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -283,6 +328,8 @@ function SessionsPage() {
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+    const isMobileLayout = useIsMobileLayout()
+    const [mobileListMode, setMobileListMode] = useState<MobileSessionListMode>(loadMobileSessionListMode)
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
     const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
     const [sessionTagOrder, setSessionTagOrder] = useState<string[]>(loadSessionTagOrder)
@@ -663,6 +710,120 @@ function SessionsPage() {
                     </div>
                 </div>
             </>
+        )
+    }
+
+    if (isMobileLayout) {
+        const onlineCount = sessions.filter((session) => session.active).length
+        const pendingSessionsCount = sessions.filter((session) => session.active && session.pendingRequestsCount > 0).length
+        const toggleListMode = () => {
+            const next: MobileSessionListMode = mobileListMode === 'recent' ? 'projects' : 'recent'
+            setMobileListMode(next)
+            persistMobileSessionListMode(next)
+        }
+        const mobileListHeader = (
+            <div className="pb-1">
+                <div className="px-4 pb-2.5 pt-2">
+                    <MobileSearchField
+                        value={sessionSearchQuery}
+                        onChange={setSessionSearchQuery}
+                        placeholder={t('sessions.search.placeholder')}
+                    />
+                </div>
+                {sessionSearchQuery ? null : (
+                    <ActiveStoriesStrip
+                        sessions={sessions}
+                        onSelect={selectSession}
+                        onNewSession={() => openNewSession()}
+                    />
+                )}
+                {sessionTags.length ? (
+                    <div className="session-tag-scroll flex gap-1.5 overflow-x-auto px-4 pb-2">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedSessionTag(null)}
+                            className={`shrink-0 rounded-full px-3 py-1 text-[13px] transition-colors ${selectedSessionTag === null ? 'bg-[var(--app-fg)] text-[var(--app-bg)]' : 'bg-[var(--social-pill-bg)] text-[var(--app-fg)]'}`}
+                        >
+                            {t('sessions.tags.all')}
+                        </button>
+                        {orderedSessionTags.map((tag) => (
+                            <button
+                                key={tag}
+                                type="button"
+                                onClick={() => setSelectedSessionTag(tag)}
+                                className={`shrink-0 rounded-full px-3 py-1 text-[13px] transition-colors ${selectedSessionTag === tag ? 'bg-[var(--app-fg)] text-[var(--app-bg)]' : 'bg-[var(--social-pill-bg)] text-[var(--app-fg)]'}`}
+                            >
+                                #{tag}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+                <div className="h-px bg-[var(--app-divider)]" />
+            </div>
+        )
+
+        return (
+            <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
+                {isSessionsIndex ? (
+                    <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                        <MobilePageHeader
+                            title="HAQI"
+                            subtitle={t('mobile.feed.onlineCount', { n: onlineCount, total: sessions.length })}
+                            actions={(
+                                <>
+                                    <MobileHeaderIconButton
+                                        label={mobileListMode === 'recent' ? t('mobile.list.switchToProjects') : t('mobile.list.switchToRecent')}
+                                        onClick={toggleListMode}
+                                    >
+                                        {mobileListMode === 'recent'
+                                            ? <FolderStackIcon className="h-[22px] w-[22px]" />
+                                            : <RecentIcon className="h-[22px] w-[22px]" />}
+                                    </MobileHeaderIconButton>
+                                    <MobileHeaderIconButton label={t('sessions.new')} onClick={() => openNewSession()}>
+                                        <PlusCircleIcon className="h-[24px] w-[24px]" />
+                                    </MobileHeaderIconButton>
+                                </>
+                            )}
+                        />
+                        {error ? (
+                            <div className="px-4 py-2 text-sm text-red-600">{error}</div>
+                        ) : null}
+                        <div className="min-h-0 flex-1">
+                            {mobileListMode === 'recent' ? (
+                                <SessionFeed
+                                    sessions={visibleSessions}
+                                    availableTags={orderedSessionTags}
+                                    onSelect={selectSession}
+                                    api={api}
+                                    listHeader={mobileListHeader}
+                                    emptyLabel={isLoading ? t('mobile.feed.loading') : t('mobile.feed.empty')}
+                                />
+                            ) : (
+                                <SessionList
+                                    sessions={visibleSessions}
+                                    availableTags={orderedSessionTags}
+                                    selectedSessionId={selectedSessionId}
+                                    onSelect={selectSession}
+                                    onNewSession={openNewSession}
+                                    onQuickCreateInProject={quickCreateInProject}
+                                    onRefresh={handleRefresh}
+                                    isLoading={isLoading}
+                                    renderHeader={false}
+                                    api={api}
+                                    density={density}
+                                    listHeader={mobileListHeader}
+                                    itemVariant="feed"
+                                />
+                            )}
+                        </div>
+                        <MobileTabBar active="sessions" sessionsBadge={pendingSessionsCount} />
+                    </div>
+                ) : (
+                    <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                        <Outlet />
+                    </div>
+                )}
+            </SessionsLayoutContext.Provider>
         )
     }
 
@@ -1077,6 +1238,52 @@ function GroupListItem(props: {
     )
 }
 
+function MobileGroupRow(props: {
+    item: GroupDetail
+    members: SessionSummary[]
+    onSelect: (groupId: string) => void
+    onOpenActions: (groupId: string, point: { x: number; y: number }) => void
+}) {
+    const { item, members, onSelect, onOpenActions } = props
+    const { t } = useTranslation()
+    const { haptic } = usePlatform()
+    const longPressHandlers = useLongPress({
+        onLongPress: (point) => {
+            haptic.impact('medium')
+            onOpenActions(item.group.id, point)
+        },
+        onClick: () => onSelect(item.group.id),
+        threshold: 500
+    })
+    const hasLiveMember = members.some((member) => member.thinking)
+
+    return (
+        <button
+            type="button"
+            {...longPressHandlers}
+            className="social-pressable flex w-full items-center gap-3 pl-4 text-left select-none"
+            style={{ WebkitTouchCallout: 'none' }}
+        >
+            <GroupAvatar name={item.group.name} members={members} size={50} />
+            <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch border-b border-[var(--app-divider)] py-3 pr-4">
+                <div className="flex items-baseline gap-2">
+                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-snug">{item.group.name}</span>
+                    <span className="shrink-0 text-[11px] text-[var(--app-hint)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
+                </div>
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--app-hint)]">
+                    {hasLiveMember ? (
+                        <span className="shrink-0 text-[var(--social-accent)]">{t('mobile.feed.thinking')}</span>
+                    ) : null}
+                    <span className="min-w-0 truncate">
+                        {t('mobile.groups.members', { n: item.members.length })}
+                        {item.group.description?.trim() ? ` · ${item.group.description}` : ''}
+                    </span>
+                </div>
+            </div>
+        </button>
+    )
+}
+
 function filterGroupsBySearch(groups: GroupDetail[], query: string): GroupDetail[] {
     const normalizedQuery = query.trim().toLowerCase()
     if (!normalizedQuery) {
@@ -1118,6 +1325,9 @@ function GroupsLayout() {
     const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+    const isMobileLayout = useIsMobileLayout()
+    const { sessions: allSessions } = useSessions(api)
+    const sessionsById = useMemo(() => new Map(allSessions.map((session) => [session.id, session])), [allSessions])
 
     const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
@@ -1170,7 +1380,8 @@ function GroupsLayout() {
     }, [isGroupsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
 
     useEffect(() => {
-        if (!isGroupsIndex || isLoading || groups.length === 0) {
+        // Desktop opens the first group next to the list; on phones the list itself is the page.
+        if (isMobileLayout || !isGroupsIndex || isLoading || groups.length === 0) {
             return
         }
         const firstGroupId = groups[0]?.group.id
@@ -1182,7 +1393,7 @@ function GroupsLayout() {
             params: { groupId: firstGroupId },
             replace: true
         })
-    }, [groups, isGroupsIndex, isLoading, navigate])
+    }, [groups, isGroupsIndex, isLoading, isMobileLayout, navigate])
 
     useEffect(() => {
         if (!mobileSidebarOpen) return
@@ -1428,79 +1639,8 @@ function GroupsLayout() {
         )
     }
 
-    return (
-        <div className="flex h-full min-h-0">
-            {/* Sidebar - matching SessionsPage width system */}
-            <div
-                className={`${isGroupsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]`}
-                style={sidebarStyle}
-            >
-                {renderSidebarContent()}
-            </div>
-
-            {/* Sidebar resize handle - matching SessionsPage */}
-            <div
-                className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('sessions.sidebar.resize')}
-                title={t('sessions.sidebar.resize')}
-                onPointerDown={startSidebarResize}
-            >
-                <div
-                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                />
-            </div>
-
-            {/* Main area */}
-            <div className={`${isGroupsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
-                {!isGroupsIndex ? (
-                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
-                        <button
-                            type="button"
-                            onClick={toggleSidebarFromBar}
-                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('sessions.sidebar.open')}
-                            aria-label={t('sessions.sidebar.open')}
-                        >
-                            <SidebarIcon className="h-5 w-5" />
-                        </button>
-                        <div className="min-w-0 flex-1">
-                            <span className="truncate text-sm font-semibold text-[var(--app-fg)]">
-                                {selectedGroup?.group.name ?? 'Group'}
-                            </span>
-                            {selectedGroup?.group.description?.trim() ? (
-                                <span className="ml-1.5 truncate text-xs text-[var(--app-hint)]">
-                                    {selectedGroup.group.description}
-                                </span>
-                            ) : null}
-                        </div>
-                    </div>
-                ) : null}
-                <div className="flex-1 min-h-0">
-                    <Outlet />
-                </div>
-            </div>
-
-            {mobileSidebarOpen ? (
-                <div
-                    className="fixed inset-0 z-40 flex lg:hidden"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Groups sidebar"
-                >
-                    <button
-                        type="button"
-                        className="absolute inset-0 bg-black/35"
-                        onClick={closeSidebarOnMobile}
-                        aria-label={t('sessions.sidebar.close')}
-                    />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
-                        {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
-                    </div>
-                </div>
-            ) : null}
-
+    const groupModals = (
+        <>
             {/* Create group modal */}
             {showCreateModal ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -1612,6 +1752,165 @@ function GroupsLayout() {
                 isPending={isActionPending}
                 destructive
             />
+        </>
+    )
+
+    if (isMobileLayout) {
+        const membersOf = (item: GroupDetail) => item.members
+            .map((member) => (member.sessionId ? sessionsById.get(member.sessionId) : undefined))
+            .filter((session): session is NonNullable<typeof session> => Boolean(session))
+
+        if (isGroupsIndex) {
+            return (
+                <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                    <MobilePageHeader
+                        title={t('mobile.tab.groups')}
+                        subtitle={t('mobile.groups.summary', { n: visibleGroups.length, m: totalMemberCount })}
+                        actions={(
+                            <MobileHeaderIconButton label={t('mobile.groups.new')} onClick={() => setShowCreateModal(true)}>
+                                <PlusCircleIcon className="h-[24px] w-[24px]" />
+                            </MobileHeaderIconButton>
+                        )}
+                    />
+                    <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
+                        <div className="px-4 pb-2.5 pt-2">
+                            <MobileSearchField
+                                value={groupSearchQuery}
+                                onChange={setGroupSearchQuery}
+                                placeholder={t('groups.search.placeholder')}
+                            />
+                        </div>
+                        <div className="h-px bg-[var(--app-divider)]" />
+                        {isLoading ? (
+                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
+                        ) : visibleGroups.length === 0 ? (
+                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.groups.empty')}</div>
+                        ) : (
+                            visibleGroups.map((item) => (
+                                <MobileGroupRow
+                                    key={item.group.id}
+                                    item={item}
+                                    members={membersOf(item)}
+                                    onSelect={(groupId) => navigate({ to: '/groups/$groupId', params: { groupId } })}
+                                    onOpenActions={handleOpenGroupActions}
+                                />
+                            ))
+                        )}
+                    </div>
+                    <MobileTabBar active="groups" />
+                    {groupModals}
+                </div>
+            )
+        }
+
+        return (
+            <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-bar-border)] pt-[env(safe-area-inset-top)]">
+                    <div className="flex h-[52px] items-center gap-2 pl-1 pr-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/groups' })}
+                            className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
+                            aria-label="Back"
+                        >
+                            <ChevronLeftIcon className="h-[26px] w-[26px]" />
+                        </button>
+                        {selectedGroup ? (
+                            <GroupAvatar name={selectedGroup.group.name} members={membersOf(selectedGroup)} size={36} />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-[16px] font-semibold leading-tight">
+                                {selectedGroup?.group.name ?? 'Group'}
+                            </div>
+                            <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--app-hint)]">
+                                {t('mobile.groups.members', { n: selectedGroup?.members.length ?? 0 })}
+                                {selectedGroup?.group.description?.trim() ? ` · ${selectedGroup.group.description}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="min-h-0 flex-1">
+                    <Outlet />
+                </div>
+                {groupModals}
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex h-full min-h-0">
+            {/* Sidebar - matching SessionsPage width system */}
+            <div
+                className={`${isGroupsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]`}
+                style={sidebarStyle}
+            >
+                {renderSidebarContent()}
+            </div>
+
+            {/* Sidebar resize handle - matching SessionsPage */}
+            <div
+                className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('sessions.sidebar.resize')}
+                title={t('sessions.sidebar.resize')}
+                onPointerDown={startSidebarResize}
+            >
+                <div
+                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
+                />
+            </div>
+
+            {/* Main area */}
+            <div className={`${isGroupsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
+                {!isGroupsIndex ? (
+                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
+                        <button
+                            type="button"
+                            onClick={toggleSidebarFromBar}
+                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                            title={t('sessions.sidebar.open')}
+                            aria-label={t('sessions.sidebar.open')}
+                        >
+                            <SidebarIcon className="h-5 w-5" />
+                        </button>
+                        <div className="min-w-0 flex-1">
+                            <span className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                                {selectedGroup?.group.name ?? 'Group'}
+                            </span>
+                            {selectedGroup?.group.description?.trim() ? (
+                                <span className="ml-1.5 truncate text-xs text-[var(--app-hint)]">
+                                    {selectedGroup.group.description}
+                                </span>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
+                <div className="flex-1 min-h-0">
+                    <Outlet />
+                </div>
+            </div>
+
+            {mobileSidebarOpen ? (
+                <div
+                    className="fixed inset-0 z-40 flex lg:hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Groups sidebar"
+                >
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-black/35"
+                        onClick={closeSidebarOnMobile}
+                        aria-label={t('sessions.sidebar.close')}
+                    />
+                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
+                        {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
+                    </div>
+                </div>
+            ) : null}
+
+            {groupModals}
         </div>
     )
 }
@@ -1704,6 +2003,7 @@ function ReviewLoopsLayout() {
     const [loopSearchQuery, setLoopSearchQuery] = useState('')
     const [createModalOpen, setCreateModalOpen] = useState(false)
     const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+    const isMobileLayout = useIsMobileLayout()
 
     const handleCreateLoop = useCallback(async (data: CreateLoopData) => {
         if (!api) return
@@ -1927,6 +2227,114 @@ function ReviewLoopsLayout() {
                     )}
                 </div>
             </>
+        )
+    }
+
+    if (isMobileLayout) {
+        const sessionById = new Map(sessions.map((session) => [session.id, session]))
+
+        if (isLoopsIndex) {
+            return (
+                <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                    <MobilePageHeader
+                        title={t('mobile.tab.loops')}
+                        subtitle={t('mobile.loops.summary', { n: visibleLoops.length, active: activeCount })}
+                        actions={(
+                            <MobileHeaderIconButton label={t('mobile.loops.new')} onClick={() => setCreateModalOpen(true)}>
+                                <PlusCircleIcon className="h-[24px] w-[24px]" />
+                            </MobileHeaderIconButton>
+                        )}
+                    />
+                    <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
+                        <div className="px-4 pb-2.5 pt-2">
+                            <MobileSearchField
+                                value={loopSearchQuery}
+                                onChange={setLoopSearchQuery}
+                                placeholder={t('mobile.loops.search')}
+                            />
+                        </div>
+                        <div className="h-px bg-[var(--app-divider)]" />
+                        {isLoading ? (
+                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
+                        ) : visibleLoops.length === 0 ? (
+                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.loops.empty')}</div>
+                        ) : (
+                            visibleLoops.map((item) => (
+                                <button
+                                    key={item.id}
+                                    type="button"
+                                    onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
+                                    className="social-pressable flex w-full items-center gap-3 pl-4 text-left"
+                                >
+                                    <PairAvatar
+                                        first={sessionById.get(item.workerSessionId) ?? null}
+                                        second={sessionById.get(item.reviewerSessionId) ?? null}
+                                        size={50}
+                                    />
+                                    <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch border-b border-[var(--app-divider)] py-3 pr-4">
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-snug">
+                                                {item.requirement}
+                                            </span>
+                                            <span className="shrink-0 text-[11px] text-[var(--app-hint)]">
+                                                {formatRelativeTime(item.updatedAt, t)}
+                                            </span>
+                                        </div>
+                                        <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--app-hint)]">
+                                            <ReviewLoopStatusBadge status={item.status} />
+                                            <span>{t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                    <MobileTabBar active="loops" />
+                    <CreateLoopModal
+                        open={createModalOpen}
+                        onClose={() => setCreateModalOpen(false)}
+                        onSubmit={handleCreateLoop}
+                        sessions={sessions}
+                    />
+                </div>
+            )
+        }
+
+        return (
+            <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-bar-border)] pt-[env(safe-area-inset-top)]">
+                    <div className="flex h-[52px] items-center gap-2 pl-1 pr-4">
+                        <button
+                            type="button"
+                            onClick={() => navigate({ to: '/review-loops' })}
+                            className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
+                            aria-label="Back"
+                        >
+                            <ChevronLeftIcon className="h-[26px] w-[26px]" />
+                        </button>
+                        {selectedLoop ? (
+                            <PairAvatar
+                                first={sessionById.get(selectedLoop.workerSessionId) ?? null}
+                                second={sessionById.get(selectedLoop.reviewerSessionId) ?? null}
+                                size={36}
+                            />
+                        ) : null}
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-[16px] font-semibold leading-tight">
+                                {selectedLoop?.requirement ?? 'review-loop'}
+                            </div>
+                            {selectedLoop ? (
+                                <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--app-hint)]">
+                                    {t('mobile.loops.round', { n: selectedLoop.currentRound, max: selectedLoop.maxRounds })}
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                </div>
+                <div className="min-h-0 flex-1">
+                    <Outlet />
+                </div>
+            </div>
         )
     }
 

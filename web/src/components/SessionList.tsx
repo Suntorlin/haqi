@@ -4,6 +4,7 @@ import {
     useEffect,
     useMemo,
     useState,
+    type ReactNode,
     type KeyboardEvent as ReactKeyboardEvent,
     type MouseEvent as ReactMouseEvent,
     type PointerEvent as ReactPointerEvent,
@@ -45,6 +46,7 @@ import {
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
+import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 
 type SessionGroup = {
     directory: string
@@ -240,17 +242,24 @@ function PlusIcon(props: { className?: string }) {
     )
 }
 
-const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div'>>(
+type ListHeaderContext = { header?: ReactNode }
+
+const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div'> & { context?: ListHeaderContext }>(
     function SessionListScroller(props, ref) {
+        const { context: _context, ...rest } = props
         return (
             <div
-                {...props}
+                {...rest}
                 ref={ref}
                 className={`session-list-scroll ${props.className ?? ''}`.trim()}
             />
         )
     }
 )
+
+function ListHeader(props: { context?: ListHeaderContext }) {
+    return <>{props.context?.header ?? null}</>
+}
 
 function GripIcon(props: { className?: string }) {
     return (
@@ -323,7 +332,7 @@ function getAgentLabel(session: SessionSummary): string {
     return 'unknown'
 }
 
-function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
+export function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
     const ms = value < 1_000_000_000_000 ? value * 1000 : value
     if (!Number.isFinite(ms)) return null
     const delta = Date.now() - ms
@@ -337,6 +346,51 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
     return new Date(ms).toLocaleDateString()
 }
 
+function shortModelName(model: string): string {
+    return model.replace(/^.*claude-/, '')
+}
+
+/** Approval requests only matter while the agent is online; stale ones on dead sessions are noise. */
+function getLivePendingCount(session: SessionSummary): number {
+    return session.active ? session.pendingRequestsCount : 0
+}
+
+function FeedPreview(props: { session: SessionSummary; active: boolean; thinking: boolean }) {
+    const { t } = useTranslation()
+    const { session: s } = props
+    const projectName = getProjectName(getSessionProjectPath(s))
+    const model = s.metadata?.model?.trim() || s.modelMode || ''
+    const progress = getTodoProgress(s)
+    const meta = [
+        projectName,
+        model && model !== 'default' ? shortModelName(model) : null,
+        ...(s.metadata?.tags ?? []).map((tag) => `#${tag}`)
+    ].filter(Boolean).join(' · ')
+
+    return (
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--app-hint)]">
+            {props.active && s.pendingRequestsCount > 0 ? (
+                <span className="shrink-0 text-[var(--social-badge)]">
+                    [{t('mobile.feed.pending', { n: s.pendingRequestsCount })}]
+                </span>
+            ) : props.thinking ? (
+                <span className="inline-flex shrink-0 items-center text-[var(--social-accent)]">
+                    {t('mobile.feed.thinking')}
+                    <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
+                        <span /><span /><span />
+                    </span>
+                </span>
+            ) : null}
+            <span className="min-w-0 truncate">{meta}</span>
+            {progress ? (
+                <span className="ml-auto shrink-0 pl-1 text-[12px]">
+                    ✓ {progress.completed}/{progress.total}
+                </span>
+            ) : null}
+        </div>
+    )
+}
+
 function SessionItem(props: {
     session: SessionSummary
     onSelect: (sessionId: string) => void
@@ -346,9 +400,12 @@ function SessionItem(props: {
     selected?: boolean
     density: SessionListDensity
     forceOffline?: boolean
+    variant?: 'default' | 'feed'
+    sortable?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, showPath = true, api, availableTags = [], selected = false, density, forceOffline = false } = props
+    const { session: s, onSelect, showPath = true, api, availableTags = [], selected = false, density, forceOffline = false, variant = 'default', sortable = true } = props
+    const isFeed = variant === 'feed'
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -365,7 +422,7 @@ function SessionItem(props: {
         transform,
         transition,
         isDragging
-    } = useSortable({ id: s.id })
+    } = useSortable({ id: s.id, disabled: !sortable })
 
     const {
         archiveSession,
@@ -452,105 +509,136 @@ function SessionItem(props: {
                     setIsQuickArchiveVisible(false)
                 }}
             >
-                <button
-                    type="button"
-                    {...longPressHandlers}
-                    className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
-                    style={{ WebkitTouchCallout: 'none' }}
-                    aria-current={selected ? 'page' : undefined}
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                {isFeed ? (
+                    <button
+                        type="button"
+                        {...longPressHandlers}
+                        className={`session-list-item social-pressable flex w-full items-center gap-3 pl-4 text-left select-none focus-visible:outline-none ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+                        style={{ WebkitTouchCallout: 'none' }}
+                    >
+                        <SessionAvatar
+                            session={s}
+                            size={50}
+                            dimmed={!effectiveActive}
+                            badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
+                        />
+                        <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch border-b border-[var(--app-divider)] py-3 pr-4">
+                            <div className="flex items-baseline gap-2">
+                                <span className={`min-w-0 flex-1 truncate text-[16px] leading-snug ${effectiveActive ? 'font-medium text-[var(--app-fg)]' : 'text-[var(--app-fg)]/80'}`}>
+                                    {sessionName}
+                                </span>
+                                <span className="shrink-0 text-[11px] text-[var(--app-hint)]">
+                                    {formatRelativeTime(s.updatedAt, t)}
+                                </span>
+                            </div>
+                            <FeedPreview session={s} active={effectiveActive} thinking={effectiveThinking} />
+                        </div>
+                    </button>
+                ) : (
+                    <button
+                        type="button"
+                        {...longPressHandlers}
+                        className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
+                        style={{ WebkitTouchCallout: 'none' }}
+                        aria-current={selected ? 'page' : undefined}
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                                <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                                    <span
+                                        className={`h-2 w-2 rounded-full ${statusDotClass}`}
+                                    />
+                                </span>
+                                <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
+                                    {sessionName}
+                                </div>
+                            </div>
+                            <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+                                {effectiveThinking ? (
+                                    <span className="text-[#007AFF] animate-pulse">
+                                        {t('session.item.thinking')}
+                                    </span>
+                                ) : null}
+                                {(() => {
+                                    const progress = getTodoProgress(s)
+                                    if (!progress) return null
+                                    return (
+                                        <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                            <BulbIcon className="h-3 w-3" />
+                                            {progress.completed}/{progress.total}
+                                        </span>
+                                    )
+                                })()}
+                                {s.pendingRequestsCount > 0 ? (
+                                    <span className="text-[var(--app-badge-warning-text)]">
+                                        {t('session.item.pending')} {s.pendingRequestsCount}
+                                    </span>
+                                ) : null}
                                 <span
-                                    className={`h-2 w-2 rounded-full ${statusDotClass}`}
-                                />
-                            </span>
-                            <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
-                                {sessionName}
+                                    className={`text-[var(--app-hint)] transition-opacity ${sessionQuickArchiveEnabled && isQuickArchiveVisible ? 'opacity-0 pointer-events-none' : ''}`}
+                                >
+                                    {formatRelativeTime(s.updatedAt, t)}
+                                </span>
                             </div>
                         </div>
-                        <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                            {effectiveThinking ? (
-                                <span className="text-[#007AFF] animate-pulse">
-                                    {t('session.item.thinking')}
-                                </span>
-                            ) : null}
-                            {(() => {
-                                const progress = getTodoProgress(s)
-                                if (!progress) return null
-                                return (
-                                    <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                        <BulbIcon className="h-3 w-3" />
-                                        {progress.completed}/{progress.total}
+                        {showPath ? (
+                            <div className="truncate text-xs text-[var(--app-hint)]">
+                                {s.metadata?.path ?? s.id}
+                            </div>
+                        ) : null}
+                        {s.metadata?.tags?.length ? (
+                            <div className="flex flex-wrap gap-1">
+                                {s.metadata.tags.map((tag) => (
+                                    <span
+                                        key={tag}
+                                        className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                    >
+                                        #{tag}
                                     </span>
-                                )
-                            })()}
-                            {s.pendingRequestsCount > 0 ? (
-                                <span className="text-[var(--app-badge-warning-text)]">
-                                    {t('session.item.pending')} {s.pendingRequestsCount}
+                                ))}
+                            </div>
+                        ) : null}
+                        {!isCompact ? (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
+                                <span className="inline-flex items-center gap-2">
+                                    <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
+                                        ❖
+                                    </span>
+                                    {getAgentLabel(s)}
                                 </span>
-                            ) : null}
-                            <span
-                                className={`text-[var(--app-hint)] transition-opacity ${sessionQuickArchiveEnabled && isQuickArchiveVisible ? 'opacity-0 pointer-events-none' : ''}`}
-                            >
-                                {formatRelativeTime(s.updatedAt, t)}
-                            </span>
-                        </div>
-                    </div>
-                    {showPath ? (
-                        <div className="truncate text-xs text-[var(--app-hint)]">
-                            {s.metadata?.path ?? s.id}
-                        </div>
-                    ) : null}
-                    {s.metadata?.tags?.length ? (
-                        <div className="flex flex-wrap gap-1">
-                            {s.metadata.tags.map((tag) => (
-                                <span
-                                    key={tag}
-                                    className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
-                                >
-                                    #{tag}
-                                </span>
-                            ))}
-                        </div>
-                    ) : null}
-                    {!isCompact ? (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
-                            <span className="inline-flex items-center gap-2">
-                                <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
-                                    ❖
-                                </span>
-                                {getAgentLabel(s)}
-                            </span>
-                            <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
-                            {s.metadata?.worktree?.branch ? (
-                                <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
-                            ) : null}
-                        </div>
-                    ) : null}
-                </button>
+                                <span>{t('session.item.model')}: {s.metadata?.model?.trim() || s.modelMode || 'default'}</span>
+                                {s.metadata?.worktree?.branch ? (
+                                    <span>{t('session.item.worktree')}: {s.metadata.worktree.branch}</span>
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </button>
+                )}
 
-                <button
-                    type="button"
-                    {...dragAttributes}
-                    {...dragListeners}
-                    className="absolute inset-y-0 left-0 flex w-3 cursor-grab touch-none select-none items-center justify-center text-[var(--app-hint)] opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-md:opacity-40"
-                    title={t('sessions.reorder')}
-                    aria-label={t('sessions.reorder')}
-                >
-                    <GripIcon className="h-3 w-3" />
-                </button>
+                {sortable ? (
+                    <button
+                        type="button"
+                        {...dragAttributes}
+                        {...dragListeners}
+                        className="absolute inset-y-0 left-0 flex w-3 cursor-grab touch-none select-none items-center justify-center text-[var(--app-hint)] opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-md:opacity-40"
+                        title={t('sessions.reorder')}
+                        aria-label={t('sessions.reorder')}
+                    >
+                        <GripIcon className="h-3 w-3" />
+                    </button>
+                ) : null}
 
-                <SessionQuickArchiveButton
-                    enabled={sessionQuickArchiveEnabled}
-                    visible={isQuickArchiveVisible}
-                    isPending={isPending}
-                    compact={isCompact}
-                    onArchive={async () => {
-                        await archiveSession()
-                    }}
-                />
+                {isFeed ? null : (
+                    <SessionQuickArchiveButton
+                        enabled={sessionQuickArchiveEnabled}
+                        visible={isQuickArchiveVisible}
+                        isPending={isPending}
+                        compact={isCompact}
+                        onArchive={async () => {
+                            await archiveSession()
+                        }}
+                    />
+                )}
             </div>
 
             <SessionActionMenu
@@ -829,9 +917,13 @@ export function SessionList(props: {
     api: ApiClient | null
     selectedSessionId?: string | null
     density?: SessionListDensity
+    /** Content rendered above the rows that scrolls with the list (mobile search/stories). */
+    listHeader?: ReactNode
+    itemVariant?: 'default' | 'feed'
 }) {
     const { t } = useTranslation()
     const { renderHeader = true, api, selectedSessionId, density = 'comfortable', availableTags = [] } = props
+    const listHeaderContext = useMemo<ListHeaderContext>(() => ({ header: props.listHeader }), [props.listHeader])
     const { projectQuickCreateEnabled } = useProjectQuickCreate()
     const baseGroups = useMemo(
         () => groupSessionsByDirectory(props.sessions),
@@ -1024,8 +1116,10 @@ export function SessionList(props: {
                             defaultItemHeight={density === 'compact' ? 64 : 108}
                             increaseViewportBy={360}
                             initialItemCount={Math.min(rows.length, 24)}
+                            context={listHeaderContext}
                             components={{
-                                Scroller: SessionListScroller
+                                Scroller: SessionListScroller,
+                                Header: ListHeader
                             }}
                             computeItemKey={(_, row) => (
                                 row.type === 'group'
@@ -1090,7 +1184,7 @@ export function SessionList(props: {
                                 }
 
                                 return (
-                                    <div className="border-b border-[var(--app-divider)]">
+                                    <div className={props.itemVariant === 'feed' ? '' : 'border-b border-[var(--app-divider)]'}>
                                         <SessionItem
                                             session={row.session}
                                             onSelect={props.onSelect}
@@ -1100,6 +1194,7 @@ export function SessionList(props: {
                                             selected={row.session.id === selectedSessionId}
                                             density={density}
                                             forceOffline={row.forceOffline}
+                                            variant={props.itemVariant}
                                         />
                                     </div>
                                 )
@@ -1109,6 +1204,64 @@ export function SessionList(props: {
                     </SortableContext>
                 </DndContext>
             </div>
+        </div>
+    )
+}
+
+/**
+ * Mobile chat-app style list: one flat, recency-sorted feed (like WeChat "Chats").
+ * Sessions waiting for approval are pinned on top.
+ */
+export function SessionFeed(props: {
+    sessions: SessionSummary[]
+    availableTags?: string[]
+    onSelect: (sessionId: string) => void
+    api: ApiClient | null
+    listHeader?: ReactNode
+    emptyLabel?: string
+}) {
+    const { api, availableTags = [] } = props
+    const sortedSessions = useMemo(() => [...props.sessions].sort((a, b) => {
+        const aPinned = getLivePendingCount(a) > 0 ? 1 : 0
+        const bPinned = getLivePendingCount(b) > 0 ? 1 : 0
+        if (aPinned !== bPinned) return bPinned - aPinned
+        if (a.updatedAt !== b.updatedAt) return b.updatedAt - a.updatedAt
+        return a.id.localeCompare(b.id)
+    }), [props.sessions])
+    const listHeaderContext = useMemo<ListHeaderContext>(() => ({ header: props.listHeader }), [props.listHeader])
+
+    return (
+        <div className="flex h-full min-h-0 w-full flex-col">
+            <Virtuoso
+                data={sortedSessions}
+                style={{ height: '100%' }}
+                defaultItemHeight={74}
+                increaseViewportBy={480}
+                initialItemCount={Math.min(sortedSessions.length, 20)}
+                context={listHeaderContext}
+                components={{
+                    Scroller: SessionListScroller,
+                    Header: ListHeader,
+                    EmptyPlaceholder: () => (
+                        <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">
+                            {props.emptyLabel}
+                        </div>
+                    )
+                }}
+                computeItemKey={(_, session) => session.id}
+                itemContent={(_, session) => (
+                    <SessionItem
+                        session={session}
+                        onSelect={props.onSelect}
+                        showPath={false}
+                        api={api}
+                        availableTags={availableTags}
+                        density="comfortable"
+                        variant="feed"
+                        sortable={false}
+                    />
+                )}
+            />
         </div>
     )
 }

@@ -6,13 +6,15 @@ import { HappyChatProvider } from '@/components/AssistantChat/context'
 import { HappyAssistantMessage } from '@/components/AssistantChat/messages/AssistantMessage'
 import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessage'
 import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMessage'
+import { SocialAssistantMessage, SocialUserMessage } from '@/components/AssistantChat/messages/SocialMessages'
+import { cn } from '@/lib/utils'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
 import { useTranslation } from '@/lib/use-translation'
 
-function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void }) {
+function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void; social?: boolean }) {
     const { t } = useTranslation()
     if (!props.show) {
         return null
@@ -21,7 +23,12 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className={cn(
+                'absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-sm font-medium shadow-lg animate-bounce-in z-10',
+                props.social
+                    ? 'bottom-3 bg-[var(--social-cell-bg)] text-[var(--social-accent)] ring-1 ring-[var(--app-border)]'
+                    : 'bottom-20 bg-[var(--app-button)] text-[var(--app-button-text)]'
+            )}
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
         </button>
@@ -88,13 +95,23 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
     )
 }
 
-function ThreadMessagesList() {
-    return <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />
+function ThreadMessagesList(props: { social: boolean }) {
+    return (
+        <ThreadPrimitive.Messages
+            components={props.social ? SOCIAL_THREAD_MESSAGE_COMPONENTS : THREAD_MESSAGE_COMPONENTS}
+        />
+    )
 }
 
 const THREAD_MESSAGE_COMPONENTS = {
     UserMessage: HappyUserMessage,
     AssistantMessage: HappyAssistantMessage,
+    SystemMessage: HappySystemMessage
+} as const
+
+const SOCIAL_THREAD_MESSAGE_COMPONENTS = {
+    UserMessage: SocialUserMessage,
+    AssistantMessage: SocialAssistantMessage,
     SystemMessage: HappySystemMessage
 } as const
 
@@ -120,8 +137,11 @@ export function HappyThread(props: {
     forceScrollToken: number
     density: SessionListDensity
     toolProgress?: ReadonlyMap<string, ToolProgressSignal> | null
+    layout?: 'classic' | 'social'
+    timeSeparators?: ReadonlyMap<string, number> | null
 }) {
     const viewportRef = useRef<HTMLDivElement | null>(null)
+    const isSocial = props.layout === 'social'
     const {
         isNearBottom,
         showJumpToLatest,
@@ -146,7 +166,9 @@ export function HappyThread(props: {
     }, [isNearBottom, props.onAtBottomChange])
 
     const showSkeleton = props.isLoadingMessages && props.messagesVersion === 0 && props.pendingCount === 0
-    const isCompact = props.density === 'compact'
+    // Social layout always uses one-line tool rows so bubbles stay readable on phones.
+    const effectiveDensity: SessionListDensity = isSocial ? 'compact' : props.density
+    const isCompact = effectiveDensity === 'compact'
 
     return (
         <HappyChatProvider value={{
@@ -156,17 +178,22 @@ export function HappyThread(props: {
             agentState: props.agentState,
             permissionMode: props.permissionMode,
             disabled: props.disabled,
-            density: props.density,
+            density: effectiveDensity,
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage,
-            toolProgress: props.toolProgress
+            toolProgress: props.toolProgress,
+            layout: props.layout ?? 'classic',
+            timeSeparators: props.timeSeparators ?? null
         }}>
             <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
-                    className="app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
+                    className={cn(
+                        'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
+                        isSocial ? 'social-chat' : ''
+                    )}
                 >
-                    <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
+                    <div className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-3 pb-4 pt-3' : isCompact ? 'p-2' : 'p-3'}`}>
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (
@@ -184,8 +211,8 @@ export function HappyThread(props: {
                                 ) : null}
                             </>
                         )}
-                        <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
-                            <ThreadMessagesList />
+                        <div className={`flex flex-col ${isSocial ? 'gap-3.5' : isCompact ? 'gap-2' : 'gap-3'}`}>
+                            <ThreadMessagesList social={isSocial} />
                         </div>
                     </div>
                 </ThreadPrimitive.Viewport>
@@ -193,6 +220,7 @@ export function HappyThread(props: {
                     count={props.pendingCount}
                     show={showJumpToLatest}
                     onClick={scrollToBottom}
+                    social={isSocial}
                 />
             </ThreadPrimitive.Root>
         </HappyChatProvider>

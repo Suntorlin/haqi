@@ -28,6 +28,8 @@ import { useMachines } from '@/hooks/queries/useMachines'
 import { queryKeys } from '@/lib/query-keys'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import { Switch } from '@/components/ui/Switch'
+import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { CodexCredentialProfile, CodexCredentialStateResponse } from '@/types/api'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
@@ -240,6 +242,7 @@ export default function SettingsPage() {
     const { api } = useAppContext()
     const queryClient = useQueryClient()
     const goBack = useAppGoBack()
+    const isMobileLayout = useIsMobileLayout()
     const [isOpen, setIsOpen] = useState(false)
     const [isThemeOpen, setIsThemeOpen] = useState(false)
     const [isFontOpen, setIsFontOpen] = useState(false)
@@ -1048,18 +1051,22 @@ export default function SettingsPage() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        <BackIcon />
-                    </button>
-                    <div className="flex-1 font-semibold">{t('settings.title')}</div>
+            {isMobileLayout ? (
+                <MobilePageHeader title={t('settings.title')} />
+            ) : (
+                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
+                    <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
+                        <button
+                            type="button"
+                            onClick={goBack}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        >
+                            <BackIcon />
+                        </button>
+                        <div className="flex-1 font-semibold">{t('settings.title')}</div>
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
@@ -2277,6 +2284,7 @@ export default function SettingsPage() {
                     </SettingsSection>
                 </div>
             </div>
+            {isMobileLayout ? <MobileTabBar active="settings" /> : null}
         </div>
     )
 }

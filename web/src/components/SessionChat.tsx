@@ -47,6 +47,9 @@ import { useToast } from '@/lib/toast-context'
 import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
 import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { computeTimeSeparators } from '@/components/mobile/chatTimeline'
+import { getContextBudgetTokens } from '@/chat/modelConfig'
 
 type CodexStatusRow = {
     label: string
@@ -721,6 +724,19 @@ export function SessionChat(props: {
         [reconciled.blocks]
     )
     const composerDisabled = props.isSending || Boolean(activeQuestionTool) || Boolean(activePlanApprovalTool)
+    const isMobileLayout = useIsMobileLayout()
+    const timeSeparators = useMemo(
+        () => (isMobileLayout ? computeTimeSeparators(reconciled.blocks) : null),
+        [isMobileLayout, reconciled.blocks]
+    )
+    const latestContextSize = reduced.latestUsage?.contextSize
+    const latestContextWindowTokens = reduced.latestUsage?.contextWindowTokens
+    const contextPercentLeft = useMemo(() => {
+        if (latestContextSize === undefined) return null
+        const budget = latestContextWindowTokens ?? getContextBudgetTokens(props.session.modelMode)
+        if (!budget) return null
+        return Math.max(0, Math.round(100 - (latestContextSize / budget) * 100))
+    }, [latestContextSize, latestContextWindowTokens, props.session.modelMode])
 
     useEffect(() => {
         blocksByIdRef.current = reconciled.byId
@@ -1402,6 +1418,15 @@ export function SessionChat(props: {
                 onViewPreview={experimentalSettings.previewEnabled ? handleViewPreview : undefined}
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 onViewMcpStatus={handleMcpStatus}
+                onViewTerminal={props.session.active ? handleViewTerminal : undefined}
+                viewMode={props.viewMode}
+                onViewModeChange={props.onViewModeChange}
+                usage={{
+                    contextSize: latestContextSize,
+                    contextWindowTokens: latestContextWindowTokens,
+                    rateLimitSnapshot: props.session.metadata?.rateLimitSnapshot,
+                    contextPercentLeft
+                }}
                 api={props.api}
                 onSessionDeleted={props.onBack}
             />
@@ -1482,37 +1507,39 @@ export function SessionChat(props: {
                         </div>
                     ) : null}
 
-                    <div className="px-3 pt-2">
-                        <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
-                            <button
-                                type="button"
-                                className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'normal'
-                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                    : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
-                                onClick={() => props.onViewModeChange('normal')}
-                            >
-                                Normal
-                            </button>
-                            <button
-                                type="button"
-                                className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'brief'
-                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                    : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
-                                onClick={() => props.onViewModeChange('brief')}
-                            >
-                                Brief
-                            </button>
-                            <button
-                                type="button"
-                                className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${props.viewMode === 'cli'
-                                    ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                    : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
-                                onClick={() => props.onViewModeChange('cli')}
-                            >
-                                CLI
-                            </button>
+                    {isMobileLayout ? null : (
+                        <div className="px-3 pt-2">
+                            <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
+                                <button
+                                    type="button"
+                                    className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'normal'
+                                        ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                        : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                    onClick={() => props.onViewModeChange('normal')}
+                                >
+                                    Normal
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`rounded px-2.5 py-1 text-xs transition-colors ${props.viewMode === 'brief'
+                                        ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                        : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                    onClick={() => props.onViewModeChange('brief')}
+                                >
+                                    Brief
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${props.viewMode === 'cli'
+                                        ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
+                                        : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
+                                    onClick={() => props.onViewModeChange('cli')}
+                                >
+                                    CLI
+                                </button>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {props.viewMode === 'brief' ? (
                         <BriefTurnList
@@ -1573,6 +1600,8 @@ export function SessionChat(props: {
                             forceScrollToken={forceScrollToken}
                             density={props.density ?? 'comfortable'}
                             toolProgress={toolProgress}
+                            layout={isMobileLayout ? 'social' : 'classic'}
+                            timeSeparators={timeSeparators}
                         />
                     )}
 

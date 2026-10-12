@@ -50,6 +50,21 @@
     --app-scrollbar-thumb: rgba(17, 24, 39, 0.22);
     --app-scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
 
+    /* Social (mobile) layout (light) */
+    --social-accent: #07c160;
+    --social-badge: #fa5151;
+    --social-chat-bg: #ededed;
+    --social-bubble-self-bg: #95ec69;
+    --social-bubble-self-fg: #111111;
+    --social-bubble-peer-bg: #ffffff;
+    --social-bubble-peer-fg: #191919;
+    --social-bar-bg: rgba(247, 247, 247, 0.94);
+    --social-bar-border: rgba(0, 0, 0, 0.08);
+    --social-sheet-bg: #f7f7f7;
+    --social-cell-bg: #ffffff;
+    --social-search-bg: rgba(118, 118, 128, 0.12);
+    --social-pill-bg: rgba(0, 0, 0, 0.06);
+
     --app-font-scale: 1;
 }
 
@@ -101,6 +116,21 @@
     /* Scrollbar (dark) */
     --app-scrollbar-thumb: rgba(255, 255, 255, 0.24);
     --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+
+    /* Social (mobile) layout (dark) */
+    --social-accent: #3eb575;
+    --social-badge: #fa5151;
+    --social-chat-bg: #111111;
+    --social-bubble-self-bg: #3eb575;
+    --social-bubble-self-fg: #0b0b0b;
+    --social-bubble-peer-bg: #2c2c2c;
+    --social-bubble-peer-fg: #e8e8e8;
+    --social-bar-bg: rgba(28, 28, 30, 0.94);
+    --social-bar-border: rgba(255, 255, 255, 0.08);
+    --social-sheet-bg: #1c1c1e;
+    --social-cell-bg: #2c2c2e;
+    --social-search-bg: rgba(118, 118, 128, 0.24);
+    --social-pill-bg: rgba(255, 255, 255, 0.08);
 }
 
 html {
@@ -437,4 +467,176 @@ html[data-theme="dark"] .shiki span {
 .cli-composer .flex.items-center.justify-between {
   padding-top: 0.125rem;
   padding-bottom: 0.25rem;
+}
+
+/* ------------------------------------------------------------------ */
+/* Social (mobile) layout: WeChat-style chat, Instagram-style list     */
+/* ------------------------------------------------------------------ */
+
+.social-bar {
+    background: var(--social-bar-bg);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+}
+
+.social-chat {
+    background: var(--social-chat-bg);
+}
+
+.social-bubble-self {
+    background: var(--social-bubble-self-bg);
+    color: var(--social-bubble-self-fg);
+}
+
+.social-bubble-peer {
+    background: var(--social-bubble-peer-bg);
+    color: var(--social-bubble-peer-fg);
+}
+
+/* Chat text sized for phones: 15px body, roomy line height, compact headings. */
+.social-chat .aui-md {
+    font-size: calc(0.9375rem * var(--app-font-scale, 1));
+    line-height: 1.6;
+}
+
+.social-chat .aui-md > :first-child {
+    margin-top: 0;
+}
+
+.social-chat .aui-md > :last-child {
+    margin-bottom: 0;
+}
+
+.social-chat .aui-md-p + .aui-md-p {
+    margin-top: 0.5em;
+}
+
+.social-chat .aui-md-h1,
+.social-chat .aui-md-h2,
+.social-chat .aui-md-h3,
+.social-chat .aui-md-h4 {
+    font-size: 1em;
+    margin-top: 0.75em;
+    margin-bottom: 0.25em;
+}
+
+.social-chat .aui-md-ul,
+.social-chat .aui-md-ol {
+    padding-left: 1.25rem;
+    margin: 0.35em 0;
+}
+
+.social-chat .aui-md code {
+    font-size: 0.85em;
+}
+
+.social-chat .social-bubble-peer .aui-md-pre-wrapper,
+.social-chat .social-bubble-peer .aui-md-table-wrapper {
+    margin: 0.5em 0;
+}
+
+.social-chat .social-bubble-peer .aui-md-codeheader {
+    border-radius: 10px 10px 0 0;
+}
+
+/* Instagram-style story ring. */
+.story-ring {
+    background: conic-gradient(from 210deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75);
+}
+
+.story-ring-live {
+    animation: story-spin 2.4s linear infinite;
+}
+
+.story-ring-idle {
+    background: var(--app-divider);
+}
+
+.story-ring-alert {
+    background: conic-gradient(from 0deg, #ff9500, #fa5151, #ff9500);
+}
+
+@keyframes story-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.story-live-badge {
+    background: linear-gradient(90deg, #d62976, #fa5151);
+}
+
+/* "Typing…" dots shown while an agent is thinking. */
+.typing-dots span {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    margin-left: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+.typing-dots span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+
+.typing-dots span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes typing-dot {
+    0%, 60%, 100% {
+        opacity: 0.25;
+        transform: translateY(0);
+    }
+    30% {
+        opacity: 1;
+        transform: translateY(-2px);
+    }
+}
+
+/* Bottom sheet */
+@keyframes sheet-up {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.animate-sheet-up {
+    animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.animate-fade-in {
+    animation: fade-in 0.2s ease-out;
+}
+
+.social-pressable {
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.social-pressable:active {
+    background-color: var(--app-subtle-bg);
+}
+
+.social-scroll-x {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.social-scroll-x::-webkit-scrollbar {
+    display: none;
 }

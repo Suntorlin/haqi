@@ -1,6 +1,27 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import type { PermissionModeTone } from '@hapi/protocol'
+import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import type { Session } from '@/types/api'
+import type { ChatViewMode } from '@/hooks/useChatViewMode'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { BottomSheet, SheetRow, SheetSection } from '@/components/mobile/BottomSheet'
+import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
+import {
+    ArchiveBoxIcon,
+    ChevronLeftIcon,
+    CopyPlusIcon,
+    FileIcon,
+    GlobeIcon,
+    MoreHorizontalIcon,
+    PencilIcon,
+    PlugIcon as PlugOutlineIcon,
+    TerminalIcon,
+    TrashIcon
+} from '@/components/mobile/icons'
+import { UsagePanel } from '@/components/AssistantChat/UsagePanel'
+import { cn } from '@/lib/utils'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
@@ -25,6 +46,31 @@ function getSessionTitle(session: Session): string {
         return parts.length > 0 ? parts[parts.length - 1] : session.id.slice(0, 8)
     }
     return session.id.slice(0, 8)
+}
+
+const PERMISSION_TONE_TEXT: Record<PermissionModeTone, string> = {
+    neutral: 'text-[var(--app-hint)]',
+    info: 'text-blue-500',
+    warning: 'text-amber-500',
+    danger: 'text-red-500'
+}
+
+/** One-line presence status for the mobile chat header (like WeChat "对方正在输入…"). */
+function getMobileStatus(
+    session: Session,
+    t: (key: string) => string
+): { text: string; dotClass: string; textClass: string; pulse: boolean } {
+    if (!session.active) {
+        return { text: t('misc.offline'), dotClass: 'bg-[#a0a0a5]', textClass: 'text-[var(--app-hint)]', pulse: false }
+    }
+    const pendingRequests = session.agentState?.requests ? Object.keys(session.agentState.requests).length : 0
+    if (pendingRequests > 0) {
+        return { text: t('misc.permissionRequired'), dotClass: 'bg-[#ff9500]', textClass: 'text-[#ff9500]', pulse: true }
+    }
+    if (session.thinking) {
+        return { text: t('mobile.chat.thinking'), dotClass: 'bg-[var(--social-accent)]', textClass: 'text-[var(--social-accent)]', pulse: true }
+    }
+    return { text: t('misc.online'), dotClass: 'bg-[#34c759]', textClass: 'text-[var(--app-hint)]', pulse: false }
 }
 
 function FilesIcon(props: { className?: string }) {
@@ -137,11 +183,22 @@ export function SessionHeader(props: {
     onViewPreview?: () => void
     onViewFiles?: () => void
     onViewMcpStatus?: () => void
+    onViewTerminal?: () => void
+    viewMode?: ChatViewMode
+    onViewModeChange?: (mode: ChatViewMode) => void
+    usage?: {
+        contextSize?: number
+        contextWindowTokens?: number
+        rateLimitSnapshot?: ClaudeRateLimitSnapshot
+        contextPercentLeft?: number | null
+    }
     api: ApiClient | null
     onSessionDeleted?: () => void
 }) {
     const { t } = useTranslation()
     const { session, api, onSessionDeleted } = props
+    const isMobileLayout = useIsMobileLayout()
+    const [infoOpen, setInfoOpen] = useState(false)
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
@@ -247,8 +304,244 @@ export function SessionHeader(props: {
         return null
     }
 
+    const dialogs = (
+        <>
+            <RenameSessionDialog
+                isOpen={renameOpen}
+                onClose={() => setRenameOpen(false)}
+                currentName={title}
+                onRename={renameSession}
+                isPending={isPending}
+            />
+
+            <ConfirmDialog
+                isOpen={archiveOpen}
+                onClose={() => setArchiveOpen(false)}
+                title={t('dialog.archive.title')}
+                description={t('dialog.archive.description', { name: title })}
+                confirmLabel={t('dialog.archive.confirm')}
+                confirmingLabel={t('dialog.archive.confirming')}
+                onConfirm={archiveSession}
+                isPending={isPending}
+                destructive
+            />
+
+            <ConfirmDialog
+                isOpen={deleteOpen}
+                onClose={() => setDeleteOpen(false)}
+                title={t('dialog.delete.title')}
+                description={t('dialog.delete.description', { name: title })}
+                confirmLabel={t('dialog.delete.confirm')}
+                confirmingLabel={t('dialog.delete.confirming')}
+                onConfirm={handleDelete}
+                isPending={isPending}
+                destructive
+            />
+        </>
+    )
+
+    if (isMobileLayout) {
+        const status = getMobileStatus(session, t)
+        const permissionMode = session.permissionMode
+        const flavor = session.metadata?.flavor ?? null
+        const permissionLabel = permissionMode
+            && permissionMode !== 'default'
+            && isPermissionModeAllowedForFlavor(permissionMode, flavor)
+            ? getPermissionModeLabel(permissionMode)
+            : null
+        const permissionToneClass = permissionLabel && permissionMode
+            ? PERMISSION_TONE_TEXT[getPermissionModeTone(permissionMode)]
+            : ''
+        const contextPercentLeft = props.usage?.contextPercentLeft ?? null
+        const shortModel = displayModel.replace(/^.*claude-/, '')
+        const closeInfoThen = (action?: () => void) => () => {
+            setInfoOpen(false)
+            action?.()
+        }
+        const quickActions: Array<{ key: string; label: string; icon: ReactNode; onClick?: () => void }> = [
+            { key: 'files', label: t('mobile.chat.files'), icon: <FileIcon className="h-[22px] w-[22px]" />, onClick: props.onViewFiles },
+            { key: 'terminal', label: t('mobile.chat.terminal'), icon: <TerminalIcon className="h-[22px] w-[22px]" />, onClick: props.onViewTerminal },
+            { key: 'preview', label: t('mobile.chat.preview'), icon: <GlobeIcon className="h-[22px] w-[22px]" />, onClick: props.onViewPreview },
+            { key: 'mcp', label: t('mobile.chat.mcp'), icon: <PlugOutlineIcon className="h-[22px] w-[22px]" />, onClick: props.onViewMcpStatus }
+        ]
+        const viewModes: Array<{ mode: ChatViewMode; label: string }> = [
+            { mode: 'normal', label: t('mobile.chat.view.normal') },
+            { mode: 'brief', label: t('mobile.chat.view.brief') },
+            { mode: 'cli', label: t('mobile.chat.view.cli') }
+        ]
+        const modelValue = [
+            shortModel,
+            displayThinkEffort ? `${t('session.item.thinkLevel')} ${displayThinkEffort}` : null,
+            displayServiceTier || null
+        ].filter(Boolean).join(' · ')
+        const showUsage = Boolean(props.usage && (typeof props.usage.contextSize === 'number' || props.usage.rateLimitSnapshot))
+
+        return (
+            <>
+                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-bar-border)] pt-[env(safe-area-inset-top)]">
+                    <div className="flex h-[52px] items-center gap-0.5 pl-1 pr-1.5">
+                        <button
+                            type="button"
+                            onClick={props.onBack}
+                            className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
+                            aria-label="Back"
+                        >
+                            <ChevronLeftIcon className="h-[26px] w-[26px]" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setInfoOpen(true)}
+                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pr-1 text-left [-webkit-tap-highlight-color:transparent]"
+                        >
+                            <SessionAvatar session={session} size={36} shape="circle" dimmed={!session.active} />
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-[16px] font-semibold leading-tight">
+                                    {title}
+                                </div>
+                                <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] leading-tight text-[var(--app-hint)]">
+                                    <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
+                                    <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
+                                    <span className="min-w-0 truncate">
+                                        {shortModel ? ` · ${shortModel}` : ''}
+                                        {permissionLabel ? (
+                                            <span className={permissionToneClass}>{` · ${permissionLabel}`}</span>
+                                        ) : null}
+                                        {contextPercentLeft !== null && contextPercentLeft <= 20 ? (
+                                            <span className={contextPercentLeft <= 5 ? 'text-red-500' : 'text-amber-500'}>
+                                                {` · ${t('mobile.chat.contextLeft', { percent: contextPercentLeft })}`}
+                                            </span>
+                                        ) : null}
+                                    </span>
+                                </div>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setInfoOpen(true)}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent] active:bg-[var(--app-subtle-bg)]"
+                            aria-label={t('mobile.chat.info')}
+                            title={t('mobile.chat.info')}
+                        >
+                            <MoreHorizontalIcon className="h-6 w-6" />
+                        </button>
+                    </div>
+                </div>
+
+                <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle>
+                    <div className="flex items-center gap-3 px-5 pb-4 pt-2">
+                        <SessionAvatar session={session} size={56} dimmed={!session.active} />
+                        <div className="min-w-0 flex-1">
+                            <div className="line-clamp-2 text-[17px] font-semibold leading-snug">{title}</div>
+                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--app-hint)]">
+                                <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass)} />
+                                <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
+                                <span className="truncate">· {flavor ?? 'unknown'} · {getProjectName(getSessionProjectPath(session))}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-4">
+                        {quickActions.map((action) => (
+                            <button
+                                key={action.key}
+                                type="button"
+                                disabled={!action.onClick}
+                                onClick={closeInfoThen(action.onClick)}
+                                className="flex flex-col items-center gap-1.5 rounded-2xl bg-[var(--social-cell-bg)] py-3 text-[12px] text-[var(--app-fg)] transition-opacity active:opacity-70 disabled:opacity-35"
+                            >
+                                {action.icon}
+                                {action.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {props.onViewModeChange ? (
+                        <SheetSection title={t('mobile.chat.view')}>
+                            <div className="flex gap-1 p-1">
+                                {viewModes.map((item) => (
+                                    <button
+                                        key={item.mode}
+                                        type="button"
+                                        onClick={() => {
+                                            props.onViewModeChange?.(item.mode)
+                                            setInfoOpen(false)
+                                        }}
+                                        className={cn(
+                                            'flex-1 rounded-[9px] py-2 text-[14px] transition-colors',
+                                            props.viewMode === item.mode
+                                                ? 'bg-[var(--app-fg)] font-medium text-[var(--app-bg)]'
+                                                : 'text-[var(--app-fg)]'
+                                        )}
+                                    >
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </SheetSection>
+                    ) : null}
+
+                    <SheetSection>
+                        <SheetRow label={t('mobile.chat.model')} value={modelValue || 'default'} />
+                        {session.metadata?.flavor === 'claude' && accountQuery.data?.pool.profiles.length ? (
+                            <SheetRow
+                                label={t('mobile.chat.account')}
+                                value={(
+                                    <select
+                                        aria-label={t('sessionAccount.switch')}
+                                        value={session.metadata.claudeAccount?.id ?? ''}
+                                        disabled={accountSwitching}
+                                        onChange={(event) => void handleAccountSwitch(event.target.value)}
+                                        className="max-w-[210px] truncate bg-transparent text-right text-[14px] text-[var(--app-hint)] outline-none"
+                                    >
+                                        {!session.metadata.claudeAccount ? <option value="">{t('sessionAccount.machineDefault')}</option> : null}
+                                        {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
+                                            const quota = quotaOptionLabel(accountQuery.data?.usage?.[profile.id], t)
+                                            return <option key={profile.id} value={profile.id}>{profile.email}{quota ? ` · ${quota}` : ''}</option>
+                                        })}
+                                    </select>
+                                )}
+                            />
+                        ) : null}
+                        <SheetRow label={t('mobile.chat.directory')} value={session.metadata?.path ?? '—'} />
+                        {worktreeBranch ? <SheetRow label={t('mobile.chat.branch')} value={worktreeBranch} /> : null}
+                    </SheetSection>
+                    {accountSwitchError ? (
+                        <div role="alert" className="px-7 pb-3 text-[12px] text-red-500">{accountSwitchError}</div>
+                    ) : null}
+
+                    {showUsage ? (
+                        <SheetSection title={t('mobile.chat.usage')}>
+                            <div className="[&>div]:w-full [&>div]:max-w-none [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent [&>div]:shadow-none">
+                                <UsagePanel
+                                    contextSize={props.usage?.contextSize}
+                                    contextWindowTokens={props.usage?.contextWindowTokens}
+                                    rateLimitSnapshot={props.usage?.rateLimitSnapshot}
+                                />
+                            </div>
+                        </SheetSection>
+                    ) : null}
+
+                    <SheetSection title={t('mobile.chat.manage')}>
+                        <SheetRow icon={<PencilIcon className="h-4 w-4" />} label={t('session.action.rename')} chevron onClick={closeInfoThen(() => setRenameOpen(true))} />
+                        <SheetRow icon={<CopyPlusIcon className="h-4 w-4" />} label={t('session.action.newSameConfig')} chevron onClick={closeInfoThen(handleSpawnSameConfig)} />
+                        <SheetRow icon={<CopyPlusIcon className="h-4 w-4" />} label={t('session.action.duplicate')} chevron onClick={closeInfoThen(handleDuplicate)} />
+                        {session.active ? (
+                            <SheetRow icon={<ArchiveBoxIcon className="h-4 w-4" />} label={t('session.action.archive')} destructive onClick={closeInfoThen(handleArchive)} />
+                        ) : (
+                            <SheetRow icon={<TrashIcon className="h-4 w-4" />} label={t('session.action.delete')} destructive onClick={closeInfoThen(() => setDeleteOpen(true))} />
+                        )}
+                    </SheetSection>
+                    <div className="h-2" />
+                </BottomSheet>
+
+                {dialogs}
+            </>
+        )
+    }
+
     return (
         <>
+
             <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
                 <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3">
                     <div className="flex items-center gap-1">
@@ -395,37 +688,7 @@ export function SessionHeader(props: {
                 menuId={menuId}
             />
 
-            <RenameSessionDialog
-                isOpen={renameOpen}
-                onClose={() => setRenameOpen(false)}
-                currentName={title}
-                onRename={renameSession}
-                isPending={isPending}
-            />
-
-            <ConfirmDialog
-                isOpen={archiveOpen}
-                onClose={() => setArchiveOpen(false)}
-                title={t('dialog.archive.title')}
-                description={t('dialog.archive.description', { name: title })}
-                confirmLabel={t('dialog.archive.confirm')}
-                confirmingLabel={t('dialog.archive.confirming')}
-                onConfirm={archiveSession}
-                isPending={isPending}
-                destructive
-            />
-
-            <ConfirmDialog
-                isOpen={deleteOpen}
-                onClose={() => setDeleteOpen(false)}
-                title={t('dialog.delete.title')}
-                description={t('dialog.delete.description', { name: title })}
-                confirmLabel={t('dialog.delete.confirm')}
-                confirmingLabel={t('dialog.delete.confirming')}
-                onConfirm={handleDelete}
-                isPending={isPending}
-                destructive
-            />
+            {dialogs}
         </>
     )
 }

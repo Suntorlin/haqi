@@ -16,6 +16,10 @@ export type HappyChatContextValue = {
     onRefresh: () => void
     onRetryMessage?: (localId: string) => void
     toolProgress?: ReadonlyMap<string, ToolProgressSignal> | null
+    /** 'social' = mobile WeChat-style bubbles; 'classic' = desktop document-style thread. */
+    layout?: 'classic' | 'social'
+    /** Thread message id -> timestamp of the time separator rendered before it (social layout). */
+    timeSeparators?: ReadonlyMap<string, number> | null
 }
 
 const HappyChatContext = createContext<HappyChatContextValue | null>(null)
