@@ -5,7 +5,9 @@ import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { FormField } from '@/components/ui/FormControls'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
+import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { ChevronDownIcon } from '@/components/mobile/icons'
+import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/use-translation'
 
 /** "/Users/me/projects/app" → "~/projects/app", so chips show the part that differs. */
@@ -68,23 +70,18 @@ export function DirectorySection(props: {
                     ) : undefined}
                 />
                 {recentOpen && hasRecent ? (
-                    <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 shadow-lg">
+                    <div className={cn('absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto', CONTEXT_MENU_SURFACE)}>
                         {props.recentPaths.map((path) => (
-                            <li key={path}>
-                                <button
-                                    type="button"
-                                    title={path}
-                                    onClick={() => {
-                                        setRecentOpen(false)
-                                        props.onPathClick(path)
-                                    }}
-                                    className="block min-h-11 w-full truncate rounded-xl px-3 text-left text-[15px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
-                                >
-                                    {shortenHomePath(path)}
-                                </button>
-                            </li>
+                            <ContextMenuItem
+                                key={path}
+                                label={shortenHomePath(path)}
+                                onSelect={() => {
+                                    setRecentOpen(false)
+                                    props.onPathClick(path)
+                                }}
+                            />
                         ))}
-                    </ul>
+                    </div>
                 ) : null}
                 {props.suggestions.length > 0 && !recentOpen && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">
