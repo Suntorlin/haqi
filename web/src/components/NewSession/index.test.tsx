@@ -92,6 +92,29 @@ describe('NewSession initial directory preset', () => {
         expect(screen.getByPlaceholderText('/path/to/project')).toHaveValue('/preset/project')
     })
 
+    it('fills the directory from the recent-paths dropdown', async () => {
+        const api = {
+            getSessions: vi.fn(async () => ({ sessions: [] })),
+            checkMachinePathsExists: vi.fn(async (_machineId: string, paths: string[]) => ({
+                exists: Object.fromEntries(paths.map((path) => [path, true]))
+            })),
+            spawnSession: vi.fn()
+        } as unknown as ApiClient
+        const machines: Machine[] = [
+            { id: 'machine-1', active: true, metadata: { host: 'devbox', platform: 'linux', happyCliVersion: '0.15.2' } }
+        ]
+
+        renderWithProviders(
+            <NewSession api={api} machines={machines} initialDirectory="/preset/project" onSuccess={vi.fn()} onCancel={vi.fn()} />
+        )
+
+        fireEvent.click(screen.getByRole('button', { name: 'Recent paths' }))
+        fireEvent.click(await screen.findByRole('menuitem', { name: '/recent/path' }))
+
+        expect(screen.getByPlaceholderText('/path/to/project')).toHaveValue('/recent/path')
+        expect(screen.queryByRole('menuitem', { name: '/recent/path' })).toBeNull()
+    })
+
     it('creates session on command + enter', async () => {
         const getSessions = vi.fn(async () => ({ sessions: [] }))
         const checkMachinePathsExists = vi.fn(async (_machineId: string, paths: string[]) => ({
