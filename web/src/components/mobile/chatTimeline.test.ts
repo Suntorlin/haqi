@@ -74,9 +74,14 @@ describe('computeRunStats', () => {
             agentText('a3', 205_000)
         ])
 
-        expect(stats.get('assistant:a1')).toEqual({ startAt: 0, endAt: 80_000 })
-        expect(stats.get('assistant:a3')).toEqual({ startAt: 200_000, endAt: 205_000 })
+        expect(stats.get('assistant:a1')).toEqual({ startAt: 0, endAt: 80_000, partial: false })
+        expect(stats.get('assistant:a3')).toEqual({ startAt: 200_000, endAt: 205_000, partial: false })
         expect(stats.has('tool:t1')).toBe(false)
+    })
+
+    it('flags a run whose beginning is outside the loaded window', () => {
+        const stats = computeRunStats([agentText('a1', 5_000), userText('u1', 9_000)])
+        expect(stats.get('assistant:a1')?.partial).toBe(true)
     })
 })
 

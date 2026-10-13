@@ -87,6 +87,8 @@ export type RunStats = {
     startAt: number
     /** Latest activity inside the run (block creation or tool completion). */
     endAt: number
+    /** The run starts at the first loaded block, so older parts may still be unloaded. */
+    partial: boolean
 }
 
 function getBlockEndAt(block: ChatBlock): number {
@@ -111,7 +113,7 @@ export function computeRunStats(blocks: readonly ChatBlock[]): Map<string, RunSt
                 current.endAt = Math.max(current.endAt, endAt)
             } else {
                 const startAt = previousRole === 'user' && lastUserAt !== null ? lastUserAt : block.createdAt
-                current = { startAt, endAt: Math.max(startAt, endAt) }
+                current = { startAt, endAt: Math.max(startAt, endAt), partial: previousRole === null }
                 stats.set(getThreadMessageId(block), current)
             }
         } else {

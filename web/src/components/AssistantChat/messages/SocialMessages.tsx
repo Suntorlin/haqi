@@ -74,7 +74,12 @@ type TurnLayout = {
     steps: number
     /** Latest agent text, only while it is still recent (at most one tool call after it). */
     latestText: string | null
-    current: { kind: 'tool'; block: ToolCallBlock } | { kind: 'reasoning' } | { kind: 'text' } | null
+    current:
+        | { kind: 'tool'; block: ToolCallBlock }
+        | { kind: 'between-steps'; lastBlock: ToolCallBlock }
+        | { kind: 'reasoning' }
+        | { kind: 'text' }
+        | null
 }
 
 function hasText(part: MessagePartLike): boolean {
@@ -117,9 +122,11 @@ function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
 
     const lastPart = parts[parts.length - 1]
     let current: TurnLayout['current'] = null
-    if (lastPart?.type === 'tool-call' && lastPart.result === undefined) {
+    if (lastPart?.type === 'tool-call') {
         const block = asToolCallBlock(lastPart.artifact)
-        current = block ? { kind: 'tool', block } : null
+        if (block) {
+            current = lastPart.result === undefined ? { kind: 'tool', block } : { kind: 'between-steps', lastBlock: block }
+        }
     } else if (lastPart?.type === 'reasoning') {
         current = { kind: 'reasoning' }
     } else if (lastPart?.type === 'text') {
@@ -180,40 +187,41 @@ function ChevronIcon(props: { className?: string }) {
 }
 
 /** While the agent works: one quiet card with the current step and its latest words. */
-function LiveStatusCard(props: { layout: TurnLayout; startAt: number }) {
+function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: boolean }) {
     const { t } = useTranslation()
     const ctx = useHappyChatContext()
     const now = useNow(1000)
     const { layout } = props
 
-    const runningTool = layout.current?.kind === 'tool'
-        ? getToolPresentation({
-            toolName: layout.current.block.tool.name,
-            input: layout.current.block.tool.input,
-            result: layout.current.block.tool.result,
-            childrenCount: layout.current.block.children.length,
-            description: layout.current.block.tool.description,
-            metadata: ctx.metadata
-        })
-        : null
+    const describe = (block: ToolCallBlock) => getToolPresentation({
+        toolName: block.tool.name,
+        input: block.tool.input,
+        result: block.tool.result,
+        childrenCount: block.children.length,
+        description: block.tool.description,
+        metadata: ctx.metadata
+    })
+    const runningTool = layout.current?.kind === 'tool' ? describe(layout.current.block) : null
+    const finishedTool = layout.current?.kind === 'between-steps' ? describe(layout.current.lastBlock) : null
     let title: string
     if (layout.pendingIndices.length > 0) {
         title = t('mobile.turn.waitingApproval')
     } else if (runningTool) {
         title = runningTool.title
-    } else if (layout.current?.kind === 'reasoning') {
+    } else if (layout.current?.kind === 'reasoning' || finishedTool) {
         title = t('mobile.turn.thinking')
     } else if (layout.current?.kind === 'text') {
         title = t('mobile.turn.replying')
     } else {
         title = t('mobile.turn.working')
     }
-    const toolDetail = runningTool?.subtitle ?? null
+    const toolDetail = runningTool?.subtitle ?? (finishedTool ? `✓ ${finishedTool.title}` : null)
 
     const progress = layout.latestText ? getLatestProgressText(layout.latestText) : null
+    // When the turn's start is not loaded yet, counts are lower bounds and the timer would lie.
     const meta = [
-        layout.steps > 0 ? t('mobile.turn.step', { n: layout.steps }) : null,
-        formatElapsed(now - props.startAt, t)
+        layout.steps > 0 ? t('mobile.turn.step', { n: props.partial ? `${layout.steps}+` : layout.steps }) : null,
+        props.partial ? null : formatElapsed(now - props.startAt, t)
     ].filter(Boolean).join(' · ')
 
     return (
@@ -265,9 +273,10 @@ export function SocialAssistantMessage() {
         .map((index) => content[index]?.text ?? '')
         .join('\n\n')
         .trim()
+    const partial = stats?.partial ?? false
     const footer = [
-        layout.steps > 0 ? t('mobile.turn.steps', { n: layout.steps }) : t('mobile.turn.reasoning'),
-        stats ? t('mobile.turn.took', { d: formatElapsed(stats.endAt - stats.startAt, t) }) : null
+        layout.steps > 0 ? t('mobile.turn.steps', { n: partial ? `${layout.steps}+` : layout.steps }) : t('mobile.turn.reasoning'),
+        stats && !partial ? t('mobile.turn.took', { d: formatElapsed(stats.endAt - stats.startAt, t) }) : null
     ].filter(Boolean).join(' · ')
 
     return (
@@ -279,7 +288,7 @@ export function SocialAssistantMessage() {
                     {isCliOutput ? (
                         <CliOutputBlock text={content.find((part) => part.type === 'text')?.text ?? ''} />
                     ) : isRunning ? (
-                        <LiveStatusCard layout={layout} startAt={startAt} />
+                        <LiveStatusCard layout={layout} startAt={startAt} partial={stats?.partial ?? false} />
                     ) : (
                         <>
                             {layout.answerIndices.length > 0 ? (
