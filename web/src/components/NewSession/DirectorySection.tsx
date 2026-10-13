@@ -4,6 +4,8 @@ import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FormField } from '@/components/ui/FormControls'
+import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { cn } from '@/lib/utils'
 import { ChevronDownIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -79,8 +81,21 @@ export function DirectorySection(props: {
                         </FloatingOverlay>
                     </div>
                 )}
+                {recentOpen && props.suggestions.length === 0 ? (
+                    <div className={cn('absolute left-0 right-0 top-full z-10 mt-1 max-h-[220px] overflow-y-auto', CONTEXT_MENU_SURFACE)}>
+                        {props.recentPaths.map((path) => (
+                            <ContextMenuItem
+                                key={path}
+                                label={shortenHomePath(path)}
+                                onSelect={() => {
+                                    props.onPathClick(path)
+                                    setRecentOpen(false)
+                                }}
+                            />
+                        ))}
+                    </div>
+                ) : null}
             </div>
-
         </FormField>
     )
 }
