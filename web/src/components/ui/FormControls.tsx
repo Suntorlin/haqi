@@ -1,6 +1,7 @@
 import type { ReactNode, SelectHTMLAttributes } from 'react'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { useTranslation } from '@/lib/use-translation'
+import { Chip } from '@/components/ui/Chip'
 import { cn } from '@/lib/utils'
 
 const CAPTION_CLASS = 'px-1 text-[12px] font-medium text-[var(--social-fg-muted)]'
@@ -83,23 +84,18 @@ export function ChoiceChips<T extends string>(props: {
             {props.options.map((option) => {
                 const selected = option.value === props.value
                 return (
-                    <button
+                    <Chip
                         key={option.value}
-                        type="button"
                         role="radio"
                         aria-checked={selected}
+                        aria-pressed={undefined}
+                        selected={selected}
                         disabled={props.disabled}
                         onClick={() => props.onChange(option.value)}
-                        className={cn(
-                            'h-8 rounded-full border px-3.5 text-[13px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                            selected
-                                ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
-                                : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]',
-                            props.optionClassName
-                        )}
+                        className={props.optionClassName}
                     >
                         {option.label}
-                    </button>
+                    </Chip>
                 )
             })}
         </div>
@@ -153,14 +149,8 @@ export function SegmentedControl<T extends string>(props: {
 /** Pill shortcut that fills a field (recent paths, preview URLs). */
 export function SuggestionChip(props: { label: string; title?: string; disabled?: boolean; onClick: () => void }) {
     return (
-        <button
-            type="button"
-            onClick={props.onClick}
-            disabled={props.disabled}
-            title={props.title ?? props.label}
-            className="h-8 max-w-full truncate rounded-full border border-[var(--social-border)] px-3.5 text-[13px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)] disabled:opacity-50"
-        >
+        <Chip onClick={props.onClick} disabled={props.disabled} title={props.title ?? props.label}>
             {props.label}
-        </button>
+        </Chip>
     )
 }

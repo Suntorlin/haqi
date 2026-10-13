@@ -2,22 +2,34 @@
 @config "../tailwind.config.ts";
 
 :root {
-    --app-bg: var(--tg-theme-bg-color, #ffffff);
-    --app-fg: var(--tg-theme-text-color, #111827);
-    --app-hint: var(--tg-theme-hint-color, #6b7280);
-    --app-link: var(--tg-theme-link-color, #111827);
-    --app-button: var(--tg-theme-button-color, #111827);
-    --app-button-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-banner-bg: var(--tg-theme-button-color, #111827);
-    --app-banner-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #f3f4f6);
+    /*
+     * Design tokens. --social-* is the single source of truth (zinc monochrome, Instagram-style);
+     * --app-* are semantic aliases kept so existing components follow it automatically.
+     * Radius scale (use only these): full = pills / avatars / bars, 2xl = cards / panels / sheets,
+     * xl = inputs / rows, md = small tags. Type scale: 12 / 13 / 15 / 16 px, weights 400 + 600.
+     * Touch targets >= 44px (use --touch-min), text inputs >= 16px on phones.
+     */
+    --touch-min: 44px;
+    --motion-fast: 150ms;
+    --motion-base: 200ms;
+    --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+
+    --app-bg: var(--social-surface);
+    --app-fg: var(--social-fg);
+    --app-hint: var(--social-fg-muted);
+    --app-link: var(--social-fg);
+    --app-button: var(--social-primary);
+    --app-button-text: var(--social-primary-fg);
+    --app-banner-bg: var(--social-primary);
+    --app-banner-text: var(--social-primary-fg);
+    --app-secondary-bg: var(--social-muted);
 
     /* Theme-aware colors (light mode defaults) */
-    --app-border: rgba(0, 0, 0, 0.1);
-    --app-divider: rgba(0, 0, 0, 0.08);
-    --app-subtle-bg: rgba(0, 0, 0, 0.05);
-    --app-code-bg: #f6f8fa;
-    --app-inline-code-bg: rgba(0, 0, 0, 0.08);
+    --app-border: var(--social-border);
+    --app-divider: var(--social-divider);
+    --app-subtle-bg: var(--social-hover);
+    --app-code-bg: #fafafa;
+    --app-inline-code-bg: #f4f4f5;
 
     /* Diff colors (light) - from hapi-app */
     --app-diff-added-bg: #e6ffed;
@@ -58,6 +70,7 @@
     --social-muted: #f4f4f5;
     --social-hover: #f8f8f9;
     --social-border: #e4e4e7;
+    --social-divider: #f0f0f2;
     --social-primary: #18181b;
     --social-primary-fg: #fafafa;
     --social-success: #10b981;
@@ -71,21 +84,21 @@
 
 [data-theme="dark"] {
     /* Primary colors - override fallbacks for non-Telegram browsers */
-    --app-bg: var(--tg-theme-bg-color, #1c1c1e);
-    --app-fg: var(--tg-theme-text-color, #ffffff);
-    --app-hint: var(--tg-theme-hint-color, #8e8e93);
-    --app-link: var(--tg-theme-link-color, #ffffff);
-    --app-button: var(--tg-theme-button-color, #ffffff);
-    --app-button-text: var(--tg-theme-button-text-color, #111827);
-    --app-banner-bg: var(--tg-theme-button-color, #3A3A3C);
-    --app-banner-text: var(--tg-theme-button-text-color, #ffffff);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #2C2C2E);
+    --app-bg: var(--social-surface);
+    --app-fg: var(--social-fg);
+    --app-hint: var(--social-fg-muted);
+    --app-link: var(--social-fg);
+    --app-button: var(--social-primary);
+    --app-button-text: var(--social-primary-fg);
+    --app-banner-bg: var(--social-muted);
+    --app-banner-text: var(--social-fg);
+    --app-secondary-bg: var(--social-muted);
 
-    --app-border: rgba(255, 255, 255, 0.1);
-    --app-divider: rgba(255, 255, 255, 0.08);
-    --app-subtle-bg: rgba(255, 255, 255, 0.05);
-    --app-code-bg: #282c34;
-    --app-inline-code-bg: rgba(255, 255, 255, 0.1);
+    --app-border: var(--social-border);
+    --app-divider: var(--social-divider);
+    --app-subtle-bg: var(--social-hover);
+    --app-code-bg: #111113;
+    --app-inline-code-bg: #1f1f23;
 
     /* Diff colors (dark) - from hapi-app */
     --app-diff-added-bg: #0d2e1f;
@@ -126,6 +139,7 @@
     --social-muted: #1c1c1f;
     --social-hover: #141416;
     --social-border: #27272a;
+    --social-divider: #1c1c1f;
     --social-primary: #fafafa;
     --social-primary-fg: #09090b;
     --social-success: #34d399;
@@ -475,39 +489,11 @@ html[data-theme="dark"] .shiki span {
 
 /* Applied on <html> so portals (sheets, menus, dialogs) match too. */
 html.social-app {
-    --app-bg: var(--tg-theme-bg-color, #ffffff);
-    --app-fg: var(--tg-theme-text-color, #09090b);
-    --app-hint: var(--tg-theme-hint-color, #71717a);
-    --app-link: var(--tg-theme-link-color, #09090b);
-    --app-button: var(--tg-theme-button-color, #18181b);
-    --app-button-text: var(--tg-theme-button-text-color, #fafafa);
-    --app-banner-bg: var(--tg-theme-button-color, #18181b);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
-    --app-border: #e4e4e7;
-    --app-divider: #f0f0f2;
-    --app-subtle-bg: #fafafa;
-    --app-code-bg: #fafafa;
-    --app-inline-code-bg: #f4f4f5;
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-html.social-app[data-theme="dark"] {
-    --app-bg: var(--tg-theme-bg-color, #09090b);
-    --app-fg: var(--tg-theme-text-color, #fafafa);
-    --app-hint: var(--tg-theme-hint-color, #a1a1aa);
-    --app-link: var(--tg-theme-link-color, #fafafa);
-    --app-button: var(--tg-theme-button-color, #fafafa);
-    --app-button-text: var(--tg-theme-button-text-color, #09090b);
-    --app-banner-bg: var(--tg-theme-button-color, #27272a);
-    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #18181b);
-    --app-border: #27272a;
-    --app-divider: #1c1c1f;
-    --app-subtle-bg: #111113;
-    --app-code-bg: #111113;
-    --app-inline-code-bg: #1f1f23;
-}
 
 .social-bar {
     background: var(--social-bar-bg);

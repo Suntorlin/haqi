@@ -419,3 +419,42 @@ export function CheckIcon(props: IconProps) {
         </Svg>
     )
 }
+
+export function CloseIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <line x1="6" y1="6" x2="18" y2="18" />
+            <line x1="18" y1="6" x2="6" y2="18" />
+        </Svg>
+    )
+}
+
+export function SwapIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <polyline points="17 3 21 7 17 11" />
+            <line x1="21" y1="7" x2="8" y2="7" />
+            <polyline points="7 13 3 17 7 21" />
+            <line x1="3" y1="17" x2="16" y2="17" />
+        </Svg>
+    )
+}
+
+export function ExternalLinkIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <path d="M14 4h6v6" />
+            <line x1="20" y1="4" x2="11" y2="13" />
+            <path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" />
+        </Svg>
+    )
+}
+
+export function RefreshIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+            <polyline points="20 4 20 9 15 9" />
+        </Svg>
+    )
+}
