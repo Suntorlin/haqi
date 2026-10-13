@@ -7,6 +7,8 @@ import { HappyChatProvider } from '@/components/AssistantChat/context'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
 import { CliBlockRenderer } from '@/components/AssistantChat/cli/CliBlockRenderer'
 import { Spinner } from '@/components/Spinner'
+import { Button } from '@/components/ui/button'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 
 type CliThreadProps = {
@@ -38,12 +40,9 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
         return null
     }
     return (
-        <button
-            onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-[15px] font-semibold shadow-lg animate-bounce-in z-10"
-        >
+        <Button onClick={props.onClick} className="absolute bottom-20 left-1/2 -translate-x-1/2 shadow-lg animate-bounce-in z-10">
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
-        </button>
+        </Button>
     )
 }
 
@@ -92,18 +91,14 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                         {(props.hasMoreMessages || props.isLoadingMoreMessages) && (
                             <div className="flex justify-center py-2">
                                 {props.isLoadingMoreMessages ? (
-                                    <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)] shadow-sm">
+                                    <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full bg-[var(--social-primary)] px-2.5 text-xs text-[var(--social-primary-fg)]">
                                         <Spinner size="sm" label={null} className="text-current" />
                                         Loading…
                                     </div>
                                 ) : (
-                                    <button
-                                        type="button"
-                                        onClick={props.onLoadMore}
-                                        className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] shadow-sm transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                    >
+                                    <Button variant="secondary" size="sm" onClick={props.onLoadMore} className={HIT_AREA_CLASS}>
                                         Load older
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         )}

@@ -47,9 +47,13 @@ import {
     VoiceCallBar,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { SettingChip, ToggleChip } from '@/components/ui/SettingChip'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
+import { cn } from '@/lib/utils'
 import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 
 export interface TextInputState {
@@ -1118,23 +1122,22 @@ export function HappyComposer(props: {
             {restoredDraftAttachments.map((attachment) => (
                 <div
                     key={`draft:${attachment.path}`}
-                    className="flex max-w-full items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--social-fg)]"
+                    className="flex max-w-full items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px] text-[var(--social-fg)]"
                     title={attachment.path}
                 >
                     <span className="max-w-[180px] truncate">
                         {attachment.filename}
                     </span>
-                    <button
-                        type="button"
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
+                    <IconButton
+                        size="sm"
+                        label={t('composer.attachment.remove')}
+                        className={cn('h-6 w-6', HIT_AREA_CLASS)}
                         onClick={() => {
                             handleRemoveDraftAttachment(attachment)
                         }}
-                        aria-label={t('composer.attachment.remove')}
-                        title={t('composer.attachment.remove')}
                     >
                         ×
-                    </button>
+                    </IconButton>
                 </div>
             ))}
             <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
@@ -1267,26 +1270,26 @@ export function HappyComposer(props: {
                     <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
                         <div className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
                             {!active ? (
-                                <div className="absolute inset-x-3 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] pl-4 pr-1 text-[15px] text-[var(--social-fg-muted)]">
+                                <div className="absolute inset-x-3 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] pl-4 pr-1 text-[15px] text-[var(--social-fg-muted)]">
                                     <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
-                                    <button
-                                        type="button"
+                                    <Button
+                                        size="sm"
                                         onClick={onOfflineWake}
                                         disabled={!onOfflineWake || offlineWakePending}
-                                        className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[13px] font-semibold text-[var(--social-primary-fg)] disabled:opacity-50"
+                                        className={HIT_AREA_CLASS}
                                     >
                                         {offlineWakePending
                                             ? (offlineWakingLabel ?? t('session.waking'))
                                             : (offlineWakeLabel ?? t('session.wake'))}
-                                    </button>
+                                    </Button>
                                 </div>
                             ) : null}
 
                             <MobileComposerToggle open={showToolPanel} onClick={toggleToolPanel} />
 
-                            <div className="flex min-h-[40px] min-w-0 flex-1 items-center rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[8px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                            <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[10px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                                 {cliMode ? (
-                                    <span className="mr-1.5 shrink-0 select-none text-[15px] font-semibold text-[var(--cli-prompt-color,#3b82f6)]">{'❯'}</span>
+                                    <span className="mr-1.5 shrink-0 select-none text-[15px] font-semibold text-[var(--cli-prompt-color,var(--app-badge-info-text))]">{'❯'}</span>
                                 ) : null}
                                 <ComposerPrimitive.Input
                                     ref={textareaRef}
@@ -1353,20 +1356,20 @@ export function HappyComposer(props: {
                 {inlineQueuePanel ? <div className="pb-2">{inlineQueuePanel}</div> : null}
 
                 <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
-                    <div className="relative overflow-hidden rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
+                    <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
                         {!active ? (
                             <div className="absolute inset-0 z-20 flex items-center justify-between gap-3 bg-[var(--app-bg)] pl-5 pr-2.5 text-[15px] text-[var(--social-fg-muted)]">
                                 <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
-                                <button
-                                    type="button"
+                                <Button
+                                    size="sm"
                                     onClick={onOfflineWake}
                                     disabled={!onOfflineWake || offlineWakePending}
-                                    className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[13px] font-semibold text-[var(--social-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                                    className={HIT_AREA_CLASS}
                                 >
                                     {offlineWakePending
                                         ? (offlineWakingLabel ?? t('session.waking'))
                                         : (offlineWakeLabel ?? t('session.wake'))}
-                                </button>
+                                </Button>
                             </div>
                         ) : null}
 
@@ -1374,7 +1377,7 @@ export function HappyComposer(props: {
 
                         <div className="flex items-start px-4 pt-3">
                             {cliMode ? (
-                                <span className="mr-1.5 shrink-0 select-none text-[15px] font-semibold leading-[22px] text-[var(--cli-prompt-color,#3b82f6)]">{'❯'}</span>
+                                <span className="mr-1.5 shrink-0 select-none text-[15px] font-semibold leading-[22px] text-[var(--cli-prompt-color,var(--app-badge-info-text))]">{'❯'}</span>
                             ) : null}
                             <ComposerPrimitive.Input
                                 ref={textareaRef}

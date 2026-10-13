@@ -8,22 +8,22 @@ import { useShikiHighlighter } from '@/lib/shiki'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { isMermaidLanguage, MermaidBlock } from '@/components/assistant-ui/mermaid-block'
 import { CopyIcon, CheckIcon } from '@/components/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { useTranslation } from '@/lib/use-translation'
 
 function CliCodeBlockInner(props: { language: string; code: string }) {
     const highlighted = useShikiHighlighter(props.code, props.language)
     const { copied, copy } = useCopyToClipboard()
+    const { t } = useTranslation()
 
     return (
-        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-[var(--app-border)]">
             <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
                 <span className="text-xs text-[var(--app-hint)]">{props.language}</span>
-                <button
-                    type="button"
-                    onClick={() => copy(props.code)}
-                    className="rounded p-0.5 text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
-                >
+                <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-6 w-6', HIT_AREA_CLASS)}>
                     {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
-                </button>
+                </IconButton>
             </div>
             {isMermaidLanguage(props.language)
                 ? <MermaidBlock code={props.code} language={props.language} />
@@ -50,7 +50,7 @@ function CliCodeBlock(props: ComponentPropsWithoutRef<'code'>) {
         <code
             {...rest}
             className={cn(
-                'break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
+                'break-words rounded-md bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]',
                 className
             )}
         >

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 
 function SelectionMark(props: { checked: boolean; mode: 'single' | 'multi' }) {
     const mark = props.mode === 'multi'
@@ -32,7 +33,7 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
                 props.checked ? 'bg-[var(--app-subtle-bg)]' : null
             )}
             disabled={props.disabled}
@@ -258,7 +259,7 @@ export function AskUserQuestionFooter(props: {
     }
 
     return (
-        <div className="mt-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+        <div className="mt-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -288,7 +289,7 @@ export function AskUserQuestionFooter(props: {
                         onChange={(e) => setFallbackText(e.target.value)}
                         disabled={props.disabled || loading}
                         placeholder={t('tool.askUserQuestion.placeholder')}
-                        className="mt-2 w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-[15px] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                        className={cn(DIALOG_INPUT_CLASS, 'mt-2 min-h-[88px] resize-y disabled:opacity-50')}
                     />
                 </div>
             ) : (
@@ -344,7 +345,7 @@ export function AskUserQuestionFooter(props: {
                                 onChange={(e) => updateOtherText(clampedStep, e.target.value)}
                                 disabled={props.disabled || loading}
                                 placeholder={t('tool.askUserQuestion.otherPlaceholder')}
-                                className="mt-2 w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-[15px] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                                className={cn(DIALOG_INPUT_CLASS, 'mt-2 min-h-[88px] resize-y disabled:opacity-50')}
                             />
                         ) : null}
                     </div>
@@ -357,7 +358,6 @@ export function AskUserQuestionFooter(props: {
                         <Button
                             type="button"
                             variant="outline"
-                            size="sm"
                             disabled={props.disabled || loading || clampedStep === 0}
                             onClick={prev}
                         >
@@ -371,7 +371,6 @@ export function AskUserQuestionFooter(props: {
                         <Button
                             type="button"
                             variant="default"
-                            size="sm"
                             disabled={props.disabled || loading}
                             onClick={next}
                         >
@@ -381,7 +380,6 @@ export function AskUserQuestionFooter(props: {
                         <Button
                             type="button"
                             variant="default"
-                            size="sm"
                             disabled={props.disabled || loading}
                             onClick={submit}
                             aria-busy={loading}

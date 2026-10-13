@@ -108,7 +108,7 @@ export function MermaidBlock(props: {
             <div className={cn('aui-md-mermaid-error rounded-b-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3 text-[13px]', props.className)}>
                 <div className="font-semibold text-[var(--social-danger)]">Mermaid render failed</div>
                 <div className="mt-1 whitespace-pre-wrap break-words text-[var(--app-hint)]">{state.error}</div>
-                <pre className="mt-3 overflow-x-auto rounded bg-[var(--app-subtle-bg)] p-2 text-xs font-mono text-[var(--app-fg)]">
+                <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--app-subtle-bg)] p-2 text-xs font-mono text-[var(--app-fg)]">
                     <code>{props.code}</code>
                 </pre>
             </div>

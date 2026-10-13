@@ -16,6 +16,11 @@ import {
 } from '@/components/AssistantChat/briefTurnPresentation'
 import { restoreScrollTopByDelta, shouldTriggerLoadOlder } from '@/components/AssistantChat/historyScroll'
 import { Spinner } from '@/components/Spinner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSessionReopenPositionPreference } from '@/hooks/useSessionReopenPositionPreference'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -929,7 +934,7 @@ export function BriefTurnList(props: {
 
                 <div className="flex justify-start">
                     {isLiveTurn ? (
-                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--app-badge-info-border)] bg-[var(--app-bg)] px-3 py-2 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]">
+                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--app-badge-info-border)] bg-[var(--app-bg)] px-3 py-2">
                             <button
                                 type="button"
                                 className="block w-full text-left"
@@ -938,10 +943,9 @@ export function BriefTurnList(props: {
                             >
                                 <div className="flex min-h-[7.25rem] flex-col gap-1.5 py-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-[var(--app-badge-info-border)] bg-[var(--app-badge-info-bg)] px-2 py-0.5 text-[12px] font-semibold text-blue-700">
-                                            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--social-fg)]" />
+                                        <Badge variant="info" dot live>
                                             {generatingBadgeText}
-                                        </span>
+                                        </Badge>
                                         <span className="ml-auto text-[12px] text-[var(--app-hint)]">{messageMeta}</span>
                                     </div>
                                     <LivePreviewCarousel
@@ -962,7 +966,7 @@ export function BriefTurnList(props: {
                                 <span>·</span>
                                 <button
                                     type="button"
-                                    className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                    className={cn('underline decoration-dotted hover:text-[var(--app-fg)]', TEXT_HIT_AREA_CLASS)}
                                     onClick={() => openTurnDetails(turn.id)}
                                 >
                                     Open details
@@ -972,7 +976,7 @@ export function BriefTurnList(props: {
                                         <span>·</span>
                                         <button
                                             type="button"
-                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                            className={cn('underline decoration-dotted hover:text-[var(--app-fg)]', TEXT_HIT_AREA_CLASS)}
                                             onClick={() => openTurnChangesDetails(turn.id, turnChangesSummary.toolId)}
                                         >
                                             Turn changes (+{turnChangesSummary.additions} -{turnChangesSummary.deletions})
@@ -989,7 +993,7 @@ export function BriefTurnList(props: {
                                 <span>·</span>
                                 <button
                                     type="button"
-                                    className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                    className={cn('underline decoration-dotted hover:text-[var(--app-fg)]', TEXT_HIT_AREA_CLASS)}
                                     onClick={() => openTurnDetails(turn.id)}
                                 >
                                     Open details
@@ -1153,7 +1157,7 @@ export function BriefTurnList(props: {
             <div className="relative flex min-h-0 flex-1 flex-col">
                 <div className="mx-auto flex h-full w-full max-w-content min-h-0 flex-col gap-3 px-3 py-3">
                     {props.warning ? (
-                        <div className="rounded-md border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-xs text-[var(--app-badge-warning-text)]">
+                        <div className="rounded-xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-xs text-[var(--app-badge-warning-text)]">
                             {props.warning}
                         </div>
                     ) : null}
@@ -1175,14 +1179,14 @@ export function BriefTurnList(props: {
                                 <>
                                     {props.hasMore || props.isLoadingMore ? (
                                         <div className="pb-2">
-                                            <button
-                                                type="button"
-                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] disabled:opacity-60"
+                                            <Button
+                                                variant="outline"
+                                                className="w-full"
                                                 onClick={loadOlderTurnsPreservingViewport}
                                                 disabled={props.isLoadingMore}
                                             >
                                                 {props.isLoadingMore ? 'Loading older turns…' : 'Load older turns'}
-                                            </button>
+                                            </Button>
                                         </div>
                                     ) : (
                                         <div className="h-1" />
@@ -1206,14 +1210,9 @@ export function BriefTurnList(props: {
                     <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
                         <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                             <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={closeTurnDetails}
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                    aria-label="Back"
-                                >
+                                <IconButton label="Back" onClick={closeTurnDetails}>
                                     <BackIcon />
-                                </button>
+                                </IconButton>
                                 <div className="min-w-0">
                                     <div className="truncate text-[15px] font-semibold text-[var(--app-fg)]">
                                         {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
@@ -1232,15 +1231,15 @@ export function BriefTurnList(props: {
                                 <div className="h-full overflow-y-auto p-4 text-[15px] text-[var(--social-danger)]">
                                     {activeDetail.error}
                                     <div className="mt-2">
-                                        <button
-                                            type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
                                         >
                                             Retry
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ) : null}
@@ -1299,15 +1298,15 @@ export function BriefTurnList(props: {
                                 <div className="h-full overflow-y-auto p-4 text-[15px] text-[var(--social-danger)]">
                                     {activeDetail.error}
                                     <div className="mt-2">
-                                        <button
-                                            type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
                                         >
                                             Retry
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ) : null}

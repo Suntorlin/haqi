@@ -3,6 +3,7 @@ import { DiffView } from '@/components/DiffView'
 import { isObject } from '@hapi/protocol'
 import { resolveDisplayPath } from '@/utils/path'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 
 type ChangeFile = {
     path: string
@@ -465,7 +466,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="overflow-hidden rounded-2xl border border-[var(--app-border)]">
             <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs font-semibold text-[var(--app-hint)]">
                 Files ({files.length})
             </div>
@@ -489,7 +490,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                     }
                                 }}
                                 onClick={() => openFileDetails(file.path)}
-                                className={`w-full border-b border-[var(--app-divider)] px-2 py-2 text-left transition-colors last:border-b-0 ${selected ? 'bg-[var(--app-subtle-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'}`}
+                                className={`min-h-11 w-full border-b border-[var(--app-divider)] px-2 py-2 text-left transition-colors last:border-b-0 ${selected ? 'bg-[var(--app-subtle-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'}`}
                             >
                                 <div className="font-mono text-xs text-[var(--app-fg)] break-all">
                                     {file.displayPath}
@@ -506,7 +507,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
+        <div className="overflow-hidden rounded-2xl border border-[var(--app-border)]">
             {selectedFile ? (
                 <>
                     <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5">
@@ -542,13 +543,9 @@ export function CodexTurnChangesView(props: ToolViewProps) {
 
             {mobile ? (
                 <div className="border-t border-[var(--app-border)] px-2 py-2 md:hidden">
-                    <button
-                        type="button"
-                        onClick={handleBackToFileList}
-                        className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
-                    >
+                    <Button variant="outline" size="sm" onClick={handleBackToFileList}>
                         Back to files
-                    </button>
+                    </Button>
                 </div>
             ) : null}
         </div>
@@ -559,7 +556,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     return (
         <div className="flex flex-col gap-2" onKeyDown={handleNavigationKeyDown}>
             {showTopSummary ? (
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
+                <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs text-[var(--app-hint)]">
                     <div>{statusLabel(summary.status)}</div>
                     <div>Files: {summary.files.length}</div>
                     <div>Patch apply: {summary.patchTotal} ({summary.patchSuccess} success, {summary.patchFailed} failed)</div>

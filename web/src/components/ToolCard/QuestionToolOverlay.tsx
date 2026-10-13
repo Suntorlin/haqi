@@ -19,6 +19,7 @@ import {
     type QuestionToolOption,
     type QuestionToolQuestion
 } from '@/components/ToolCard/questionTools'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 
 type QuestionToolDraft = {
     isMinimized?: boolean
@@ -88,7 +89,7 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
                 props.checked ? 'bg-[var(--app-subtle-bg)]' : null
             )}
             disabled={props.disabled}
@@ -369,7 +370,6 @@ export function QuestionToolOverlay(props: {
                             <Button
                                 type="button"
                                 variant="default"
-                                size="sm"
                                 disabled={loading}
                                 onClick={() => setIsMinimized(false)}
                             >
@@ -380,7 +380,7 @@ export function QuestionToolOverlay(props: {
 
                     {error ? (
                         <div className="border-t border-[var(--app-border)] px-4 py-3">
-                            <div className="rounded-md border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] px-3 py-2 text-xs text-[var(--social-danger)]">
+                            <div className="rounded-xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] px-3 py-2 text-xs text-[var(--social-danger)]">
                                 {error}
                             </div>
                         </div>
@@ -390,7 +390,6 @@ export function QuestionToolOverlay(props: {
                         <Button
                             type="button"
                             variant="outline"
-                            size="sm"
                             disabled={props.disabled || loading}
                             onClick={() => void cancel()}
                         >
@@ -424,7 +423,6 @@ export function QuestionToolOverlay(props: {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    size="sm"
                                     disabled={loading}
                                     onClick={() => setIsMinimized(true)}
                                 >
@@ -433,7 +431,6 @@ export function QuestionToolOverlay(props: {
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    size="sm"
                                     disabled={props.disabled || loading}
                                     onClick={() => void cancel()}
                                 >
@@ -445,7 +442,7 @@ export function QuestionToolOverlay(props: {
 
                     <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
                         {error ? (
-                            <div className="mb-3 rounded-md border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] px-3 py-2 text-xs text-[var(--social-danger)]">
+                            <div className="mb-3 rounded-xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] px-3 py-2 text-xs text-[var(--social-danger)]">
                                 {error}
                             </div>
                         ) : null}
@@ -496,7 +493,7 @@ export function QuestionToolOverlay(props: {
                                         placeholder={currentQuestion.supportsNotes
                                             ? t('tool.questionOverlay.notePlaceholder')
                                             : t('tool.questionOverlay.answerPlaceholder')}
-                                        className="w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-[15px] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                                        className={cn(DIALOG_INPUT_CLASS, 'min-h-[88px] resize-y disabled:opacity-50')}
                                     />
                                 ) : (
                                     <input
@@ -505,7 +502,7 @@ export function QuestionToolOverlay(props: {
                                         onChange={(event) => updateNote(currentQuestion.id, event.target.value)}
                                         disabled={props.disabled || loading}
                                         placeholder={t('tool.questionOverlay.secretPlaceholder')}
-                                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-[15px] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                                        className={cn(DIALOG_INPUT_CLASS, 'disabled:opacity-50')}
                                     />
                                 )}
                             </div>
@@ -525,7 +522,6 @@ export function QuestionToolOverlay(props: {
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        size="sm"
                                         disabled={props.disabled || loading || clampedStep === 0}
                                         onClick={prev}
                                     >
@@ -539,7 +535,6 @@ export function QuestionToolOverlay(props: {
                                     <Button
                                         type="button"
                                         variant="default"
-                                        size="sm"
                                         disabled={props.disabled || loading}
                                         onClick={next}
                                     >
@@ -549,7 +544,6 @@ export function QuestionToolOverlay(props: {
                                     <Button
                                         type="button"
                                         variant="default"
-                                        size="sm"
                                         disabled={props.disabled || loading}
                                         onClick={() => void submit()}
                                         aria-busy={loading}

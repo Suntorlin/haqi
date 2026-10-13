@@ -29,7 +29,7 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
             : null
 
     return (
-        <div className={`mx-auto max-w-[88%] rounded-xl border px-3 py-2 sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
+        <div className={`mx-auto max-w-[88%] rounded-2xl border px-3 py-2 sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
             <div className={`flex items-center gap-2 text-xs font-semibold ${textClass}`}>
                 <span className="shrink-0">⚠️</span>
                 <span>{text}</span>

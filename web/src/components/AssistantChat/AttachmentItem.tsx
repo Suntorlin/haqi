@@ -1,6 +1,9 @@
 import { AttachmentPrimitive, useThreadComposerAttachment } from '@assistant-ui/react'
 import { Spinner } from '@/components/Spinner'
+import { IconButton } from '@/components/ui/IconButton'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
+import { cn } from '@/lib/utils'
 
 function ErrorIcon() {
     return (
@@ -38,7 +41,7 @@ export function AttachmentItem() {
     const isError = status.type === 'incomplete'
 
     return (
-        <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--social-fg)]">
+        <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px] text-[var(--social-fg)]">
             {isUploading ? <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" /> : null}
             {isError ? (
                 <span className="text-[var(--social-danger)]">
@@ -46,12 +49,10 @@ export function AttachmentItem() {
                 </span>
             ) : null}
             <span className="max-w-[180px] truncate">{name}</span>
-            <AttachmentPrimitive.Remove
-                className="ml-auto flex h-6 w-6 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
-                aria-label={t('composer.attachment.remove')}
-                title={t('composer.attachment.remove')}
-            >
-                <RemoveIcon />
+            <AttachmentPrimitive.Remove asChild>
+                <IconButton size="sm" label={t('composer.attachment.remove')} className={cn('ml-auto h-6 w-6', HIT_AREA_CLASS)}>
+                    <RemoveIcon />
+                </IconButton>
             </AttachmentPrimitive.Remove>
         </AttachmentPrimitive.Root>
     )
