@@ -9,14 +9,20 @@ export function ProgressBar({ progress }: { progress: number }) {
     const color = getProgressColor(clamped)
 
     return (
-        <div className="font-mono text-xs inline-flex items-center gap-2 min-w-0 max-w-full">
-            <div className="flex-1 h-2 bg-[var(--app-code-bg)] rounded-sm overflow-hidden min-w-0" style={{ border: '1px solid var(--app-border)' }}>
+        <div
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={clamped}
+            className="flex min-w-0 max-w-full items-center gap-3"
+        >
+            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--social-muted)]">
                 <div
-                    className="h-full rounded-sm transition-all"
+                    className="h-full rounded-full transition-all"
                     style={{ width: `${clamped}%`, backgroundColor: color }}
                 />
             </div>
-            <span className="text-[var(--app-hint)] w-8 text-right tabular-nums shrink-0">{clamped}%</span>
+            <span className="w-10 shrink-0 text-right text-[13px] tabular-nums text-[var(--social-fg-muted)]">{clamped}%</span>
         </div>
     )
 }

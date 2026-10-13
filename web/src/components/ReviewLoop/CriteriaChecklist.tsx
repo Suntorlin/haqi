@@ -1,33 +1,46 @@
+import { CheckIcon, CloseIcon } from '@/components/mobile/icons'
 import type { CriteriaItem } from '@/types/api'
 
-const statusIcon: Record<CriteriaItem['status'], { icon: string; color: string }> = {
-    met: { icon: '\u2713', color: 'var(--app-badge-success-text)' },
-    not_met: { icon: '\u2717', color: 'var(--app-badge-error-text)' },
-    unclear: { icon: '?', color: 'var(--app-badge-warning-text)' },
+const statusIcon: Record<CriteriaItem['status'], { icon: React.ReactNode; className: string }> = {
+    met: {
+        icon: <CheckIcon className="h-3.5 w-3.5" />,
+        className: 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
+    },
+    not_met: {
+        icon: <CloseIcon className="h-3.5 w-3.5" />,
+        className: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]'
+    },
+    unclear: {
+        icon: <span className="text-[12px] font-semibold leading-none">?</span>,
+        className: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
+    },
 }
 
 export function CriteriaChecklist({ criteria }: { criteria: CriteriaItem[] }) {
     if (criteria.length === 0) return null
 
     return (
-        <div className="font-mono text-xs space-y-0.5 min-w-0">
+        <ul className="flex min-w-0 flex-col gap-2.5">
             {criteria.map((item, i) => {
-                const { icon, color } = statusIcon[item.status]
+                const { icon, className } = statusIcon[item.status]
                 return (
-                    <div key={i} className="min-w-0">
-                        <div className="flex items-start gap-0 min-w-0">
-                            <span className="shrink-0 w-6 text-center" style={{ color }}>[{icon}]</span>
-                            <span className="text-[var(--app-fg)] min-w-0 break-words">{item.criteria}</span>
-                        </div>
-                        {item.note && (
-                            <div className="flex items-start gap-0 text-[var(--app-hint)] min-w-0">
-                                <span className="shrink-0 w-6" />
-                                <span className="min-w-0 break-words">{'\u2514\u2500'} {item.note}</span>
-                            </div>
-                        )}
-                    </div>
+                    <li key={i} className="flex min-w-0 items-start gap-3">
+                        <span
+                            className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${className}`}
+                            role="img"
+                            aria-label={item.status.replace('_', ' ')}
+                        >
+                            {icon}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block break-words text-[15px] text-[var(--social-fg)]">{item.criteria}</span>
+                            {item.note ? (
+                                <span className="mt-0.5 block break-words text-[13px] text-[var(--social-fg-muted)]">{item.note}</span>
+                            ) : null}
+                        </span>
+                    </li>
                 )
             })}
-        </div>
+        </ul>
     )
 }
