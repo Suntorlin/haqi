@@ -25,6 +25,7 @@ import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { IconButton } from '@/components/ui/IconButton'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
@@ -370,13 +371,13 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13.5px] leading-snug text-[var(--social-fg-muted)]">
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--social-fg-muted)]">
             {props.active && s.pendingRequestsCount > 0 ? (
-                <span className="shrink-0 font-medium text-[var(--social-badge)]">
+                <span className="shrink-0 font-semibold text-[var(--social-badge)]">
                     {t('mobile.feed.pending', { n: s.pendingRequestsCount })} ·
                 </span>
             ) : props.thinking ? (
-                <span className="inline-flex shrink-0 items-center font-medium text-[var(--social-fg)]">
+                <span className="inline-flex shrink-0 items-center font-semibold text-[var(--social-fg)]">
                     {t('mobile.feed.thinking')}
                     <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
                         <span /><span /><span />
@@ -465,7 +466,7 @@ function SessionItem(props: {
     const effectiveActive = forceOffline ? false : s.active
     const effectiveThinking = forceOffline ? false : s.thinking
     const statusDotClass = effectiveActive
-        ? (effectiveThinking ? 'bg-[#007AFF]' : 'bg-[var(--app-badge-success-text)]')
+        ? (effectiveThinking ? 'bg-[var(--app-badge-info-text)]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--app-hint)]'
     const isCompact = density === 'compact'
 
@@ -533,7 +534,7 @@ function SessionItem(props: {
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className={`min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
+                                <span className={`min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
                                     {sessionName}
                                 </span>
                                 <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
@@ -558,13 +559,13 @@ function SessionItem(props: {
                                         className={`h-2 w-2 rounded-full ${statusDotClass}`}
                                     />
                                 </span>
-                                <div className={`truncate font-medium ${isCompact ? 'text-sm' : 'text-base'}`}>
+                                <div className={`truncate font-semibold ${isCompact ? 'text-sm' : 'text-base'}`}>
                                     {sessionName}
                                 </div>
                             </div>
-                            <div className={`flex items-center gap-2 shrink-0 ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
+                            <div className={`flex items-center gap-2 shrink-0 text-xs`}>
                                 {effectiveThinking ? (
-                                    <span className="text-[#007AFF] animate-pulse">
+                                    <span className="text-[var(--app-badge-info-text)] animate-pulse">
                                         {t('session.item.thinking')}
                                     </span>
                                 ) : null}
@@ -600,7 +601,7 @@ function SessionItem(props: {
                                 {userTags.map((tag) => (
                                     <span
                                         key={tag}
-                                        className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
+                                        className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[12px] text-[var(--app-hint)]"
                                     >
                                         #{tag}
                                     </span>
@@ -846,7 +847,7 @@ function SessionGroupRow(props: {
             <button
                 type="button"
                 onClick={() => onToggleGroup(group.directory, isCollapsed)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)]"
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)] ${minimal ? 'min-h-11' : ''}`}
             >
                 <ChevronIcon
                     className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--app-hint)]'}
@@ -856,13 +857,13 @@ function SessionGroupRow(props: {
                     <span
                         className={minimal
                             ? 'truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
-                            : `font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`}
+                            : `font-semibold break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`}
                         title={group.directory}
                     >
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
-                        <span className="shrink-0 rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--app-hint)]">
+                        <span className="shrink-0 rounded-md bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[12px] uppercase tracking-wide text-[var(--app-hint)]">
                             {t('misc.offline')}
                         </span>
                     ) : null}
@@ -872,17 +873,14 @@ function SessionGroupRow(props: {
                 </div>
             </button>
             {group.directory !== 'Other' ? (
-                <button
-                    type="button"
+                <IconButton
                     {...plusButtonHandlers}
-                    className={minimal
-                        ? 'shrink-0 rounded-full p-1.5 text-[var(--social-fg-muted)] transition-colors active:bg-[var(--social-muted)]'
-                        : 'shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]'}
-                    title={t('sessions.newInProject')}
-                    aria-label={t('sessions.newInProject')}
+                    size={minimal ? 'default' : 'sm'}
+                    label={t('sessions.newInProject')}
+                    className={minimal ? '-my-2' : 'text-[var(--app-link)]'}
                 >
                     <PlusIcon className="h-4 w-4" />
-                </button>
+                </IconButton>
             ) : null}
             <ProjectActionMenu
                 isOpen={menuOpen}
@@ -917,7 +915,7 @@ function OfflineSectionRow(props: {
             type="button"
             onClick={() => onToggleGroup(directory, isCollapsed)}
             aria-expanded={!isCollapsed}
-            className={`flex w-full items-center gap-2 text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${props.minimal ? 'px-5 py-2' : `border-b border-[var(--app-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
+            className={`flex w-full items-center gap-2 text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${props.minimal ? 'min-h-11 px-5 py-2' : `border-b border-[var(--app-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
         >
             <ChevronIcon
                 className="h-3.5 w-3.5 text-[var(--app-hint)]"
@@ -1112,14 +1110,14 @@ export function SessionList(props: {
                     <div className="text-xs text-[var(--app-hint)]">
                         {t('sessions.count', { n: props.sessions.length, m: groups.length })}
                     </div>
-                    <button
-                        type="button"
+                    <IconButton
+                        size="sm"
+                        label={t('sessions.new')}
                         onClick={() => props.onNewSession()}
-                        className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
-                        title={t('sessions.new')}
+                        className="session-list-new-button text-[var(--app-link)]"
                     >
                         <PlusIcon className="h-5 w-5" />
-                    </button>
+                    </IconButton>
                 </div>
             ) : null}
 

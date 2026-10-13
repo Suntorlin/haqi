@@ -9,6 +9,7 @@ import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { BottomSheet, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { IconButton } from '@/components/ui/IconButton'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import {
@@ -76,7 +77,7 @@ function getChatStatus(
         return { text: t('misc.permissionRequired'), dotClass: 'bg-[var(--social-warning)]', textClass: 'text-[var(--social-warning)]', pulse: true }
     }
     if (session.thinking) {
-        return { text: t('mobile.chat.thinking'), dotClass: 'bg-[var(--social-fg)]', textClass: 'font-medium text-[var(--social-fg)]', pulse: true }
+        return { text: t('mobile.chat.thinking'), dotClass: 'bg-[var(--social-fg)]', textClass: 'font-semibold text-[var(--social-fg)]', pulse: true }
     }
     return { text: t('misc.online'), dotClass: 'bg-[var(--social-success)]', textClass: 'text-[var(--social-fg-muted)]', pulse: false }
 }
@@ -310,7 +311,7 @@ export function SessionHeader(props: {
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <SessionAvatar session={session} size={48} ring={avatarRing} muted={!session.active} />
                 <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
+                    <div className="line-clamp-2 text-[16px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
                     <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--social-fg-muted)]">
                         <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass)} />
                         <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
@@ -360,7 +361,7 @@ export function SessionHeader(props: {
                                 value={session.metadata.claudeAccount?.id ?? ''}
                                 disabled={accountSwitching}
                                 onChange={(event) => void handleAccountSwitch(event.target.value)}
-                                className="max-w-[210px] truncate bg-transparent text-right text-[14px] text-[var(--app-hint)] outline-none"
+                                className="max-w-[210px] truncate bg-transparent text-right text-[13px] text-[var(--app-hint)] outline-none"
                             >
                                 {!session.metadata.claudeAccount ? <option value="">{t('sessionAccount.machineDefault')}</option> : null}
                                 {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
@@ -375,7 +376,7 @@ export function SessionHeader(props: {
                 {worktreeBranch ? <SheetRow label={t('mobile.chat.branch')} value={worktreeBranch} /> : null}
             </SheetSection>
             {accountSwitchError ? (
-                <div role="alert" className="px-7 pb-3 text-[12px] text-red-500">{accountSwitchError}</div>
+                <div role="alert" className="px-7 pb-3 text-[12px] text-[var(--social-danger)]">{accountSwitchError}</div>
             ) : null}
 
             {showUsage ? (
@@ -459,14 +460,9 @@ export function SessionHeader(props: {
         <>
             <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                 <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
-                    <button
-                        type="button"
-                        onClick={props.onBack}
-                        className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
-                        aria-label={t('button.back')}
-                    >
+                    <IconButton label={t('button.back')} onClick={props.onBack} className="text-[var(--app-fg)]">
                         <ChevronLeftIcon className="h-[26px] w-[26px]" />
-                    </button>
+                    </IconButton>
                     <button
                         type="button"
                         onClick={() => setInfoOpen(true)}
@@ -474,7 +470,7 @@ export function SessionHeader(props: {
                     >
                         <SessionAvatar session={session} size={38} ring={avatarRing} muted={!session.active} />
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                            <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                 {title}
                             </div>
                             <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-[12px] leading-tight text-[var(--social-fg-muted)]">
@@ -482,15 +478,9 @@ export function SessionHeader(props: {
                             </div>
                         </div>
                     </button>
-                    <button
-                        type="button"
-                        onClick={() => setInfoOpen(true)}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent] active:bg-[var(--app-subtle-bg)]"
-                        aria-label={t('mobile.chat.info')}
-                        title={t('mobile.chat.info')}
-                    >
+                    <IconButton label={t('mobile.chat.info')} onClick={() => setInfoOpen(true)} className="text-[var(--app-fg)]">
                         <MoreHorizontalIcon className="h-6 w-6" />
-                    </button>
+                    </IconButton>
                 </div>
             </div>
             {infoSheet}
