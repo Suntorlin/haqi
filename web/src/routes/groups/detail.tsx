@@ -43,6 +43,7 @@ import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { FormField, SegmentedControl, SelectInput } from '@/components/ui/FormControls'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { queryKeys } from '@/lib/query-keys'
@@ -247,11 +248,11 @@ function MemberStatusLine(props: { session: SessionSummary | undefined; status: 
     return (
         <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[13px] leading-snug text-[var(--social-fg-muted)]">
             {status === 'pending' ? (
-                <span className="shrink-0 font-medium text-[var(--social-badge)]">
+                <span className="shrink-0 font-semibold text-[var(--social-badge)]">
                     {t('mobile.feed.pending', { n: session?.pendingRequestsCount ?? 0 })}
                 </span>
             ) : status === 'working' ? (
-                <span className="inline-flex shrink-0 items-center font-medium text-[var(--social-fg)]">
+                <span className="inline-flex shrink-0 items-center font-semibold text-[var(--social-fg)]">
                     {t('mobile.feed.thinking')}
                     <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
                         <span /><span /><span />
@@ -562,7 +563,7 @@ function SessionPickRow(props: { session: SessionSummary; disabled: boolean; onP
                 <span className="block truncate text-[15px] text-[var(--social-fg)]">
                     {getSessionTitle(session, { fallbackIdLength: 12 })}
                 </span>
-                <span className="block truncate text-[12.5px] text-[var(--social-fg-muted)]">
+                <span className="block truncate text-[13px] text-[var(--social-fg-muted)]">
                     {[session.metadata?.flavor, getProjectName(getSessionProjectPath(session))].filter(Boolean).join(' · ')}
                 </span>
             </span>
@@ -729,15 +730,9 @@ function MemberRow(props: {
                 </span>
             </button>
             {hasSession ? (
-                <button
-                    type="button"
-                    onClick={props.onMore}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
-                    aria-label={t('groups.member.actions')}
-                    title={t('groups.member.actions')}
-                >
+                <IconButton label={t('groups.member.actions')} onClick={props.onMore}>
                     <MoreHorizontalIcon className="h-5 w-5" />
-                </button>
+                </IconButton>
             ) : null}
         </div>
     )
@@ -849,7 +844,7 @@ function GroupInfoSheet(props: {
                     {noteContent ? (
                         <BriefCardMarkdownPreview content={noteContent} className="max-h-[132px] text-[var(--social-fg-muted)]" />
                     ) : (
-                        <span className="text-[14px] text-[var(--social-fg-muted)]">{t('groups.note.empty')}</span>
+                        <span className="text-[15px] text-[var(--social-fg-muted)]">{t('groups.note.empty')}</span>
                     )}
                 </button>
                 <SheetRow icon={<PencilIcon />} label={t('groups.note.edit')} chevron onClick={closeThen(props.onEditNote)} />
@@ -950,7 +945,7 @@ function NoteEditorSheet(props: {
                             onChange={(event) => setDraft((value) => ({ ...value, content: event.target.value }))}
                             placeholder={t('groups.detail.notePlaceholder')}
                             rows={10}
-                            className={cn(DIALOG_INPUT_CLASS, 'min-h-[180px] resize-y text-[14px] leading-relaxed')}
+                            className={cn(DIALOG_INPUT_CLASS, 'min-h-[180px] resize-y text-[15px] leading-relaxed')}
                         />
                     </FormField>
                     <FormField label={t('groups.detail.executor')} htmlFor={executorId} hint={t('groups.note.executorHint')}>
@@ -1014,7 +1009,7 @@ function PendingRequestsSheet(props: {
                 <div className="flex items-center gap-3 px-5 pb-4 pt-1">
                     <SessionAvatar session={{ id: props.sessionId }} size={40} ring={props.requests.length > 0 ? 'pending' : null} />
                     <div className="min-w-0 flex-1">
-                        <div className="truncate text-[15px] font-medium text-[var(--social-fg)]">{props.sessionTitle}</div>
+                        <div className="truncate text-[15px] font-semibold text-[var(--social-fg)]">{props.sessionTitle}</div>
                         <div className="text-[13px] text-[var(--social-fg-muted)]">
                             {props.requests.length > 0 ? t('mobile.feed.pending', { n: props.requests.length }) : t('groups.pending.none')}
                         </div>
@@ -1029,7 +1024,7 @@ function PendingRequestsSheet(props: {
                 <section key={request.id} className="px-4 pb-3">
                     <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
                         <div className="flex items-baseline gap-2 px-4 pt-3">
-                            <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-[var(--social-fg)]">{request.tool}</span>
+                            <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--social-fg)]">{request.tool}</span>
                             {request.createdAt ? (
                                 <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatTime(request.createdAt)}</span>
                             ) : null}
@@ -1078,21 +1073,22 @@ function PendingBanner(props: {
     return (
         <div className="shrink-0 border-b border-[var(--social-border)] px-4 py-2">
             {props.items.map((item) => (
-                <button
-                    key={item.sessionId}
-                    type="button"
-                    onClick={() => props.onOpen(item.sessionId)}
-                    className="mx-auto flex w-full max-w-content items-center gap-3 py-1 text-left [-webkit-tap-highlight-color:transparent]"
-                >
-                    <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
-                    <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[14px] font-medium text-[var(--social-fg)]">{item.title}</span>
-                        <span className="block text-[12.5px] text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
-                    </span>
-                    <span className="shrink-0 rounded-full bg-[var(--social-primary)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--social-primary-fg)]">
+                <div key={item.sessionId} className="mx-auto flex w-full max-w-content items-center gap-3 py-1">
+                    <button
+                        type="button"
+                        onClick={() => props.onOpen(item.sessionId)}
+                        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left [-webkit-tap-highlight-color:transparent]"
+                    >
+                        <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
+                        <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[15px] font-semibold text-[var(--social-fg)]">{item.title}</span>
+                            <span className="block text-[13px] text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
+                        </span>
+                    </button>
+                    <Button type="button" size="sm" onClick={() => props.onOpen(item.sessionId)}>
                         {t('groups.pending.handle')}
-                    </span>
-                </button>
+                    </Button>
+                </div>
             ))}
         </div>
     )
@@ -1120,7 +1116,7 @@ function TaskStateList(props: { taskStates: LatestTaskStates; sessionMap: Map<st
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                className="flex items-center gap-1 text-[12px] text-[var(--social-fg-subtle)] transition-colors hover:text-[var(--social-fg-muted)]"
+                className="relative flex items-center gap-1 text-[12px] text-[var(--social-fg-subtle)] transition-colors before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:text-[var(--social-fg-muted)]"
             >
                 <ChevronRightIcon className={cn('h-3 w-3 transition-transform', open ? 'rotate-90' : '')} />
                 {allDone ? t('groups.task.summaryDone', { n: tasks.length }) : t('groups.task.summary', { n: tasks.length })}
@@ -1226,14 +1222,14 @@ function TimelineBubble(props: {
                         <button
                             type="button"
                             onClick={() => props.onOpenSession(actorSessionId)}
-                            className="mb-1 flex max-w-[88%] items-center gap-1.5 px-1 text-left"
+                            className="relative mb-1 flex max-w-[88%] items-center gap-1.5 px-1 text-left before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']"
                             title={t('groups.message.openSession', { name: actorTitle })}
                         >
                             <SessionAvatar session={{ id: actorSessionId }} size={18} muted={!actorSession?.active} />
-                            <span className="truncate text-[12.5px] font-medium text-[var(--social-fg-muted)]">{actorTitle}</span>
+                            <span className="truncate text-[13px] font-semibold text-[var(--social-fg-muted)]">{actorTitle}</span>
                         </button>
                     ) : (
-                        <div className="mb-1 max-w-[88%] truncate px-1 text-[12.5px] font-medium text-[var(--social-fg-muted)]">{actorTitle}</div>
+                        <div className="mb-1 max-w-[88%] truncate px-1 text-[13px] font-semibold text-[var(--social-fg-muted)]">{actorTitle}</div>
                     )
                 ) : null}
                 <div className={cn('flex min-w-0 max-w-[88%] items-end gap-1 lg:max-w-[75%]', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -1250,11 +1246,11 @@ function TimelineBubble(props: {
                         {quoteInfo ? (
                             <div
                                 className={cn(
-                                    'mb-2 border-l-2 pl-2.5 font-sans text-[12.5px] leading-snug',
+                                    'mb-2 border-l-2 pl-2.5 font-sans text-[13px] leading-snug',
                                     isUser ? 'border-[var(--social-primary-fg)]/40 opacity-80' : 'border-[var(--social-border)] text-[var(--social-fg-muted)]'
                                 )}
                             >
-                                <span className="font-medium">{quoteInfo.actorName || t('groups.message.unknownActor')}</span>
+                                <span className="font-semibold">{quoteInfo.actorName || t('groups.message.unknownActor')}</span>
                                 <span className="line-clamp-2 break-words">{truncateText(quoteInfo.quotedText, 120)}</span>
                             </div>
                         ) : null}
@@ -1268,15 +1264,14 @@ function TimelineBubble(props: {
                         ) : null}
                     </div>
                     {canQuote && !isMobileLayout ? (
-                        <button
-                            type="button"
+                        <IconButton
+                            size="sm"
+                            label={t('groups.detail.reply')}
                             onClick={() => props.onQuote?.(message)}
-                            className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-subtle)] opacity-0 transition-opacity hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] focus-visible:opacity-100 group-hover/message:opacity-100"
-                            title={t('groups.detail.reply')}
-                            aria-label={t('groups.detail.reply')}
+                            className="opacity-0 focus-visible:opacity-100 group-hover/message:opacity-100"
                         >
                             <ReplyIcon className="h-4 w-4" />
-                        </button>
+                        </IconButton>
                     ) : null}
                 </div>
                 {isCommand && props.taskStates && props.taskStates.size > 0 ? (
@@ -1382,7 +1377,7 @@ function ComposerAttachmentList(props: {
                             <img
                                 src={attachment.previewUrl}
                                 alt={attachment.filename}
-                                className="h-8 w-8 shrink-0 rounded-lg object-cover"
+                                className="h-8 w-8 shrink-0 rounded-md object-cover"
                             />
                         ) : (
                             <span className="shrink-0">
@@ -1393,20 +1388,19 @@ function ComposerAttachmentList(props: {
                             <div className="truncate text-[13px] text-[var(--social-fg)]">
                                 {attachment.filename}
                             </div>
-                            <div className={cn('truncate text-[11px]', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
+                            <div className={cn('truncate text-[12px]', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
                                 {statusText}
                             </div>
                         </div>
-                        <button
-                            type="button"
+                        <IconButton
+                            size="sm"
+                            label={t('groups.detail.removeAttachment')}
                             onClick={() => { void props.onRemove(attachment.id) }}
                             disabled={props.disabled}
-                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50"
-                            title={t('groups.detail.removeAttachment')}
-                            aria-label={t('groups.detail.removeAttachment')}
+                            className="-my-1.5 -mr-1.5"
                         >
                             <CloseIcon className="h-3.5 w-3.5" />
-                        </button>
+                        </IconButton>
                     </div>
                 )
             })}
@@ -1446,13 +1440,9 @@ function TimelineHistoryControl(props: {
                     {t('groups.timeline.loadingOlder')}
                 </span>
             ) : (
-                <button
-                    type="button"
-                    onClick={props.onLoadMore}
-                    className="rounded-full border border-[var(--social-border)] px-3.5 py-1 text-[12px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]"
-                >
+                <Button type="button" variant="outline" size="sm" onClick={props.onLoadMore}>
                     {t('groups.timeline.loadOlder')}
-                </button>
+                </Button>
             )}
         </div>
     )
@@ -1841,7 +1831,7 @@ function GroupBriefTurnList(props: {
         <>
             {activeTurn && activeDetail?.error ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                    <div className="text-[14px] text-[var(--social-danger)]">{activeDetail.error}</div>
+                    <div className="text-[15px] text-[var(--social-danger)]">{activeDetail.error}</div>
                     <Button
                         type="button"
                         variant="secondary"
@@ -1866,7 +1856,7 @@ function GroupBriefTurnList(props: {
                     />
                 </div>
             ) : (
-                <div className="flex h-full items-center justify-center text-[14px] text-[var(--social-fg-muted)]">
+                <div className="flex h-full items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
                     {activeTurn && activeDetail?.isLoading ? t('groups.brief.loadingTurn') : t('groups.brief.noDetail')}
                 </div>
             )}
@@ -1884,10 +1874,10 @@ function GroupBriefTurnList(props: {
 
                 {props.isLoading && props.turns.length === 0 ? (
                     <div className="flex flex-1 items-center justify-center py-8">
-                        <LoadingState label={t('groups.brief.loading')} className="text-[14px]" />
+                        <LoadingState label={t('groups.brief.loading')} className="text-[15px]" />
                     </div>
                 ) : props.turns.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center py-8 text-[14px] text-[var(--social-fg-muted)]">
+                    <div className="flex flex-1 items-center justify-center py-8 text-[15px] text-[var(--social-fg-muted)]">
                         {t('groups.brief.empty')}
                     </div>
                 ) : (
@@ -1936,7 +1926,7 @@ function GroupBriefTurnList(props: {
                                         <span aria-hidden="true">·</span>
                                         <button
                                             type="button"
-                                            className="transition-colors hover:text-[var(--social-fg-muted)]"
+                                            className="relative transition-colors before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:text-[var(--social-fg-muted)]"
                                             onClick={() => openTurnDetails(turn.id)}
                                         >
                                             {t('groups.brief.openDetails')}
@@ -2799,14 +2789,14 @@ export default function GroupDetailPage() {
     if (groupLoading) {
         return (
             <div className="flex h-full items-center justify-center">
-                <LoadingState label={t('groups.loading')} className="text-[14px]" />
+                <LoadingState label={t('groups.loading')} className="text-[15px]" />
             </div>
         )
     }
 
     if (!group || groupError) {
         return (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-[14px] text-[var(--social-fg-muted)]">
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-[15px] text-[var(--social-fg-muted)]">
                 {groupError ?? t('groups.notFound')}
             </div>
         )
@@ -2832,7 +2822,7 @@ export default function GroupDetailPage() {
                 onOpenSession={openSession}
             />
         ) : (
-            <div className="flex h-full items-center justify-center text-[14px] text-[var(--social-fg-muted)]">
+            <div className="flex h-full items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
                 {t('groups.unavailable')}
             </div>
         )
@@ -2842,11 +2832,11 @@ export default function GroupDetailPage() {
          expects. A dedicated groups-to-ChatBlock adapter would be needed to
          support CliThread here. */ messagesLoading && visibleMessages.length === 0 ? (
         <div className="flex h-full items-center justify-center">
-            <LoadingState label={t('groups.timeline.loading')} className="text-[14px]" />
+            <LoadingState label={t('groups.timeline.loading')} className="text-[15px]" />
         </div>
     ) : visibleMessages.length === 0 ? (
         <div className="flex h-full flex-col items-center justify-center gap-1 px-8 text-center">
-            <div className="text-[15px] font-medium text-[var(--social-fg)]">{t('groups.timeline.emptyTitle')}</div>
+            <div className="text-[15px] font-semibold text-[var(--social-fg)]">{t('groups.timeline.emptyTitle')}</div>
             <div className="text-[13px] text-[var(--social-fg-muted)]">{t('groups.timeline.emptyHint')}</div>
         </div>
     ) : (
@@ -2890,8 +2880,8 @@ export default function GroupDetailPage() {
 
     const quotedPreview = quotedMessage ? (
         <div className="flex items-start gap-2 border-l-2 border-[var(--social-fg-subtle)] pl-2.5">
-            <span className="min-w-0 flex-1 text-[12.5px] leading-snug text-[var(--social-fg-muted)]">
-                <span className="font-medium text-[var(--social-fg)]">
+            <span className="min-w-0 flex-1 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+                <span className="font-semibold text-[var(--social-fg)]">
                     {t('groups.composer.replyingTo', {
                         name: quotedMessage.actorName
                             || getSessionTitle(sessionMap.get(getActorSessionId(quotedMessage) ?? ''), {
@@ -2903,45 +2893,43 @@ export default function GroupDetailPage() {
                 </span>
                 <span className="line-clamp-2 break-all">{truncateText(extractBubbleText(quotedMessage), 96)}</span>
             </span>
-            <button
-                type="button"
+            <IconButton
+                size="sm"
+                label={t('groups.detail.cancelReply')}
                 onClick={() => setQuotedMessage(null)}
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
-                title={t('groups.detail.cancelReply')}
-                aria-label={t('groups.detail.cancelReply')}
+                className="-my-2 -mr-1.5"
             >
                 <CloseIcon className="h-3.5 w-3.5" />
-            </button>
+            </IconButton>
         </div>
     ) : null
 
-    const attachButton = (className: string) => (
-        <button
-            type="button"
+    const attachButton = (compact: boolean) => (
+        <IconButton
+            variant={compact ? 'ghost' : 'muted'}
+            size={compact ? 'sm' : 'default'}
+            label={uploadSessionId ? t('mobile.composer.attach') : t('groups.composer.noUploader')}
             onClick={openAttachmentPicker}
             disabled={isPending || !uploadSessionId}
-            className={className}
-            title={uploadSessionId ? t('mobile.composer.attach') : t('groups.composer.noUploader')}
-            aria-label={t('mobile.composer.attach')}
         >
             <PaperclipIcon className="h-[18px] w-[18px]" />
-        </button>
+        </IconButton>
     )
 
-    const sendButton = (
-        <button
+    const sendButton = (compact: boolean) => (
+        <IconButton
             type="submit"
+            variant="filled"
+            size={compact ? 'sm' : 'default'}
+            label={t('composer.send')}
             disabled={!canSendComposer}
-            className="mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] transition-[transform,opacity] [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)]"
-            title={t('composer.send')}
-            aria-label={t('composer.send')}
         >
             {isPending ? (
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
             ) : (
                 <SendArrowIcon className="h-[18px] w-[18px]" />
             )}
-        </button>
+        </IconButton>
     )
 
     const composerTextarea = (className: string) => (
@@ -2954,7 +2942,7 @@ export default function GroupDetailPage() {
             placeholder={t('groups.detail.composerPlaceholder')}
             aria-label={t('groups.detail.composerPlaceholder')}
             rows={1}
-            className={cn('app-scrollbar block w-full resize-none bg-transparent text-[15px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
+            className={cn('app-scrollbar block w-full resize-none bg-transparent text-[16px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
         />
     )
 
@@ -2977,7 +2965,7 @@ export default function GroupDetailPage() {
                 />
             ) : null}
             {actionError ? (
-                <div className="px-4 pb-1.5 pt-2 text-[12.5px] text-[var(--social-danger)]">{actionError}</div>
+                <div className="px-4 pb-1.5 pt-2 text-[13px] text-[var(--social-danger)]">{actionError}</div>
             ) : null}
         </>
     )
@@ -2998,11 +2986,11 @@ export default function GroupDetailPage() {
                 />
                 {quotedPreview ? <div className="px-4 pt-2">{quotedPreview}</div> : null}
                 <div className="flex items-end gap-2 px-3 pt-2">
-                    {attachButton('mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg)] transition-transform [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:opacity-40')}
-                    <div className="flex min-h-[40px] min-w-0 flex-1 items-center rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[8px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                    {attachButton(false)}
+                    <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[10px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                         {composerTextarea('max-h-[132px] min-h-[22px]')}
                     </div>
-                    {sendButton}
+                    {sendButton(false)}
                 </div>
             </form>
         </div>
@@ -3010,7 +2998,7 @@ export default function GroupDetailPage() {
         <div className="shrink-0 bg-[var(--app-bg)] px-6 pb-5 pt-1">
             <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
                 {composerOverlays}
-                <div className="relative overflow-hidden rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                     <ComposerAttachmentList
                         attachments={composerAttachments}
                         disabled={isPending}
@@ -3022,9 +3010,9 @@ export default function GroupDetailPage() {
                         {composerTextarea('max-h-[220px] min-h-[44px]')}
                     </div>
                     <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
-                        {attachButton('relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40')}
+                        {attachButton(true)}
                         <div className="ml-auto flex shrink-0 items-center pl-2">
-                            {sendButton}
+                            {sendButton(true)}
                         </div>
                     </div>
                 </div>
