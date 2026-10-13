@@ -94,6 +94,8 @@ export function ContextMenu(props: {
 export function ContextMenuItem(props: {
     icon?: ReactNode
     label: ReactNode
+    /** Optional muted second line, e.g. an account's remaining quota. */
+    description?: ReactNode
     onSelect: () => void
     destructive?: boolean
     disabled?: boolean
@@ -124,7 +126,14 @@ export function ContextMenuItem(props: {
                     {props.icon}
                 </span>
             ) : null}
-            <span className="min-w-0 flex-1 truncate">{props.label}</span>
+            {props.description ? (
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate">{props.label}</span>
+                    <span className="mt-1 block truncate text-[12.5px] text-[var(--social-fg-muted)]">{props.description}</span>
+                </span>
+            ) : (
+                <span className="min-w-0 flex-1 truncate">{props.label}</span>
+            )}
             {props.trailing}
         </button>
     )
