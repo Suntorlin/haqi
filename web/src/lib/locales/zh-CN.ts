@@ -773,6 +773,4 @@ export default {
   'session.action.unpin': '取消置顶',
   'session.pin.failed': '置顶没有保存成功',
   'mobile.stories.pinned': '置顶',
-  'mobile.stories.pinHint': '长按会话选「置顶」，常用的会话会固定在这里',
-  'desktop.stories.pinHint': '右键会话选「置顶」，常用的会话会固定在这里',
 } as const

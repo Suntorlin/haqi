@@ -10,7 +10,6 @@ import { MessageStatusIndicator } from '@/components/AssistantChat/messages/Mess
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
-import { Orb } from '@/components/mobile/SessionAvatar'
 import { formatChatTimestamp, formatElapsed, getLatestProgressText } from '@/components/mobile/chatTimeline'
 import type { ChatBlock, ToolCallBlock } from '@/chat/types'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
@@ -383,94 +382,92 @@ export function SocialAssistantMessage() {
     return (
         <MessagePrimitive.Root ref={rootRef} className="group/turn flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
-            <div className="flex min-w-0 items-start gap-2.5">
-                <Orb seed={ctx.sessionId} size={28} muted={ctx.disabled} className="mt-1" />
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-x-hidden pr-1">
-                    {isCliOutput ? (
-                        <CliOutputBlock text={content.find((part) => part.type === 'text')?.text ?? ''} />
-                    ) : isRunning ? (
-                        <LiveStatusCard layout={layout} startAt={startAt} partial={stats?.partial ?? false} />
-                    ) : (
-                        <>
-                            {layout.answerIndices.length > 0 ? (
-                                <div
-                                    {...pressProps}
-                                    className={cn('social-card w-fit min-w-0 max-w-full rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3', pressClass)}
-                                >
-                                    {layout.answerIndices.map((index) => (
-                                        <MessagePrimitive.PartByIndex key={index} index={index} components={ANSWER_COMPONENTS} />
-                                    ))}
-                                </div>
-                            ) : (
-                                <div
-                                    {...pressProps}
-                                    className={cn('social-card w-fit rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]', pressClass)}
-                                >
-                                    {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
-                                </div>
-                            )}
+            {/* One-to-one chat: no avatar beside replies, the header already shows who this is. */}
+            <div className="flex min-w-0 flex-col gap-1.5 overflow-x-hidden">
+                {isCliOutput ? (
+                    <CliOutputBlock text={content.find((part) => part.type === 'text')?.text ?? ''} />
+                ) : isRunning ? (
+                    <LiveStatusCard layout={layout} startAt={startAt} partial={stats?.partial ?? false} />
+                ) : (
+                    <>
+                        {layout.answerIndices.length > 0 ? (
+                            <div
+                                {...pressProps}
+                                className={cn('social-card w-fit min-w-0 max-w-full rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3', pressClass)}
+                            >
+                                {layout.answerIndices.map((index) => (
+                                    <MessagePrimitive.PartByIndex key={index} index={index} components={ANSWER_COMPONENTS} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div
+                                {...pressProps}
+                                className={cn('social-card w-fit rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]', pressClass)}
+                            >
+                                {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
+                            </div>
+                        )}
 
-                            {hasProcess || (!isMobileLayout && answerText) ? (
-                                <div className="flex items-center gap-3 px-1 text-[12px] text-[var(--social-fg-subtle)]">
-                                    {hasProcess ? (
-                                        <button
-                                            ref={footerRef}
-                                            type="button"
-                                            onClick={toggleProcess}
-                                            aria-expanded={expanded}
-                                            className="flex w-fit items-center gap-1 transition-colors hover:text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent]"
-                                        >
-                                            {footer}
-                                            <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
-                                        </button>
-                                    ) : null}
-                                    {!isMobileLayout && answerText && !expanded ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => void copy(answerText)}
-                                            className="opacity-0 transition-opacity hover:text-[var(--social-fg-muted)] focus-visible:opacity-100 group-hover/turn:opacity-100"
-                                        >
+                        {hasProcess || (!isMobileLayout && answerText) ? (
+                            <div className="flex items-center gap-3 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                {hasProcess ? (
+                                    <button
+                                        ref={footerRef}
+                                        type="button"
+                                        onClick={toggleProcess}
+                                        aria-expanded={expanded}
+                                        className="flex w-fit items-center gap-1 transition-colors hover:text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent]"
+                                    >
+                                        {footer}
+                                        <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
+                                    </button>
+                                ) : null}
+                                {!isMobileLayout && answerText && !expanded ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => void copy(answerText)}
+                                        className="opacity-0 transition-opacity hover:text-[var(--social-fg-muted)] focus-visible:opacity-100 group-hover/turn:opacity-100"
+                                    >
+                                        {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
+                                    </button>
+                                ) : null}
+                            </div>
+                        ) : null}
+
+                        {expanded ? (
+                            <div ref={processRef} className="social-process animate-process-in ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
+                                {hiddenProcessCount > 0 ? (
+                                    <button
+                                        type="button"
+                                        onClick={showEarlierSteps}
+                                        className="w-fit rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12px] text-[var(--social-fg-muted)]"
+                                    >
+                                        {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
+                                    </button>
+                                ) : null}
+                                {visibleProcessIndices.map((index) => (
+                                    <div key={index} className="social-process-item min-w-0">
+                                        <MessagePrimitive.PartByIndex index={index} components={PROCESS_COMPONENTS} />
+                                    </div>
+                                ))}
+                                <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
+                                    {answerText ? (
+                                        <button type="button" onClick={() => void copy(answerText)}>
                                             {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
                                         </button>
                                     ) : null}
+                                    <button type="button" onClick={() => collapseProcess('end')}>
+                                        {t('mobile.turn.hideProcess')}
+                                    </button>
                                 </div>
-                            ) : null}
+                            </div>
+                        ) : null}
+                    </>
+                )}
 
-                            {expanded ? (
-                                <div ref={processRef} className="social-process animate-process-in ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
-                                    {hiddenProcessCount > 0 ? (
-                                        <button
-                                            type="button"
-                                            onClick={showEarlierSteps}
-                                            className="w-fit rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12px] text-[var(--social-fg-muted)]"
-                                        >
-                                            {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
-                                        </button>
-                                    ) : null}
-                                    {visibleProcessIndices.map((index) => (
-                                        <div key={index} className="social-process-item min-w-0">
-                                            <MessagePrimitive.PartByIndex index={index} components={PROCESS_COMPONENTS} />
-                                        </div>
-                                    ))}
-                                    <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
-                                        {answerText ? (
-                                            <button type="button" onClick={() => void copy(answerText)}>
-                                                {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
-                                            </button>
-                                        ) : null}
-                                        <button type="button" onClick={() => collapseProcess('end')}>
-                                            {t('mobile.turn.hideProcess')}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-                        </>
-                    )}
-
-                    {layout.pendingIndices.map((index) => (
-                        <MessagePrimitive.PartByIndex key={index} index={index} components={PROCESS_COMPONENTS} />
-                    ))}
-                </div>
+                {layout.pendingIndices.map((index) => (
+                    <MessagePrimitive.PartByIndex key={index} index={index} components={PROCESS_COMPONENTS} />
+                ))}
             </div>
         </MessagePrimitive.Root>
     )

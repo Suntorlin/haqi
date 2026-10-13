@@ -771,6 +771,4 @@ export default {
   'session.action.unpin': 'Unpin',
   'session.pin.failed': 'Could not save the pin',
   'mobile.stories.pinned': 'Pinned',
-  'mobile.stories.pinHint': 'Long-press a chat and choose "Pin to top" to keep it here',
-  'desktop.stories.pinHint': 'Right-click a chat and choose "Pin to top" to keep it here',
 } as const

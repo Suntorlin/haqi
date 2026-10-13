@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { SessionSummary } from '@/types/api'
-import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { getSessionTitle } from '@/lib/session-title'
@@ -132,6 +131,7 @@ function PinnedStoryMenu(props: { point: { x: number; y: number }; onUnpin: () =
 /**
  * Instagram-style row of the sessions the user pinned (WeChat "置顶"): they live here instead
  * of in the list below, with the same status rings. Long-press / right-click to unpin.
+ * Nothing pinned → no row, the list starts right away (pin from a row's menu).
  */
 export function PinnedStoriesStrip(props: {
     sessions: SessionSummary[]
@@ -140,10 +140,11 @@ export function PinnedStoriesStrip(props: {
     onUnpin: (session: SessionSummary) => void
 }) {
     const { t } = useTranslation()
-    const isMobileLayout = useIsMobileLayout()
     const stories = useMemo(() => sortPinned(props.sessions), [props.sessions])
     const [menu, setMenu] = useState<{ session: SessionSummary; point: { x: number; y: number } } | null>(null)
     const closeMenu = useCallback(() => setMenu(null), [])
+
+    if (stories.length === 0) return null
 
     return (
         <div className="pb-1">
@@ -167,11 +168,7 @@ export function PinnedStoriesStrip(props: {
                     </span>
                 </button>
 
-                {stories.length === 0 ? (
-                    <div className="flex h-16 min-w-0 max-w-[230px] items-center text-[12.5px] leading-snug text-[var(--social-fg-subtle)]">
-                        {isMobileLayout ? t('mobile.stories.pinHint') : t('desktop.stories.pinHint')}
-                    </div>
-                ) : stories.map((session) => (
+                {stories.map((session) => (
                     <PinnedStory
                         key={session.id}
                         session={session}
