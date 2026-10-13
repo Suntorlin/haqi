@@ -49,8 +49,9 @@ import { SessionTypeSelector } from './SessionTypeSelector'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FormField, SuggestionChip } from '@/components/ui/FormControls'
-import { TextField } from '@/components/ui/TextField'
+import { ChevronDownIcon } from '@/components/mobile/icons'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -114,6 +115,8 @@ export function NewSession(props: {
     const [worktreeName, setWorktreeName] = useState(() => lastSessionConfig?.worktreeName ?? '')
     const [previewUrlInput, setPreviewUrlInput] = useState(() => lastSessionConfig?.previewUrl ?? '')
     const [error, setError] = useState<string | null>(null)
+    // Machine, preview URL and session type are rarely changed: folded away unless a saved value is in play.
+    const [showAdvanced, setShowAdvanced] = useState(() => sessionType === 'worktree' || previewUrlInput.trim().length > 0)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
     const hasPresetDirectory = Boolean(props.initialDirectory?.trim())
 
@@ -415,13 +418,6 @@ export function NewSession(props: {
             onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit}
         >
-            <MachineSelector
-                machines={props.machines}
-                machineId={machineId}
-                isLoading={props.isLoading}
-                isDisabled={isFormDisabled}
-                onChange={handleMachineChange}
-            />
             {runnerSpawnError ? (
                 <div className="px-1 text-[13px] text-[var(--social-danger)]">
                     {t('newSession.runnerError', { error: runnerSpawnError })}
@@ -440,38 +436,61 @@ export function NewSession(props: {
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
             />
-            {experimentalSettings.previewEnabled ? (
-                <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
-                    <TextField
-                        id={previewUrlId}
-                        type="text"
-                        placeholder="http://localhost:3000"
-                        value={previewUrlInput}
-                        onChange={(event) => setPreviewUrlInput(event.target.value)}
-                        disabled={isFormDisabled}
-                    />
-                    {previewUrlHistory.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                            {previewUrlHistory.slice(0, 8).map((url) => (
-                                <SuggestionChip
-                                    key={url}
-                                    label={url}
+            <div className="flex flex-col gap-5">
+                <button
+                    type="button"
+                    aria-expanded={showAdvanced}
+                    onClick={() => setShowAdvanced((open) => !open)}
+                    className="flex items-center gap-1 self-start rounded-full px-1 py-0.5 text-[12px] font-medium text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]"
+                >
+                    {t('newSession.advanced')}
+                    <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                </button>
+                {showAdvanced ? (
+                    <div className="flex flex-col gap-5">
+                        <MachineSelector
+                            machines={props.machines}
+                            machineId={machineId}
+                            isLoading={props.isLoading}
+                            isDisabled={isFormDisabled}
+                            onChange={handleMachineChange}
+                        />
+                        {experimentalSettings.previewEnabled ? (
+                            <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
+                                <input
+                                    id={previewUrlId}
+                                    type="text"
+                                    placeholder="http://localhost:3000"
+                                    value={previewUrlInput}
+                                    onChange={(event) => setPreviewUrlInput(event.target.value)}
                                     disabled={isFormDisabled}
-                                    onClick={() => setPreviewUrlInput(url)}
+                                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                                 />
-                            ))}
-                        </div>
-                    ) : null}
-                </FormField>
-            ) : null}
-            <SessionTypeSelector
-                sessionType={sessionType}
-                worktreeName={worktreeName}
-                worktreeInputRef={worktreeInputRef}
-                isDisabled={isFormDisabled}
-                onSessionTypeChange={setSessionType}
-                onWorktreeNameChange={setWorktreeName}
-            />
+                                {previewUrlHistory.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                        {previewUrlHistory.slice(0, 8).map((url) => (
+                                            <SuggestionChip
+                                                key={url}
+                                                label={url}
+                                                disabled={isFormDisabled}
+                                                onClick={() => setPreviewUrlInput(url)}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : null}
+                            </FormField>
+                        ) : null}
+                        <SessionTypeSelector
+                            sessionType={sessionType}
+                            worktreeName={worktreeName}
+                            worktreeInputRef={worktreeInputRef}
+                            isDisabled={isFormDisabled}
+                            onSessionTypeChange={setSessionType}
+                            onWorktreeNameChange={setWorktreeName}
+                        />
+                    </div>
+                ) : null}
+            </div>
             <AgentSelector
                 agent={agent}
                 isDisabled={isFormDisabled}

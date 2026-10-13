@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { ReactNode, Ref } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -12,9 +12,9 @@ function SidebarToggleIcon(props: { className?: string }) {
 }
 
 /** Round icon button used in desktop pane headers. */
-export function DesktopIconButton(props: { label: string; onClick?: () => void; children: ReactNode; disabled?: boolean }) {
+export function DesktopIconButton(props: { label: string; onClick?: () => void; children: ReactNode; disabled?: boolean; buttonRef?: Ref<HTMLButtonElement> }) {
     return (
-        <IconButton size="sm" label={props.label} onClick={props.onClick} disabled={props.disabled}>
+        <IconButton ref={props.buttonRef} size="sm" label={props.label} onClick={props.onClick} disabled={props.disabled}>
             {props.children}
         </IconButton>
     )

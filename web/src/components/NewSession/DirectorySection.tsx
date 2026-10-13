@@ -1,9 +1,10 @@
-import { useId, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
-import { FormField, SuggestionChip } from '@/components/ui/FormControls'
-import { TextField } from '@/components/ui/TextField'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { FormField } from '@/components/ui/FormControls'
+import { ChevronDownIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
 /** "/Users/me/projects/app" → "~/projects/app", so chips show the part that differs. */
@@ -26,11 +27,23 @@ export function DirectorySection(props: {
 }) {
     const { t } = useTranslation()
     const id = useId()
+    const wrapperRef = useRef<HTMLDivElement>(null)
+    const [recentOpen, setRecentOpen] = useState(false)
+    const hasRecent = props.recentPaths.length > 0
+
+    useEffect(() => {
+        if (!recentOpen) return
+        const close = (event: PointerEvent) => {
+            if (!wrapperRef.current?.contains(event.target as Node)) setRecentOpen(false)
+        }
+        document.addEventListener('pointerdown', close)
+        return () => document.removeEventListener('pointerdown', close)
+    }, [recentOpen])
 
     return (
         <FormField label={t('newSession.directory')} htmlFor={id}>
-            <div className="relative">
-                <TextField
+            <div ref={wrapperRef} className="relative">
+                <input
                     id={id}
                     type="text"
                     placeholder={t('newSession.placeholder')}
@@ -40,7 +53,21 @@ export function DirectorySection(props: {
                     onFocus={props.onDirectoryFocus}
                     onBlur={props.onDirectoryBlur}
                     disabled={props.isDisabled}
+                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50${hasRecent ? ' pr-11' : ''}`}
                 />
+                {hasRecent ? (
+                    <button
+                        type="button"
+                        aria-label={t('newSession.recent')}
+                        aria-expanded={recentOpen}
+                        title={t('newSession.recent')}
+                        disabled={props.isDisabled}
+                        onClick={() => setRecentOpen((open) => !open)}
+                        className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-hover)] disabled:opacity-50"
+                    >
+                        <ChevronDownIcon className={`h-4 w-4 transition-transform ${recentOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                ) : null}
                 {props.suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">
                         <FloatingOverlay maxHeight={200}>
@@ -54,22 +81,6 @@ export function DirectorySection(props: {
                 )}
             </div>
 
-            {props.recentPaths.length > 0 && (
-                <div className="flex flex-col gap-1.5 pt-1">
-                    <span className="px-1 text-[12px] text-[var(--social-fg-subtle)]">{t('newSession.recent')}</span>
-                    <div className="flex flex-wrap gap-1.5">
-                        {props.recentPaths.map((path) => (
-                            <SuggestionChip
-                                key={path}
-                                label={shortenHomePath(path)}
-                                title={path}
-                                disabled={props.isDisabled}
-                                onClick={() => props.onPathClick(path)}
-                            />
-                        ))}
-                    </div>
-                </div>
-            )}
         </FormField>
     )
 }

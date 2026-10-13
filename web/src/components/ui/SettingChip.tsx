@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { BottomSheet, SheetOption, SheetSection } from '@/components/mobile/BottomSheet'
 import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
-import { CheckIcon, ChevronDownIcon } from '@/components/mobile/icons'
+import { CheckIcon, ChevronDownIcon, SwapIcon } from '@/components/mobile/icons'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
 
@@ -110,6 +110,23 @@ export function ToggleChip(props: { label: string; title?: string; pressed: bool
             )}
         >
             {props.label}
+        </button>
+    )
+}
+
+/** Two-state setting shown as its current value; each tap flips to the other one. */
+export function SwitchChip(props: { valueLabel: string; title: string; disabled?: boolean; onToggle: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={props.onToggle}
+            disabled={props.disabled}
+            aria-label={`${props.title} ${props.valueLabel}`}
+            title={props.title}
+            className={chipClass}
+        >
+            <span className="truncate">{props.valueLabel}</span>
+            <SwapIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
         </button>
     )
 }
