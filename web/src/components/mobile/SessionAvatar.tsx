@@ -1,4 +1,5 @@
 import { useMemo, type CSSProperties } from 'react'
+import { CountBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 type SessionLike = {
@@ -158,11 +159,7 @@ export function SessionAvatar(props: {
                 className="absolute"
                 style={{ left: inset, top: inset }}
             />
-            {badgeCount > 0 ? (
-                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]">
-                    {badgeCount > 99 ? '99+' : badgeCount}
-                </span>
-            ) : null}
+            <CountBadge count={badgeCount} className="absolute -right-1 -top-1" />
         </span>
     )
 }
