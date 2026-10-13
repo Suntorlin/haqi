@@ -47,7 +47,7 @@ import {
     VoiceCallBar,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
-import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_24_CLASS, HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { SettingChip, SwitchChip, ToggleChip } from '@/components/ui/SettingChip'
@@ -1157,7 +1157,7 @@ export function HappyComposer(props: {
                     <IconButton
                         size="sm"
                         label={t('composer.attachment.remove')}
-                        className={cn('h-6 w-6', HIT_AREA_CLASS)}
+                        className={cn('h-6 w-6', HIT_AREA_24_CLASS)}
                         onClick={() => {
                             handleRemoveDraftAttachment(attachment)
                         }}

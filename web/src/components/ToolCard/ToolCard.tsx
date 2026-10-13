@@ -23,7 +23,7 @@ import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtil
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { formatRunningAgentNames, formatTaskChildStateSummary, getRunningAgentsForTaskBlock, getTaskChildStateSummary } from '@/components/ToolCard/taskSummary'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -937,7 +937,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             size="sm"
                                             label={t('session.more')}
                                             onClick={openDiffDetail}
-                                            className={cn('h-7 w-7', HIT_AREA_CLASS)}
+                                            className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                                         >
                                             <DetailsIcon className="h-4 w-4" />
                                         </IconButton>
@@ -949,7 +949,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <IconButton
                                                 size="sm"
                                                 label={t('session.more')}
-                                                className={cn('h-7 w-7', HIT_AREA_CLASS)}
+                                                className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                                             >
                                                 <DetailsIcon className="h-4 w-4" />
                                             </IconButton>
