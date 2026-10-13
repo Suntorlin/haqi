@@ -20,9 +20,9 @@ function CliBtn(props: {
     onClick: () => void
 }) {
     const color = props.tone === 'allow'
-        ? 'text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/10'
+        ? 'text-[var(--app-badge-success-text)] border-[var(--app-badge-success-border)] hover:bg-[var(--app-badge-success-bg)]'
         : props.tone === 'deny'
-            ? 'text-red-400 border-red-400/40 hover:bg-red-400/10'
+            ? 'text-[var(--social-danger)] border-[var(--app-badge-error-border)] hover:bg-[var(--app-badge-error-bg)]'
             : 'text-[var(--app-link)] border-[var(--app-border)] hover:bg-[var(--app-subtle-bg)]'
 
     return (
@@ -57,7 +57,7 @@ export const CliPermission = memo(function CliPermission(props: {
 
     if (permission.status !== 'pending') {
         if ((permission.status === 'denied' || permission.status === 'canceled') && permission.reason) {
-            return <div className="ml-5 text-xs text-red-400 italic">denied: {permission.reason}</div>
+            return <div className="ml-5 text-xs text-[var(--social-danger)] italic">denied: {permission.reason}</div>
         }
         return null
     }
@@ -136,7 +136,7 @@ export const CliPermission = memo(function CliPermission(props: {
                     <CliBtn label="deny" tone="deny" loading={loading === 'deny'} disabled={busy} onClick={deny} />
                 </>
             )}
-            {error && <span className="text-xs text-red-400">{error}</span>}
+            {error && <span className="text-xs text-[var(--social-danger)]">{error}</span>}
         </div>
     )
 })
@@ -290,7 +290,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
             )}
             <div className="flex items-center gap-1.5 pt-0.5">
                 <CliBtn label={loading ? 'submitting…' : 'submit'} tone="allow" loading={loading} disabled={props.disabled || loading} onClick={submit} />
-                {error && <span className="text-xs text-red-400">{error}</span>}
+                {error && <span className="text-xs text-[var(--social-danger)]">{error}</span>}
             </div>
         </div>
     )
@@ -392,7 +392,7 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
             })}
             <div className="flex items-center gap-1.5 pt-0.5">
                 <CliBtn label={loading ? 'submitting…' : 'submit'} tone="allow" loading={loading} disabled={props.disabled || loading} onClick={submit} />
-                {error && <span className="text-xs text-red-400">{error}</span>}
+                {error && <span className="text-xs text-[var(--social-danger)]">{error}</span>}
             </div>
         </div>
     )

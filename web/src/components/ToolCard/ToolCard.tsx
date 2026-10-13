@@ -108,12 +108,12 @@ function ElapsedView(props: { from: number; active: boolean; signal?: ToolProgre
             {elapsed.toFixed(1)}s
             {signalAgeMs !== null && !stale && (
                 <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--social-success)]"
                     title={`Backend heartbeat ${Math.max(0, Math.round(signalAgeMs / 1000))}s ago`}
                 />
             )}
             {stale && (
-                <span className="text-amber-500" title="The backend stopped sending tool heartbeats">
+                <span className="text-[var(--app-badge-warning-text)]" title="The backend stopped sending tool heartbeats">
                     no signal {Math.round(signalAgeMs! / 1000)}s
                 </span>
             )}
@@ -140,15 +140,15 @@ function formatTaskChildLabel(child: ToolCallBlock, metadata: SessionMetadataSum
 
 function TaskStateIcon(props: { state: ToolCallBlock['tool']['state'] }) {
     if (props.state === 'completed') {
-        return <span className="text-emerald-600">✓</span>
+        return <span className="text-[var(--app-badge-success-text)]">✓</span>
     }
     if (props.state === 'error') {
-        return <span className="text-red-600">✕</span>
+        return <span className="text-[var(--social-danger)]">✕</span>
     }
     if (props.state === 'pending') {
-        return <span className="text-amber-600">🔐</span>
+        return <span className="text-[var(--app-badge-warning-text)]">🔐</span>
     }
-    return <span className="text-amber-600 animate-pulse">●</span>
+    return <span className="text-[var(--app-badge-warning-text)] animate-pulse">●</span>
 }
 
 function getTaskSummaryChildren(block: ToolCallBlock): { visible: ToolCallBlock[]; remaining: number } | null {
@@ -204,12 +204,12 @@ function renderTaskStateBadge(taskStateSummaryText: string | null, runningAgentN
     return (
         <div className="flex flex-wrap gap-1">
             {taskStateSummaryText ? (
-                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[12px] text-[var(--app-hint)]">
                     {taskStateSummaryText}
                 </span>
             ) : null}
             {runningAgentNames ? (
-                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-600">
+                <span className="rounded-full bg-[var(--app-badge-info-bg)] px-2 py-0.5 text-[12px] text-[var(--app-badge-info-text)]">
                     {runningAgentNames}
                 </span>
             ) : null}
@@ -365,9 +365,9 @@ function StatusIcon(props: { state: ToolCallBlock['tool']['state'] }) {
 }
 
 function statusColorClass(state: ToolCallBlock['tool']['state']): string {
-    if (state === 'completed') return 'text-emerald-600'
-    if (state === 'error') return 'text-red-600'
-    if (state === 'pending') return 'text-amber-600'
+    if (state === 'completed') return 'text-[var(--app-badge-success-text)]'
+    if (state === 'error') return 'text-[var(--social-danger)]'
+    if (state === 'pending') return 'text-[var(--app-badge-warning-text)]'
     return 'text-[var(--app-hint)]'
 }
 
@@ -388,11 +388,11 @@ function statusBadgeClass(
     permissionStatus?: string
 ): string {
     if (permissionStatus === 'pending') {
-        return 'bg-amber-500/10 text-amber-600'
+        return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
     }
-    if (state === 'completed') return 'bg-emerald-500/10 text-emerald-600'
-    if (state === 'error') return 'bg-red-500/10 text-red-600'
-    if (state === 'pending') return 'bg-amber-500/10 text-amber-600'
+    if (state === 'completed') return 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
+    if (state === 'error') return 'bg-[var(--app-badge-error-bg)] text-[var(--social-danger)]'
+    if (state === 'pending') return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
     return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
 }
 
@@ -649,7 +649,7 @@ function ToolCardInner(props: ToolCardProps) {
                     <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                 </div>
                 {compactDetail ? (
-                    <div className="mt-1 pl-4 text-[11px] text-[var(--app-hint)]">
+                    <div className="mt-1 pl-4 text-[12px] text-[var(--app-hint)]">
                         {compactDetail}
                     </div>
                 ) : null}
@@ -673,7 +673,7 @@ function ToolCardInner(props: ToolCardProps) {
                         : 'mt-3 max-h-[75vh]'
             )}>
                 <div>
-                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">
+                    <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">
                         {isQuestionToolWithAnswers ? t('tool.questionsAnswers') : t('tool.input')}
                     </div>
                     {FullToolView ? (
@@ -684,7 +684,7 @@ function ToolCardInner(props: ToolCardProps) {
                 </div>
                 {!isQuestionToolWithAnswers && !hideResultSection && (
                     <div>
-                        <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
+                        <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">{t('tool.result')}</div>
                         <ResultToolView block={props.block} metadata={props.metadata} />
                     </div>
                 )}
@@ -723,7 +723,7 @@ function ToolCardInner(props: ToolCardProps) {
                             >
                                 <BackIcon />
                             </button>
-                            <div className="min-w-0 truncate text-sm font-semibold text-[var(--app-fg)]">
+                            <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--app-fg)]">
                                 {toolTitle}
                             </div>
                         </div>
@@ -765,7 +765,7 @@ function ToolCardInner(props: ToolCardProps) {
                             >
                                 <BackIcon />
                             </button>
-                            <div className="min-w-0 truncate text-sm font-semibold text-[var(--app-fg)]">
+                            <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--app-fg)]">
                                 {toolTitle}
                             </div>
                         </div>
@@ -832,17 +832,17 @@ function ToolCardInner(props: ToolCardProps) {
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-xs font-medium leading-tight">
+                                        <div className="truncate text-xs font-semibold leading-tight">
                                             {toolTitle}
                                             {compactSummary ? (
-                                                <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                <span className="ml-1 font-mono text-[12px] text-[var(--app-hint)]">
                                                     - {compactSummary}
                                                 </span>
                                             ) : null}
                                         </div>
                                     </div>
                                     <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-semibold',
                                         statusBadgeToneClass
                                     )}>
                                         <StatusIcon state={props.block.tool.state} />
@@ -874,17 +874,17 @@ function ToolCardInner(props: ToolCardProps) {
                                                 {presentation.icon}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="truncate text-xs font-medium leading-tight">
+                                                <div className="truncate text-xs font-semibold leading-tight">
                                                     {toolTitle}
                                                     {compactSummary ? (
-                                                        <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                        <span className="ml-1 font-mono text-[12px] text-[var(--app-hint)]">
                                                             - {compactSummary}
                                                         </span>
                                                     ) : null}
                                                 </div>
                                             </div>
                                             <span className={cn(
-                                                'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                                'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-semibold',
                                                 statusBadgeToneClass
                                             )}>
                                                 <StatusIcon state={props.block.tool.state} />
@@ -920,17 +920,17 @@ function ToolCardInner(props: ToolCardProps) {
                                             {presentation.icon}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate text-xs font-medium leading-tight">
+                                            <div className="truncate text-xs font-semibold leading-tight">
                                                 {toolTitle}
                                                 {compactSummary ? (
-                                                    <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                    <span className="ml-1 font-mono text-[12px] text-[var(--app-hint)]">
                                                         - {compactSummary}
                                                     </span>
                                                 ) : null}
                                             </div>
                                         </div>
                                         <span className={cn(
-                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
+                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-semibold',
                                             statusBadgeToneClass
                                         )}>
                                             <StatusIcon state={props.block.tool.state} />
@@ -996,7 +996,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1041,7 +1041,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1086,7 +1086,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                                 {presentation.icon}
                                             </div>
-                                            <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                            <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                                 {toolTitle}
                                             </CardTitle>
                                         </div>
@@ -1109,7 +1109,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     ) : null}
                                     {toolName === 'Task' && taskStateSummaryText ? (
                                         <div className="flex flex-wrap gap-1">
-                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[12px] text-[var(--app-hint)]">
                                                 {taskStateSummaryText}
                                             </span>
                                         </div>
@@ -1138,11 +1138,11 @@ function ToolCardInner(props: ToolCardProps) {
                         ) : (
                             <div className={cn('flex flex-col', isCompact ? 'mt-2 gap-2' : 'mt-3 gap-3')}>
                                 <div>
-                                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.input')}</div>
+                                    <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">{t('tool.input')}</div>
                                     {renderToolInput(props.block)}
                                 </div>
                                 <div>
-                                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
+                                    <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">{t('tool.result')}</div>
                                     <ResultToolView block={props.block} metadata={props.metadata} />
                                 </div>
                             </div>
@@ -1150,11 +1150,11 @@ function ToolCardInner(props: ToolCardProps) {
                     ) : null}
 
                     {isQuestionTool && permission?.status === 'pending' ? (
-                        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
-                            <div className="text-xs font-medium text-[var(--app-hint)]">
+                        <div className="mt-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
+                            <div className="text-xs font-semibold text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>
-                            <div className="mt-1 text-sm text-[var(--app-fg)]">
+                            <div className="mt-1 text-[13px] text-[var(--app-fg)]">
                                 {t('tool.questionOverlay.inlineDescription')}
                             </div>
                         </div>

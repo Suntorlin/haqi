@@ -20,14 +20,14 @@ export function MessageStatusIndicator(props: {
 
     return (
         <span className="inline-flex items-center gap-1">
-            <span className="text-red-500">
+            <span className="text-[var(--social-danger)]">
                 <ErrorIcon />
             </span>
             {props.onRetry ? (
                 <button
                     type="button"
                     onClick={props.onRetry}
-                    className="text-xs text-blue-500 hover:underline"
+                    className="text-xs text-[var(--app-badge-info-text)] hover:underline"
                 >
                     Retry
                 </button>

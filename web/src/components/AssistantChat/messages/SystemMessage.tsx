@@ -29,13 +29,13 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
             : null
 
     return (
-        <div className={`mx-auto max-w-[88%] rounded-lg border px-3 py-2 sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
-            <div className={`flex items-center gap-2 text-xs font-medium ${textClass}`}>
+        <div className={`mx-auto max-w-[88%] rounded-xl border px-3 py-2 sm:max-w-[84%] lg:max-w-[76%] ${borderClass}`}>
+            <div className={`flex items-center gap-2 text-xs font-semibold ${textClass}`}>
                 <span className="shrink-0">⚠️</span>
                 <span>{text}</span>
             </div>
             {resetsAt ? (
-                <div className={`mt-1 text-[11px] opacity-75 ${textClass}`}>
+                <div className={`mt-1 text-[12px] opacity-75 ${textClass}`}>
                     {t('event.resetsAt', { time: formatUnixTimestamp(resetsAt) })}
                 </div>
             ) : null}
