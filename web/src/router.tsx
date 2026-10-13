@@ -21,6 +21,7 @@ import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } f
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon } from '@/components/mobile/icons'
+import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
 import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
@@ -121,12 +122,6 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
-function getTagChipClass(selected: boolean): string {
-    return `h-8 max-w-full shrink-0 truncate rounded-full border px-3.5 text-[13px] transition-colors ${selected
-        ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
-        : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]'}`
-}
-
 function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: () => void }) {
     const { tag, selected, onSelect } = props
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tag })
@@ -139,7 +134,7 @@ function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: (
             {...listeners}
             onClick={onSelect}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={`${getTagChipClass(selected)} cursor-grab select-none active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''}`}
+            className={`${tagChipClass(selected)} cursor-grab select-none active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''}`}
         >
             #{tag}
         </button>
@@ -461,11 +456,11 @@ function SessionsPage() {
                 />
             )}
             {sessionTags.length ? (
-                <div className="flex flex-wrap gap-2 px-5 pb-1 pt-1">
+                <div className="flex flex-wrap gap-1.5 px-5 pb-1 pt-0.5">
                     <button
                         type="button"
                         onClick={() => setSelectedSessionTag(null)}
-                        className={getTagChipClass(selectedSessionTag === null)}
+                        className={tagChipClass(selectedSessionTag === null)}
                     >
                         {t('sessions.tags.all')}
                     </button>
@@ -474,7 +469,7 @@ function SessionsPage() {
                             key={tag}
                             type="button"
                             onClick={() => setSelectedSessionTag(tag)}
-                            className={getTagChipClass(selectedSessionTag === tag)}
+                            className={tagChipClass(selectedSessionTag === tag)}
                         >
                             #{tag}
                         </button>
