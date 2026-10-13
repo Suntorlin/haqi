@@ -19,6 +19,8 @@ import { usePlatform } from '@/hooks/usePlatform'
 import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 
 export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
@@ -149,7 +151,7 @@ function ProcessReasoning() {
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
-                className="flex items-center gap-1.5 py-0.5 text-[13px] text-[var(--social-fg-muted)]"
+                className={cn('flex items-center gap-1.5 py-0.5 text-[13px] text-[var(--social-fg-muted)]', TEXT_HIT_AREA_CLASS)}
             >
                 <ChevronIcon className={cn('h-3 w-3 transition-transform', open ? 'rotate-90' : '')} />
                 {t('mobile.turn.reasoning')}
@@ -233,7 +235,7 @@ function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: b
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="social-card w-full min-w-0 rounded-[20px] rounded-tl-md px-4 py-3" role="status" aria-live="polite">
+        <div className="social-card w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3" role="status" aria-live="polite">
             <div className="flex min-w-0 items-center gap-2.5">
                 <span className="social-spinner shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--social-fg)]">{title}</span>
@@ -393,7 +395,7 @@ export function SocialAssistantMessage() {
                         {layout.answerIndices.length > 0 ? (
                             <div
                                 {...pressProps}
-                                className={cn('social-card w-fit min-w-0 max-w-full rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3', pressClass)}
+                                className={cn('social-card w-fit min-w-0 max-w-full rounded-2xl rounded-tl-md px-4 py-3 [&>*+*]:mt-3', pressClass)}
                             >
                                 {layout.answerIndices.map((index) => (
                                     <MessagePrimitive.PartByIndex key={index} index={index} components={ANSWER_COMPONENTS} />
@@ -402,7 +404,7 @@ export function SocialAssistantMessage() {
                         ) : (
                             <div
                                 {...pressProps}
-                                className={cn('social-card w-fit rounded-[20px] rounded-tl-md px-4 py-2.5 text-[15px] text-[var(--social-fg-muted)]', pressClass)}
+                                className={cn('social-card w-fit rounded-2xl rounded-tl-md px-4 py-2.5 text-[15px] text-[var(--social-fg-muted)]', pressClass)}
                             >
                                 {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
                             </div>
@@ -416,7 +418,7 @@ export function SocialAssistantMessage() {
                                         type="button"
                                         onClick={toggleProcess}
                                         aria-expanded={expanded}
-                                        className="flex w-fit items-center gap-1 transition-colors hover:text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent]"
+                                        className={cn('flex w-fit items-center gap-1 transition-colors hover:text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent]', TEXT_HIT_AREA_CLASS)}
                                     >
                                         {footer}
                                         <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
@@ -426,7 +428,7 @@ export function SocialAssistantMessage() {
                                     <button
                                         type="button"
                                         onClick={() => void copy(answerText)}
-                                        className="opacity-0 transition-opacity hover:text-[var(--social-fg-muted)] focus-visible:opacity-100 group-hover/turn:opacity-100"
+                                        className={cn('opacity-0 transition-opacity hover:text-[var(--social-fg-muted)] focus-visible:opacity-100 group-hover/turn:opacity-100', TEXT_HIT_AREA_CLASS)}
                                     >
                                         {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
                                     </button>
@@ -437,13 +439,14 @@ export function SocialAssistantMessage() {
                         {expanded ? (
                             <div ref={processRef} className="social-process animate-process-in ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
                                 {hiddenProcessCount > 0 ? (
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
                                         onClick={showEarlierSteps}
-                                        className="w-fit rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12px] text-[var(--social-fg-muted)]"
+                                        className={cn('h-7 w-fit px-3 text-[12px]', HIT_AREA_CLASS)}
                                     >
                                         {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
-                                    </button>
+                                    </Button>
                                 ) : null}
                                 {visibleProcessIndices.map((index) => (
                                     <div key={index} className="social-process-item min-w-0">
@@ -452,11 +455,11 @@ export function SocialAssistantMessage() {
                                 ))}
                                 <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
                                     {answerText ? (
-                                        <button type="button" onClick={() => void copy(answerText)}>
+                                        <button type="button" onClick={() => void copy(answerText)} className={TEXT_HIT_AREA_CLASS}>
                                             {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
                                         </button>
                                     ) : null}
-                                    <button type="button" onClick={() => collapseProcess('end')}>
+                                    <button type="button" onClick={() => collapseProcess('end')} className={TEXT_HIT_AREA_CLASS}>
                                         {t('mobile.turn.hideProcess')}
                                     </button>
                                 </div>
@@ -522,7 +525,7 @@ export function SocialUserMessage() {
                             <MessageStatusIndicator status={status} onRetry={onRetry} />
                         </div>
                     ) : null}
-                    <div className="social-bubble-self min-w-0 max-w-full rounded-[20px] rounded-br-md px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]">
+                    <div className="social-bubble-self min-w-0 max-w-full rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]">
                         {text.length > 0 ? <LazyRainbowText text={text} /> : null}
                         {hasAttachments && attachments ? <MessageAttachments attachments={attachments} /> : null}
                     </div>

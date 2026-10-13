@@ -43,7 +43,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                 const isPureTextQuestion = q.options.length === 0
 
                 return (
-                    <div key={q.id} className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                    <div key={q.id} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
                         {q.header ? (
                             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)]">
                                 {q.header}
@@ -57,14 +57,14 @@ export function RequestUserInputView(props: ToolViewProps) {
                         ) : null}
 
                         {answer?.isSkipped ? (
-                            <div className="mt-3 rounded-md border border-[var(--app-border)] px-2 py-2 text-[13px] text-[var(--app-hint)]">
+                            <div className="mt-3 rounded-xl border border-[var(--app-border)] px-2 py-2 text-[13px] text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : isPureTextQuestion ? (
                             // Pure text question - show the answer directly
                             hasAnswers && (answer?.otherAnswer || answer?.userNote) ? (
                                 <div className="mt-3">
-                                    <div className="rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2">
+                                    <div className="rounded-xl border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2">
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">●</span>
                                             <div className="min-w-0 flex-1">
@@ -88,7 +88,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                         <div
                                             key={optIdx}
                                             className={cn(
-                                                "rounded-md border px-2 py-2",
+                                                "rounded-xl border px-2 py-2",
                                                 isSelected
                                                     ? "border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)]"
                                                     : "border-[var(--app-border)]"
@@ -127,7 +127,7 @@ export function RequestUserInputView(props: ToolViewProps) {
 
                                 {/* Show user note if present */}
                                 {hasAnswers && answer?.userNote ? (
-                                    <div className="mt-2 rounded-md border border-[var(--app-badge-info-border)] bg-[var(--app-badge-info-bg)] px-2 py-2">
+                                    <div className="mt-2 rounded-xl border border-[var(--app-badge-info-border)] bg-[var(--app-badge-info-bg)] px-2 py-2">
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-xs text-[var(--app-badge-info-text)]">📝</span>
                                             <div className="min-w-0 flex-1">
@@ -141,7 +141,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                 ) : null}
 
                                 {hasAnswers && answer?.otherAnswer ? (
-                                    <div className="mt-2 rounded-md border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2">
+                                    <div className="mt-2 rounded-xl border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2">
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">●</span>
                                             <div className="min-w-0 flex-1">

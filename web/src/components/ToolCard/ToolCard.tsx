@@ -21,6 +21,9 @@ import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
 import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtils'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { IconButton } from '@/components/ui/IconButton'
+import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { formatRunningAgentNames, formatTaskChildStateSummary, getRunningAgentsForTaskBlock, getTaskChildStateSummary } from '@/components/ToolCard/taskSummary'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -383,17 +386,15 @@ function getToolStatusLabel(
     return t('tool.status.running')
 }
 
-function statusBadgeClass(
+function statusBadgeVariant(
     state: ToolCallBlock['tool']['state'],
     permissionStatus?: string
-): string {
-    if (permissionStatus === 'pending') {
-        return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
-    }
-    if (state === 'completed') return 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
-    if (state === 'error') return 'bg-[var(--app-badge-error-bg)] text-[var(--social-danger)]'
-    if (state === 'pending') return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+): 'warning' | 'success' | 'destructive' | 'default' {
+    if (permissionStatus === 'pending') return 'warning'
+    if (state === 'completed') return 'success'
+    if (state === 'error') return 'destructive'
+    if (state === 'pending') return 'warning'
+    return 'default'
 }
 
 function DetailsIcon(props: { className?: string }) {
@@ -493,7 +494,7 @@ function ToolCardInner(props: ToolCardProps) {
     const requiresInteraction = permission?.status === 'pending'
     const hideResultSection = toolName === 'CodexTurnChanges'
     const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status, t)
-    const statusBadgeToneClass = statusBadgeClass(props.block.tool.state, permission?.status)
+    const statusBadgeTone = statusBadgeVariant(props.block.tool.state, permission?.status)
     const [isExpanded, setIsExpanded] = useState(() => (isCompact ? requiresInteraction : true))
     const [hasUserToggledExpand, setHasUserToggledExpand] = useState(false)
     const showCardBody = hasBody && (!isCompact || isExpanded) && !compactRowOpensDetail
@@ -635,7 +636,7 @@ function ToolCardInner(props: ToolCardProps) {
         return (
             <div
                 className={cn(
-                    'rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
+                    'rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
                     isCompact ? 'px-2 py-1' : 'px-2.5 py-1.5'
                 )}
             >
@@ -715,14 +716,9 @@ function ToolCardInner(props: ToolCardProps) {
                 <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
                     <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={closeTurnChangesDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                aria-label="Back"
-                            >
+                            <IconButton label="Back" onClick={closeTurnChangesDetail}>
                                 <BackIcon />
-                            </button>
+                            </IconButton>
                             <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--app-fg)]">
                                 {toolTitle}
                             </div>
@@ -757,14 +753,9 @@ function ToolCardInner(props: ToolCardProps) {
                 <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
                     <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={closeDiffDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                aria-label="Back"
-                            >
+                            <IconButton label="Back" onClick={closeDiffDetail}>
                                 <BackIcon />
-                            </button>
+                            </IconButton>
                             <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--app-fg)]">
                                 {toolTitle}
                             </div>
@@ -820,6 +811,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 type="button"
                                 className={cn(
                                     'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                     suppressFocusRing && 'focus-visible:ring-0'
                                 )}
                                 onClick={openTurnChangesDetail}
@@ -828,7 +820,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 onBlur={onTriggerBlur}
                             >
                                 <div className="flex items-center gap-2">
-                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -841,13 +833,10 @@ function ToolCardInner(props: ToolCardProps) {
                                             ) : null}
                                         </div>
                                     </div>
-                                    <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-semibold',
-                                        statusBadgeToneClass
-                                    )}>
+                                    <Badge variant={statusBadgeTone}>
                                         <StatusIcon state={props.block.tool.state} />
                                         {statusLabel}
-                                    </span>
+                                    </Badge>
                                     <span className="shrink-0 text-[var(--app-hint)]">
                                         <DetailsIcon className="h-3.5 w-3.5" />
                                     </span>
@@ -863,6 +852,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         type="button"
                                         className={cn(
                                             'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                             suppressFocusRing && 'focus-visible:ring-0'
                                         )}
                                         onPointerDown={onTriggerPointerDown}
@@ -870,7 +860,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         onBlur={onTriggerBlur}
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                            <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                                 {presentation.icon}
                                             </div>
                                             <div className="min-w-0 flex-1">
@@ -883,13 +873,10 @@ function ToolCardInner(props: ToolCardProps) {
                                                     ) : null}
                                                 </div>
                                             </div>
-                                            <span className={cn(
-                                                'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-semibold',
-                                                statusBadgeToneClass
-                                            )}>
+                                            <Badge variant={statusBadgeTone}>
                                                 <StatusIcon state={props.block.tool.state} />
                                                 {statusLabel}
-                                            </span>
+                                            </Badge>
                                             <span className="shrink-0 text-[var(--app-hint)]">
                                                 <DetailsIcon className="h-3.5 w-3.5" />
                                             </span>
@@ -904,6 +891,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     type="button"
                                     className={cn(
                                         'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                         suppressFocusRing && 'focus-visible:ring-0'
                                     )}
                                     onClick={() => {
@@ -916,7 +904,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     onBlur={onTriggerBlur}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                        <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -929,13 +917,10 @@ function ToolCardInner(props: ToolCardProps) {
                                                 ) : null}
                                             </div>
                                         </div>
-                                        <span className={cn(
-                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[12px] font-semibold',
-                                            statusBadgeToneClass
-                                        )}>
+                                        <Badge variant={statusBadgeTone}>
                                             <StatusIcon state={props.block.tool.state} />
                                             {statusLabel}
-                                        </span>
+                                        </Badge>
                                         {hasBody ? (
                                             <span className={cn(
                                                 'shrink-0 text-[var(--app-hint)] transition-transform',
@@ -948,28 +933,26 @@ function ToolCardInner(props: ToolCardProps) {
                                 </button>
                                 {isDiffTool ? (
                                     <>
-                                        <button
-                                            type="button"
-                                            className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
-                                            title={t('session.more')}
-                                            aria-label={t('session.more')}
+                                        <IconButton
+                                            size="sm"
+                                            label={t('session.more')}
                                             onClick={openDiffDetail}
+                                            className={cn('h-7 w-7', HIT_AREA_CLASS)}
                                         >
                                             <DetailsIcon className="h-4 w-4" />
-                                        </button>
+                                        </IconButton>
                                         {renderDiffDetailLayer()}
                                     </>
                                 ) : (
                                     <Dialog>
                                         <DialogTrigger asChild>
-                                            <button
-                                                type="button"
-                                                className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
-                                                title={t('session.more')}
-                                                aria-label={t('session.more')}
+                                            <IconButton
+                                                size="sm"
+                                                label={t('session.more')}
+                                                className={cn('h-7 w-7', HIT_AREA_CLASS)}
                                             >
                                                 <DetailsIcon className="h-4 w-4" />
-                                            </button>
+                                            </IconButton>
                                         </DialogTrigger>
                                         {renderDialogContent()}
                                     </Dialog>
@@ -983,6 +966,7 @@ function ToolCardInner(props: ToolCardProps) {
                             type="button"
                             className={cn(
                                 'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                 suppressFocusRing && 'focus-visible:ring-0'
                             )}
                             onClick={openTurnChangesDetail}
@@ -1028,6 +1012,7 @@ function ToolCardInner(props: ToolCardProps) {
                             type="button"
                             className={cn(
                                 'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                 suppressFocusRing && 'focus-visible:ring-0'
                             )}
                             onClick={openDiffDetail}
@@ -1074,6 +1059,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 type="button"
                                 className={cn(
                                     'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                     suppressFocusRing && 'focus-visible:ring-0'
                                 )}
                                 onPointerDown={onTriggerPointerDown}
@@ -1150,7 +1136,7 @@ function ToolCardInner(props: ToolCardProps) {
                     ) : null}
 
                     {isQuestionTool && permission?.status === 'pending' ? (
-                        <div className="mt-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
+                        <div className="mt-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
                             <div className="text-xs font-semibold text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>

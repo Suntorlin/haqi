@@ -2,6 +2,10 @@ import { memo, useMemo, useState } from 'react'
 import type { ChatToolCall } from '@/chat/types'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { Spinner } from '@/components/Spinner'
+import { Button } from '@/components/ui/button'
+import { Chip } from '@/components/ui/Chip'
+import { TextField } from '@/components/ui/TextField'
+import { cn } from '@/lib/utils'
 import { getAskUserQuestionAnswerKey, isAskUserQuestionToolName, parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
 import {
     isRequestUserInputToolName,
@@ -20,21 +24,22 @@ function CliBtn(props: {
     onClick: () => void
 }) {
     const color = props.tone === 'allow'
-        ? 'text-[var(--app-badge-success-text)] border-[var(--app-badge-success-border)] hover:bg-[var(--app-badge-success-bg)]'
+        ? 'text-[var(--app-badge-success-text)] border-[var(--app-badge-success-border)] hover:bg-[var(--app-badge-success-bg)] hover:text-[var(--app-badge-success-text)]'
         : props.tone === 'deny'
-            ? 'text-[var(--social-danger)] border-[var(--app-badge-error-border)] hover:bg-[var(--app-badge-error-bg)]'
-            : 'text-[var(--app-link)] border-[var(--app-border)] hover:bg-[var(--app-subtle-bg)]'
+            ? 'text-[var(--social-danger)] border-[var(--app-badge-error-border)] hover:bg-[var(--app-badge-error-bg)] hover:text-[var(--social-danger)]'
+            : 'text-[var(--social-fg)] border-[var(--social-border)] hover:bg-[var(--social-hover)]'
 
     return (
-        <button
-            type="button"
-            className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 disabled:pointer-events-none ${color}`}
+        <Button
+            variant="outline"
+            size="sm"
+            className={cn('h-8 gap-1 px-3 text-[13px]', color)}
             disabled={props.disabled}
             onClick={props.onClick}
         >
             {props.loading && <Spinner size="sm" label={null} className="h-3 w-3 text-current" />}
             {props.label}
-        </button>
+        </Button>
     )
 }
 
@@ -228,14 +233,14 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
             {questions.length === 0 ? (
                 <div className="space-y-1">
                     <span className="text-xs text-[var(--app-badge-info-text)]">? Input requested</span>
-                    <input
+                    <TextField
                         type="text"
                         value={fallbackText}
                         onChange={e => setFallbackText(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') submit() }}
                         disabled={props.disabled || loading}
                         placeholder="Type your answer…"
-                        className="block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                        wrapperClassName="max-w-md"
                     />
                 </div>
             ) : (
@@ -247,42 +252,34 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                             {q.options.map((opt, optIdx) => {
                                 const selected = (selectedByQ[qIdx] ?? []).includes(optIdx)
                                 return (
-                                    <button
+                                    <Chip
                                         key={optIdx}
-                                        type="button"
                                         onClick={() => toggle(qIdx, optIdx)}
                                         disabled={props.disabled || loading}
-                                        className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
-                                            ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                                            : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                        }`}
+                                        selected={selected}
                                         title={opt.description ?? undefined}
                                     >
                                         {q.multiSelect ? (selected ? '☑ ' : '☐ ') : (selected ? '● ' : '○ ')}
                                         {opt.label}
-                                    </button>
+                                    </Chip>
                                 )
                             })}
-                            <button
-                                type="button"
+                            <Chip
                                 onClick={() => toggleOther(qIdx)}
                                 disabled={props.disabled || loading}
-                                className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${otherSelectedByQ[qIdx]
-                                    ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                                    : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                }`}
+                                selected={otherSelectedByQ[qIdx] ?? false}
                             >
                                 other
-                            </button>
+                            </Chip>
                         </div>
                         {otherSelectedByQ[qIdx] && (
-                            <input
+                            <TextField
                                 type="text"
                                 value={otherTextByQ[qIdx] ?? ''}
                                 onChange={e => setOtherTextByQ(prev => { const n = prev.slice(); n[qIdx] = e.target.value; return n })}
                                 disabled={props.disabled || loading}
                                 placeholder="Type your answer…"
-                                className="mt-0.5 block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                                wrapperClassName="max-w-md"
                             />
                         )}
                     </div>
@@ -361,31 +358,27 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
                                 {q.options.map((opt, i) => {
                                     const selected = state?.selected === opt.label
                                     return (
-                                        <button
+                                        <Chip
                                             key={i}
-                                            type="button"
                                             onClick={() => select(q.id, opt.label)}
                                             disabled={props.disabled || loading}
-                                            className={`inline-flex items-center rounded border px-2 py-0.5 text-xs transition-colors disabled:opacity-40 ${selected
-                                                ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                            }`}
+                                            selected={selected}
                                             title={opt.description ?? undefined}
                                         >
                                             {selected ? '● ' : '○ '}{opt.label}
-                                        </button>
+                                        </Chip>
                                     )
                                 })}
                             </div>
                         )}
-                        <input
+                        <TextField
                             type="text"
                             value={state?.userNote ?? ''}
                             onChange={e => updateNote(q.id, e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') submit() }}
                             disabled={props.disabled || loading}
                             placeholder={q.options.length > 0 ? 'Additional note (optional)…' : 'Type your answer…'}
-                            className="mt-0.5 block w-full max-w-md rounded border border-[var(--app-border)] bg-transparent px-2 py-1 text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                            wrapperClassName="max-w-md"
                         />
                     </div>
                 )

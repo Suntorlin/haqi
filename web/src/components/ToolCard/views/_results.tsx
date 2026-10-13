@@ -10,6 +10,7 @@ import { parseUnifiedDiff } from '@/lib/gitDiff'
 import { ChecklistList, extractTodoChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
 import { useTranslation } from '@/lib/use-translation'
+import { Chip } from '@/components/ui/Chip'
 
 const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
@@ -695,23 +696,18 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
 
             <div className="flex flex-wrap gap-1">
                 {collab.entries.map((entry) => (
-                    <button
+                    <Chip
                         key={entry.agentId}
-                        type="button"
-                        className={`rounded border px-2 py-1 text-xs transition-colors ${
-                            selected?.agentId === entry.agentId
-                                ? 'border-[var(--app-link)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)]'
-                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)]'
-                        }`}
+                        selected={selected?.agentId === entry.agentId}
                         onClick={() => setSelectedAgentId(entry.agentId)}
                     >
                         {entry.agentId.slice(0, 8)}
-                    </button>
+                    </Chip>
                 ))}
             </div>
 
             {selected ? (
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
+                <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
                     <div className={`font-semibold ${collabStatusTone(selected.status)}`}>
                         {selected.status ?? 'unknown'}
                     </div>
@@ -724,7 +720,7 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {collab.prompt ? (
-                <div className="rounded-md border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
+                <div className="rounded-xl border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
                     <div className="mb-1 font-semibold uppercase tracking-wide">prompt</div>
                     <div className="break-words text-[var(--app-fg)]">{collab.prompt}</div>
                 </div>
@@ -959,11 +955,11 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {previewUrl ? (
-                <div className="overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
+                <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
                     <img
                         src={previewUrl}
                         alt={altText}
-                        className="mx-auto max-h-[420px] max-w-full rounded object-contain"
+                        className="mx-auto max-h-[420px] max-w-full rounded-md object-contain"
                     />
                 </div>
             ) : loading ? (
