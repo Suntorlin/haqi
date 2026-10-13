@@ -47,7 +47,7 @@ import {
     VoiceCallBar,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
-import { SettingChip, ToggleChip } from '@/components/ui/SettingChip'
+import { SettingChip, SwitchChip, ToggleChip } from '@/components/ui/SettingChip'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
@@ -1228,11 +1228,11 @@ export function HappyComposer(props: {
                 />
             ) : null}
             {supportsQueueControls && onCodexSendModeChange ? (
-                <SettingChip
+                <SwitchChip
                     title={t('mobile.composer.sendMode')}
                     valueLabel={t('composer.chip.sendMode', { value: optionLabel(sendModeChoices, codexSendMode) })}
                     disabled={controlsDisabled}
-                    group={{ options: sendModeChoices, value: codexSendMode, onChange: (mode) => handleCodexSendModeChange(mode) }}
+                    onToggle={() => handleCodexSendModeChange(codexSendMode === 'queue' ? 'direct' : 'queue')}
                 />
             ) : null}
             {supportsQueueControls && onCodexPlanModeChange ? (

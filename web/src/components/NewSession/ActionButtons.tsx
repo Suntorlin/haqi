@@ -11,7 +11,7 @@ export function ActionButtons(props: {
     const { t } = useTranslation()
 
     return (
-        <div className="flex justify-end gap-2 pt-1">
+        <div className="flex justify-center gap-3 pt-1">
             <Button
                 type="button"
                 variant="secondary"
