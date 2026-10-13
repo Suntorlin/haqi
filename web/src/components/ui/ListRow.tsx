@@ -31,7 +31,7 @@ export function ListRow(props: {
     'aria-expanded'?: boolean
     'aria-haspopup'?: AriaAttributes['aria-haspopup']
 }) {
-    const text = props.wrap ? 'block whitespace-normal break-words' : 'block truncate'
+    const text = props.wrap ? 'block whitespace-normal break-words leading-snug' : 'block truncate'
     const content = (
         <>
             {props.icon ? <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[var(--social-fg-muted)]">{props.icon}</span> : null}
@@ -39,7 +39,7 @@ export function ListRow(props: {
                 <span className={cn(text, 'text-[15px]', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>{props.title}</span>
                 {props.subtitle ? <span className={cn(text, 'mt-0.5 text-[13px] text-[var(--social-fg-muted)]')}>{props.subtitle}</span> : null}
             </span>
-            {props.trailing ? <span className="shrink-0 text-[14px] text-[var(--social-fg-muted)]">{props.trailing}</span> : null}
+            {props.trailing ? <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">{props.trailing}</span> : null}
             {props.onClick ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}
         </>
     )
