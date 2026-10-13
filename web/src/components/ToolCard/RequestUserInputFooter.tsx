@@ -18,7 +18,7 @@ import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 function SelectionMark(props: { checked: boolean }) {
     const mark = props.checked ? '●' : '○'
     return (
-        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--app-hint)]">
+        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--social-fg-muted)]">
             {mark}
         </span>
     )
@@ -35,17 +35,17 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
-                props.checked ? 'bg-[var(--app-subtle-bg)]' : null
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
+                props.checked ? 'bg-[var(--social-hover)]' : null
             )}
             disabled={props.disabled}
             onClick={props.onClick}
         >
             <SelectionMark checked={props.checked} />
             <span className="min-w-0 flex-1">
-                <div className="font-semibold text-[var(--app-fg)] break-words">{props.title}</div>
+                <div className="font-semibold text-[var(--social-fg)] break-words">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                    <div className="mt-0.5 text-xs text-[var(--social-fg-muted)] break-words">
                         {props.description}
                     </div>
                 ) : null}
@@ -183,14 +183,14 @@ export function RequestUserInputFooter(props: {
     const isPureTextQuestion = currentQuestion && currentQuestion.options.length === 0
 
     return (
-        <div className="mt-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+        <div className="mt-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
                         <Badge variant="default">
                             {t('tool.question')}
                         </Badge>
-                        <span className="font-mono text-xs text-[var(--app-hint)]">
+                        <span className="font-mono text-xs text-[var(--social-fg-muted)]">
                             [{clampedStep + 1}/{total}]
                         </span>
                     </div>
@@ -206,7 +206,7 @@ export function RequestUserInputFooter(props: {
             {currentQuestion ? (
                 <div className="mt-3">
                     {currentQuestion.question ? (
-                        <div className="text-[15px] text-[var(--app-fg)] break-words">
+                        <div className="text-[15px] text-[var(--social-fg)] break-words">
                             {currentQuestion.question}
                         </div>
                     ) : null}
@@ -241,7 +241,7 @@ export function RequestUserInputFooter(props: {
 
                             {/* User note input - always shown for questions with options */}
                             <div className="mt-3">
-                                <div className="text-xs text-[var(--app-hint)] mb-1">
+                                <div className="text-xs text-[var(--social-fg-muted)] mb-1">
                                     {t('tool.requestUserInput.noteLabel')}
                                 </div>
                                 <textarea
@@ -292,7 +292,7 @@ export function RequestUserInputFooter(props: {
                         >
                             {loading ? (
                                 <>
-                                    <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                    <Spinner size="sm" label={null} className="text-[var(--social-primary-fg)]" />
                                     {t('tool.submitting')}
                                 </>
                             ) : (

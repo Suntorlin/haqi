@@ -43,21 +43,21 @@ export function RequestUserInputView(props: ToolViewProps) {
                 const isPureTextQuestion = q.options.length === 0
 
                 return (
-                    <div key={q.id} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                    <div key={q.id} className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
                         {q.header ? (
-                            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                 {q.header}
                             </div>
                         ) : null}
 
                         {q.question ? (
-                            <div className="text-[13px] text-[var(--app-fg)] break-words">
+                            <div className="text-[13px] text-[var(--social-fg)] break-words">
                                 {q.question}
                             </div>
                         ) : null}
 
                         {answer?.isSkipped ? (
-                            <div className="mt-3 rounded-xl border border-[var(--app-border)] px-2 py-2 text-[13px] text-[var(--app-hint)]">
+                            <div className="mt-3 rounded-xl border border-[var(--social-border)] px-2 py-2 text-[13px] text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : isPureTextQuestion ? (
@@ -91,7 +91,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                                 "rounded-xl border px-2 py-2",
                                                 isSelected
                                                     ? "border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)]"
-                                                    : "border-[var(--app-border)]"
+                                                    : "border-[var(--social-border)]"
                                             )}
                                         >
                                             <div className="flex items-start gap-2">
@@ -100,7 +100,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                                         "shrink-0 text-[13px]",
                                                         isSelected
                                                             ? "text-[var(--app-badge-success-text)]"
-                                                            : "text-[var(--app-hint)]"
+                                                            : "text-[var(--social-fg-muted)]"
                                                     )}>
                                                         {getSelectionMark(isSelected)}
                                                     </span>
@@ -110,12 +110,12 @@ export function RequestUserInputView(props: ToolViewProps) {
                                                         "text-[13px] break-words",
                                                         isSelected
                                                             ? "text-[var(--app-badge-success-text)] font-semibold"
-                                                            : "text-[var(--app-fg)]"
+                                                            : "text-[var(--social-fg)]"
                                                     )}>
                                                         {opt.label}
                                                     </div>
                                                     {opt.description ? (
-                                                        <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                                                        <div className="mt-0.5 text-xs text-[var(--social-fg-muted)] break-words">
                                                             {opt.description}
                                                         </div>
                                                     ) : null}
@@ -131,7 +131,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-xs text-[var(--app-badge-info-text)]">📝</span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-xs text-[var(--app-hint)]">{t('tool.questionOverlay.noteValueLabel')}</div>
+                                                <div className="text-xs text-[var(--social-fg-muted)]">{t('tool.questionOverlay.noteValueLabel')}</div>
                                                 <div className="text-[13px] text-[var(--app-badge-info-text)] break-words">
                                                     {answer.userNote}
                                                 </div>
@@ -145,7 +145,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                         <div className="flex items-start gap-2">
                                             <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">●</span>
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-xs text-[var(--app-hint)]">{t('tool.questionOverlay.otherValueLabel')}</div>
+                                                <div className="text-xs text-[var(--social-fg-muted)]">{t('tool.questionOverlay.otherValueLabel')}</div>
                                                 <div className="text-[13px] text-[var(--app-badge-success-text)] font-semibold break-words">
                                                     {q.isSecret ? maskSecretValue(answer.otherAnswer) : answer.otherAnswer}
                                                 </div>

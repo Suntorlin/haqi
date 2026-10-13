@@ -151,7 +151,7 @@ export function DesktopNavRail() {
     }
 
     return (
-        <nav className="flex h-full w-[72px] shrink-0 flex-col items-center border-r border-[var(--social-border)] bg-[var(--app-bg)] pb-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+        <nav className="flex h-full w-[72px] shrink-0 flex-col items-center border-r border-[var(--social-border)] bg-[var(--social-surface)] pb-4 pt-[calc(1rem+env(safe-area-inset-top))]">
             <button
                 type="button"
                 onClick={() => navigate({ to: '/sessions' })}

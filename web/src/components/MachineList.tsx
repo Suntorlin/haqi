@@ -13,7 +13,7 @@ export function MachineList(props: {
 }) {
     return (
         <div className="flex flex-col gap-3 p-3">
-            <div className="text-xs text-[var(--app-hint)]">
+            <div className="text-xs text-[var(--social-fg-muted)]">
                 {props.machines.length} online
             </div>
 

@@ -33,7 +33,7 @@ Single source: `web/src/index.css`. `:root` = light, `[data-theme="dark"]` = dar
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--social-surface` | `#ffffff` | `#09090b` | Page / panel background (`--app-bg` aliases it) |
+| `--social-surface` | `#ffffff` | `#09090b` | Page / panel background |
 | `--social-muted` | `#f4f4f5` | `#1c1c1f` | Secondary fill: pill inputs, segmented track, secondary buttons |
 | `--social-hover` | `#f8f8f9` | `#141416` | Hover / grouped-list background |
 | `--social-border` | `#e4e4e7` | `#27272a` | Borders, outlines |
@@ -48,11 +48,11 @@ Single source: `web/src/index.css`. `:root` = light, `[data-theme="dark"]` = dar
 | `--social-warning` | `#f59e0b` | `#fbbf24` | Warning |
 | `--social-bar-bg` | `rgba(255,255,255,.86)` | `rgba(9,9,11,.86)` | Translucent header / tab bar (with blur) |
 
-Status tints (soft fill + text), used by `Badge` and notices: `--app-badge-{info,success,warning,error}-{bg,text,border}`.
+Status tints (soft fill + text), used by `Badge` and notices: `--app-badge-{info,success,warning,error}-{bg,text,border}` (domain tokens, kept under the `--app-` prefix).
 
 ### 2.2 Aliases and domain tokens
 
-- `--app-*` (`bg fg hint link border divider subtle-bg secondary-bg button button-text banner-*`) are **aliases** of `--social-*`. Kept so older components follow the theme; new code should use `--social-*`. Target: delete the aliases once nothing references them.
+- The old `--app-*` aliases (`bg fg hint link border divider subtle-bg secondary-bg button banner-*`) are **removed**. Use `--social-*` only. If JS reads a token (e.g. the terminal theme) read the `--social-*` name.
 - Domain tokens, not part of the generic scale: `--app-code-bg`, `--app-inline-code-bg`, `--app-diff-*` (diff view), `--app-git-*` (git status colours), `--app-scrollbar-*`, `--cli-*` (terminal-style CLI messages), `--app-font-scale` (user font size, 0.8-1.2).
 
 ### 2.3 Radius (only these)

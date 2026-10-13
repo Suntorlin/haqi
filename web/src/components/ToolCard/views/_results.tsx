@@ -166,7 +166,7 @@ function ResultNoteText(props: { kind: ResultNoteKind }) {
 /** Muted one-liner shown instead of a result body (done / no output / waiting / running). */
 function ResultNote(props: { kind: ResultNoteKind }) {
     const { t } = useTranslation()
-    return <div className="text-[13px] text-[var(--app-hint)]">{t(`tool.result.${props.kind}`)}</div>
+    return <div className="text-[13px] text-[var(--social-fg-muted)]">{t(`tool.result.${props.kind}`)}</div>
 }
 
 function RawJsonDevOnly(props: { value: unknown }) {
@@ -175,7 +175,7 @@ function RawJsonDevOnly(props: { value: unknown }) {
 
     return (
         <details className="mt-3">
-            <summary className="cursor-pointer text-xs font-semibold text-[var(--app-hint)]">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--social-fg-muted)]">
                 Raw JSON
             </summary>
             <div className="mt-2">
@@ -433,7 +433,7 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
         <>
             <div className="flex flex-col gap-1">
                 {lines.map((line) => (
-                    <div key={line} className="text-[13px] font-mono text-[var(--app-fg)] break-all">
+                    <div key={line} className="text-[13px] font-mono text-[var(--social-fg)] break-all">
                         {line}
                     </div>
                 ))}
@@ -456,7 +456,7 @@ const ReadResultView: ToolViewComponent = (props: ToolViewProps) => {
         return (
             <>
                 {path ? (
-                    <div className="mb-2 text-xs text-[var(--app-hint)] font-mono break-all">
+                    <div className="mb-2 text-xs text-[var(--social-fg-muted)] font-mono break-all">
                         {basename(path)}
                     </div>
                 ) : null}
@@ -496,7 +496,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     const text = extractTextFromResult(result)
     if (typeof text === 'string' && text.trim().length > 0) {
-        const className = state === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--app-fg)]'
+        const className = state === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]'
         return (
             <>
                 <div className={`text-[13px] ${className}`}>
@@ -509,7 +509,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-[13px] text-[var(--app-hint)]">
+            <div className="text-[13px] text-[var(--social-fg-muted)]">
                 <ResultNoteText kind={state === 'completed' ? 'done' : 'empty'} />
             </div>
             <RawJsonDevOnly value={result} />
@@ -658,10 +658,10 @@ function extractCollabAgentEntries(block: ToolViewProps['block']): {
 }
 
 function collabStatusTone(status: string | null): string {
-    if (!status) return 'text-[var(--app-hint)]'
+    if (!status) return 'text-[var(--social-fg-muted)]'
     const normalized = status.toLowerCase()
     if (normalized.includes('running') || normalized.includes('progress')) {
-        return 'text-[var(--app-link)]'
+        return 'text-[var(--social-fg)]'
     }
     if (normalized.includes('complete') || normalized.includes('done')) {
         return 'text-[var(--app-badge-success-text)]'
@@ -669,7 +669,7 @@ function collabStatusTone(status: string | null): string {
     if (normalized.includes('error') || normalized.includes('fail')) {
         return 'text-[var(--social-danger)]'
     }
-    return 'text-[var(--app-hint)]'
+    return 'text-[var(--social-fg-muted)]'
 }
 
 const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
@@ -689,7 +689,7 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
     return (
         <div className="flex flex-col gap-2">
             {collab.senderId ? (
-                <div className="text-xs text-[var(--app-hint)]">
+                <div className="text-xs text-[var(--social-fg-muted)]">
                     sender: <span className="font-mono break-all">{collab.senderId}</span>
                 </div>
             ) : null}
@@ -707,12 +707,12 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
             </div>
 
             {selected ? (
-                <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
+                <div className="rounded-xl border border-[var(--social-border)] bg-[var(--social-hover)] p-2 text-xs">
                     <div className={`font-semibold ${collabStatusTone(selected.status)}`}>
                         {selected.status ?? 'unknown'}
                     </div>
                     {selected.message ? (
-                        <div className="mt-1 break-words text-[var(--app-fg)]">
+                        <div className="mt-1 break-words text-[var(--social-fg)]">
                             {selected.message}
                         </div>
                     ) : null}
@@ -720,9 +720,9 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {collab.prompt ? (
-                <div className="rounded-xl border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
+                <div className="rounded-xl border border-[var(--social-border)] p-2 text-xs text-[var(--social-fg-muted)]">
                     <div className="mb-1 font-semibold uppercase tracking-wide">prompt</div>
-                    <div className="break-words text-[var(--app-fg)]">{collab.prompt}</div>
+                    <div className="break-words text-[var(--social-fg)]">{collab.prompt}</div>
                 </div>
             ) : null}
         </div>
@@ -762,8 +762,8 @@ function extractTodos(input: unknown, result: unknown): TodoItem[] {
 
 function todoTone(todo: TodoItem): string {
     if (todo.status === 'completed') return 'text-[var(--app-badge-success-text)] line-through'
-    if (todo.status === 'in_progress') return 'text-[var(--app-link)]'
-    return 'text-[var(--app-hint)]'
+    if (todo.status === 'in_progress') return 'text-[var(--social-fg)]'
+    return 'text-[var(--social-fg-muted)]'
 }
 
 function todoIcon(todo: TodoItem): string {
@@ -955,7 +955,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {previewUrl ? (
-                <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
+                <div className="overflow-hidden rounded-md border border-[var(--social-border)] bg-[var(--social-hover)] p-1">
                     <img
                         src={previewUrl}
                         alt={altText}
@@ -963,7 +963,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
                     />
                 </div>
             ) : loading ? (
-                <div className="text-[13px] text-[var(--app-hint)]">Loading image…</div>
+                <div className="text-[13px] text-[var(--social-fg-muted)]">Loading image…</div>
             ) : errorMessage ? (
                 <div className="text-[13px] text-[var(--social-danger)]">{errorMessage}</div>
             ) : (
@@ -986,7 +986,7 @@ const GenericResultView: ToolViewComponent = (props: ToolViewProps) => {
         if (parsed) {
             return (
                 <>
-                    <div className="text-xs text-[var(--app-hint)] mb-2">
+                    <div className="text-xs text-[var(--social-fg-muted)] mb-2">
                         {parsed.exitCode !== null && `Exit code: ${parsed.exitCode}`}
                         {parsed.exitCode !== null && parsed.wallTime && ' · '}
                         {parsed.wallTime && `Wall time: ${parsed.wallTime}`}

@@ -48,7 +48,7 @@ export function CountBadge({ count, max = 99, className }: { count: number; max?
     return (
         <span
             className={cn(
-                'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]',
+                'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--social-surface)]',
                 className
             )}
         >
@@ -59,5 +59,5 @@ export function CountBadge({ count, max = 99, className }: { count: number; max?
 
 /** Unread / live marker without a number. */
 export function DotBadge({ className }: { className?: string }) {
-    return <span aria-hidden="true" className={cn('inline-block h-2.5 w-2.5 rounded-full bg-[var(--social-badge)] ring-2 ring-[var(--app-bg)]', className)} />
+    return <span aria-hidden="true" className={cn('inline-block h-2.5 w-2.5 rounded-full bg-[var(--social-badge)] ring-2 ring-[var(--social-surface)]', className)} />
 }

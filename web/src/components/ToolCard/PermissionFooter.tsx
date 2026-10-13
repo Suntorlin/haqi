@@ -235,7 +235,7 @@ export function PermissionFooter(props: {
 
     return (
         <div className="mt-2">
-            <div className="text-xs text-[var(--app-hint)]">{summary}</div>
+            <div className="text-xs text-[var(--social-fg-muted)]">{summary}</div>
 
             {error ? (
                 <div className="mt-2 text-xs text-[var(--social-danger)]">
@@ -245,7 +245,7 @@ export function PermissionFooter(props: {
 
             {isPlanTool ? (
                 <div className="mt-2">
-                    <div className="mb-1 text-xs text-[var(--app-hint)]">
+                    <div className="mb-1 text-xs text-[var(--social-fg-muted)]">
                         {t('tool.planNoteLabel')}
                     </div>
                     <textarea

@@ -9,7 +9,7 @@ export function ListGroup(props: { title?: ReactNode; children: ReactNode; class
             {props.title ? (
                 <h3 className="px-4 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{props.title}</h3>
             ) : null}
-            <div className="divide-y divide-[var(--social-divider)] overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)]">
+            <div className="divide-y divide-[var(--social-divider)] overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)]">
                 {props.children}
             </div>
         </section>

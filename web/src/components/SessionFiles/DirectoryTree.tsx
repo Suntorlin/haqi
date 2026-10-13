@@ -53,8 +53,8 @@ function DirectorySkeleton(props: { depth: number; rows?: number }) {
                     className="flex items-center gap-3 px-3 py-2"
                     style={{ paddingLeft: indent }}
                 >
-                    <div className="h-5 w-5 rounded bg-[var(--app-subtle-bg)]" />
-                    <div className="h-3 w-40 rounded bg-[var(--app-subtle-bg)]" />
+                    <div className="h-5 w-5 rounded bg-[var(--social-hover)]" />
+                    <div className="h-3 w-40 rounded bg-[var(--social-hover)]" />
                 </div>
             ))}
         </div>
@@ -65,7 +65,7 @@ function DirectoryErrorRow(props: { depth: number; message: string }) {
     const indent = 12 + props.depth * 14
     return (
         <div
-            className="px-3 py-2 text-xs text-[var(--app-hint)] bg-amber-500/10"
+            className="px-3 py-2 text-xs text-[var(--social-fg-muted)] bg-amber-500/10"
             style={{ paddingLeft: indent }}
         >
             {props.message}
@@ -100,11 +100,11 @@ function DirectoryNode(props: {
             <button
                 type="button"
                 onClick={() => props.onToggle(props.path)}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--app-subtle-bg)] transition-colors"
+                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
                 style={{ paddingLeft: indent }}
             >
-                <ChevronIcon collapsed={!isExpanded} className="text-[var(--app-hint)]" />
-                <FolderIcon className="text-[var(--app-link)]" />
+                <ChevronIcon collapsed={!isExpanded} className="text-[var(--social-fg-muted)]" />
+                <FolderIcon className="text-[var(--social-fg)]" />
                 <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">{props.label}</div>
                 </div>
@@ -141,7 +141,7 @@ function DirectoryNode(props: {
                                     key={filePath}
                                     type="button"
                                     onClick={() => props.onOpenFile(filePath)}
-                                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--app-subtle-bg)] transition-colors"
+                                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
                                     style={{ paddingLeft: childIndent }}
                                 >
                                     <span className="h-4 w-4" />
@@ -155,7 +155,7 @@ function DirectoryNode(props: {
 
                         {directories.length === 0 && files.length === 0 ? (
                             <div
-                                className="px-3 py-2 text-sm text-[var(--app-hint)]"
+                                className="px-3 py-2 text-sm text-[var(--social-fg-muted)]"
                                 style={{ paddingLeft: childIndent }}
                             >
                                 Empty directory.
@@ -189,7 +189,7 @@ export function DirectoryTree(props: {
     }, [])
 
     return (
-        <div className="border-t border-[var(--app-divider)]">
+        <div className="border-t border-[var(--social-divider)]">
             <DirectoryNode
                 api={props.api}
                 sessionId={props.sessionId}

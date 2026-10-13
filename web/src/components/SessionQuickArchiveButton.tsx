@@ -94,7 +94,7 @@ export function SessionQuickArchiveButton(props: {
                 }
             }}
             disabled={isPending}
-            className={`absolute z-10 inline-flex items-center justify-center rounded-md border shadow-sm transition-all disabled:cursor-not-allowed ${confirming ? 'border-[var(--app-danger,#ef4444)] bg-[var(--app-danger,#ef4444)] text-white' : 'border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-danger,#ef4444)]'} ${compact ? 'right-2.5 top-1 h-7 w-7' : 'right-3 top-2 h-8 w-8'}`}
+            className={`absolute z-10 inline-flex items-center justify-center rounded-md border shadow-sm transition-all disabled:cursor-not-allowed ${confirming ? 'border-[var(--app-danger,#ef4444)] bg-[var(--app-danger,#ef4444)] text-white' : 'border-[var(--social-divider)] bg-[var(--social-surface)] text-[var(--app-danger,#ef4444)]'} ${compact ? 'right-2.5 top-1 h-7 w-7' : 'right-3 top-2 h-8 w-8'}`}
             aria-label={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
             title={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
         >

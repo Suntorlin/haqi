@@ -93,7 +93,7 @@ function MessageSkeleton() {
             <div className="space-y-3 animate-pulse">
                 {rows.map((row, index) => (
                     <div key={`skeleton-${index}`} className={row.align === 'end' ? 'flex justify-end' : 'flex justify-start'}>
-                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--app-subtle-bg)]`} />
+                        <div className={`${row.height} ${row.width} rounded-xl bg-[var(--social-hover)]`} />
                     </div>
                 ))}
             </div>

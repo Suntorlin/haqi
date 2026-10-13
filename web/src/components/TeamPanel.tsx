@@ -258,7 +258,7 @@ export function TeamPanel(props: {
             </button>
 
             {expanded && (
-                <div className="mt-1.5 flex flex-col gap-4 rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] p-4">
+                <div className="mt-1.5 flex flex-col gap-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
                     {teamState?.description && (
                         <p className="text-[13px] text-[var(--social-fg-muted)]">{teamState.description}</p>
                     )}

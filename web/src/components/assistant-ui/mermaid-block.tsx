@@ -105,10 +105,10 @@ export function MermaidBlock(props: {
 
     if (state.error) {
         return (
-            <div className={cn('aui-md-mermaid-error rounded-b-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3 text-[13px]', props.className)}>
+            <div className={cn('aui-md-mermaid-error rounded-b-md border border-[var(--social-border)] bg-[var(--app-code-bg)] p-3 text-[13px]', props.className)}>
                 <div className="font-semibold text-[var(--social-danger)]">Mermaid render failed</div>
-                <div className="mt-1 whitespace-pre-wrap break-words text-[var(--app-hint)]">{state.error}</div>
-                <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--app-subtle-bg)] p-2 text-xs font-mono text-[var(--app-fg)]">
+                <div className="mt-1 whitespace-pre-wrap break-words text-[var(--social-fg-muted)]">{state.error}</div>
+                <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--social-hover)] p-2 text-xs font-mono text-[var(--social-fg)]">
                     <code>{props.code}</code>
                 </pre>
             </div>
@@ -119,7 +119,7 @@ export function MermaidBlock(props: {
         <div className={cn('aui-md-mermaid min-w-0 w-full max-w-full overflow-x-auto rounded-b-md bg-[var(--app-code-bg)] p-3', props.className)}>
             {state.svg
                 ? <div ref={containerRef} className="aui-md-mermaid-svg min-w-max" dangerouslySetInnerHTML={{ __html: state.svg }} />
-                : <div className="text-[13px] text-[var(--app-hint)]">Rendering Mermaid…</div>}
+                : <div className="text-[13px] text-[var(--social-fg-muted)]">Rendering Mermaid…</div>}
         </div>
     )
 }

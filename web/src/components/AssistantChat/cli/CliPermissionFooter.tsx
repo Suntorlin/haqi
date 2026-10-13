@@ -230,7 +230,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
     }
 
     return (
-        <div className="ml-5 mt-1 border-l border-[var(--app-divider)] pl-3 space-y-1">
+        <div className="ml-5 mt-1 border-l border-[var(--social-divider)] pl-3 space-y-1">
             {questions.length === 0 ? (
                 <div className="space-y-1">
                     <span className="text-xs text-[var(--app-badge-info-text)]">? Input requested</span>
@@ -247,8 +247,8 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
             ) : (
                 questions.map((q, qIdx) => (
                     <div key={qIdx} className="space-y-0.5">
-                        {q.header && <span className="text-xs font-semibold text-[var(--app-fg)]">{q.header}</span>}
-                        {q.question && <div className="text-xs text-[var(--app-fg)]">{q.question}</div>}
+                        {q.header && <span className="text-xs font-semibold text-[var(--social-fg)]">{q.header}</span>}
+                        {q.question && <div className="text-xs text-[var(--social-fg)]">{q.question}</div>}
                         <div className="flex flex-wrap gap-1 mt-0.5">
                             {q.options.map((opt, optIdx) => {
                                 const selected = (selectedByQ[qIdx] ?? []).includes(optIdx)
@@ -348,12 +348,12 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
     }
 
     return (
-        <div className="ml-5 mt-1 border-l border-[var(--app-divider)] pl-3 space-y-1">
+        <div className="ml-5 mt-1 border-l border-[var(--social-divider)] pl-3 space-y-1">
             {questions.map(q => {
                 const state = stateByQ[q.id]
                 return (
                     <div key={q.id} className="space-y-0.5">
-                        {q.question && <div className="text-xs text-[var(--app-fg)]">{q.question}</div>}
+                        {q.question && <div className="text-xs text-[var(--social-fg)]">{q.question}</div>}
                         {q.options.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
                                 {q.options.map((opt, i) => {

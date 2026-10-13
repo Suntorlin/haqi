@@ -18,9 +18,9 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
     const { t } = useTranslation()
 
     return (
-        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-[var(--app-border)]">
+        <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-[var(--social-border)]">
             <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
-                <span className="text-xs text-[var(--app-hint)]">{props.language}</span>
+                <span className="text-xs text-[var(--social-fg-muted)]">{props.language}</span>
                 <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-6 w-6', HIT_AREA_24_CLASS)}>
                     {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
                 </IconButton>
@@ -70,10 +70,10 @@ const cliMarkdownComponents = {
         <p {...props} className="aui-md-p mb-1 leading-relaxed break-words [overflow-wrap:anywhere]" />
     ),
     a: (props: ComponentPropsWithoutRef<'a'>) => (
-        <a {...props} className="text-[var(--app-link)] underline" rel={props.target === '_blank' ? 'noreferrer' : undefined} />
+        <a {...props} className="text-[var(--social-fg)] underline" rel={props.target === '_blank' ? 'noreferrer' : undefined} />
     ),
     blockquote: (props: ComponentPropsWithoutRef<'blockquote'>) => (
-        <blockquote {...props} className="border-l-4 border-[var(--app-hint)] pl-3 opacity-85 break-words" />
+        <blockquote {...props} className="border-l-4 border-[var(--social-fg-muted)] pl-3 opacity-85 break-words" />
     ),
     ul: (props: ComponentPropsWithoutRef<'ul'>) => (
         <ul {...props} className="aui-md-ul list-disc pl-5 my-0.5" />
@@ -85,7 +85,7 @@ const cliMarkdownComponents = {
         <li {...props} className="aui-md-li my-0" />
     ),
     hr: (props: ComponentPropsWithoutRef<'hr'>) => (
-        <hr {...props} className="border-[var(--app-divider)] my-1" />
+        <hr {...props} className="border-[var(--social-divider)] my-1" />
     ),
     table: (props: ComponentPropsWithoutRef<'table'>) => (
         <div className="max-w-full overflow-x-auto my-1">
@@ -93,10 +93,10 @@ const cliMarkdownComponents = {
         </div>
     ),
     th: (props: ComponentPropsWithoutRef<'th'>) => (
-        <th {...props} className="border border-[var(--app-border)] px-2 py-1 text-left font-semibold bg-[var(--app-subtle-bg)]" />
+        <th {...props} className="border border-[var(--social-border)] px-2 py-1 text-left font-semibold bg-[var(--social-hover)]" />
     ),
     td: (props: ComponentPropsWithoutRef<'td'>) => (
-        <td {...props} className="border border-[var(--app-border)] px-2 py-1" />
+        <td {...props} className="border border-[var(--social-border)] px-2 py-1" />
     ),
 }
 
@@ -117,7 +117,7 @@ export const CliCliOutputBlock = memo(function CliCliOutputBlock(props: { block:
     const { block } = props
     const isUser = block.source === 'user'
     return (
-        <div className={`py-0.5 ${isUser ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}>
+        <div className={`py-0.5 ${isUser ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}>
             <pre className="whitespace-pre-wrap break-words text-[length:inherit] leading-relaxed">{block.text}</pre>
         </div>
     )

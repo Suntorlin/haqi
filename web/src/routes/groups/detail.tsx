@@ -1362,7 +1362,7 @@ function ComposerAttachmentList(props: {
                         : formatFileSize(attachment.size)
 
                 return (
-                    <div key={attachment.id} className="flex min-w-[168px] max-w-full items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] px-2.5 py-2">
+                    <div key={attachment.id} className="flex min-w-[168px] max-w-full items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] px-2.5 py-2">
                         {attachment.status === 'uploading' ? (
                             <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" />
                         ) : null}
@@ -1977,7 +1977,7 @@ function GroupBriefTurnList(props: {
 
             {isMobileViewport ? (
                 activeTurnId ? (
-                    <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
+                    <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--social-surface)]">
                         <SubPageHeader title={turnTitle} subtitle={turnSubtitle} onBack={closeTurnDetails} />
                         <div className="social-chat min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]">
                             {turnDetailBody}
@@ -2984,7 +2984,7 @@ export default function GroupDetailPage() {
                 {quotedPreview ? <div className="px-4 pt-2">{quotedPreview}</div> : null}
                 <div className="flex items-end gap-2 px-3 pt-2">
                     {attachButton(false)}
-                    <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[10px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                    <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-[10px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                         {composerTextarea('max-h-[132px] min-h-[22px]')}
                     </div>
                     {sendButton(false)}
@@ -2992,10 +2992,10 @@ export default function GroupDetailPage() {
             </form>
         </div>
     ) : (
-        <div className="shrink-0 bg-[var(--app-bg)] px-6 pb-5 pt-1">
+        <div className="shrink-0 bg-[var(--social-surface)] px-6 pb-5 pt-1">
             <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
                 {composerOverlays}
-                <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                     <ComposerAttachmentList
                         attachments={composerAttachments}
                         disabled={isPending}
@@ -3018,7 +3018,7 @@ export default function GroupDetailPage() {
     )
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
             {pendingMembers.length > 0 ? (
                 <PendingBanner items={pendingMembers} onOpen={handleOpenPendingQuickModal} />
             ) : null}

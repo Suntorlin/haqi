@@ -6,9 +6,9 @@ export const CliUserBlock = memo(function CliUserBlock(props: { block: UserTextB
     return (
         <div className="border-l-2 border-[var(--cli-prompt-color)] pl-3 py-1">
             <span className="text-[var(--cli-prompt-color)] mr-2 select-none">{'❯'}</span>
-            <span className="text-[var(--app-fg)] whitespace-pre-wrap break-words">{block.text}</span>
+            <span className="text-[var(--social-fg)] whitespace-pre-wrap break-words">{block.text}</span>
             {block.attachments && block.attachments.length > 0 && (
-                <span className="ml-2 text-[var(--app-hint)] text-xs">
+                <span className="ml-2 text-[var(--social-fg-muted)] text-xs">
                     {block.attachments.map((a, i) => (
                         <span key={i} className="ml-1">[{a.filename ?? 'file'}]</span>
                     ))}

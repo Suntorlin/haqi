@@ -30,7 +30,7 @@ export function ClearIcon(props: IconProps) {
     return (
         <svg viewBox="0 0 24 24" className={props.className ?? 'h-4 w-4'} aria-hidden="true">
             <circle cx="12" cy="12" r="10" fill="currentColor" />
-            <path d="M15 9l-6 6M9 9l6 6" stroke="var(--app-bg)" strokeWidth="2" strokeLinecap="round" />
+            <path d="M15 9l-6 6M9 9l6 6" stroke="var(--social-surface)" strokeWidth="2" strokeLinecap="round" />
         </svg>
     )
 }
@@ -135,8 +135,8 @@ export function SlidersIcon(props: IconProps) {
         <Svg {...props} strokeWidth={1.8}>
             <line x1="4" y1="7" x2="20" y2="7" />
             <line x1="4" y1="17" x2="20" y2="17" />
-            <circle cx="9" cy="7" r="2.2" fill="var(--app-bg)" />
-            <circle cx="15" cy="17" r="2.2" fill="var(--app-bg)" />
+            <circle cx="9" cy="7" r="2.2" fill="var(--social-surface)" />
+            <circle cx="15" cy="17" r="2.2" fill="var(--social-surface)" />
         </Svg>
     )
 }

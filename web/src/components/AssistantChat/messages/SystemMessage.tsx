@@ -92,7 +92,7 @@ export function HappySystemMessage() {
 
     return (
         <div className="py-1" data-happy-message-id={messageId}>
-            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
+            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--social-fg-muted)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                 <span className="inline-flex items-center gap-1">
                     {icon ? <span aria-hidden="true">{icon}</span> : null}
                     <span>{label}</span>

@@ -73,7 +73,7 @@ function SelectionMark(props: { checked: boolean; mode: 'single' | 'multi' }) {
         ? (props.checked ? '☑' : '☐')
         : (props.checked ? '●' : '○')
     return (
-        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--app-hint)]">
+        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--social-fg-muted)]">
             {mark}
         </span>
     )
@@ -91,17 +91,17 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
-                props.checked ? 'bg-[var(--app-subtle-bg)]' : null
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
+                props.checked ? 'bg-[var(--social-hover)]' : null
             )}
             disabled={props.disabled}
             onClick={props.onClick}
         >
             <SelectionMark checked={props.checked} mode={props.mode} />
             <span className="min-w-0 flex-1">
-                <div className="font-semibold text-[var(--app-fg)] break-words">{props.title}</div>
+                <div className="font-semibold text-[var(--social-fg)] break-words">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-0.5 text-[13px] text-[var(--app-hint)] break-words">
+                    <div className="mt-0.5 text-[13px] text-[var(--social-fg-muted)] break-words">
                         {props.description}
                     </div>
                 ) : null}
@@ -346,13 +346,13 @@ export function QuestionToolOverlay(props: {
     if (isMinimized) {
         return (
             <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-end p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4">
-                <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 shadow-2xl">
+                <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] p-3 shadow-2xl">
                     <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15px] font-semibold text-[var(--app-fg)]">
+                            <div className="truncate text-[15px] font-semibold text-[var(--social-fg)]">
                                 {currentQuestion.header || t('tool.questionOverlay.title')}
                             </div>
-                            <div className="text-[13px] text-[var(--app-hint)]">
+                            <div className="text-[13px] text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.minimizedDescription', { answeredCount, total })}
                             </div>
                         </div>
@@ -375,7 +375,7 @@ export function QuestionToolOverlay(props: {
         <div className="fixed inset-0 z-[70]">
             <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
             <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
-                <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl sm:max-h-[min(88vh,860px)]">
+                <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] shadow-2xl sm:max-h-[min(88vh,860px)]">
                     <div className="flex shrink-0 items-center justify-between gap-2 py-1 pl-4 pr-2">
                         <span className="min-w-0 truncate text-[13px] text-[var(--social-fg-muted)]">
                             {[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
@@ -398,7 +398,7 @@ export function QuestionToolOverlay(props: {
                         ) : null}
 
                         {currentQuestion.question ? (
-                            <div className="text-[16px] font-semibold leading-snug text-[var(--app-fg)] break-words">
+                            <div className="text-[16px] font-semibold leading-snug text-[var(--social-fg)] break-words">
                                 {currentQuestion.question}
                             </div>
                         ) : null}
@@ -424,7 +424,7 @@ export function QuestionToolOverlay(props: {
 
                         {noteVisible ? (
                             <div className="mt-4">
-                                <div className="mb-1 text-xs text-[var(--app-hint)]">
+                                <div className="mb-1 text-xs text-[var(--social-fg-muted)]">
                                     {currentQuestion.supportsNotes
                                         ? t('tool.questionOverlay.noteLabel')
                                         : t('tool.questionOverlay.answerLabel')}
@@ -452,7 +452,7 @@ export function QuestionToolOverlay(props: {
                         ) : null}
 
                         {questionAnswered ? null : (
-                            <div className="mt-3 text-[13px] text-[var(--app-hint)]">{t('tool.questionOverlay.skippedHint')}</div>
+                            <div className="mt-3 text-[13px] text-[var(--social-fg-muted)]">{t('tool.questionOverlay.skippedHint')}</div>
                         )}
                     </div>
 
@@ -492,7 +492,7 @@ export function QuestionToolOverlay(props: {
                                     >
                                         {loading ? (
                                             <>
-                                                <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                                <Spinner size="sm" label={null} className="text-[var(--social-primary-fg)]" />
                                                 {t('tool.submitting')}
                                             </>
                                         ) : (

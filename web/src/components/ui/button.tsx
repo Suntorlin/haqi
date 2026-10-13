@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
  * 36px size for desktop toolbars and table rows. One primary (filled) button per view.
  */
 export const buttonVariants = cva(
-    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-semibold transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-fg-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
+    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-semibold transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-fg-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--social-surface)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
     {
         variants: {
             variant: {

@@ -59,7 +59,7 @@ function HappyNestedBlockList(props: {
         <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
             {props.blocks.map((block) => {
                 if (block.kind === 'user-text') {
-                    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--app-secondary-bg)] px-3 py-2 text-[var(--app-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
+                    const userBubbleClass = 'ml-auto w-fit min-w-0 max-w-[88%] rounded-xl bg-[var(--social-muted)] px-3 py-2 text-[var(--social-fg)] shadow-sm sm:max-w-[84%] lg:max-w-[76%]'
                     const status = block.status
                     const canRetry = status === 'failed' && typeof block.localId === 'string' && Boolean(ctx.onRetryMessage)
                     const onRetry = canRetry ? () => ctx.onRetryMessage!(block.localId!) : undefined
@@ -105,7 +105,7 @@ function HappyNestedBlockList(props: {
                     const presentation = getEventPresentation(block.event, t)
                     return (
                         <div key={`event:${block.id}`} className="py-1">
-                            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
+                            <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--social-fg-muted)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                                 <span className="inline-flex items-center gap-1">
                                     {presentation.icon ? <span aria-hidden="true">{presentation.icon}</span> : null}
                                     <span>{presentation.text}</span>
@@ -141,7 +141,7 @@ function HappyNestedBlockList(props: {
                                         ) : null}
                                         {taskChildren && taskChildren.rest.length > 0 ? (
                                             <details className={isCompact ? 'mt-1.5' : 'mt-2'}>
-                                                <summary className="cursor-pointer text-xs text-[var(--app-hint)]">
+                                                <summary className="cursor-pointer text-xs text-[var(--social-fg-muted)]">
                                                     Task details ({taskChildren.rest.length})
                                                 </summary>
                                                 <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>
@@ -179,16 +179,16 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
 
         return (
             <div className={`${isCompact ? 'py-0.5' : 'py-1'} min-w-0 max-w-full overflow-x-hidden`}>
-                <div className={`rounded-xl bg-[var(--app-secondary-bg)] shadow-sm ${isCompact ? 'p-2.5' : 'p-3'}`}>
+                <div className={`rounded-xl bg-[var(--social-muted)] shadow-sm ${isCompact ? 'p-2.5' : 'p-3'}`}>
                     <div className="flex items-center gap-2 text-xs">
-                        <div className="font-mono text-[var(--app-hint)]">
+                        <div className="font-mono text-[var(--social-fg-muted)]">
                             Tool: {props.toolName}
                         </div>
                         {props.isError ? (
                             <span className="text-[var(--social-danger)]">Error</span>
                         ) : null}
                         {props.status.type === 'running' && !hasResult ? (
-                            <span className="text-[var(--app-hint)]">Running…</span>
+                            <span className="text-[var(--social-fg-muted)]">Running…</span>
                         ) : null}
                     </div>
 
@@ -234,7 +234,7 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
                         ) : null}
                         {taskChildren && taskChildren.rest.length > 0 ? (
                             <details className={isCompact ? 'mt-1.5' : 'mt-2'}>
-                                <summary className="cursor-pointer text-xs text-[var(--app-hint)]">
+                                <summary className="cursor-pointer text-xs text-[var(--social-fg-muted)]">
                                     Task details ({taskChildren.rest.length})
                                 </summary>
                                 <div className={isCompact ? 'mt-1.5 pl-2.5' : 'mt-2 pl-3'}>

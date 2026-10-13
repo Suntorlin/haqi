@@ -134,7 +134,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
 
     if (!experimentalSettings.previewEnabled) {
         return (
-            <div className="flex h-full flex-col bg-[var(--app-bg)]">
+            <div className="flex h-full flex-col bg-[var(--social-surface)]">
                 <SubPageHeader title={t('preview.title')} onBack={dockActions ? undefined : goBack} actions={dockActions} />
                 <div className="flex flex-1 items-center justify-center px-6 text-center text-[15px] text-[var(--social-fg-muted)]">
                     {t('preview.disabled')}
@@ -155,7 +155,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
     const iconSize = 'h-4 w-4'
 
     return (
-        <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+        <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
             {/* The address bar lives in the header, like a browser tab bar. */}
             <header className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                 <div className="flex h-[54px] items-center gap-1 px-2 lg:h-[60px] lg:pl-3">
@@ -236,7 +236,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
                         />
 
                         {historyOpen && historyUrls.length > 0 ? (
-                            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] p-1.5 shadow-lg">
+                            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 shadow-lg">
                                 {historyUrls.slice(0, 10).map((url) => (
                                     <li key={url}>
                                         <button
@@ -275,7 +275,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
             {formError ? <div className="px-4 pt-2 text-[13px] text-[var(--social-danger)]">{formError}</div> : null}
             {error ? <div className="px-4 pt-2 text-[13px] text-[var(--social-danger)]">{error}</div> : null}
 
-            <div className="min-h-0 flex-1 bg-[var(--app-bg)]">
+            <div className="min-h-0 flex-1 bg-[var(--social-surface)]">
                 {frameUrl ? (
                     <iframe
                         key={`${frameKey}:${frameUrl}`}

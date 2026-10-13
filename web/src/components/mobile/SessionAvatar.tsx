@@ -149,7 +149,7 @@ export function SessionAvatar(props: {
             {ring ? (
                 <>
                     <span className="absolute inset-0 rounded-full" style={{ background: RING_BACKGROUNDS[ring] }} aria-hidden="true" />
-                    <span className="absolute rounded-full bg-[var(--app-bg)]" style={{ inset: ringWidth }} aria-hidden="true" />
+                    <span className="absolute rounded-full bg-[var(--social-surface)]" style={{ inset: ringWidth }} aria-hidden="true" />
                 </>
             ) : null}
             <Orb
@@ -176,7 +176,7 @@ export function PairAvatar(props: { first: Pick<SessionLike, 'id'> | null; secon
                 seed={props.second?.id ?? `${fallback}:b`}
                 size={inner}
                 className="absolute bottom-0 right-0"
-                style={{ outline: '2.5px solid var(--app-bg)' }}
+                style={{ outline: '2.5px solid var(--social-surface)' }}
             />
         </span>
     )

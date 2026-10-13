@@ -46,7 +46,7 @@ export const CliEventBlock = memo(function CliEventBlock(props: { block: AgentEv
         || props.block.event.type === 'api-error'
 
     return (
-        <div className={`text-xs py-0.5 italic ${isWarning ? 'text-[var(--app-badge-warning-text)]' : 'text-[var(--app-hint)]'}`}>
+        <div className={`text-xs py-0.5 italic ${isWarning ? 'text-[var(--app-badge-warning-text)]' : 'text-[var(--social-fg-muted)]'}`}>
             — {line}
         </div>
     )
