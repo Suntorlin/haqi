@@ -198,7 +198,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
             ) : block.tool.permission?.status === 'pending' ? (
                 <CliPermission tool={block.tool} disabled={ctx?.disabled ?? false} />
             ) : block.tool.permission && (block.tool.permission.status === 'denied' || block.tool.permission.status === 'canceled') && block.tool.permission.reason ? (
-                <div className="ml-5 text-xs text-red-400 italic">denied: {block.tool.permission.reason}</div>
+                <div className="ml-5 text-xs text-[var(--social-danger)] italic">denied: {block.tool.permission.reason}</div>
             ) : null}
         </div>
     )

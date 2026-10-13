@@ -58,7 +58,7 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
 
     const rateLimit = field.startsWith('rate limit') ? parseRateLimit(raw) : null
     if (rateLimit) {
-        const tone = rateLimit.usedPercent >= 85 ? 'bg-[var(--social-danger)]' : rateLimit.usedPercent >= 60 ? 'bg-amber-500' : 'bg-[var(--social-fg)]'
+        const tone = rateLimit.usedPercent >= 85 ? 'bg-[var(--social-danger)]' : rateLimit.usedPercent >= 60 ? 'bg-[var(--social-warning)]' : 'bg-[var(--social-fg)]'
         return {
             label,
             value: (
@@ -171,7 +171,7 @@ function QueueEntryRow(props: {
         <div className="flex items-start gap-3 px-4 py-3 [&+&]:border-t [&+&]:border-[var(--social-border)]">
             <span className="mt-0.5 w-5 shrink-0 text-[13px] tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
             <div className="min-w-0 flex-1">
-                <div className="line-clamp-3 break-words text-[14px] leading-snug text-[var(--social-fg)]">
+                <div className="line-clamp-3 break-words text-[15px] leading-snug text-[var(--social-fg)]">
                     {entry.preview || t('queue.dialog.emptyMessage')}
                 </div>
                 <div className="mt-1 text-[12px] text-[var(--social-fg-subtle)]">
@@ -225,7 +225,7 @@ export function QueueSheet(props: {
                         onRemove={props.onRemove}
                     />
                 )) : (
-                    <div className="px-4 py-3 text-[14px] text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
+                    <div className="px-4 py-3 text-[15px] text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
                 )}
             </SheetSection>
             <SheetSection>

@@ -466,7 +466,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
 
     const renderFileList = () => (
         <div className="overflow-hidden rounded-md border border-[var(--app-border)]">
-            <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs font-medium text-[var(--app-hint)]">
+            <div className="border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1.5 text-xs font-semibold text-[var(--app-hint)]">
                 Files ({files.length})
             </div>
             {files.length === 0 ? (
@@ -494,7 +494,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                 <div className="font-mono text-xs text-[var(--app-fg)] break-all">
                                     {file.displayPath}
                                 </div>
-                                <div className="mt-0.5 text-[11px] text-[var(--app-hint)]">
+                                <div className="mt-0.5 text-[12px] text-[var(--app-hint)]">
                                     +{file.additions} / -{file.deletions}
                                 </div>
                             </button>
@@ -514,7 +514,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                             <div className="min-w-0 font-mono text-xs text-[var(--app-fg)] break-all">
                                 {selectedFile.displayPath}
                             </div>
-                            <div className="shrink-0 text-[11px] text-[var(--app-hint)]">
+                            <div className="shrink-0 text-[12px] text-[var(--app-hint)]">
                                 +{selectedFile.additions} / -{selectedFile.deletions}
                             </div>
                         </div>

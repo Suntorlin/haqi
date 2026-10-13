@@ -24,7 +24,7 @@ export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
     return (
         <div className="flex justify-center py-1" role="separator">
-            <span className="text-[11.5px] leading-[18px] text-[var(--social-fg-subtle)]">
+            <span className="text-[12px] leading-[18px] text-[var(--social-fg-subtle)]">
                 {formatChatTimestamp(props.at, locale, t('mobile.time.yesterday'))}
             </span>
         </div>
@@ -149,7 +149,7 @@ function ProcessReasoning() {
             <button
                 type="button"
                 onClick={() => setOpen((value) => !value)}
-                className="flex items-center gap-1.5 py-0.5 text-[12.5px] text-[var(--social-fg-muted)]"
+                className="flex items-center gap-1.5 py-0.5 text-[13px] text-[var(--social-fg-muted)]"
             >
                 <ChevronIcon className={cn('h-3 w-3 transition-transform', open ? 'rotate-90' : '')} />
                 {t('mobile.turn.reasoning')}
@@ -236,12 +236,12 @@ function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: b
         <div className="social-card w-full min-w-0 rounded-[20px] rounded-tl-md px-4 py-3" role="status" aria-live="polite">
             <div className="flex min-w-0 items-center gap-2.5">
                 <span className="social-spinner shrink-0" aria-hidden="true" />
-                <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-[var(--social-fg)]">{title}</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--social-fg)]">{title}</span>
             </div>
             {progress ? (
-                <p className="mt-1.5 line-clamp-3 pl-[24px] text-[14px] leading-relaxed text-[var(--social-fg-muted)]">{progress}</p>
+                <p className="mt-1.5 line-clamp-3 pl-[24px] text-[15px] leading-relaxed text-[var(--social-fg-muted)]">{progress}</p>
             ) : toolDetail ? (
-                <p className="mt-1.5 truncate pl-[24px] font-mono text-[12.5px] text-[var(--social-fg-muted)]">{toolDetail}</p>
+                <p className="mt-1.5 truncate pl-[24px] font-mono text-[13px] text-[var(--social-fg-muted)]">{toolDetail}</p>
             ) : null}
             <div className="mt-1.5 pl-[24px] text-[12px] tabular-nums text-[var(--social-fg-subtle)]">{meta}</div>
         </div>
@@ -402,7 +402,7 @@ export function SocialAssistantMessage() {
                         ) : (
                             <div
                                 {...pressProps}
-                                className={cn('social-card w-fit rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]', pressClass)}
+                                className={cn('social-card w-fit rounded-[20px] rounded-tl-md px-4 py-2.5 text-[15px] text-[var(--social-fg-muted)]', pressClass)}
                             >
                                 {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
                             </div>

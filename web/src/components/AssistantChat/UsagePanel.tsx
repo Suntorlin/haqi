@@ -54,9 +54,9 @@ function formatResetsIn(resetsAtSeconds: number, now: number, t: (key: string, p
 }
 
 function utilizationToColorClass(utilization: number, status: ClaudeRateLimitEntry['status']): string {
-    if (status === 'rejected') return 'bg-red-500'
-    if (utilization >= 0.85 || status === 'allowed_warning') return 'bg-amber-500'
-    return 'bg-blue-500'
+    if (status === 'rejected') return 'bg-[var(--app-badge-error-bg)]0'
+    if (utilization >= 0.85 || status === 'allowed_warning') return 'bg-[var(--social-warning)]'
+    return 'bg-[var(--social-fg)]'
 }
 
 function ProgressRow(props: {
@@ -112,7 +112,7 @@ export function UsagePanel(props: UsagePanelProps) {
     return (
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3 shadow-lg">
             <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs font-medium">
+                <div className="flex items-center justify-between text-xs font-semibold">
                     <span className="text-[var(--app-fg)]">{t('usage.contextWindow')}</span>
                     {contextRow ? (
                         <span className="text-[var(--app-hint)]">
@@ -126,9 +126,9 @@ export function UsagePanel(props: UsagePanelProps) {
                     {contextRow ? (
                         <div
                             className={`h-1 rounded-full transition-[width] ${
-                                contextRow.percentage >= 90 ? 'bg-red-500'
-                                    : contextRow.percentage >= 70 ? 'bg-amber-500'
-                                        : 'bg-blue-500'
+                                contextRow.percentage >= 90 ? 'bg-[var(--app-badge-error-bg)]0'
+                                    : contextRow.percentage >= 70 ? 'bg-[var(--social-warning)]'
+                                        : 'bg-[var(--social-fg)]'
                             }`}
                             style={{ width: `${Math.min(100, contextRow.percentage)}%` }}
                         />
@@ -137,12 +137,12 @@ export function UsagePanel(props: UsagePanelProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-                <div className="text-xs font-medium text-[var(--app-fg)]">
+                <div className="text-xs font-semibold text-[var(--app-fg)]">
                     {t('usage.planUsage')}
                 </div>
 
                 {!hasAnyRateLimit ? (
-                    <div className="text-[10px] text-[var(--app-hint)]">{t('usage.noRateLimitData')}</div>
+                    <div className="text-[12px] text-[var(--app-hint)]">{t('usage.noRateLimitData')}</div>
                 ) : usageLimits?.length ? (
                     usageLimits.map((limit, index) => {
                         const labelKey = USAGE_KIND_LABEL_KEYS[limit.kind]
@@ -171,7 +171,7 @@ export function UsagePanel(props: UsagePanelProps) {
                                     key={key}
                                     label={label}
                                     percentage={null}
-                                    color="bg-blue-500"
+                                    color="bg-[var(--social-fg)]"
                                 />
                             )
                         }

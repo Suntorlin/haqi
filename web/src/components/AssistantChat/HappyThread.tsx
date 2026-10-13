@@ -66,7 +66,7 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
         <button
             onClick={props.onClick}
             className={cn(
-                'absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-sm font-medium shadow-lg animate-bounce-in z-10',
+                'absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-[15px] font-semibold shadow-lg animate-bounce-in z-10',
                 props.social
                     ? 'bottom-3 bg-[var(--social-primary)] text-[13px] text-[var(--social-primary-fg)]'
                     : 'bottom-20 bg-[var(--app-button)] text-[var(--app-button-text)]'
@@ -266,7 +266,7 @@ export function HappyThread(props: {
                                 />
 
                                 {props.messagesWarning ? (
-                                    <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
+                                    <div className="mb-3 rounded-md bg-[var(--app-badge-warning-bg)] p-2 text-xs">
                                         {props.messagesWarning}
                                     </div>
                                 ) : null}

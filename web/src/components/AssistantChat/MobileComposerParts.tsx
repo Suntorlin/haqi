@@ -27,7 +27,7 @@ function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void;
             <span className={tileIconClass}>
                 {props.icon}
                 {props.badge && props.badge > 0 ? (
-                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
+                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[12px] font-semibold text-white">
                         {props.badge > 99 ? '99+' : props.badge}
                     </span>
                 ) : null}
@@ -208,7 +208,7 @@ export function QueueStrip(props: {
         <div role="status">
             <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
                 <QueueListIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
-                <span className="shrink-0 font-medium text-[var(--social-fg)]">
+                <span className="shrink-0 font-semibold text-[var(--social-fg)]">
                     {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[var(--social-fg-muted)]" title={props.nextPreview || undefined}>
@@ -219,7 +219,7 @@ export function QueueStrip(props: {
                         type="button"
                         onClick={props.onOpen}
                         disabled={props.disabled}
-                        className="shrink-0 rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12.5px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-border)] disabled:opacity-50"
+                        className="shrink-0 rounded-full bg-[var(--social-muted)] px-3 py-1 text-[13px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-border)] disabled:opacity-50"
                     >
                         {t('queue.inline.open')}
                     </button>
@@ -228,7 +228,7 @@ export function QueueStrip(props: {
             {entries.length > 0 ? (
                 <div className="mt-1.5 flex flex-col gap-1 px-3.5">
                     {entries.slice(0, 5).map((entry, index) => (
-                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[13px]">
                             <span className="w-4 shrink-0 tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
                             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{entry.preview || t('queue.dialog.emptyMessage')}</span>
                             <span className="shrink-0 text-[var(--social-fg-subtle)]">
@@ -278,7 +278,7 @@ export function VoiceCallBar(props: {
             <button
                 type="button"
                 onClick={props.onEnd}
-                className="shrink-0 rounded-full bg-[var(--social-badge)] px-3 py-1 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90"
+                className="shrink-0 rounded-full bg-[var(--social-badge)] px-3 py-1 text-[13px] font-semibold text-white transition-opacity hover:opacity-90"
             >
                 {t('voice.end')}
             </button>
@@ -351,7 +351,7 @@ export function DesktopComposerToolbar(props: {
                 >
                     <MoreHorizontalIcon className="h-[18px] w-[18px]" />
                     {pending > 0 ? (
-                        <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
+                        <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[12px] font-semibold text-white">
                             {pending > 99 ? '99+' : pending}
                         </span>
                     ) : null}
