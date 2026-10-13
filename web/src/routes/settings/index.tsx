@@ -1395,7 +1395,7 @@ export default function SettingsPage() {
                                         href="https://hapi.run"
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="-my-3 inline-flex min-h-11 items-center text-[var(--app-link)] underline-offset-2 hover:underline"
+                                        className="-my-3 inline-flex min-h-11 items-center text-[var(--social-fg)] underline-offset-2 hover:underline"
                                     >
                                         hapi.run
                                     </a>

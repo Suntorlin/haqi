@@ -95,7 +95,7 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                             <div className="text-[12px] font-semibold text-[var(--social-fg-muted)]">
                                 {t('dialog.tags.existing')}
                             </div>
-                            <div className="flex flex-wrap gap-1.5">
+                            <div className="flex flex-wrap gap-2">
                                 {quickSelectTags.map((tag) => {
                                     const isSelected = normalizeTags(value).includes(tag)
                                     return (

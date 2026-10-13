@@ -10,7 +10,7 @@ import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 
 /** Text input style shared by the small name dialogs (rename session / group, new group). */
-export const DIALOG_INPUT_CLASS = 'w-full min-h-11 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] px-3.5 py-2.5 text-[16px] text-[var(--social-fg)] placeholder:text-[var(--social-fg-subtle)] focus:border-[var(--social-fg-subtle)] focus:outline-none'
+export const DIALOG_INPUT_CLASS = 'w-full min-h-11 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] px-3.5 py-2.5 text-[16px] text-[var(--social-fg)] placeholder:text-[var(--social-fg-subtle)] focus:border-[var(--social-fg-subtle)] focus:outline-none'
 
 type RenameSessionDialogProps = {
     isOpen: boolean

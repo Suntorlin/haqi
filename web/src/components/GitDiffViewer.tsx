@@ -4,6 +4,7 @@ import { memo, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useDiffSoftWrap } from '@/hooks/useDiffSoftWrap'
 import { useDiffViewMode } from '@/hooks/useDiffViewMode'
+import { useTranslation } from '@/lib/use-translation'
 
 export function GitDiffViewer(props: {
     filePath: string
@@ -14,6 +15,7 @@ export function GitDiffViewer(props: {
     theme: 'light' | 'dark'
     showToolbar?: boolean
 }) {
+    const { t } = useTranslation()
     const { softWrap, toggleSoftWrap } = useDiffSoftWrap()
     const { diffViewMode, setDiffViewMode } = useDiffViewMode()
 
@@ -33,27 +35,27 @@ export function GitDiffViewer(props: {
     }), [props.diffContent, props.filePath, props.language, props.newContent, props.oldContent])
 
     return (
-        <div className="overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)]">
+        <div className="overflow-hidden rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)]">
             {showToolbar ? (
-                <div className="flex items-center justify-between gap-2 border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1">
+                <div className="flex items-center justify-between gap-2 border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1">
                     <div className="flex items-center gap-1">
                         <Button
                             variant={diffViewMode === DiffModeEnum.Unified ? 'secondary' : 'ghost'}
                             size="sm"
                             onClick={() => setDiffViewMode(DiffModeEnum.Unified)}
                             aria-pressed={diffViewMode === DiffModeEnum.Unified}
-                            title="Show unified diff"
+                            title={t('diff.unified.title')}
                         >
-                            Unified
+                            {t('diff.unified')}
                         </Button>
                         <Button
                             variant={diffViewMode === DiffModeEnum.SplitGitHub ? 'secondary' : 'ghost'}
                             size="sm"
                             onClick={() => setDiffViewMode(DiffModeEnum.SplitGitHub)}
                             aria-pressed={diffViewMode === DiffModeEnum.SplitGitHub}
-                            title="Show side-by-side diff"
+                            title={t('diff.split.title')}
                         >
-                            Split
+                            {t('diff.split')}
                         </Button>
                     </div>
                     <Button
@@ -61,9 +63,9 @@ export function GitDiffViewer(props: {
                         size="sm"
                         onClick={toggleSoftWrap}
                         aria-pressed={softWrap}
-                        title={softWrap ? 'Disable soft wrap' : 'Enable soft wrap'}
+                        title={softWrap ? t('diff.softWrap.disable') : t('diff.softWrap.enable')}
                     >
-                        Soft wrap: {softWrap ? 'On' : 'Off'}
+                        {softWrap ? t('diff.softWrap.on') : t('diff.softWrap.off')}
                     </Button>
                 </div>
             ) : null}
