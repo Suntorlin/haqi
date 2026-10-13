@@ -30,6 +30,7 @@ import { MessageAttachments } from '@/components/AssistantChat/messages/MessageA
 import { ChatTimeSeparator } from '@/components/AssistantChat/messages/SocialMessages'
 import { FileIcon } from '@/components/FileIcon'
 import { Spinner } from '@/components/Spinner'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { cn } from '@/lib/utils'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { isImageMimeType } from '@/lib/fileAttachments'
@@ -42,7 +43,7 @@ import { useLongPress } from '@/hooks/useLongPress'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { FormField, SegmentedControl, SelectInput } from '@/components/ui/FormControls'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
@@ -778,7 +779,7 @@ function GroupInfoSheet(props: {
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <GroupAvatar seed={props.groupId} members={memberSessions} size={48} />
                 <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
+                    <div className="line-clamp-2 text-[16px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
                     <div className="mt-1 truncate text-[13px] text-[var(--social-fg-muted)]">
                         {t('groups.info.summary', { n: props.members.length, m: onlineCount })}
                     </div>
@@ -945,7 +946,7 @@ function NoteEditorSheet(props: {
                             onChange={(event) => setDraft((value) => ({ ...value, content: event.target.value }))}
                             placeholder={t('groups.detail.notePlaceholder')}
                             rows={10}
-                            className={cn(DIALOG_INPUT_CLASS, 'min-h-[180px] resize-y text-[15px] leading-relaxed')}
+                            className={cn(DIALOG_INPUT_CLASS, 'min-h-[180px] resize-y leading-relaxed')}
                         />
                     </FormField>
                     <FormField label={t('groups.detail.executor')} htmlFor={executorId} hint={t('groups.note.executorHint')}>
@@ -1036,7 +1037,6 @@ function PendingRequestsSheet(props: {
                             <Button
                                 type="button"
                                 variant="secondary"
-                                size="sm"
                                 className="text-[var(--social-danger)]"
                                 disabled={busy}
                                 onClick={() => { void props.onDeny(request.id) }}
@@ -1045,7 +1045,6 @@ function PendingRequestsSheet(props: {
                             </Button>
                             <Button
                                 type="button"
-                                size="sm"
                                 disabled={busy}
                                 onClick={() => { void props.onApprove(request.id) }}
                             >
@@ -1073,22 +1072,21 @@ function PendingBanner(props: {
     return (
         <div className="shrink-0 border-b border-[var(--social-border)] px-4 py-2">
             {props.items.map((item) => (
-                <div key={item.sessionId} className="mx-auto flex w-full max-w-content items-center gap-3 py-1">
-                    <button
-                        type="button"
-                        onClick={() => props.onOpen(item.sessionId)}
-                        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left [-webkit-tap-highlight-color:transparent]"
-                    >
-                        <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
-                        <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[15px] font-semibold text-[var(--social-fg)]">{item.title}</span>
-                            <span className="block text-[13px] text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
-                        </span>
-                    </button>
-                    <Button type="button" size="sm" onClick={() => props.onOpen(item.sessionId)}>
+                <button
+                    key={item.sessionId}
+                    type="button"
+                    onClick={() => props.onOpen(item.sessionId)}
+                    className="mx-auto flex min-h-11 w-full max-w-content items-center gap-3 py-1 text-left [-webkit-tap-highlight-color:transparent]"
+                >
+                    <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[15px] font-semibold text-[var(--social-fg)]">{item.title}</span>
+                        <span className="block text-[13px] text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
+                    </span>
+                    <span aria-hidden className={buttonVariants({ size: 'sm' })}>
                         {t('groups.pending.handle')}
-                    </Button>
-                </div>
+                    </span>
+                </button>
             ))}
         </div>
     )
@@ -1237,7 +1235,7 @@ function TimelineBubble(props: {
                         {...(isMobileLayout ? longPressHandlers : {})}
                         style={isMobileLayout ? { WebkitTouchCallout: 'none' } : undefined}
                         className={cn(
-                            'min-w-0 max-w-full rounded-[20px] px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]',
+                            'min-w-0 max-w-full rounded-2xl px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]',
                             isUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md',
                             isMobileLayout ? 'select-none' : '',
                             isCommand ? 'whitespace-pre-wrap font-mono text-[13px]' : ''
@@ -1397,7 +1395,7 @@ function ComposerAttachmentList(props: {
                             label={t('groups.detail.removeAttachment')}
                             onClick={() => { void props.onRemove(attachment.id) }}
                             disabled={props.disabled}
-                            className="-my-1.5 -mr-1.5"
+                            className={cn('-my-1.5 -mr-1.5', HIT_AREA_CLASS)}
                         >
                             <CloseIcon className="h-3.5 w-3.5" />
                         </IconButton>
@@ -1440,7 +1438,7 @@ function TimelineHistoryControl(props: {
                     {t('groups.timeline.loadingOlder')}
                 </span>
             ) : (
-                <Button type="button" variant="outline" size="sm" onClick={props.onLoadMore}>
+                <Button type="button" variant="outline" onClick={props.onLoadMore}>
                     {t('groups.timeline.loadOlder')}
                 </Button>
             )}
@@ -1835,7 +1833,6 @@ function GroupBriefTurnList(props: {
                     <Button
                         type="button"
                         variant="secondary"
-                        size="sm"
                         onClick={() => {
                             void fetchTurnMessages(activeTurn.id, null, false)
                         }}
@@ -1867,7 +1864,7 @@ function GroupBriefTurnList(props: {
         <>
             <div className="relative flex h-full min-h-0 flex-col">
                 {props.warning ? (
-                    <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
+                    <div className="mx-4 mt-2 rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-[12px] text-[var(--app-badge-warning-text)]">
                         {props.warning}
                     </div>
                 ) : null}
@@ -1945,7 +1942,7 @@ function GroupBriefTurnList(props: {
                                         <div className={cn('flex', initiatorIsUser ? 'justify-end' : 'justify-start')}>
                                             <div
                                                 className={cn(
-                                                    'max-w-[88%] rounded-[20px] px-4 py-2.5 text-[15px] lg:max-w-[75%]',
+                                                    'max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] lg:max-w-[75%]',
                                                     initiatorIsUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md'
                                                 )}
                                             >
@@ -1957,14 +1954,14 @@ function GroupBriefTurnList(props: {
                                             {isOpen ? (
                                                 <button
                                                     type="button"
-                                                    className="social-card w-full max-w-[88%] rounded-[20px] rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
+                                                    className="social-card w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
                                                     onClick={() => openTurnDetails(turn.id)}
                                                     aria-label={t('groups.detail.openTurn')}
                                                 >
                                                     <BriefCardMarkdownPreview content={responderPreview} className="text-[var(--social-fg)]" />
                                                 </button>
                                             ) : (
-                                                <div className="social-card w-full max-w-[88%] rounded-[20px] rounded-tl-md px-4 py-3 lg:max-w-[75%]">
+                                                <div className="social-card w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 lg:max-w-[75%]">
                                                     <BriefFullMarkdownContent content={responderPreview} />
                                                 </div>
                                             )}
@@ -2897,7 +2894,7 @@ export default function GroupDetailPage() {
                 size="sm"
                 label={t('groups.detail.cancelReply')}
                 onClick={() => setQuotedMessage(null)}
-                className="-my-2 -mr-1.5"
+                className={cn('-my-2 -mr-1.5', HIT_AREA_CLASS)}
             >
                 <CloseIcon className="h-3.5 w-3.5" />
             </IconButton>

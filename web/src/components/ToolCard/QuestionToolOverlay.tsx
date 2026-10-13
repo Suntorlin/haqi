@@ -3,6 +3,7 @@ import type { ApiClient } from '@/api/client'
 import type { ChatToolCall } from '@/chat/types'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
+import { TextField } from '@/components/ui/TextField'
 import { ChevronDownIcon, CloseIcon } from '@/components/mobile/icons'
 import { Spinner } from '@/components/Spinner'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -355,10 +356,10 @@ export function QuestionToolOverlay(props: {
                                 {t('tool.questionOverlay.minimizedDescription', { answeredCount, total })}
                             </div>
                         </div>
-                        <Button type="button" size="sm" disabled={loading} onClick={() => setIsMinimized(false)}>
+                        <Button type="button" disabled={loading} onClick={() => setIsMinimized(false)}>
                             {t('tool.questionOverlay.resume')}
                         </Button>
-                        <IconButton label={t('tool.questionOverlay.close')} size="sm" disabled={props.disabled || loading} onClick={() => void cancel()}>
+                        <IconButton label={t('tool.questionOverlay.close')} disabled={props.disabled || loading} onClick={() => void cancel()}>
                             <CloseIcon className="h-4 w-4" />
                         </IconButton>
                     </div>
@@ -380,10 +381,10 @@ export function QuestionToolOverlay(props: {
                             {[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
                         </span>
                         <div className="flex shrink-0 items-center">
-                            <IconButton label={t('tool.questionOverlay.minimize')} size="sm" disabled={loading} onClick={() => setIsMinimized(true)}>
+                            <IconButton label={t('tool.questionOverlay.minimize')} disabled={loading} onClick={() => setIsMinimized(true)}>
                                 <ChevronDownIcon className="h-4 w-4" />
                             </IconButton>
-                            <IconButton label={t('tool.questionOverlay.close')} size="sm" disabled={props.disabled || loading} onClick={() => void cancel()}>
+                            <IconButton label={t('tool.questionOverlay.close')} disabled={props.disabled || loading} onClick={() => void cancel()}>
                                 <CloseIcon className="h-4 w-4" />
                             </IconButton>
                         </div>
@@ -439,13 +440,12 @@ export function QuestionToolOverlay(props: {
                                         className={cn(DIALOG_INPUT_CLASS, 'min-h-[88px] resize-y disabled:opacity-50')}
                                     />
                                 ) : (
-                                    <input
+                                    <TextField
                                         type="password"
                                         value={currentState?.note ?? ''}
                                         onChange={(event) => updateNote(currentQuestion.id, event.target.value)}
                                         disabled={props.disabled || loading}
                                         placeholder={t('tool.questionOverlay.secretPlaceholder')}
-                                        className={cn(DIALOG_INPUT_CLASS, 'disabled:opacity-50')}
                                     />
                                 )}
                             </div>
