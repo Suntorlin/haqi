@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { tagChipClass } from '@/components/ui/tagChip'
 
 type SessionTagsDialogProps = {
     isOpen: boolean
@@ -105,10 +106,7 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                                             onClick={() => toggleTag(tag)}
                                             disabled={isPending}
                                             aria-pressed={isSelected}
-                                            className={`h-8 rounded-full border px-3.5 text-[13px] transition-colors ${isSelected
-                                                ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
-                                                : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]'
-                                            }`}
+                                            className={tagChipClass(isSelected)}
                                         >
                                             #{tag}
                                         </button>
