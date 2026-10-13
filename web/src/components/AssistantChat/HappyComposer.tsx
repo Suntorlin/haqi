@@ -47,6 +47,7 @@ import {
 } from '@/components/AssistantChat/MobileComposerParts'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
+import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 
 export interface TextInputState {
     text: string
@@ -443,21 +444,23 @@ export function HappyComposer(props: {
     const currentModelValue = model ?? (modelMode === 'default' ? 'auto' : modelMode)
     const modelOptions = useMemo(
         () => agentFlavor === 'claude'
-            ? buildClaudeModelOptions(model)
+            ? buildClaudeModelOptions(model).map((option) => ({ ...option, label: modelOptionText(option.value, option.label, t) }))
             : [],
-        [agentFlavor, model]
+        [agentFlavor, model, t]
     )
     const modelValues = useMemo(
         () => modelOptions.map((option) => option.value),
         [modelOptions]
     )
     const thinkEffortOptions = useMemo(
-        () => getThinkEffortOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getThinkEffortOptionsForFlavor(agentFlavor)
+            .map((option) => ({ ...option, label: thinkEffortText(option.value, option.label, t) })),
+        [agentFlavor, t]
     )
     const serviceTierOptions = useMemo(
-        () => getServiceTierOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getServiceTierOptionsForFlavor(agentFlavor)
+            .map((option) => ({ ...option, label: serviceTierText(option.value, option.label, t) })),
+        [agentFlavor, t]
     )
     const currentThinkEffortValue: SessionThinkEffort = useMemo(() => {
         if (normalizedThinkEffort === 'auto'
@@ -908,8 +911,9 @@ export function HappyComposer(props: {
     }, [onRemoveDraftAttachment])
 
     const permissionModeOptions = useMemo(
-        () => getPermissionModeOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getPermissionModeOptionsForFlavor(agentFlavor)
+            .map((option) => ({ ...option, label: permissionModeText(option.mode, t) })),
+        [agentFlavor, t]
     )
     const permissionModes = useMemo(
         () => permissionModeOptions.map((option) => option.mode),

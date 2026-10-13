@@ -1,4 +1,5 @@
 import { useTranslation } from '@/lib/use-translation'
+import { serviceTierText } from '@/lib/option-labels'
 import { CODEX_SERVICE_TIER_OPTIONS, type AgentType, type ServiceTier } from './types'
 
 export function ServiceTierSelector(props: {
@@ -26,7 +27,7 @@ export function ServiceTierSelector(props: {
             >
                 {CODEX_SERVICE_TIER_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
-                        {option.label}
+                        {serviceTierText(option.value, option.label, t)}
                     </option>
                 ))}
             </select>

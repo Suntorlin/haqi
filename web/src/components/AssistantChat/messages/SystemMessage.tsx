@@ -4,6 +4,7 @@ import type { AgentEvent } from '@/chat/types'
 import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { ChatTimeSeparator } from '@/components/AssistantChat/messages/SocialMessages'
+import { useTranslation } from '@/lib/use-translation'
 
 const PROMINENT_EVENT_TYPES = new Set(['rate-limit', 'limit-reached', 'api-error'])
 
@@ -42,6 +43,7 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
 }
 
 export function HappySystemMessage() {
+    const { t } = useTranslation()
     const ctx = useOptionalHappyChatContext()
     const isSocial = ctx?.layout === 'social'
     const messageId = useAssistantState(({ message }) => message.id)
@@ -58,7 +60,7 @@ export function HappySystemMessage() {
 
     if (role !== 'system') return null
 
-    const presentation = event ? getEventPresentation(event) : null
+    const presentation = event ? getEventPresentation(event, t) : null
 
     if (isProminentEvent(event)) {
         return (

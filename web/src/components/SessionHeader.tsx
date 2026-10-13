@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getPermissionModeLabel, getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
+import { permissionModeText, thinkEffortText } from '@/lib/option-labels'
 import type { PermissionModeTone } from '@hapi/protocol'
 import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import type { Session } from '@/types/api'
@@ -11,8 +12,11 @@ import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/componen
 import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import {
     ArchiveBoxIcon,
+    DuplicateIcon,
+    NewSessionIcon,
+    PinIcon,
+    TagIcon,
     ChevronLeftIcon,
-    CopyPlusIcon,
     FileIcon,
     GlobeIcon,
     MoreHorizontalIcon,
@@ -27,7 +31,9 @@ import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useSessionPin } from '@/hooks/mutations/useSessionPin'
-import { isSessionPinned } from '@/lib/session-pins'
+import { getUserTags, isSessionPinned, withPinTag } from '@/lib/session-pins'
+import { useSessions } from '@/hooks/queries/useSessions'
+import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -122,6 +128,7 @@ export function SessionHeader(props: {
         deleteSession,
         spawnSameConfigSession,
         duplicateSession,
+        setTags,
         isPending
     } = useSessionActions(
         api,
@@ -131,6 +138,12 @@ export function SessionHeader(props: {
     const { skipArchiveConfirmation } = useArchiveConfirmation()
     const pinSession = useSessionPin(api)
     const pinned = isSessionPinned(session)
+    const [tagsOpen, setTagsOpen] = useState(false)
+    const { sessions: allSessions } = useSessions(api)
+    const availableTags = useMemo(
+        () => Array.from(new Set(allSessions.flatMap((item) => getUserTags(item)))).sort((a, b) => a.localeCompare(b)),
+        [allSessions]
+    )
 
     const handleDelete = async () => {
         await deleteSession()
@@ -192,6 +205,15 @@ export function SessionHeader(props: {
 
     const dialogs = (
         <>
+            <SessionTagsDialog
+                isOpen={tagsOpen}
+                onClose={() => setTagsOpen(false)}
+                tags={getUserTags(session)}
+                availableTags={availableTags}
+                onSave={(tags) => setTags(withPinTag(tags, pinned))}
+                isPending={isPending}
+            />
+
             <RenameSessionDialog
                 isOpen={renameOpen}
                 onClose={() => setRenameOpen(false)}
@@ -234,7 +256,7 @@ export function SessionHeader(props: {
     const permissionLabel = permissionMode
         && permissionMode !== 'default'
         && isPermissionModeAllowedForFlavor(permissionMode, flavor)
-        ? getPermissionModeLabel(permissionMode)
+        ? permissionModeText(permissionMode, t)
         : null
     const permissionToneClass = permissionLabel && permissionMode
         ? PERMISSION_TONE_TEXT[getPermissionModeTone(permissionMode)]
@@ -258,7 +280,7 @@ export function SessionHeader(props: {
     ]
     const modelValue = [
         shortModel,
-        displayThinkEffort ? `${t('session.item.thinkLevel')} ${displayThinkEffort}` : null,
+        displayThinkEffort ? `${t('session.item.thinkLevel')} ${thinkEffortText(displayThinkEffort, displayThinkEffort, t)}` : null,
         displayServiceTier || null
     ].filter(Boolean).join(' · ')
     const showUsage = Boolean(props.usage && (typeof props.usage.contextSize === 'number' || props.usage.rateLimitSnapshot))
@@ -379,6 +401,7 @@ export function SessionHeader(props: {
 
             <SheetSection title={t('mobile.chat.manage')}>
                 <SheetSwitchRow
+                    icon={<PinIcon />}
                     label={t('session.action.pin')}
                     checked={pinned}
                     onCheckedChange={(next) => {
@@ -387,13 +410,14 @@ export function SessionHeader(props: {
                         })
                     }}
                 />
-                <SheetRow icon={<PencilIcon className="h-4 w-4" />} label={t('session.action.rename')} chevron onClick={closeInfoThen(() => setRenameOpen(true))} />
-                <SheetRow icon={<CopyPlusIcon className="h-4 w-4" />} label={t('session.action.newSameConfig')} chevron onClick={closeInfoThen(handleSpawnSameConfig)} />
-                <SheetRow icon={<CopyPlusIcon className="h-4 w-4" />} label={t('session.action.duplicate')} chevron onClick={closeInfoThen(handleDuplicate)} />
+                <SheetRow icon={<PencilIcon />} label={t('session.action.rename')} chevron onClick={closeInfoThen(() => setRenameOpen(true))} />
+                <SheetRow icon={<TagIcon />} label={t('session.action.tags')} chevron onClick={closeInfoThen(() => setTagsOpen(true))} />
+                <SheetRow icon={<NewSessionIcon />} label={t('session.action.newSameConfig')} chevron onClick={closeInfoThen(handleSpawnSameConfig)} />
+                <SheetRow icon={<DuplicateIcon />} label={t('session.action.duplicate')} chevron onClick={closeInfoThen(handleDuplicate)} />
                 {session.active ? (
-                    <SheetRow icon={<ArchiveBoxIcon className="h-4 w-4" />} label={t('session.action.archive')} destructive onClick={closeInfoThen(handleArchive)} />
+                    <SheetRow icon={<ArchiveBoxIcon />} label={t('session.action.archive')} destructive onClick={closeInfoThen(handleArchive)} />
                 ) : (
-                    <SheetRow icon={<TrashIcon className="h-4 w-4" />} label={t('session.action.delete')} destructive onClick={closeInfoThen(() => setDeleteOpen(true))} />
+                    <SheetRow icon={<TrashIcon />} label={t('session.action.delete')} destructive onClick={closeInfoThen(() => setDeleteOpen(true))} />
                 )}
             </SheetSection>
             <div className="h-2" />

@@ -1,4 +1,5 @@
 import { useTranslation } from '@/lib/use-translation'
+import { thinkEffortText } from '@/lib/option-labels'
 import type { AgentType, ThinkEffort } from './types'
 import { getThinkEffortOptions } from './types'
 
@@ -28,7 +29,7 @@ export function ThinkEffortSelector(props: {
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
-                        {option.label}
+                        {thinkEffortText(option.value, option.label, t)}
                     </option>
                 ))}
             </select>

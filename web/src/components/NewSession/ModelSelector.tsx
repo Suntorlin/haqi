@@ -1,6 +1,7 @@
 import type { AgentType, ModelOption } from './types'
 import { getModelOptionsForAgent } from './types'
 import { useTranslation } from '@/lib/use-translation'
+import { modelOptionText } from '@/lib/option-labels'
 
 export function ModelSelector(props: {
     agent: AgentType
@@ -30,7 +31,7 @@ export function ModelSelector(props: {
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
-                        {option.label}
+                        {modelOptionText(option.value, option.label, t)}
                     </option>
                 ))}
             </select>

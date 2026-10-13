@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useCallback, useMemo, useState } from 'react'
 import type { SessionSummary } from '@/types/api'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -8,6 +7,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { SessionAvatar } from '@/components/mobile/SessionAvatar'
 import { PinOffIcon } from '@/components/mobile/icons'
+import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 
 /** Pinned sessions that need attention come first: waiting for approval, then running, then recent. */
 function sortPinned(sessions: SessionSummary[]): SessionSummary[] {
@@ -75,59 +75,6 @@ function PinnedStory(props: {
     )
 }
 
-/** Small context menu for a pinned story: currently only "unpin". */
-function PinnedStoryMenu(props: { point: { x: number; y: number }; onUnpin: () => void; onClose: () => void }) {
-    const { t } = useTranslation()
-    const menuRef = useRef<HTMLDivElement | null>(null)
-    const { onClose } = props
-
-    useEffect(() => {
-        const handlePointerDown = (event: PointerEvent) => {
-            if (menuRef.current?.contains(event.target as Node)) return
-            onClose()
-        }
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') onClose()
-        }
-        document.addEventListener('pointerdown', handlePointerDown)
-        document.addEventListener('keydown', handleKeyDown)
-        window.addEventListener('resize', onClose)
-        return () => {
-            document.removeEventListener('pointerdown', handlePointerDown)
-            document.removeEventListener('keydown', handleKeyDown)
-            window.removeEventListener('resize', onClose)
-        }
-    }, [onClose])
-
-    const width = 168
-    const left = Math.min(Math.max(props.point.x - width / 2, 8), window.innerWidth - width - 8)
-    const top = Math.min(props.point.y + 8, window.innerHeight - 64)
-
-    return createPortal(
-        <div
-            ref={menuRef}
-            role="menu"
-            className="animate-menu-pop fixed z-50 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] p-1 shadow-lg"
-            style={{ left, top, width }}
-        >
-            <button
-                type="button"
-                role="menuitem"
-                autoFocus
-                onClick={() => {
-                    props.onUnpin()
-                    onClose()
-                }}
-                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[14px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)] focus-visible:bg-[var(--social-muted)] focus-visible:outline-none"
-            >
-                <PinOffIcon className="h-4 w-4 text-[var(--social-fg-muted)]" />
-                {t('session.action.unpin')}
-            </button>
-        </div>,
-        document.body
-    )
-}
-
 /**
  * Instagram-style row of the sessions the user pinned (WeChat "置顶"): they live here instead
  * of in the list below, with the same status rings. Long-press / right-click to unpin.
@@ -177,13 +124,16 @@ export function PinnedStoriesStrip(props: {
                     />
                 ))}
             </div>
-            {menu ? (
-                <PinnedStoryMenu
-                    point={menu.point}
-                    onUnpin={() => props.onUnpin(menu.session)}
-                    onClose={closeMenu}
+            <ContextMenu open={menu !== null} anchorPoint={menu?.point ?? { x: 0, y: 0 }} onClose={closeMenu} label={t('session.more')}>
+                <ContextMenuItem
+                    icon={<PinOffIcon />}
+                    label={t('session.action.unpin')}
+                    onSelect={() => {
+                        if (menu) props.onUnpin(menu.session)
+                        closeMenu()
+                    }}
                 />
-            ) : null}
+            </ContextMenu>
         </div>
     )
 }

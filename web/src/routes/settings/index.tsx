@@ -1050,7 +1050,7 @@ export default function SettingsPage() {
                     >
                     {/* Language section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.language.title')}
                         </div>
                         <div ref={containerRef} className="relative">
@@ -1105,7 +1105,7 @@ export default function SettingsPage() {
 
                     {/* Display section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.display.title')}
                         </div>
                         <div ref={themeContainerRef} className="relative">
@@ -1208,7 +1208,7 @@ export default function SettingsPage() {
 
                     {/* Voice Assistant section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.voice.title')}
                         </div>
                         <div ref={voiceContainerRef} className="relative">
@@ -1279,7 +1279,7 @@ export default function SettingsPage() {
                     >
                     {/* Behavior section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.behavior.title')}
                         </div>
                         <div ref={sendModeContainerRef} className="relative border-b border-[var(--app-border)]">
@@ -1651,7 +1651,7 @@ export default function SettingsPage() {
                             )}
                         </div>
                         <div className="border-b border-[var(--app-divider)]">
-                            <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                                 {t('settings.experimental.title')}
                             </div>
                             <div className="flex items-start justify-between gap-3 px-3 py-3">
@@ -1778,7 +1778,7 @@ export default function SettingsPage() {
                     >
                     {/* Usage section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.usage.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -1879,7 +1879,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.codexCredentials.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -1979,7 +1979,7 @@ export default function SettingsPage() {
                                             type="button"
                                             onClick={() => { void handleSaveCurrentCodexCredentials() }}
                                             disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {t('settings.codexCredentials.actions.saveCurrent')}
                                         </button>
@@ -2006,7 +2006,7 @@ export default function SettingsPage() {
                                             type="button"
                                             onClick={() => { void handleImportCodexCredentials() }}
                                             disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {t('settings.codexCredentials.actions.import')}
                                         </button>
@@ -2086,7 +2086,7 @@ export default function SettingsPage() {
 
                     {/* Report domain section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.reportDomain.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -2129,7 +2129,7 @@ export default function SettingsPage() {
                                             || !isReportDomainDirty
                                             || saveReportDomainMutation.isPending
                                         }
-                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {saveReportDomainMutation.isPending
                                             ? t('settings.reportDomain.actions.saving')
@@ -2143,7 +2143,7 @@ export default function SettingsPage() {
                     {/* Memory section */}
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="flex items-center justify-between gap-3 px-3 py-2">
-                            <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            <div className="text-[12px] font-medium text-[var(--social-fg-muted)]">
                                 {t('settings.memory.pureContextMode.title')}
                             </div>
                             <Switch
@@ -2157,7 +2157,7 @@ export default function SettingsPage() {
                             {t('settings.memory.pureContextMode.description')}
                         </div>
                         <div className="flex items-center justify-between gap-3 px-3 py-2">
-                            <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            <div className="text-[12px] font-medium text-[var(--social-fg-muted)]">
                                 {t('settings.memory.injection.title')}
                             </div>
                             <Switch
@@ -2207,7 +2207,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleSaveMemory() }}
                                         disabled={!isMemoryDirty || saveMemoryMutation.isPending}
-                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {saveMemoryMutation.isPending ? t('settings.memory.actions.saving') : t('settings.memory.actions.save')}
                                     </button>

@@ -12,6 +12,8 @@ import { queryKeys } from '@/lib/query-keys'
 import { langAlias, useShikiHighlighter } from '@/lib/shiki'
 import { decodeBase64 } from '@/lib/utils'
 import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
+import { useTranslation } from '@/lib/use-translation'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
 const GitDiffViewer = lazy(() => import('@/components/GitDiffViewer'))
@@ -64,31 +66,13 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
     return buffer
 }
 
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
-
 function FileContentSkeleton() {
+    const { t } = useTranslation()
     const widths = ['w-full', 'w-11/12', 'w-5/6', 'w-3/4', 'w-2/3', 'w-4/5']
 
     return (
         <div role="status" aria-live="polite">
-            <span className="sr-only">Loading file…</span>
+            <span className="sr-only">{t('file.loading')}</span>
             <div className="animate-pulse space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
                 {Array.from({ length: 12 }).map((_, index) => (
                     <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded bg-[var(--app-subtle-bg)]`} />
@@ -151,6 +135,7 @@ export default function FilePage() {
     const { copied: pathCopied, copy: copyPath } = useCopyToClipboard()
     const { copied: contentCopied, copy: copyContent } = useCopyToClipboard()
     const goBack = useAppGoBack()
+    const { t } = useTranslation()
     const { sessionId } = useParams({ from: '/sessions/$sessionId/file' })
     const search = useSearch({ from: '/sessions/$sessionId/file' })
     const encodedPath = typeof search.path === 'string' ? search.path : ''
@@ -310,25 +295,11 @@ export default function FilePage() {
     const missingPath = !filePath
     const diffErrorMessage = outsideWorkspaceCandidate
         ? null
-        : diffError ? `Diff unavailable: ${diffError}` : null
+        : diffError ? t('file.diffUnavailable', { error: diffError }) : null
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        <BackIcon />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">{fileName}</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{filePath || 'Unknown path'}</div>
-                    </div>
-                </div>
-            </div>
+            <SubPageHeader title={fileName} subtitle={filePath || t('file.unknownPath')} onBack={goBack} />
 
             <div className="bg-[var(--app-bg)]">
                 <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--app-divider)]">
@@ -338,7 +309,7 @@ export default function FilePage() {
                         type="button"
                         onClick={() => copyPath(filePath)}
                         className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
-                        title="Copy path"
+                        title={t('file.copyPath')}
                     >
                         {pathCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                     </button>
@@ -353,14 +324,14 @@ export default function FilePage() {
                             onClick={() => setDisplayMode('diff')}
                             className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'diff' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
                         >
-                            Diff
+                            {t('file.mode.diff')}
                         </button>
                         <button
                             type="button"
                             onClick={() => setDisplayMode('file')}
                             className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'file' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
                         >
-                            File
+                            {t('file.mode.file')}
                         </button>
                     </div>
                 </div>
@@ -374,7 +345,7 @@ export default function FilePage() {
                         </div>
                     ) : null}
                     {missingPath ? (
-                        <div className="text-sm text-[var(--app-hint)]">No file path provided.</div>
+                        <div className="text-sm text-[var(--app-hint)]">{t('file.noPath')}</div>
                     ) : loading ? (
                         <FileContentSkeleton />
                     ) : displayMode === 'diff' && diffContent ? (
@@ -424,7 +395,7 @@ export default function FilePage() {
                                         type="button"
                                         onClick={() => copyContent(decodedContent)}
                                         className="absolute right-2 top-2 z-10 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
-                                        title="Copy file content"
+                                        title={t('file.copyContent')}
                                     >
                                         {contentCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                                     </button>
@@ -434,10 +405,10 @@ export default function FilePage() {
                                 </pre>
                             </div>
                         ) : (
-                            <div className="text-sm text-[var(--app-hint)]">File is empty.</div>
+                            <div className="text-sm text-[var(--app-hint)]">{t('file.empty')}</div>
                         )
                     ) : (
-                        <div className="text-sm text-[var(--app-hint)]">No changes to display.</div>
+                        <div className="text-sm text-[var(--app-hint)]">{t('file.noChanges')}</div>
                     )}
                 </div>
             </div>

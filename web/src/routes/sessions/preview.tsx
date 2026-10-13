@@ -8,29 +8,14 @@ import { useSession } from '@/hooks/queries/useSession'
 import { LoadingState } from '@/components/LoadingState'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizePreviewUrlInput } from '@/lib/preview-url'
-
-function BackIcon() {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
+import { useTranslation } from '@/lib/use-translation'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 
 export default function PreviewPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/preview' })
     const { api } = useAppContext()
     const goBack = useAppGoBack()
+    const { t } = useTranslation()
     const queryClient = useQueryClient()
     const { settings: experimentalSettings, isLoading: experimentalSettingsLoading } = useExperimentalSettings(api, true)
     const { session, isLoading, error } = useSession(api, sessionId)
@@ -57,7 +42,7 @@ export default function PreviewPage() {
     if (experimentalSettingsLoading) {
         return (
             <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-                <LoadingState label="Loading preview…" className="text-sm" />
+                <LoadingState label={t('preview.loading')} className="text-sm" />
             </div>
         )
     }
@@ -65,19 +50,9 @@ export default function PreviewPage() {
     if (!experimentalSettings.previewEnabled) {
         return (
             <div className="flex h-full flex-col bg-[var(--app-bg)]">
-                <div className="flex items-center gap-2 border-b border-[var(--app-border)] px-3 py-2">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
-                        aria-label="Back"
-                    >
-                        <BackIcon />
-                    </button>
-                    <div className="text-sm font-semibold">Preview</div>
-                </div>
+                <SubPageHeader title={t('preview.title')} onBack={goBack} />
                 <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-[var(--app-hint)]">
-                    Preview is disabled in settings.
+                    {t('preview.disabled')}
                 </div>
             </div>
         )
@@ -155,39 +130,28 @@ export default function PreviewPage() {
     if (isLoading && !session) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <LoadingState label="Loading preview…" className="text-sm" />
+                <LoadingState label={t('preview.loading')} className="text-sm" />
             </div>
         )
     }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-            <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto flex w-full max-w-content items-center gap-2 p-3">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        aria-label="Back"
+            <SubPageHeader
+                title={t('preview.title')}
+                subtitle={sessionTitle}
+                onBack={goBack}
+                actions={frameUrl ? (
+                    <a
+                        href={frameUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full border border-[var(--social-border)] px-3 py-1.5 text-[13px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)]"
                     >
-                        <BackIcon />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">Preview</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{sessionTitle}</div>
-                    </div>
-                    {frameUrl ? (
-                        <a
-                            href={frameUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)]"
-                        >
-                            Open
-                        </a>
-                    ) : null}
-                </div>
-            </div>
+                        {t('preview.open')}
+                    </a>
+                ) : undefined}
+            />
 
             <div className="mx-auto flex w-full max-w-content flex-1 min-h-0 flex-col gap-3 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
                 <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
@@ -210,7 +174,7 @@ export default function PreviewPage() {
                                 type="button"
                                 onClick={() => void openPreview(inputUrl)}
                                 disabled={isSaving}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                className="rounded-md bg-[var(--app-button)] px-3 py-2 text-sm font-medium text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isSaving ? 'Saving…' : 'Load'}
                             </button>

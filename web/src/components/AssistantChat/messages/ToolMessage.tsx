@@ -3,6 +3,7 @@ import type { ChatBlock } from '@/chat/types'
 import type { ToolCallBlock } from '@/chat/types'
 import { isObject, safeStringify } from '@hapi/protocol'
 import { getEventPresentation } from '@/chat/presentation'
+import { useTranslation } from '@/lib/use-translation'
 import { CodeBlock } from '@/components/CodeBlock'
 import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 import { LazyRainbowText } from '@/components/LazyRainbowText'
@@ -50,6 +51,7 @@ function HappyNestedBlockList(props: {
     blocks: ChatBlock[]
     density: SessionListDensity
 }) {
+    const { t } = useTranslation()
     const ctx = useHappyChatContext()
     const isCompact = props.density === 'compact'
 
@@ -100,7 +102,7 @@ function HappyNestedBlockList(props: {
                 }
 
                 if (block.kind === 'agent-event') {
-                    const presentation = getEventPresentation(block.event)
+                    const presentation = getEventPresentation(block.event, t)
                     return (
                         <div key={`event:${block.id}`} className="py-1">
                             <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">

@@ -44,6 +44,8 @@ import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
+import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { TrashIcon } from '@/components/mobile/icons'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -660,6 +662,7 @@ function AddMemberModal(props: {
     onClose: () => void
     isPending: boolean
 }) {
+    const { t } = useTranslation()
     const { api } = useAppContext()
     const { sessions, isLoading: sessionsLoading } = useSessions(api)
     const { machines } = useMachines(api, true)
@@ -740,11 +743,11 @@ function AddMemberModal(props: {
                                 type="button"
                                 onClick={() => setMode('select')}
                                 className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                                title="Back to selection"
+                                title={t('button.back')}
                             >
                                 <ChevronLeftIcon />
                             </button>
-                            <div className="font-semibold text-sm text-[var(--app-fg)]">Create New Session</div>
+                            <div className="font-semibold text-sm text-[var(--app-fg)]">{t('newSession.title')}</div>
                         </div>
                         <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
                             <CloseIcon />
@@ -770,7 +773,7 @@ function AddMemberModal(props: {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="flex w-full max-w-sm flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '80vh' }}>
                 <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
-                    <div className="font-semibold text-sm text-[var(--app-fg)]">Add Member</div>
+                    <div className="font-semibold text-sm text-[var(--app-fg)]">{t('groups.detail.addMember')}</div>
                     <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
                         <CloseIcon />
                     </button>
@@ -790,12 +793,12 @@ function AddMemberModal(props: {
                 </div>
 
                 <div className="border-b border-[var(--app-divider)] px-3 py-2">
-                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]" />
+                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('sessions.search.placeholder')} className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]" />
                 </div>
 
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     {sessionsLoading ? (
-                        <div className="px-4 py-3 text-sm text-[var(--app-hint)]">Loading sessions…</div>
+                        <div className="px-4 py-3 text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
                     ) : online.length === 0 && offline.length === 0 ? (
                         <div className="px-4 py-3 text-sm text-[var(--app-hint)]">{search ? 'No sessions match.' : 'No sessions available.'}</div>
                     ) : (
@@ -899,121 +902,20 @@ type MemberActionMenuProps = {
     anchorPoint: { x: number; y: number }
 }
 
-type MemberActionMenuPosition = {
-    top: number
-    left: number
-    transformOrigin: string
-}
-
 function MemberActionMenu(props: MemberActionMenuProps) {
-    const { isOpen, onClose, onRemove, anchorPoint } = props
-    const menuRef = useRef<HTMLDivElement | null>(null)
-    const [menuPosition, setMenuPosition] = useState<MemberActionMenuPosition | null>(null)
-
-    const updatePosition = useCallback(() => {
-        const menuEl = menuRef.current
-        if (!menuEl) return
-
-        const menuRect = menuEl.getBoundingClientRect()
-        const viewportWidth = window.innerWidth
-        const viewportHeight = window.innerHeight
-        const padding = 8
-        const gap = 8
-
-        const spaceBelow = viewportHeight - anchorPoint.y
-        const spaceAbove = anchorPoint.y
-        const openAbove = spaceBelow < menuRect.height + gap && spaceAbove > spaceBelow
-
-        let top = openAbove ? anchorPoint.y - menuRect.height - gap : anchorPoint.y + gap
-        let left = anchorPoint.x - menuRect.width / 2
-        const transformOrigin = openAbove ? 'bottom center' : 'top center'
-
-        top = Math.min(Math.max(top, padding), viewportHeight - menuRect.height - padding)
-        left = Math.min(Math.max(left, padding), viewportWidth - menuRect.width - padding)
-
-        setMenuPosition({ top, left, transformOrigin })
-    }, [anchorPoint])
-
-    useLayoutEffect(() => {
-        if (!isOpen) return
-        updatePosition()
-    }, [isOpen, updatePosition])
-
-    useEffect(() => {
-        if (!isOpen) {
-            setMenuPosition(null)
-            return
-        }
-
-        const handlePointerDown = (event: PointerEvent) => {
-            const target = event.target as Node
-            if (menuRef.current?.contains(target)) return
-            onClose()
-        }
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose()
-            }
-        }
-
-        const handleReflow = () => {
-            updatePosition()
-        }
-
-        document.addEventListener('pointerdown', handlePointerDown)
-        document.addEventListener('keydown', handleKeyDown)
-        window.addEventListener('resize', handleReflow)
-        window.addEventListener('scroll', handleReflow, true)
-
-        return () => {
-            document.removeEventListener('pointerdown', handlePointerDown)
-            document.removeEventListener('keydown', handleKeyDown)
-            window.removeEventListener('resize', handleReflow)
-            window.removeEventListener('scroll', handleReflow, true)
-        }
-    }, [isOpen, onClose, updatePosition])
-
-    useEffect(() => {
-        if (!isOpen) return
-        const frame = window.requestAnimationFrame(() => {
-            const firstItem = menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-            firstItem?.focus()
-        })
-        return () => window.cancelAnimationFrame(frame)
-    }, [isOpen])
-
-    if (!isOpen) {
-        return null
-    }
-
-    const menuStyle: CSSProperties | undefined = menuPosition
-        ? {
-            top: menuPosition.top,
-            left: menuPosition.left,
-            transformOrigin: menuPosition.transformOrigin
-        }
-        : undefined
-
+    const { t } = useTranslation()
     return (
-        <div
-            ref={menuRef}
-            role="menu"
-            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
-            style={menuStyle}
-        >
-            <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                    onClose()
-                    onRemove()
+        <ContextMenu open={props.isOpen} anchorPoint={props.anchorPoint} onClose={props.onClose} label={t('session.more')}>
+            <ContextMenuItem
+                icon={<TrashIcon />}
+                label={t('groups.member.remove')}
+                destructive
+                onSelect={() => {
+                    props.onClose()
+                    props.onRemove()
                 }}
-                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
-            >
-                Remove member
-            </button>
-        </div>
+            />
+        </ContextMenu>
     )
 }
 
@@ -1031,6 +933,7 @@ function PendingRequestsQuickModal(props: {
     onOpenSession: () => void
     onClose: () => void
 }) {
+    const { t } = useTranslation()
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -1048,7 +951,7 @@ function PendingRequestsQuickModal(props: {
                 <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
                     <div className="min-w-0">
                         <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
-                            Pending Requests
+                            {t('groups.detail.pendingRequests')}
                         </div>
                         <div className="truncate text-xs text-[var(--app-hint)]">
                             {props.sessionTitle} · {props.sessionId}
@@ -1058,7 +961,7 @@ function PendingRequestsQuickModal(props: {
                         type="button"
                         onClick={props.onClose}
                         className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                        title="Close"
+                        title={t('button.close')}
                     >
                         <CloseIcon />
                     </button>
@@ -1135,7 +1038,7 @@ function PendingRequestsQuickModal(props: {
                                                 disabled={props.activeRequestId !== null}
                                                 className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                Deny
+                                                {t('groups.detail.deny')}
                                             </button>
                                             <button
                                                 type="button"
@@ -1143,7 +1046,7 @@ function PendingRequestsQuickModal(props: {
                                                 disabled={props.activeRequestId !== null}
                                                 className="rounded border border-green-500 px-2 py-1 text-xs text-green-700 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
-                                                {isActing ? 'Processing...' : 'Approve'}
+                                                {isActing ? t('groups.detail.processing') : t('groups.detail.approve')}
                                             </button>
                                         </div>
                                     </div>
@@ -1259,7 +1162,7 @@ function TimelineBubble(props: {
             type="button"
             onClick={() => props.onQuote?.(message)}
             className="mb-1 shrink-0 self-end rounded-full p-1 text-[var(--app-hint)] opacity-100 transition-opacity hover:bg-[var(--app-subtle-bg)] md:opacity-0 md:group-hover/message:opacity-100"
-            title="Reply"
+            title={t('groups.detail.reply')}
         >
             <QuoteIcon className="h-3.5 w-3.5" />
         </button>
@@ -1412,6 +1315,7 @@ function ComposerAttachmentList(props: {
     disabled: boolean
     onRemove: (id: string) => void
 }) {
+    const { t } = useTranslation()
     if (props.attachments.length === 0) {
         return null
     }
@@ -1421,7 +1325,7 @@ function ComposerAttachmentList(props: {
             {props.attachments.map((attachment) => {
                 const isImage = isImageMimeType(attachment.mimeType) && Boolean(attachment.previewUrl)
                 const statusText = attachment.status === 'uploading'
-                    ? 'Uploading...'
+                    ? t('groups.detail.uploading')
                     : attachment.status === 'error'
                         ? (attachment.error ?? 'Upload failed')
                         : formatFileSize(attachment.size)
@@ -1460,7 +1364,7 @@ function ComposerAttachmentList(props: {
                             onClick={() => { void props.onRemove(attachment.id) }}
                             disabled={props.disabled}
                             className="shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="Remove attachment"
+                            title={t('groups.detail.removeAttachment')}
                         >
                             <CloseIcon className="h-3 w-3" />
                         </button>
@@ -1680,6 +1584,7 @@ function GroupBriefTurnList(props: {
     sessionMap: Map<string, SessionSummary>
     onOpenSession: (sessionId: string) => void
 }) {
+    const { t } = useTranslation()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
     const isAtBottomRef = useRef(true)
@@ -1968,7 +1873,7 @@ function GroupBriefTurnList(props: {
                                                         type="button"
                                                         className="block w-full text-left"
                                                         onClick={() => openTurnDetails(turn.id)}
-                                                        aria-label="Open turn details"
+                                                        aria-label={t('groups.detail.openTurn')}
                                                     >
                                                         <BriefCardMarkdownPreview
                                                             content={responderPreview}
@@ -1977,7 +1882,7 @@ function GroupBriefTurnList(props: {
                                                         <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
                                                             <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
                                                             <span>·</span>
-                                                            <span className="underline decoration-dotted">Click to open details</span>
+                                                            <span className="underline decoration-dotted">{t('groups.detail.openTurnHint')}</span>
                                                             {turn.status === 'open' ? (
                                                                 <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
                                                                     <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
@@ -2021,7 +1926,7 @@ function GroupBriefTurnList(props: {
                                     type="button"
                                     onClick={closeTurnDetails}
                                     className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                    aria-label="Back"
+                                    aria-label={t('button.back')}
                                 >
                                     <ChevronLeftIcon />
                                 </button>
@@ -2142,6 +2047,7 @@ function GroupBriefTurnList(props: {
 // ─── GroupDetailPage ──────────────────────────────────────────────────────────
 
 export default function GroupDetailPage() {
+    const { t } = useTranslation()
     const { api } = useAppContext()
     const { groupId } = useParams({ from: '/groups/$groupId' })
     const navigate = useNavigate()
@@ -2950,7 +2856,7 @@ export default function GroupDetailPage() {
                         className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
                     >
                         {membersExpanded ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                        <span className="font-medium uppercase tracking-wide">Members</span>
+                        <span className="font-medium">{t('groups.detail.members')}</span>
                         <span className="text-[10px]">{members.length}</span>
                         {members.some(m => {
                             const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
@@ -2960,7 +2866,7 @@ export default function GroupDetailPage() {
                                 {members.filter(m => {
                                     const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
                                     return getMemberWorkStatus(s) !== 'offline'
-                                }).length} online
+                                }).length} {t('groups.detail.onlineSuffix')}
                             </span>
                         )}
 
@@ -3009,9 +2915,9 @@ export default function GroupDetailPage() {
                             onClick={() => setShowAddMember(true)}
                             disabled={isPending}
                             className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="Add member"
+                            title={t('groups.detail.addMember')}
                         >
-                            Add
+                            {t('groups.detail.add')}
                         </button>
                     </div>
                 </div>
@@ -3063,7 +2969,7 @@ export default function GroupDetailPage() {
                         className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
                     >
                         {noteOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                        <span className="font-medium uppercase tracking-wide">Note</span>
+                        <span className="font-medium">{t('groups.detail.note')}</span>
                         {note ? <span className="text-[10px]">v{note.version}</span> : null}
                     </button>
                     <div className="ml-auto flex gap-1">
@@ -3072,9 +2978,9 @@ export default function GroupDetailPage() {
                             onClick={() => { void handleSaveNote() }}
                             disabled={isPending}
                             className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="保存Note内容和Prompt"
+                            title={t('groups.detail.saveHint')}
                         >
-                            Save
+                            {t('button.save')}
                         </button>
                         <button
                             type="button"
@@ -3082,16 +2988,16 @@ export default function GroupDetailPage() {
                             disabled={isPending}
                             className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
                         >
-                            Generate
+                            {t('groups.detail.generate')}
                         </button>
                         <button
                             type="button"
                             onClick={() => { void handleBroadcastNote() }}
                             disabled={isPending || !note?.content}
                             className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="广播当前Note内容到所有群组成员"
+                            title={t('groups.detail.broadcastHint')}
                         >
-                            📢 Broadcast
+                            {t('groups.detail.broadcast')}
                         </button>
                     </div>
                 </div>
@@ -3104,12 +3010,12 @@ export default function GroupDetailPage() {
                                 <textarea
                                     value={noteDraft}
                                     onChange={(e) => setNoteDraft(e.target.value)}
-                                    placeholder="Note content..."
+                                    placeholder={t('groups.detail.notePlaceholder')}
                                     rows={5}
                                     className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)] resize-y"
                                 />
                                 <div className="mt-2 grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1.5">
-                                    <span className="self-center text-[11px] text-[var(--app-hint)]">Executor</span>
+                                    <span className="self-center text-[11px] text-[var(--app-hint)]">{t('groups.detail.executor')}</span>
                                     <select
                                         value={group.group.noteSessionId ?? ''}
                                         onChange={(e) => {
@@ -3119,7 +3025,7 @@ export default function GroupDetailPage() {
                                         disabled={isPending}
                                         className="w-full rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
                                     >
-                                        <option value="">Not configured</option>
+                                        <option value="">{t('groups.detail.notConfigured')}</option>
                                         {members
                                             .filter((member) => typeof member.sessionId === 'string' && member.sessionId.length > 0)
                                             .map((member) => {
@@ -3133,11 +3039,11 @@ export default function GroupDetailPage() {
                                                 )
                                             })}
                                     </select>
-                                    <span className="pt-1 text-[11px] text-[var(--app-hint)]">Prompt</span>
+                                    <span className="pt-1 text-[11px] text-[var(--app-hint)]">{t('groups.detail.prompt')}</span>
                                     <textarea
                                         value={notePromptDraft}
                                         onChange={(e) => setNotePromptDraft(e.target.value)}
-                                        placeholder="Optional prompt for each generation..."
+                                        placeholder={t('groups.detail.promptPlaceholder')}
                                         rows={2}
                                         className="w-full resize-y rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                     />
@@ -3159,7 +3065,7 @@ export default function GroupDetailPage() {
                                 : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
                             onClick={() => setViewMode('normal')}
                         >
-                            Normal
+                            {t('mobile.chat.view.normal')}
                         </button>
                         <button
                             type="button"
@@ -3168,7 +3074,7 @@ export default function GroupDetailPage() {
                                 : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
                             onClick={() => setViewMode('brief')}
                         >
-                            Brief
+                            {t('mobile.chat.view.brief')}
                         </button>
                         <button
                             type="button"
@@ -3303,7 +3209,7 @@ export default function GroupDetailPage() {
                                     type="button"
                                     onClick={() => setQuotedMessage(null)}
                                     className="mt-0.5 shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                                    title="Cancel reply"
+                                    title={t('groups.detail.cancelReply')}
                                 >
                                     <CloseIcon className="h-3 w-3" />
                                 </button>
@@ -3316,7 +3222,7 @@ export default function GroupDetailPage() {
                                 onChange={handleComposerChange}
                                 onPaste={handleComposerPaste}
                                 onKeyDown={handleComposerKeyDown}
-                                placeholder="Send chat, /command, @sessionId, or @all"
+                                placeholder={t('groups.detail.composerPlaceholder')}
                                 rows={1}
                                 className="app-scrollbar w-full resize-none bg-transparent text-sm outline-none"
                                 style={{ minHeight: '38px', maxHeight: '120px' }}
@@ -3336,7 +3242,7 @@ export default function GroupDetailPage() {
                                 type="submit"
                                 disabled={!canSendComposer}
                                 className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${canSendComposer ? 'bg-black' : 'bg-[#C0C0C0]'}`}
-                                title="Send"
+                                title={t('composer.send')}
                             >
                                 <SendIcon className="h-4 w-4" />
                             </button>
@@ -3361,7 +3267,7 @@ export default function GroupDetailPage() {
                     setMemberRemoveSessionId(null)
                     setMemberActionSessionId(null)
                 }}
-                title="Remove member"
+                title={t('groups.member.remove')}
                 description={memberRemoveTarget
                     ? `Remove ${memberRemoveTarget.title} from this group?`
                     : 'Remove this member from the group?'

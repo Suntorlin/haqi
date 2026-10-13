@@ -63,6 +63,7 @@
     --social-success: #10b981;
     --social-warning: #f59e0b;
     --social-badge: #ff3040;
+    --social-danger: #e5484d;
     --social-bar-bg: rgba(255, 255, 255, 0.86);
 
     --app-font-scale: 1;
@@ -130,6 +131,7 @@
     --social-success: #34d399;
     --social-warning: #fbbf24;
     --social-badge: #ff3040;
+    --social-danger: #ff6369;
     --social-bar-bg: rgba(9, 9, 11, 0.86);
 }
 

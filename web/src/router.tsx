@@ -23,6 +23,7 @@ import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/compon
 import { ChevronLeftIcon, ClearIcon, FolderStackIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
 import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
 import { NewSession } from '@/components/NewSession'
@@ -62,6 +63,8 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DIALOG_INPUT_CLASS, RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
 import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
@@ -80,25 +83,6 @@ import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
 import { ReviewLoopStatusBadge, CreateLoopModal, type CreateLoopData } from '@/components/ReviewLoop'
-
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
 
 type NewSessionSearch = {
     directory?: string
@@ -882,38 +866,20 @@ function NewSessionPage() {
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <div className="flex items-center gap-2 border-b border-[var(--app-border)] bg-[var(--app-bg)] p-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
-                {!isTelegramApp() && (
+            <SubPageHeader
+                title={t('newSession.title')}
+                onBack={isTelegramApp() ? undefined : goBack}
+                actions={(
                     <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        type="submit"
+                        form={formId}
+                        disabled={submitDisabled}
+                        className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[14px] font-medium text-[var(--social-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-40"
                     >
-                        <BackIcon />
+                        {t('newSession.create')}
                     </button>
                 )}
-                <div className="flex-1 font-semibold">Create Session</div>
-                <Button
-                    type="submit"
-                    form={formId}
-                    size="sm"
-                    disabled={submitDisabled}
-                    className="hidden sm:inline-flex"
-                >
-                    Create
-                </Button>
-                <Button
-                    type="submit"
-                    form={formId}
-                    size="sm"
-                    disabled={submitDisabled}
-                    className="h-8 w-8 p-0 text-base sm:hidden"
-                    aria-label="Create"
-                    title="Create"
-                >
-                    <span aria-hidden>✅</span>
-                </Button>
-            </div>
+            />
 
             <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
                 {machinesError ? (
@@ -1021,8 +987,6 @@ function GroupsLayout() {
     const [actionAnchorPoint, setActionAnchorPoint] = useState({ x: 0, y: 0 })
     const [actionGroupId, setActionGroupId] = useState<string | null>(null)
     const [renameModalOpen, setRenameModalOpen] = useState(false)
-    const [renameDraft, setRenameDraft] = useState('')
-    const [renameError, setRenameError] = useState<string | null>(null)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
@@ -1089,7 +1053,7 @@ function GroupsLayout() {
         }
         const trimmedName = newGroupName.trim()
         if (!trimmedName) {
-            setCreateError('Name is required')
+            setCreateError(t('groups.dialog.nameRequired'))
             return
         }
         setCreateError(null)
@@ -1104,7 +1068,7 @@ function GroupsLayout() {
             setNewGroupDesc('')
             navigate({ to: '/groups/$groupId', params: { groupId } })
         } catch (error) {
-            setCreateError(error instanceof Error ? error.message : 'Failed to create group')
+            setCreateError(error instanceof Error ? error.message : t('groups.dialog.createFailed'))
         } finally {
             setIsCreateSubmitting(false)
         }
@@ -1117,34 +1081,13 @@ function GroupsLayout() {
     }
 
     const handleOpenRename = () => {
-        if (!actionTarget) {
-            return
-        }
-        setRenameError(null)
-        setRenameDraft(actionTarget.group.name)
-        setRenameModalOpen(true)
+        if (actionTarget) setRenameModalOpen(true)
     }
 
-    const handleRenameGroup = async () => {
-        if (!actionTarget) {
-            return
-        }
-        const nextName = renameDraft.trim()
-        if (!nextName) {
-            setRenameError('Name is required')
-            return
-        }
-        if (nextName === actionTarget.group.name) {
-            setRenameModalOpen(false)
-            return
-        }
-        setRenameError(null)
-        try {
-            await updateGroup({ name: nextName })
-            setRenameModalOpen(false)
-        } catch (error) {
-            setRenameError(error instanceof Error ? error.message : 'Failed to rename group')
-        }
+    // RenameSessionDialog closes on success and shows its own error when this throws.
+    const handleRenameGroup = async (nextName: string) => {
+        if (!actionTarget) return
+        await updateGroup({ name: nextName })
     }
 
     const handleDeleteGroup = async () => {
@@ -1162,48 +1105,51 @@ function GroupsLayout() {
 
     const groupModals = (
         <>
-            {/* Create group modal */}
-            {showCreateModal ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
-                        <div className="mb-3 font-semibold text-[var(--app-fg)]">New Group</div>
+            <Dialog
+                open={showCreateModal}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setShowCreateModal(false)
+                        setCreateError(null)
+                    }
+                }}
+            >
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>{t('mobile.groups.new')}</DialogTitle>
+                    </DialogHeader>
+                    <form
+                        className="mt-4 flex flex-col gap-3"
+                        onSubmit={(event) => {
+                            event.preventDefault()
+                            void handleCreate()
+                        }}
+                    >
                         <input
                             autoFocus
                             value={newGroupName}
-                            onChange={(e) => setNewGroupName(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { void handleCreate() } }}
-                            placeholder="Group name"
-                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                            onChange={(event) => setNewGroupName(event.target.value)}
+                            placeholder={t('groups.dialog.name')}
+                            className={DIALOG_INPUT_CLASS}
                         />
                         <input
                             value={newGroupDesc}
-                            onChange={(e) => setNewGroupDesc(e.target.value)}
-                            placeholder="Description (optional)"
-                            className="mb-3 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
+                            onChange={(event) => setNewGroupDesc(event.target.value)}
+                            placeholder={t('groups.dialog.description')}
+                            className={DIALOG_INPUT_CLASS}
                         />
-                        {createError ? (
-                            <div className="mb-2 text-xs text-red-600">{createError}</div>
-                        ) : null}
+                        {createError ? <div className="text-sm text-[var(--social-danger)]">{createError}</div> : null}
                         <div className="flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => { setShowCreateModal(false); setCreateError(null) }}
-                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { void handleCreate() }}
-                                disabled={isCreateRequestInFlight}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
-                            >
-                                {isCreateRequestInFlight ? 'Creating...' : 'Create'}
-                            </button>
+                            <Button type="button" variant="secondary" onClick={() => { setShowCreateModal(false); setCreateError(null) }}>
+                                {t('button.cancel')}
+                            </Button>
+                            <Button type="submit" disabled={isCreateRequestInFlight || !newGroupName.trim()}>
+                                {isCreateRequestInFlight ? t('newSession.creating') : t('newSession.create')}
+                            </Button>
                         </div>
-                    </div>
-                </div>
-            ) : null}
+                    </form>
+                </DialogContent>
+            </Dialog>
 
             <SessionActionMenu
                 isOpen={actionMenuOpen && Boolean(actionTarget)}
@@ -1213,62 +1159,28 @@ function GroupsLayout() {
                 onArchive={() => {}}
                 onDelete={() => {
                     setRenameModalOpen(false)
-                    setRenameError(null)
                     setDeleteModalOpen(true)
                 }}
                 anchorPoint={actionAnchorPoint}
             />
 
-            {renameModalOpen && actionTarget ? (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                    <div className="w-full max-w-sm rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] p-4 shadow-xl">
-                        <div className="mb-3 font-semibold text-[var(--app-fg)]">Rename Group</div>
-                        <input
-                            autoFocus
-                            value={renameDraft}
-                            onChange={(e) => setRenameDraft(e.target.value)}
-                            onKeyDown={(e) => { if (e.key === 'Enter') { void handleRenameGroup() } }}
-                            placeholder="Group name"
-                            className="mb-2 w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)]"
-                        />
-                        {renameError ? (
-                            <div className="mb-2 text-xs text-red-600">{renameError}</div>
-                        ) : null}
-                        <div className="flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setRenameModalOpen(false)
-                                    setRenameError(null)
-                                }}
-                                className="rounded-md border border-[var(--app-divider)] px-3 py-1.5 text-sm text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)]"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { void handleRenameGroup() }}
-                                disabled={isActionPending}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-1.5 text-sm text-white disabled:opacity-60"
-                            >
-                                {isActionPending ? 'Saving...' : 'Save'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            <RenameSessionDialog
+                isOpen={renameModalOpen && Boolean(actionTarget)}
+                onClose={() => setRenameModalOpen(false)}
+                currentName={actionTarget?.group.name ?? ''}
+                onRename={handleRenameGroup}
+                isPending={isActionPending}
+                title={t('groups.dialog.renameTitle')}
+                placeholder={t('groups.dialog.name')}
+            />
 
             <ConfirmDialog
                 isOpen={deleteModalOpen && Boolean(actionTarget)}
                 onClose={() => setDeleteModalOpen(false)}
-                title="Delete Group"
-                description={
-                    actionTarget
-                        ? `Are you sure you want to delete "${actionTarget.group.name}"? This action cannot be undone.`
-                        : 'Are you sure you want to delete this group?'
-                }
-                confirmLabel="Delete"
-                confirmingLabel="Deleting..."
+                title={t('groups.dialog.deleteTitle')}
+                description={t('groups.dialog.deleteDescription', { name: actionTarget?.group.name ?? '' })}
+                confirmLabel={t('dialog.delete.confirm')}
+                confirmingLabel={t('dialog.delete.confirming')}
                 onConfirm={handleDeleteGroup}
                 isPending={isActionPending}
                 destructive

@@ -217,17 +217,6 @@ export function PencilIcon(props: IconProps) {
     )
 }
 
-export function CopyPlusIcon(props: IconProps) {
-    return (
-        <Svg {...props} strokeWidth={1.8}>
-            <rect x="8" y="8" width="13" height="13" rx="2" />
-            <path d="M4 16V5a2 2 0 0 1 2-2h11" />
-            <line x1="14.5" y1="11.5" x2="14.5" y2="17.5" />
-            <line x1="11.5" y1="14.5" x2="17.5" y2="14.5" />
-        </Svg>
-    )
-}
-
 export function ArchiveBoxIcon(props: IconProps) {
     return (
         <Svg {...props} strokeWidth={1.8}>
@@ -271,7 +260,7 @@ export function SpeakerIcon(props: IconProps & { muted?: boolean }) {
 
 export function PinIcon(props: IconProps) {
     return (
-        <Svg className={props.className}>
+        <Svg {...props} strokeWidth={1.8}>
             <path d="M12 17v5" />
             <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
         </Svg>
@@ -280,11 +269,74 @@ export function PinIcon(props: IconProps) {
 
 export function PinOffIcon(props: IconProps) {
     return (
-        <Svg className={props.className}>
+        <Svg {...props} strokeWidth={1.8}>
             <path d="M12 17v5" />
             <path d="M15 9.34V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H7.89" />
             <path d="m2 2 20 20" />
             <path d="M9 9v1.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h11" />
+        </Svg>
+    )
+}
+
+export function TagIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M20.59 13.41 11 3.83V3H4v7h.83l9.58 9.59a2 2 0 0 0 2.83 0l3.35-3.35a2 2 0 0 0 0-2.83Z" />
+            <circle cx="7.5" cy="6.5" r=".6" fill="currentColor" />
+        </Svg>
+    )
+}
+
+/** New session (same config / in this project). */
+export function NewSessionIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <path d="M14 2v6h6" />
+            <path d="M12 18v-6" />
+            <path d="M9 15h6" />
+        </Svg>
+    )
+}
+
+/** Duplicate a session together with its history. */
+export function DuplicateIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </Svg>
+    )
+}
+
+export function ChevronRightIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <polyline points="9 18 15 12 9 6" />
+        </Svg>
+    )
+}
+
+/** Plan mode: plan first, run after approval. */
+export function PlanIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="m3 17 2 2 4-4" />
+            <path d="m3 7 2 2 4-4" />
+            <path d="M13 6h8" />
+            <path d="M13 12h8" />
+            <path d="M13 18h8" />
+        </Svg>
+    )
+}
+
+/** Project offline toggle. */
+export function BulbIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M9 18h6" />
+            <path d="M10 22h4" />
+            <path d="M12 2a7 7 0 0 0-4 12.74V16h8v-1.26A7 7 0 0 0 12 2z" />
         </Svg>
     )
 }

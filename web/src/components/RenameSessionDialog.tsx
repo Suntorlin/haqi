@@ -8,12 +8,18 @@ import {
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
 
+/** Text input style shared by the small name dialogs (rename session / group, new group). */
+export const DIALOG_INPUT_CLASS = 'w-full rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] px-3.5 py-2.5 text-[15px] text-[var(--social-fg)] placeholder:text-[var(--social-fg-subtle)] focus:border-[var(--social-fg-subtle)] focus:outline-none'
+
 type RenameSessionDialogProps = {
     isOpen: boolean
     onClose: () => void
     currentName: string
     onRename: (newName: string) => Promise<void>
     isPending: boolean
+    /** Defaults to the session wording; groups pass their own. */
+    title?: string
+    placeholder?: string
 }
 
 export function RenameSessionDialog(props: RenameSessionDialogProps) {
@@ -60,7 +66,7 @@ export function RenameSessionDialog(props: RenameSessionDialogProps) {
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="max-w-sm">
                 <DialogHeader>
-                    <DialogTitle>{t('dialog.rename.title')}</DialogTitle>
+                    <DialogTitle>{props.title ?? t('dialog.rename.title')}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
                     <input
@@ -69,14 +75,14 @@ export function RenameSessionDialog(props: RenameSessionDialogProps) {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder={t('dialog.rename.placeholder')}
-                        className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
+                        placeholder={props.placeholder ?? t('dialog.rename.placeholder')}
+                        className={DIALOG_INPUT_CLASS}
                         disabled={isPending}
                         maxLength={255}
                     />
 
                     {error ? (
-                        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                        <div className="text-sm text-[var(--social-danger)]">
                             {error}
                         </div>
                     ) : null}

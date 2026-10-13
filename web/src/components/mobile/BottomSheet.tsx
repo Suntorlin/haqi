@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { SwitchTrack } from '@/components/ui/Switch'
 import { cn } from '@/lib/utils'
 
 /**
@@ -98,6 +99,20 @@ export function SheetSection(props: { title?: string; children: ReactNode; class
     )
 }
 
+/** Leading icon slot shared by every sheet row, so rows with and without switches line up. */
+function SheetRowIcon(props: { children: ReactNode; destructive?: boolean }) {
+    return (
+        <span
+            className={cn(
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg [&>svg]:h-[18px] [&>svg]:w-[18px]',
+                props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-muted)]'
+            )}
+        >
+            {props.children}
+        </span>
+    )
+}
+
 export function SheetRow(props: {
     label: ReactNode
     value?: ReactNode
@@ -109,12 +124,8 @@ export function SheetRow(props: {
 }) {
     const content = (
         <>
-            {props.icon ? (
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--social-fg-muted)]">
-                    {props.icon}
-                </span>
-            ) : null}
-            <span className={cn('min-w-0 shrink-0 text-[15px]', props.destructive ? 'text-[var(--social-badge)]' : 'text-[var(--social-fg)]')}>
+            {props.icon ? <SheetRowIcon destructive={props.destructive}>{props.icon}</SheetRowIcon> : null}
+            <span className={cn('min-w-0 shrink-0 text-[15px]', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>
                 {props.label}
             </span>
             <span className="min-w-0 flex-1 truncate text-right text-[14px] text-[var(--social-fg-muted)]">
@@ -190,6 +201,7 @@ export function SheetOption(props: {
 export function SheetSwitchRow(props: {
     label: ReactNode
     description?: ReactNode
+    icon?: ReactNode
     checked: boolean
     disabled?: boolean
     onCheckedChange: (checked: boolean) => void
@@ -203,26 +215,14 @@ export function SheetSwitchRow(props: {
             onClick={() => props.onCheckedChange(!props.checked)}
             className="social-pressable flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
         >
+            {props.icon ? <SheetRowIcon>{props.icon}</SheetRowIcon> : null}
             <span className="min-w-0 flex-1">
                 <span className="block text-[15px] text-[var(--social-fg)]">{props.label}</span>
                 {props.description ? (
                     <span className="mt-0.5 block text-[12.5px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
                 ) : null}
             </span>
-            <span
-                className={cn(
-                    'relative inline-flex h-[26px] w-[44px] shrink-0 items-center rounded-full transition-colors',
-                    props.checked ? 'bg-[var(--social-primary)]' : 'bg-[var(--social-border)]'
-                )}
-                aria-hidden="true"
-            >
-                <span
-                    className={cn(
-                        'h-[22px] w-[22px] rounded-full bg-[var(--app-bg)] shadow-sm transition-transform',
-                        props.checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
-                    )}
-                />
-            </span>
+            <SwitchTrack checked={props.checked} />
         </button>
     )
 }

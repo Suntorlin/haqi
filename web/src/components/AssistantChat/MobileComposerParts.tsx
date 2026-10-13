@@ -5,6 +5,7 @@ import {
     InfoCircleIcon,
     MicWaveIcon,
     PaperclipIcon,
+    PlanIcon,
     PlusIcon,
     QueueListIcon,
     SendArrowIcon,
@@ -134,6 +135,7 @@ export function MobileComposerSettingsSheet(props: {
                     <SheetSection title={t('mobile.composer.other')}>
                         {props.planMode ? (
                             <SheetSwitchRow
+                                icon={<PlanIcon />}
                                 label={t('queue.mode.plan')}
                                 description={t('mobile.composer.planHint')}
                                 checked={props.planMode.enabled}
@@ -143,7 +145,7 @@ export function MobileComposerSettingsSheet(props: {
                         ) : null}
                         {props.queue ? (
                             <SheetRow
-                                icon={<QueueListIcon className="h-4 w-4" />}
+                                icon={<QueueListIcon />}
                                 label={t('composer.queue')}
                                 value={props.queue.pendingCount > 0 ? t('queue.inline.pending', { count: props.queue.pendingCount }) : undefined}
                                 chevron
@@ -153,7 +155,7 @@ export function MobileComposerSettingsSheet(props: {
                         ) : null}
                         {props.status ? (
                             <SheetRow
-                                icon={<InfoCircleIcon className="h-4 w-4" />}
+                                icon={<InfoCircleIcon />}
                                 label={t('composer.status')}
                                 chevron
                                 disabled={props.status.disabled}
@@ -162,7 +164,7 @@ export function MobileComposerSettingsSheet(props: {
                         ) : null}
                         {props.switchRemote ? (
                             <SheetRow
-                                icon={<SwitchIcon className="h-4 w-4" />}
+                                icon={<SwitchIcon />}
                                 label={t('composer.switchRemote')}
                                 chevron
                                 disabled={props.switchRemote.disabled}

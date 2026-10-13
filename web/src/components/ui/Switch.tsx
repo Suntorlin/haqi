@@ -8,6 +8,27 @@ type SwitchProps = {
     ariaLabel?: string
 }
 
+/** The one switch look (settings rows, sheets): monochrome, readable in both themes. */
+export function SwitchTrack(props: { checked: boolean; className?: string }) {
+    return (
+        <span
+            aria-hidden="true"
+            className={cn(
+                'relative inline-flex h-6 w-10 shrink-0 items-center rounded-full transition-colors',
+                props.checked ? 'bg-[var(--social-primary)]' : 'bg-[var(--social-border)]',
+                props.className
+            )}
+        >
+            <span
+                className={cn(
+                    'h-5 w-5 rounded-full shadow-sm transition-transform',
+                    props.checked ? 'translate-x-[18px] bg-[var(--social-primary-fg)]' : 'translate-x-0.5 bg-white'
+                )}
+            />
+        </span>
+    )
+}
+
 export function Switch(props: SwitchProps) {
     const { checked, onCheckedChange, disabled = false, className, ariaLabel } = props
 
@@ -20,18 +41,12 @@ export function Switch(props: SwitchProps) {
             disabled={disabled}
             onClick={() => onCheckedChange(!checked)}
             className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border-0 p-0 appearance-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
-                checked ? 'bg-[#34C759]' : 'bg-[var(--app-border)]',
+                'inline-flex shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-fg-subtle)]',
                 disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                 className
             )}
         >
-            <span
-                className={cn(
-                    'h-4 w-4 rounded-full bg-white transition-transform',
-                    checked ? 'translate-x-4' : 'translate-x-0.5'
-                )}
-            />
+            <SwitchTrack checked={checked} />
         </button>
     )
 }

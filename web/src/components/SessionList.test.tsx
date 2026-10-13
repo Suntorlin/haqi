@@ -135,7 +135,7 @@ describe('SessionList project quick-create action', () => {
             />
         )
 
-        fireEvent.click(screen.getByRole('button', { name: 'New Session in this project' }))
+        fireEvent.click(screen.getByRole('button', { name: 'New session in this project' }))
 
         expect(onNewSession).toHaveBeenCalledTimes(1)
         expect(onNewSession).toHaveBeenCalledWith({
@@ -162,7 +162,7 @@ describe('SessionList project quick-create action', () => {
             />
         )
 
-        const createButton = screen.getByRole('button', { name: 'New Session in this project' })
+        const createButton = screen.getByRole('button', { name: 'New session in this project' })
         fireEvent.mouseDown(createButton, { button: 0 })
         fireEvent.mouseUp(createButton, { button: 0 })
 
@@ -192,7 +192,7 @@ describe('SessionList project quick-create action', () => {
             />
         )
 
-        fireEvent.contextMenu(screen.getByRole('button', { name: 'New Session in this project' }))
+        fireEvent.contextMenu(screen.getByRole('button', { name: 'New session in this project' }))
 
         expect(onNewSession).toHaveBeenCalledTimes(1)
         expect(onNewSession).toHaveBeenCalledWith({
@@ -237,7 +237,7 @@ describe('SessionList project quick-create action', () => {
             />
         )
 
-        expect(view.queryByRole('button', { name: 'New Session in this project' })).not.toBeInTheDocument()
+        expect(view.queryByRole('button', { name: 'New session in this project' })).not.toBeInTheDocument()
     })
 
     it('auto-collapses offline sessions and reveals them on demand', () => {
@@ -327,7 +327,7 @@ describe('SessionList project quick-create action', () => {
         fireEvent.click(screen.getByRole('menuitem', { name: 'Mark project offline' }))
         expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
 
-        fireEvent.click(screen.getByRole('button', { name: 'New Session in this project' }))
+        fireEvent.click(screen.getByRole('button', { name: 'New session in this project' }))
         expect(onNewSession).toHaveBeenCalledWith({
             directory: '/repo/active-project',
             machineId: 'machine-1'

@@ -52,6 +52,7 @@ import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
+import { useTranslation } from '@/lib/use-translation'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -92,6 +93,7 @@ export function NewSession(props: {
             : (loadPreferredThinkEffort(initialAgent) ?? getDefaultThinkEffort(initialAgent))
     )
 
+    const { t } = useTranslation()
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
     const [claudeAccount, setClaudeAccount] = useState<ClaudeAccountSelection | undefined>()
     useEffect(() => { setClaudeAccount(undefined) }, [machineId])
@@ -442,7 +444,7 @@ export function NewSession(props: {
             {experimentalSettings.previewEnabled ? (
                 <div className="flex flex-col gap-1.5 px-3 py-3">
                     <label className="text-xs font-medium text-[var(--app-hint)]">
-                        Preview URL (optional)
+                        {t('newSession.previewUrl')}
                     </label>
                     <input
                         type="text"

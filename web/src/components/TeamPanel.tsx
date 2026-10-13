@@ -434,7 +434,7 @@ export function TeamPanel(props: {
                             <div className="flex gap-2">
                                 <button
                                     type="button"
-                                    className="rounded-md bg-[var(--app-link)] px-2 py-1 text-xs font-medium text-white disabled:opacity-60"
+                                    className="rounded-md bg-[var(--app-button)] px-2 py-1 text-xs font-medium text-[var(--app-button-text)] disabled:opacity-60"
                                     onClick={() => void submitControl()}
                                     disabled={isSubmitting}
                                 >

@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 
 type SessionTagsDialogProps = {
     isOpen: boolean
@@ -86,7 +87,7 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                         value={value}
                         onChange={(event) => setValue(event.target.value)}
                         placeholder={t('dialog.tags.placeholder')}
-                        className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
+                        className={DIALOG_INPUT_CLASS}
                         disabled={isPending}
                     />
                     {quickSelectTags.length ? (
@@ -104,9 +105,9 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                                             onClick={() => toggleTag(tag)}
                                             disabled={isPending}
                                             aria-pressed={isSelected}
-                                            className={`rounded-full px-2.5 py-1 text-xs transition-colors ${isSelected
-                                                ? 'bg-[var(--app-link)] text-white'
-                                                : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                                            className={`h-8 rounded-full border px-3.5 text-[13px] transition-colors ${isSelected
+                                                ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
+                                                : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]'
                                             }`}
                                         >
                                             #{tag}
@@ -119,7 +120,7 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                     <div className="text-xs text-[var(--app-hint)]">{t('dialog.tags.hint')}</div>
 
                     {error ? (
-                        <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                        <div className="text-sm text-[var(--social-danger)]">
                             {error}
                         </div>
                     ) : null}
