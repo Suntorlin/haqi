@@ -1235,6 +1235,8 @@ export function SessionList(props: {
     )
 }
 
+type FeedRow = { type: 'session'; session: SessionSummary } | { type: 'offline-section' }
+
 /**
  * Mobile chat-app style list: one flat, recency-sorted feed (like WeChat "Chats").
  * Sessions waiting for approval are pinned on top.
@@ -1248,24 +1250,43 @@ export function SessionFeed(props: {
     listHeader?: ReactNode
     emptyLabel?: string
 }) {
+    const { t } = useTranslation()
     const { api, availableTags = [] } = props
-    const sortedSessions = useMemo(() => [...props.sessions].sort((a, b) => {
-        const aPinned = getLivePendingCount(a) > 0 ? 1 : 0
-        const bPinned = getLivePendingCount(b) > 0 ? 1 : 0
-        if (aPinned !== bPinned) return bPinned - aPinned
+    const [offlineCollapsed, setOfflineCollapsed] = useState(true)
+    const byRecency = (a: SessionSummary, b: SessionSummary) => {
         if (a.updatedAt !== b.updatedAt) return b.updatedAt - a.updatedAt
         return a.id.localeCompare(b.id)
+    }
+    // Running sessions first (waiting-for-approval on top); offline ones fold into a section below.
+    const { activeSessions, offlineSessions } = useMemo(() => ({
+        activeSessions: props.sessions.filter((session) => session.active).sort((a, b) => {
+            const aPinned = getLivePendingCount(a) > 0 ? 1 : 0
+            const bPinned = getLivePendingCount(b) > 0 ? 1 : 0
+            if (aPinned !== bPinned) return bPinned - aPinned
+            return byRecency(a, b)
+        }),
+        offlineSessions: props.sessions.filter((session) => !session.active).sort(byRecency)
     }), [props.sessions])
+    // A selected offline session keeps its section open so the row stays visible.
+    const selectedIsOffline = offlineSessions.some((session) => session.id === props.selectedSessionId)
+    useEffect(() => {
+        if (selectedIsOffline) setOfflineCollapsed(false)
+    }, [selectedIsOffline])
+    const rows = useMemo<FeedRow[]>(() => [
+        ...activeSessions.map((session): FeedRow => ({ type: 'session', session })),
+        ...(offlineSessions.length > 0 ? [{ type: 'offline-section' } as const] : []),
+        ...(offlineCollapsed ? [] : offlineSessions.map((session): FeedRow => ({ type: 'session', session })))
+    ], [activeSessions, offlineSessions, offlineCollapsed])
     const listHeaderContext = useMemo<ListHeaderContext>(() => ({ header: props.listHeader }), [props.listHeader])
 
     return (
         <div className="flex h-full min-h-0 w-full flex-col">
             <Virtuoso
-                data={sortedSessions}
+                data={rows}
                 style={{ height: '100%' }}
                 defaultItemHeight={68}
                 increaseViewportBy={480}
-                initialItemCount={Math.min(sortedSessions.length, 20)}
+                initialItemCount={Math.min(rows.length, 20)}
                 context={listHeaderContext}
                 components={{
                     Scroller: SessionListScroller,
@@ -1276,15 +1297,25 @@ export function SessionFeed(props: {
                         </div>
                     )
                 }}
-                computeItemKey={(_, session) => session.id}
-                itemContent={(_, session) => (
+                computeItemKey={(_, row) => row.type === 'session' ? row.session.id : '__offline__'}
+                itemContent={(_, row) => row.type === 'offline-section' ? (
+                    <OfflineSectionRow
+                        directory="__feed_offline__"
+                        count={offlineSessions.length}
+                        isCollapsed={offlineCollapsed}
+                        density="comfortable"
+                        minimal
+                        label={t('misc.offline')}
+                        onToggleGroup={(_directory, isCollapsed) => setOfflineCollapsed(!isCollapsed)}
+                    />
+                ) : (
                     <SessionItem
-                        session={session}
+                        session={row.session}
                         onSelect={props.onSelect}
                         showPath={false}
                         api={api}
                         availableTags={availableTags}
-                        selected={session.id === props.selectedSessionId}
+                        selected={row.session.id === props.selectedSessionId}
                         density="comfortable"
                         variant="feed"
                         sortable={false}
