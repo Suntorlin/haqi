@@ -27,7 +27,7 @@ export function SessionTypeSelector(props: {
                 disabled={props.isDisabled}
                 onChange={props.onSessionTypeChange}
             />
-            <FieldHint>{isWorktree ? t('newSession.type.worktree.desc') : t('newSession.type.simple.desc')}</FieldHint>
+            {isWorktree ? <FieldHint>{t('newSession.type.worktree.desc')}</FieldHint> : null}
             {isWorktree ? (
                 <input
                     ref={props.worktreeInputRef}

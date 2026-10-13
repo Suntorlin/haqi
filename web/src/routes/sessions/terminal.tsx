@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { PointerEvent } from 'react'
+import type { PointerEvent, ReactNode } from 'react'
 import { useParams } from '@tanstack/react-router'
 import type { Terminal } from '@xterm/xterm'
 import { useAppContext } from '@/lib/app-context'
@@ -162,8 +162,14 @@ function QuickKeyButton(props: {
 }
 
 export default function TerminalPage() {
-    const { t } = useTranslation()
     const { sessionId } = useParams({ from: '/sessions/$sessionId/terminal' })
+    return <TerminalPanel sessionId={sessionId} />
+}
+
+/** Full page (phones, direct URL) or, with `dockActions`, a side panel next to the chat. */
+export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNode }) {
+    const { t } = useTranslation()
+    const { sessionId, dockActions } = props
     const { api, token, baseUrl } = useAppContext()
     const goBack = useAppGoBack()
     const { session } = useSession(api, sessionId)
@@ -402,8 +408,13 @@ export default function TerminalPage() {
             <SubPageHeader
                 title={t('terminal.title')}
                 subtitle={subtitle}
-                onBack={goBack}
-                actions={<ConnectionIndicator status={status} />}
+                onBack={dockActions ? undefined : goBack}
+                actions={(
+                    <>
+                        <ConnectionIndicator status={status} />
+                        {dockActions}
+                    </>
+                )}
             />
 
             {session.active ? null : (

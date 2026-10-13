@@ -75,6 +75,7 @@ import { useSessionPin } from '@/hooks/mutations/useSessionPin'
 import { useArchiveSession } from '@/hooks/mutations/useArchiveSession'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
+import { SessionDockLayout } from '@/components/SessionDockLayout'
 import PreviewPage from '@/routes/sessions/preview'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
@@ -799,7 +800,11 @@ function SessionDetailRoute() {
     const basePath = `/sessions/${sessionId}`
     const isChat = pathname === basePath || pathname === `${basePath}/`
 
-    return isChat ? <SessionPage /> : <Outlet />
+    const isMobileLayout = useIsMobileLayout()
+    const content = isChat ? <SessionPage /> : <Outlet />
+
+    // Desktop: terminal / preview dock beside the chat instead of replacing it.
+    return isMobileLayout ? content : <SessionDockLayout sessionId={sessionId}>{content}</SessionDockLayout>
 }
 
 function NewSessionPage() {

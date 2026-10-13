@@ -70,7 +70,7 @@ function PinnedStory(props: {
                     </span>
                 ) : null}
             </span>
-            <span className={cn('w-full truncate text-center text-[11px]', isPending || isLive ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
+            <span className={cn('w-full truncate text-center text-[11px]', isPending || isLive ? 'mt-1.5 font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
                 {title}
             </span>
         </button>
