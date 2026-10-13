@@ -118,7 +118,7 @@ export function CliOutputBlock(props: { text: string }) {
                                         <div className="shrink-0 flex h-4 w-4 items-center justify-center text-[var(--social-fg-muted)] leading-none">
                                             <CliIcon />
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                             {commandName ?? t('terminal.commandName')}
                                         </CardTitle>
                                     </div>

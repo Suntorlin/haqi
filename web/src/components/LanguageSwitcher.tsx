@@ -101,7 +101,7 @@ export function LanguageSwitcher() {
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--social-border)] bg-[var(--social-surface)] shadow-lg overflow-hidden z-50"
+          className="absolute right-0 top-full mt-1 min-w-[140px] rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-lg overflow-hidden z-50"
           role="listbox"
           aria-label={t('language.title')}
         >
@@ -114,7 +114,7 @@ export function LanguageSwitcher() {
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleLocaleChange(loc.value)}
-                className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left transition-colors ${
+                className={`flex items-center justify-between w-full px-3 py-2 text-[15px] text-left transition-colors ${
                   isSelected
                     ? 'text-[var(--social-fg)] bg-[var(--social-hover)]'
                     : 'text-[var(--social-fg)] hover:bg-[var(--social-hover)]'
