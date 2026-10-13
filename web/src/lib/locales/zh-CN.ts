@@ -500,8 +500,8 @@ export default {
   'settings.behavior.sessionReopenPosition.restore.description': '继续你上次阅读到的位置。',
   'settings.behavior.sessionReopenPosition.bottom-if-unread': '仅未读时跳到最新',
   'settings.behavior.sessionReopenPosition.bottom-if-unread.description': '没新消息就恢复位置，有新消息才跳到底部。',
-  'settings.behavior.mobileQueueEmptyState': '手机端空队列显示 QUEUE 行',
-  'settings.behavior.mobileQueueEmptyState.description': '开启后，queue 模式下即使队列为空，手机端输入框上方也继续显示 QUEUE 行。',
+  'settings.behavior.mobileQueueEmptyState': '空队列也显示队列条',
+  'settings.behavior.mobileQueueEmptyState.description': '开启后，排队模式下即使没有排队的消息，输入框上方也显示队列条。',
   'settings.behavior.projectQuickCreate': '项目 + 快速创建',
   'settings.behavior.projectQuickCreate.description': '点击项目 + 直接创建。长按或右键进入详细创建页。',
   'settings.behavior.briefCardAdaptive': 'Brief 卡片自适应高度',
@@ -1012,4 +1012,5 @@ export default {
   'newSession.model.custom': '自定义…',
   'newSession.model.customValue': '自定义 · {value}',
   'composer.chip.account': '账号 · {value}',
+  'composer.attachment.remove': '移除附件',
 } as const

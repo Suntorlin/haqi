@@ -498,8 +498,8 @@ export default {
   'settings.behavior.sessionReopenPosition.restore.description': 'Resume from the exact place you were reading.',
   'settings.behavior.sessionReopenPosition.bottom-if-unread': 'Latest only when unread',
   'settings.behavior.sessionReopenPosition.bottom-if-unread.description': 'Restore position unless new messages arrived while you were away.',
-  'settings.behavior.mobileQueueEmptyState': 'Show empty mobile queue row',
-  'settings.behavior.mobileQueueEmptyState.description': 'When queue mode is on, keep showing the QUEUE row above the composer on mobile even if the queue is empty.',
+  'settings.behavior.mobileQueueEmptyState': 'Show the queue bar when empty',
+  'settings.behavior.mobileQueueEmptyState.description': 'In queue mode, keep the queue bar above the composer even when nothing is waiting.',
   'settings.behavior.projectQuickCreate': 'Project + quick create',
   'settings.behavior.projectQuickCreate.description': 'Click project + to create immediately. Long-press or right-click opens detailed create.',
   'settings.behavior.briefCardAdaptive': 'Brief card adaptive height',
@@ -1010,4 +1010,5 @@ export default {
   'newSession.model.custom': 'Custom…',
   'newSession.model.customValue': 'Custom · {value}',
   'composer.chip.account': 'Account · {value}',
+  'composer.attachment.remove': 'Remove attachment',
 } as const
