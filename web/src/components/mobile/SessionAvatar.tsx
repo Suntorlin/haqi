@@ -1,45 +1,15 @@
-import type { CSSProperties } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 
 type SessionLike = {
-    active?: boolean
+    id: string
     metadata?: {
         path?: string
-        flavor?: string | null
         worktree?: { basePath?: string } | null
     } | null
 }
 
-// Soft "orb" gradients (ElevenLabs-style): [base, highlight]. Bases stay dark enough for white initials.
-const PROJECT_GRADIENTS: ReadonlyArray<readonly [string, string]> = [
-    ['#7c3aed', '#c4b5fd'],
-    ['#2563eb', '#93c5fd'],
-    ['#e11d48', '#fda4af'],
-    ['#059669', '#6ee7b7'],
-    ['#d97706', '#fcd34d'],
-    ['#4f46e5', '#a5b4fc'],
-    ['#0d9488', '#5eead4'],
-    ['#db2777', '#f9a8d4'],
-    ['#475569', '#cbd5e1'],
-    ['#4d7c0f', '#bef264'],
-    ['#0284c7', '#7dd3fc'],
-    ['#ea580c', '#fdba74']
-]
-
-export function getProjectOrbBackground(path: string): string {
-    const [base, highlight] = getProjectGradient(path)
-    return `radial-gradient(circle at 28% 20%, ${highlight} 0%, ${base} 78%)`
-}
-
-function hashString(value: string): number {
-    let hash = 0
-    for (let index = 0; index < value.length; index += 1) {
-        hash = (hash * 31 + value.charCodeAt(index)) | 0
-    }
-    return Math.abs(hash)
-}
-
-export function getSessionProjectPath(session: SessionLike): string {
+export function getSessionProjectPath(session: Pick<SessionLike, 'metadata'>): string {
     return session.metadata?.worktree?.basePath ?? session.metadata?.path ?? 'Other'
 }
 
@@ -49,143 +19,134 @@ export function getProjectName(path: string): string {
     return parts[parts.length - 1] ?? path
 }
 
-export function getProjectInitials(path: string): string {
-    const name = getProjectName(path)
-    const words = name.split(/[-_.\s]+/).filter(Boolean)
-    if (words.length >= 2) {
-        return `${words[0][0]}${words[1][0]}`.toUpperCase()
+// ElevenLabs-style orb palettes [blob, blob, blob, base]: spread across hues so a long list stays varied.
+const ORB_FAMILIES: ReadonlyArray<readonly [string, string, string, string]> = [
+    ['#7dd3fc', '#38bdf8', '#a5f3fc', '#e0f2fe'],
+    ['#6ee7b7', '#34d399', '#a7f3d0', '#ecfdf5'],
+    ['#fdba74', '#fb923c', '#fde68a', '#fff7ed'],
+    ['#fda4af', '#fb7185', '#fecdd3', '#fff1f2'],
+    ['#c4b5fd', '#a78bfa', '#ddd6fe', '#f5f3ff'],
+    ['#fde047', '#facc15', '#fef9c3', '#fefce8'],
+    ['#93c5fd', '#60a5fa', '#c7d2fe', '#eff6ff'],
+    ['#5eead4', '#2dd4bf', '#99f6e4', '#f0fdfa'],
+    ['#fdba74', '#f472b6', '#fda4af', '#fff7ed'],
+    ['#a5f3fc', '#c4b5fd', '#86efac', '#f0f9ff'],
+    ['#93c5fd', '#fdba74', '#bae6fd', '#fff7ed'],
+    ['#86efac', '#fde047', '#bbf7d0', '#f7fee7'],
+    ['#f9a8d4', '#a5b4fc', '#fbcfe8', '#fdf2f8'],
+    ['#cbd5e1', '#94a3b8', '#e2e8f0', '#f8fafc']
+]
+
+function hashString(value: string): number {
+    let hash = 2166136261
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index)
+        hash = Math.imul(hash, 16777619)
     }
-    const word = words[0] ?? name
-    const chars = Array.from(word)
-    if (chars.length === 0) return '?'
-    if (/[^\x00-\x7f]/.test(chars[0])) return chars[0]
-    return `${chars[0].toUpperCase()}${(chars[1] ?? '').toLowerCase()}`
+    return hash >>> 0
 }
 
-export function getProjectGradient(path: string): readonly [string, string] {
-    return PROJECT_GRADIENTS[hashString(path) % PROJECT_GRADIENTS.length]
+/** Small deterministic PRNG so every seed always renders the same orb. */
+function createRandom(seed: string): () => number {
+    let state = hashString(seed) || 1
+    return () => {
+        state = (state + 0x6d2b79f5) | 0
+        let value = Math.imul(state ^ (state >>> 15), 1 | state)
+        value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296
+    }
 }
 
-type AgentKind = 'claude' | 'codex' | 'gemini' | 'other'
-
-function getAgentKind(flavor: string | null | undefined): AgentKind {
-    const normalized = flavor?.trim().toLowerCase() ?? ''
-    if (normalized === 'claude') return 'claude'
-    if (normalized === 'codex') return 'codex'
-    if (normalized === 'gemini') return 'gemini'
-    return 'other'
+export function getOrbBackground(seed: string): string {
+    const random = createRandom(seed)
+    const between = (min: number, max: number) => Math.round(min + random() * (max - min))
+    const [first, second, third, base] = ORB_FAMILIES[Math.floor(random() * ORB_FAMILIES.length)]
+    return [
+        'radial-gradient(circle at 30% 24%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.14) 22%, rgba(255,255,255,0) 42%)',
+        `radial-gradient(circle at ${between(8, 42)}% ${between(10, 45)}%, ${first} 0%, transparent 58%)`,
+        `radial-gradient(circle at ${between(58, 92)}% ${between(25, 70)}%, ${second} 0%, transparent 56%)`,
+        `radial-gradient(circle at ${between(25, 70)}% ${between(62, 95)}%, ${third} 0%, transparent 62%)`,
+        `linear-gradient(160deg, ${base}, ${second})`
+    ].join(', ')
 }
 
-
-export function AgentGlyph(props: { flavor?: string | null; className?: string }) {
-    const kind = getAgentKind(props.flavor)
-    if (kind === 'claude') {
-        return (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={props.className} aria-hidden="true">
-                {[0, 30, 60, 90, 120, 150].map((angle) => (
-                    <rect
-                        key={angle}
-                        x="11"
-                        y="2.5"
-                        width="2"
-                        height="19"
-                        rx="1"
-                        transform={`rotate(${angle} 12 12)`}
-                    />
-                ))}
-            </svg>
-        )
-    }
-    if (kind === 'codex') {
-        return (
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={props.className} aria-hidden="true">
-                <polyline points="5 7 10 12 5 17" />
-                <line x1="12.5" y1="17" x2="19" y2="17" />
-            </svg>
-        )
-    }
-    if (kind === 'gemini') {
-        return (
-            <svg viewBox="0 0 24 24" fill="currentColor" className={props.className} aria-hidden="true">
-                <path d="M12 2c.6 5.4 4.6 9.4 10 10-5.4.6-9.4 4.6-10 10-.6-5.4-4.6-9.4-10-10 5.4-.6 9.4-4.6 10-10z" />
-            </svg>
-        )
-    }
-    return (
-        <svg viewBox="0 0 24 24" fill="currentColor" className={props.className} aria-hidden="true">
-            <circle cx="12" cy="12" r="5" />
-        </svg>
-    )
-}
-
-/** Monochrome round agent avatar (Claude / Codex / Gemini glyph) shown next to replies. */
-export function AgentAvatar(props: { flavor?: string | null; size?: number; className?: string }) {
-    const size = props.size ?? 28
-    const style: CSSProperties = { width: size, height: size }
+/** ElevenLabs-style soft gradient orb, unique per seed (no initials, no badges). */
+export function Orb(props: { seed: string; size: number; muted?: boolean; className?: string; style?: CSSProperties }) {
+    const background = useMemo(() => getOrbBackground(props.seed), [props.seed])
+    const size = props.size
     return (
         <span
-            className={cn('inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)]', props.className)}
-            style={style}
+            className={cn('block shrink-0 rounded-full transition-[filter,opacity]', props.muted ? 'opacity-80 saturate-[0.4]' : '', props.className)}
+            style={{
+                width: size,
+                height: size,
+                background,
+                boxShadow: [
+                    `inset 0 -${Math.round(size * 0.08)}px ${Math.round(size * 0.18)}px rgba(15, 23, 42, 0.10)`,
+                    `inset 0 ${Math.round(size * 0.04)}px ${Math.round(size * 0.1)}px rgba(255, 255, 255, 0.45)`,
+                    '0 0 0 0.5px rgba(15, 23, 42, 0.06)'
+                ].join(', '),
+                ...props.style
+            }}
             aria-hidden="true"
-        >
-            <AgentGlyph flavor={props.flavor} className="h-[52%] w-[52%]" />
-        </span>
+        />
     )
+}
+
+export type AvatarRing = 'live' | 'pending' | 'seen' | null
+
+const RING_BACKGROUNDS: Record<Exclude<AvatarRing, null>, string> = {
+    live: 'linear-gradient(45deg, #feda75 0%, #fa7e1e 25%, #d62976 50%, #962fbf 75%, #4f5bd5 100%)',
+    pending: 'linear-gradient(45deg, #fcd34d 0%, #fb923c 50%, #f43f5e 100%)',
+    seen: 'var(--social-border)'
 }
 
 /**
- * Project avatar: soft gradient orb + initials, a monochrome agent badge and an optional
- * red counter (pending approvals) like an unread badge. Offline sessions render in grayscale.
+ * Session avatar: an orb wrapped Instagram-style. The outer box size never changes, so rows stay
+ * aligned: a ring (live / pending / seen) shrinks the orb inside a white gap; idle online sessions
+ * get a green "active now" dot instead; pending approvals show a red counter.
  */
 export function SessionAvatar(props: {
-    session: SessionLike
-    size?: number
-    shape?: 'rounded' | 'circle'
-    dimmed?: boolean
+    session: Pick<SessionLike, 'id'>
+    size: number
+    ring?: AvatarRing
+    presence?: boolean
     badgeCount?: number
-    showAgentBadge?: boolean
+    muted?: boolean
     className?: string
 }) {
-    const size = props.size ?? 48
-    const path = getSessionProjectPath(props.session)
-    const initials = getProjectInitials(path)
-    const badgeSize = Math.max(14, Math.round(size * 0.36))
-    const showAgentBadge = props.showAgentBadge ?? true
+    const { size } = props
+    const ring = props.ring ?? null
+    const ringWidth = ring === 'seen' ? 1 : Math.max(2, Math.round(size * 0.04))
+    const gap = ring ? Math.max(2, Math.round(size * 0.05)) : 0
+    const inset = ring ? ringWidth + gap : 0
+    const dotSize = Math.max(10, Math.round(size * 0.22))
     const badgeCount = props.badgeCount ?? 0
 
     return (
-        <span
-            className={cn('relative inline-flex shrink-0', props.className)}
-            style={{ width: size, height: size }}
-        >
-            <span
-                className={cn(
-                    'flex h-full w-full items-center justify-center font-semibold text-white transition-[filter,opacity]',
-                    props.shape === 'rounded' ? 'rounded-[30%]' : 'rounded-full',
-                    props.dimmed ? 'opacity-70 grayscale' : ''
-                )}
-                style={{
-                    background: getProjectOrbBackground(path),
-                    fontSize: Math.round(size * 0.34),
-                    letterSpacing: '-0.02em',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.16)'
-                }}
-            >
-                {initials}
-            </span>
-            {showAgentBadge ? (
+        <span className={cn('relative inline-block shrink-0', props.className)} style={{ width: size, height: size }}>
+            {ring ? (
+                <>
+                    <span className="absolute inset-0 rounded-full" style={{ background: RING_BACKGROUNDS[ring] }} aria-hidden="true" />
+                    <span className="absolute rounded-full bg-[var(--app-bg)]" style={{ inset: ringWidth }} aria-hidden="true" />
+                </>
+            ) : null}
+            <Orb
+                seed={props.session.id}
+                size={size - inset * 2}
+                muted={props.muted}
+                className="absolute"
+                style={{ left: inset, top: inset }}
+            />
+            {props.presence && !ring ? (
                 <span
-                    className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] ring-2 ring-[var(--app-bg)]"
-                    style={{ width: badgeSize, height: badgeSize }}
+                    className="absolute rounded-full bg-[#22c55e] ring-[2.5px] ring-[var(--app-bg)]"
+                    style={{ width: dotSize, height: dotSize, right: Math.round(size * 0.02), bottom: Math.round(size * 0.02) }}
                     aria-hidden="true"
-                >
-                    <AgentGlyph flavor={props.session.metadata?.flavor} className="h-[60%] w-[60%]" />
-                </span>
+                />
             ) : null}
             {badgeCount > 0 ? (
-                <span
-                    className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]"
-                >
+                <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]">
                     {badgeCount > 99 ? '99+' : badgeCount}
                 </span>
             ) : null}
@@ -193,77 +154,28 @@ export function SessionAvatar(props: {
     )
 }
 
-function MiniTile(props: { path: string; fontSize: number }) {
-    return (
-        <span
-            className="flex aspect-square min-h-0 min-w-0 items-center justify-center self-center rounded-full font-semibold text-white"
-            style={{ background: getProjectOrbBackground(props.path), fontSize: props.fontSize }}
-        >
-            {getProjectInitials(props.path)}
-        </span>
-    )
-}
-
-/** WeChat-style group avatar: a grid of the members' avatars inside one rounded square. */
-export function GroupAvatar(props: { name: string; members: SessionLike[]; size?: number }) {
-    const size = props.size ?? 50
-    const tiles = props.members.slice(0, 4)
-
-    if (tiles.length === 0) {
-        return (
-            <span
-                className="flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
-                style={{ width: size, height: size, background: getProjectOrbBackground(props.name), fontSize: Math.round(size * 0.34) }}
-            >
-                {getProjectInitials(props.name)}
-            </span>
-        )
-    }
-
-    const columns = tiles.length === 1 ? 1 : 2
-    const rows = tiles.length <= 2 ? 1 : 2
-    return (
-        <span
-            className="grid shrink-0 gap-[2px] rounded-full border border-[var(--social-border)] bg-[var(--social-muted)] p-[5px]"
-            style={{
-                width: size,
-                height: size,
-                gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-                alignContent: 'center'
-            }}
-        >
-            {tiles.map((member, index) => (
-                <MiniTile
-                    key={index}
-                    path={getSessionProjectPath(member)}
-                    fontSize={Math.max(8, Math.round(size * (tiles.length === 1 ? 0.34 : 0.17)))}
-                />
-            ))}
-        </span>
-    )
-}
-
-/** Two overlapping round avatars (Instagram "collab" style) for worker + reviewer pairs. */
-export function PairAvatar(props: { first: SessionLike | null; second: SessionLike | null; size?: number }) {
-    const size = props.size ?? 50
-    const inner = Math.round(size * 0.68)
+/** Instagram group-DM look: two overlapping orbs (back top-left, front bottom-right). */
+export function PairAvatar(props: { first: Pick<SessionLike, 'id'> | null; second: Pick<SessionLike, 'id'> | null; size: number; seed?: string }) {
+    const { size } = props
+    const inner = Math.round(size * 0.7)
+    const fallback = props.seed ?? 'pair'
     return (
         <span className="relative inline-block shrink-0" style={{ width: size, height: size }}>
-            <span className="absolute left-0 top-0 rounded-full ring-2 ring-[var(--app-bg)]">
-                {props.first ? (
-                    <SessionAvatar session={props.first} size={inner} shape="circle" showAgentBadge={false} />
-                ) : (
-                    <span className="block rounded-full bg-[var(--social-muted)]" style={{ width: inner, height: inner }} />
-                )}
-            </span>
-            <span className="absolute bottom-0 right-0 rounded-full ring-2 ring-[var(--app-bg)]">
-                {props.second ? (
-                    <SessionAvatar session={props.second} size={inner} shape="circle" showAgentBadge={false} />
-                ) : (
-                    <span className="block rounded-full bg-[var(--social-muted)]" style={{ width: inner, height: inner }} />
-                )}
-            </span>
+            <Orb seed={props.first?.id ?? `${fallback}:a`} size={inner} className="absolute left-0 top-0" />
+            <Orb
+                seed={props.second?.id ?? `${fallback}:b`}
+                size={inner}
+                className="absolute bottom-0 right-0"
+                style={{ outline: '2.5px solid var(--app-bg)' }}
+            />
         </span>
     )
+}
+
+/** Group avatar: a pair of member orbs, or a single orb seeded by the group itself. */
+export function GroupAvatar(props: { seed: string; members: Array<Pick<SessionLike, 'id'>>; size: number }) {
+    if (props.members.length >= 2) {
+        return <PairAvatar first={props.members[0]} second={props.members[1]} size={props.size} />
+    }
+    return <Orb seed={props.members[0]?.id ?? props.seed} size={props.size} />
 }

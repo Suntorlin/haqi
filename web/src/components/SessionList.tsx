@@ -518,8 +518,10 @@ function SessionItem(props: {
                     >
                         <SessionAvatar
                             session={s}
-                            size={48}
-                            dimmed={!effectiveActive}
+                            size={52}
+                            ring={effectiveActive && s.pendingRequestsCount > 0 ? 'pending' : effectiveThinking ? 'live' : null}
+                            presence={effectiveActive && !effectiveThinking}
+                            muted={!effectiveActive}
                             badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">

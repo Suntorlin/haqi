@@ -65,24 +65,15 @@ export function ActiveStoriesStrip(props: {
                         title={title}
                     >
                         <span className="relative flex h-16 w-16 items-center justify-center">
-                            {isPending ? (
-                                <span className="story-ring-alert absolute inset-0 rounded-full" aria-hidden="true" />
-                            ) : isLive ? (
-                                <span className="story-ring story-ring-live absolute inset-0 rounded-full" aria-hidden="true" />
-                            ) : (
-                                <span className="absolute inset-0 rounded-full border border-[var(--social-border)]" aria-hidden="true" />
-                            )}
-                            <span className="relative rounded-full bg-[var(--app-bg)] p-[3px]">
-                                <SessionAvatar session={session} size={54} showAgentBadge={false} />
-                            </span>
+                            <SessionAvatar session={session} size={64} ring={isPending ? 'pending' : isLive ? 'live' : 'seen'} />
                             {isPending || isLive ? (
                                 <span
-                                    className={cn(
-                                        'absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-1.5 text-[9.5px] font-semibold leading-[15px] ring-2 ring-[var(--app-bg)]',
-                                        isPending
-                                            ? 'bg-[var(--social-warning)] text-white'
-                                            : 'bg-[var(--social-fg)] text-[var(--app-bg)]'
-                                    )}
+                                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-[5px] px-[5px] text-[9.5px] font-bold leading-[15px] tracking-wide text-white ring-2 ring-[var(--app-bg)]"
+                                    style={{
+                                        background: isPending
+                                            ? 'linear-gradient(90deg, #f59e0b, #f43f5e)'
+                                            : 'linear-gradient(90deg, #c13584, #e1306c, #fd1d1d)'
+                                    }}
                                 >
                                     {isPending ? t('mobile.stories.pending') : t('mobile.stories.live')}
                                 </span>

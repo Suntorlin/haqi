@@ -604,29 +604,6 @@ html.social-app[data-theme="dark"] {
     animation: spin 0.8s linear infinite;
 }
 
-/* Instagram-style story ring. */
-.story-ring {
-    background: conic-gradient(from 210deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75);
-}
-
-.story-ring-live {
-    animation: story-spin 2.4s linear infinite;
-}
-
-.story-ring-idle {
-    background: var(--social-border);
-}
-
-.story-ring-alert {
-    background: var(--social-warning);
-}
-
-@keyframes story-spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
 /* "Typing…" dots shown while an agent is thinking. */
 .typing-dots span {
     display: inline-block;

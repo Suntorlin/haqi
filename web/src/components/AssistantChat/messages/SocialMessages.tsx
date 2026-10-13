@@ -9,7 +9,7 @@ import { MessageStatusIndicator } from '@/components/AssistantChat/messages/Mess
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
-import { AgentAvatar } from '@/components/mobile/SessionAvatar'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { formatChatTimestamp, formatElapsed, getLatestProgressText } from '@/components/mobile/chatTimeline'
 import type { ChatBlock, ToolCallBlock } from '@/chat/types'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
@@ -283,7 +283,7 @@ export function SocialAssistantMessage() {
         <MessagePrimitive.Root className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
             <div className="flex min-w-0 items-start gap-2.5">
-                <AgentAvatar flavor={ctx.metadata?.flavor} size={28} className="mt-1" />
+                <Orb seed={ctx.sessionId} size={28} muted={ctx.disabled} className="mt-1" />
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-x-hidden pr-1">
                     {isCliOutput ? (
                         <CliOutputBlock text={content.find((part) => part.type === 'text')?.text ?? ''} />

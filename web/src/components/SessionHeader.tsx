@@ -342,6 +342,8 @@ export function SessionHeader(props: {
 
     if (isMobileLayout) {
         const status = getMobileStatus(session, t)
+        const pendingRequestCount = session.agentState?.requests ? Object.keys(session.agentState.requests).length : 0
+        const avatarRing = session.active && pendingRequestCount > 0 ? 'pending' as const : session.active && session.thinking ? 'live' as const : null
         const permissionMode = session.permissionMode
         const flavor = session.metadata?.flavor ?? null
         const permissionLabel = permissionMode
@@ -393,7 +395,7 @@ export function SessionHeader(props: {
                             onClick={() => setInfoOpen(true)}
                             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pr-1 text-left [-webkit-tap-highlight-color:transparent]"
                         >
-                            <SessionAvatar session={session} size={34} dimmed={!session.active} showAgentBadge={false} />
+                            <SessionAvatar session={session} size={38} ring={avatarRing} presence={session.active && !avatarRing} muted={!session.active} />
                             <div className="min-w-0 flex-1">
                                 <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                     {title}
@@ -429,7 +431,7 @@ export function SessionHeader(props: {
 
                 <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle>
                     <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
-                        <SessionAvatar session={session} size={52} dimmed={!session.active} />
+                        <SessionAvatar session={session} size={60} ring={avatarRing} presence={session.active && !avatarRing} muted={!session.active} />
                         <div className="min-w-0 flex-1">
                             <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
                             <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--social-fg-muted)]">

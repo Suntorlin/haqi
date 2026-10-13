@@ -1263,7 +1263,7 @@ function MobileGroupRow(props: {
             className="social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none"
             style={{ WebkitTouchCallout: 'none' }}
         >
-            <GroupAvatar name={item.group.name} members={members} size={48} />
+            <GroupAvatar seed={item.group.id} members={members} size={52} />
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">{item.group.name}</span>
@@ -1814,7 +1814,7 @@ function GroupsLayout() {
                             <ChevronLeftIcon className="h-[26px] w-[26px]" />
                         </button>
                         {selectedGroup ? (
-                            <GroupAvatar name={selectedGroup.group.name} members={membersOf(selectedGroup)} size={36} />
+                            <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} />
                         ) : null}
                         <div className="min-w-0 flex-1">
                             <div className="truncate text-[16px] font-semibold leading-tight">
@@ -2266,7 +2266,8 @@ function ReviewLoopsLayout() {
                                     <PairAvatar
                                         first={sessionById.get(item.workerSessionId) ?? null}
                                         second={sessionById.get(item.reviewerSessionId) ?? null}
-                                        size={48}
+                                        size={52}
+                                        seed={item.id}
                                     />
                                     <div className="flex min-w-0 flex-1 flex-col justify-center">
                                         <div className="flex items-baseline gap-2">
@@ -2313,7 +2314,8 @@ function ReviewLoopsLayout() {
                             <PairAvatar
                                 first={sessionById.get(selectedLoop.workerSessionId) ?? null}
                                 second={sessionById.get(selectedLoop.reviewerSessionId) ?? null}
-                                size={36}
+                                size={38}
+                                seed={selectedLoop.id}
                             />
                         ) : null}
                         <div className="min-w-0 flex-1">
