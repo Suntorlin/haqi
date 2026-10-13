@@ -66,8 +66,10 @@ import { useChatViewMode } from '@/hooks/useChatViewMode'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { DIALOG_INPUT_CLASS, RenameSessionDialog } from '@/components/RenameSessionDialog'
+import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned } from '@/lib/session-pins'
@@ -184,13 +186,9 @@ function DesktopEmptyState(props: { title: string; subtitle?: string; action?: {
                 <div className="mt-1.5 max-w-sm text-[13.5px] leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
             ) : null}
             {props.action ? (
-                <button
-                    type="button"
-                    onClick={props.action.onClick}
-                    className="mt-5 rounded-full bg-[var(--social-primary)] px-5 py-2 text-[14px] font-medium text-[var(--social-primary-fg)] transition-opacity hover:opacity-90"
-                >
+                <Button type="button" onClick={props.action.onClick} className="mt-5">
                     {props.action.label}
-                </button>
+                </Button>
             ) : null}
         </div>
     )
@@ -537,7 +535,7 @@ function SessionsPage() {
         </>
     )
     const listError = error ? (
-        <div className="px-5 py-2 text-sm text-red-600">{error}</div>
+        <div className="px-5 py-2 text-[13px] text-[var(--social-danger)]">{error}</div>
     ) : null
 
     if (isMobileLayout) {
@@ -846,20 +844,15 @@ function NewSessionPage() {
                 title={t('newSession.title')}
                 onBack={isTelegramApp() ? undefined : goBack}
                 actions={(
-                    <button
-                        type="submit"
-                        form={formId}
-                        disabled={submitDisabled}
-                        className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[14px] font-medium text-[var(--social-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-40"
-                    >
+                    <Button type="submit" form={formId} disabled={submitDisabled}>
                         {t('newSession.create')}
-                    </button>
+                    </Button>
                 )}
             />
 
             <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
                 {machinesError ? (
-                    <div className="p-3 text-sm text-red-600">
+                    <div className="p-3 text-[13px] text-[var(--social-danger)]">
                         {machinesError}
                     </div>
                 ) : null}
@@ -913,12 +906,12 @@ function GroupRow(props: {
             <GroupAvatar seed={item.group.id} members={members} size={44} />
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">{item.group.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em]">{item.group.name}</span>
                     <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
                 </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13.5px] leading-snug text-[var(--social-fg-muted)]">
                     {hasLiveMember ? (
-                        <span className="shrink-0 font-medium text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
+                        <span className="shrink-0 font-semibold text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
                     ) : null}
                     <span className="min-w-0 truncate">
                         {t('mobile.groups.members', { n: item.members.length })}
@@ -1103,18 +1096,18 @@ function GroupsLayout() {
                             void handleCreate()
                         }}
                     >
-                        <input
+                        <TextField
                             autoFocus
                             value={newGroupName}
                             onChange={(event) => setNewGroupName(event.target.value)}
                             placeholder={t('groups.dialog.name')}
-                            className={DIALOG_INPUT_CLASS}
+                            aria-label={t('groups.dialog.name')}
                         />
-                        <input
+                        <TextField
                             value={newGroupDesc}
                             onChange={(event) => setNewGroupDesc(event.target.value)}
                             placeholder={t('groups.dialog.description')}
-                            className={DIALOG_INPUT_CLASS}
+                            aria-label={t('groups.dialog.description')}
                         />
                         {createError ? <div className="text-sm text-[var(--social-danger)]">{createError}</div> : null}
                         <div className="flex justify-end gap-2">
@@ -1235,14 +1228,13 @@ function GroupsLayout() {
             <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
                 <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                     <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
-                        <button
-                            type="button"
+                        <IconButton
+                            label={t('button.back')}
                             onClick={() => navigate({ to: '/groups' })}
-                            className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
-                            aria-label={t('button.back')}
+                            className="text-[var(--social-fg)]"
                         >
                             <ChevronLeftIcon className="h-[26px] w-[26px]" />
-                        </button>
+                        </IconButton>
                         <button
                             type="button"
                             onClick={() => setGroupInfoOpen(true)}
@@ -1260,15 +1252,13 @@ function GroupsLayout() {
                                 </div>
                             </div>
                         </button>
-                        <button
-                            type="button"
+                        <IconButton
+                            label={groupInfoLabel}
                             onClick={() => setGroupInfoOpen(true)}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent] active:bg-[var(--app-subtle-bg)]"
-                            aria-label={groupInfoLabel}
-                            title={groupInfoLabel}
+                            className="text-[var(--social-fg)]"
                         >
                             <MoreHorizontalIcon className="h-6 w-6" />
-                        </button>
+                        </IconButton>
                     </div>
                 </div>
                 <div className="min-h-0 flex-1">
@@ -1466,7 +1456,7 @@ function ReviewLoopsLayout() {
                         {loopAvatar(item, 52)}
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">
+                                <span className="min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em]">
                                     {item.requirement}
                                 </span>
                                 <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
@@ -1511,14 +1501,13 @@ function ReviewLoopsLayout() {
             <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
                 <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                     <div className="flex h-[54px] items-center gap-2.5 pl-1 pr-4">
-                        <button
-                            type="button"
+                        <IconButton
+                            label={t('button.back')}
                             onClick={() => navigate({ to: '/review-loops' })}
-                            className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
-                            aria-label={t('button.back')}
+                            className="text-[var(--social-fg)]"
                         >
                             <ChevronLeftIcon className="h-[26px] w-[26px]" />
-                        </button>
+                        </IconButton>
                         {selectedLoop ? loopAvatar(selectedLoop, 38) : null}
                         <div className="min-w-0 flex-1">
                             <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">

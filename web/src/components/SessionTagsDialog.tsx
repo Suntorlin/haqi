@@ -7,8 +7,8 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
-import { tagChipClass } from '@/components/ui/tagChip'
+import { TextField } from '@/components/ui/TextField'
+import { Chip } from '@/components/ui/Chip'
 
 type SessionTagsDialogProps = {
     isOpen: boolean
@@ -82,43 +82,40 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                     <DialogTitle>{t('dialog.tags.title')}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-                    <input
+                    <TextField
                         ref={inputRef}
                         type="text"
                         value={value}
                         onChange={(event) => setValue(event.target.value)}
                         placeholder={t('dialog.tags.placeholder')}
-                        className={DIALOG_INPUT_CLASS}
                         disabled={isPending}
                     />
                     {quickSelectTags.length ? (
                         <div className="flex flex-col gap-2">
-                            <div className="text-xs font-medium text-[var(--app-hint)]">
+                            <div className="text-[12px] font-semibold text-[var(--social-fg-muted)]">
                                 {t('dialog.tags.existing')}
                             </div>
                             <div className="flex flex-wrap gap-1.5">
                                 {quickSelectTags.map((tag) => {
                                     const isSelected = normalizeTags(value).includes(tag)
                                     return (
-                                        <button
+                                        <Chip
                                             key={tag}
-                                            type="button"
+                                            selected={isSelected}
                                             onClick={() => toggleTag(tag)}
                                             disabled={isPending}
-                                            aria-pressed={isSelected}
-                                            className={tagChipClass(isSelected)}
                                         >
                                             #{tag}
-                                        </button>
+                                        </Chip>
                                     )
                                 })}
                             </div>
                         </div>
                     ) : null}
-                    <div className="text-xs text-[var(--app-hint)]">{t('dialog.tags.hint')}</div>
+                    <div className="text-[12px] text-[var(--social-fg-subtle)]">{t('dialog.tags.hint')}</div>
 
                     {error ? (
-                        <div className="text-sm text-[var(--social-danger)]">
+                        <div className="text-[13px] text-[var(--social-danger)]">
                             {error}
                         </div>
                     ) : null}

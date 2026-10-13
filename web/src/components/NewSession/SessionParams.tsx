@@ -2,9 +2,9 @@ import { useState } from 'react'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import type { ApiClient } from '@/api/client'
 import { ClaudeAccountChip } from '@/components/ClaudeAccounts/Selector'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FormField } from '@/components/ui/FormControls'
 import { SettingChip, ToggleChip } from '@/components/ui/SettingChip'
+import { TextField } from '@/components/ui/TextField'
 import { modelOptionText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import {
@@ -113,7 +113,7 @@ export function SessionParams(props: {
                 />
             </div>
             {showCustom ? (
-                <input
+                <TextField
                     type="text"
                     autoFocus
                     value={props.customModel}
@@ -121,7 +121,6 @@ export function SessionParams(props: {
                     disabled={props.isDisabled}
                     placeholder={t('newSession.model.customPlaceholder')}
                     aria-label={t('newSession.model.customPlaceholder')}
-                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                 />
             ) : null}
         </FormField>

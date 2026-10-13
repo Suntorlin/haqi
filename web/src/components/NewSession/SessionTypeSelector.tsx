@@ -1,7 +1,7 @@
 import type { RefObject } from 'react'
 import type { SessionType } from './types'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FieldHint, FormField, SegmentedControl } from '@/components/ui/FormControls'
+import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 
 export function SessionTypeSelector(props: {
@@ -29,7 +29,7 @@ export function SessionTypeSelector(props: {
             />
             <FieldHint>{isWorktree ? t('newSession.type.worktree.desc') : t('newSession.type.simple.desc')}</FieldHint>
             {isWorktree ? (
-                <input
+                <TextField
                     ref={props.worktreeInputRef}
                     type="text"
                     aria-label={t('newSession.type.worktree')}
@@ -37,7 +37,6 @@ export function SessionTypeSelector(props: {
                     value={props.worktreeName}
                     onChange={(e) => props.onWorktreeNameChange(e.target.value)}
                     disabled={props.isDisabled}
-                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                 />
             ) : null}
         </FormField>

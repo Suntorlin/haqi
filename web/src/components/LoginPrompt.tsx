@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { ApiClient } from '@/api/client'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { FormField } from '@/components/ui/FormControls'
+import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 import type { ServerUrlResult } from '@/hooks/useServerUrl'
 
@@ -21,6 +23,7 @@ type LoginPromptProps = {
 
 export function LoginPrompt(props: LoginPromptProps) {
     const { t } = useTranslation()
+    const serverInputId = useId()
     const isBindMode = props.mode === 'bind'
     const [accessToken, setAccessToken] = useState('')
     const [isLoading, setIsLoading] = useState(false)
@@ -122,58 +125,57 @@ export function LoginPrompt(props: LoginPromptProps) {
             <div className="w-full max-w-sm space-y-6">
                 {/* Header */}
                 <div className="text-center space-y-2">
-                    <div className="text-2xl font-semibold">{title}</div>
-                    <div className="text-sm text-[var(--app-hint)]">
+                    <div className="text-[20px] font-semibold text-[var(--social-fg)]">{title}</div>
+                    <div className="text-[15px] text-[var(--social-fg-muted)]">
                         {subtitle}
                     </div>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <input
-                            type="password"
-                            value={accessToken}
-                            onChange={(e) => setAccessToken(e.target.value)}
-                            placeholder={t('login.placeholder')}
-                            autoComplete="current-password"
-                            disabled={isLoading}
-                            className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
-                        />
-                    </div>
+                    <TextField
+                        type="password"
+                        value={accessToken}
+                        onChange={(e) => setAccessToken(e.target.value)}
+                        placeholder={t('login.placeholder')}
+                        aria-label={t('login.placeholder')}
+                        autoComplete="current-password"
+                        disabled={isLoading}
+                        invalid={Boolean(displayError)}
+                    />
 
                     {displayError && (
-                        <div className="text-sm text-red-500 text-center">
+                        <div className="text-center text-[13px] text-[var(--social-danger)]">
                             {displayError}
                         </div>
                     )}
 
-                    <button
+                    <Button
                         type="submit"
                         disabled={isLoading || !accessToken.trim()}
                         aria-busy={isLoading}
-                        className="w-full py-2.5 rounded-lg bg-[var(--app-button)] text-[var(--app-button-text)] font-medium disabled:opacity-50 hover:opacity-90 transition-opacity inline-flex items-center justify-center gap-2"
+                        className="w-full gap-2"
                     >
                         {isLoading ? (
                             <>
-                                <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                                <Spinner size="sm" label={null} className="text-[var(--social-primary-fg)]" />
                                 {isBindMode ? t('login.bind.submitting') : t('login.submitting')}
                             </>
                         ) : (
                             submitLabel
                         )}
-                    </button>
+                    </Button>
                 </form>
 
                 {/* Help links */}
                 {!isBindMode && (
-                    <div className="flex items-center justify-between text-xs text-[var(--app-hint)]">
-                        <a href="https://hapi.run/docs" target="_blank" rel="noopener noreferrer" className="underline hover:text-[var(--app-fg)]">
+                    <div className="flex items-center justify-between text-[12px] text-[var(--social-fg-muted)]">
+                        <a href="https://hapi.run/docs" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline hover:text-[var(--social-fg)]">
                             {t('login.help')}
                         </a>
                         <Dialog open={isServerDialogOpen} onOpenChange={handleServerDialogOpenChange}>
                             <DialogTrigger asChild>
-                                <button type="button" className="underline hover:text-[var(--app-fg)]">
+                                <button type="button" className="inline-flex min-h-11 items-center underline hover:text-[var(--social-fg)]">
                                     Hub {props.serverUrl ? `${t('login.server.custom')}` : `${t('login.server.default')}`}
                                 </button>
                             </DialogTrigger>
@@ -185,12 +187,12 @@ export function LoginPrompt(props: LoginPromptProps) {
                                     </DialogDescription>
                                 </DialogHeader>
                                 <form onSubmit={handleSaveServer} className="space-y-4">
-                                    <div className="text-xs text-[var(--app-hint)]">
+                                    <div className="text-[12px] text-[var(--social-fg-muted)]">
                                         {t('login.server.current')} {serverSummary}
                                     </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-medium">{t('login.server.origin')}</label>
-                                        <input
+                                    <FormField label={t('login.server.origin')} htmlFor={serverInputId} hint={t('login.server.hint')}>
+                                        <TextField
+                                            id={serverInputId}
                                             type="url"
                                             value={serverInput}
                                             onChange={(e) => {
@@ -198,15 +200,12 @@ export function LoginPrompt(props: LoginPromptProps) {
                                                 setServerError(null)
                                             }}
                                             placeholder={t('login.server.placeholder')}
-                                            className="w-full px-3 py-2.5 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent"
+                                            invalid={Boolean(serverError)}
                                         />
-                                        <div className="text-[11px] text-[var(--app-hint)]">
-                                            {t('login.server.hint')}
-                                        </div>
-                                    </div>
+                                    </FormField>
 
                                     {serverError && (
-                                        <div className="text-sm text-red-500">
+                                        <div className="text-[13px] text-[var(--social-danger)]">
                                             {serverError}
                                         </div>
                                     )}
@@ -229,8 +228,8 @@ export function LoginPrompt(props: LoginPromptProps) {
             </div>
 
             {/* Footer */}
-            <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-[var(--app-hint)] space-y-1">
-                <div>{t('login.footer')} <span className="text-red-500">♥</span> {t('login.footer.for')}</div>
+            <div className="absolute bottom-4 left-0 right-0 text-center text-[12px] text-[var(--social-fg-muted)] space-y-1">
+                <div>{t('login.footer')} <span className="text-[var(--social-danger)]">♥</span> {t('login.footer.for')}</div>
                 <div>{t('login.footer.copyright')} {new Date().getFullYear()} HAQI</div>
             </div>
         </div>
