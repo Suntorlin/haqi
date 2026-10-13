@@ -7,6 +7,8 @@ import { Badge, CountBadge, DotBadge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/Switch'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { SwitchChip } from '@/components/ui/SettingChip'
+import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import {
     ClearIcon,
     CloseIcon,
@@ -75,6 +77,7 @@ export function DesignShowcase() {
     const [seg, setSeg] = useState<'a' | 'b' | 'c'>('a')
     const [chip, setChip] = useState('all')
     const [on, setOn] = useState(true)
+    const [direct, setDirect] = useState(true)
     const [url, setUrl] = useState('http://localhost:3000/')
 
     return (
@@ -260,6 +263,25 @@ export function DesignShowcase() {
                         <ListRow title="通知" trailing={<Switch checked={on} onCheckedChange={setOn} ariaLabel="notify" />} />
                         <ListRow title="归档会话" destructive onClick={() => undefined} />
                     </ListGroup>
+                </div>
+            </Section>
+
+            <Section title="7 · 浮层 · 一键切换 · 停靠面板" note="浮层只有两种：菜单（CONTEXT_MENU_SURFACE，下拉与右键菜单）和毛玻璃卡片（.social-glass，会话信息）。二选一的设置用 SwitchChip，点一下就切换。终端 / 预览在桌面端停靠在聊天左右，默认右侧。">
+                <div className="grid gap-6 md:grid-cols-3">
+                    <Spec label="SwitchChip · 点一下切换">
+                        <SwitchChip title="发送方式" valueLabel={`发送 · ${direct ? '直发' : '排队'}`} onToggle={() => setDirect((value) => !value)} />
+                    </Spec>
+                    <Spec label="菜单 · 下拉（最近路径、历史地址）">
+                        <div className={`${CONTEXT_MENU_SURFACE} max-w-xs`}>
+                            <ContextMenuItem label="~/projects/haqi" onSelect={() => undefined} />
+                            <ContextMenuItem label="~/dev/shop" onSelect={() => undefined} />
+                        </div>
+                    </Spec>
+                    <Spec label="毛玻璃卡片 .social-glass">
+                        <div className="social-glass max-w-xs rounded-3xl p-4 text-[13px] text-[var(--social-fg)]">
+                            悬浮在内容之上，半透明加模糊；只用于锚在按钮下方的小卡片。
+                        </div>
+                    </Spec>
                 </div>
             </Section>
         </div>
