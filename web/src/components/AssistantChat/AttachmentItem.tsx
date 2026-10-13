@@ -1,7 +1,7 @@
 import { AttachmentPrimitive, useThreadComposerAttachment } from '@assistant-ui/react'
 import { Spinner } from '@/components/Spinner'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_24_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -50,7 +50,7 @@ export function AttachmentItem() {
             ) : null}
             <span className="max-w-[180px] truncate">{name}</span>
             <AttachmentPrimitive.Remove asChild>
-                <IconButton size="sm" label={t('composer.attachment.remove')} className={cn('ml-auto h-6 w-6', HIT_AREA_CLASS)}>
+                <IconButton size="sm" label={t('composer.attachment.remove')} className={cn('ml-auto h-6 w-6', HIT_AREA_24_CLASS)}>
                     <RemoveIcon />
                 </IconButton>
             </AttachmentPrimitive.Remove>

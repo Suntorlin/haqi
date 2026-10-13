@@ -5,6 +5,7 @@ import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/ui/button'
 import { Chip } from '@/components/ui/Chip'
 import { TextField } from '@/components/ui/TextField'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { cn } from '@/lib/utils'
 import { getAskUserQuestionAnswerKey, isAskUserQuestionToolName, parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
 import {
@@ -33,7 +34,7 @@ function CliBtn(props: {
         <Button
             variant="outline"
             size="sm"
-            className={cn('h-8 gap-1 px-3 text-[13px]', color)}
+            className={cn('h-9 gap-1 px-3 text-[13px]', HIT_AREA_CLASS, color)}
             disabled={props.disabled}
             onClick={props.onClick}
         >
