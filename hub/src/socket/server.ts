@@ -20,6 +20,7 @@ const jwtPayloadSchema = z.object({
 
 const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60_000
 const DEFAULT_MAX_TERMINALS = 4
+const MAX_SOCKET_PAYLOAD_BYTES = 80 * 1024 * 1024
 
 function resolveEnvNumber(name: string, fallback: number): number {
     const raw = process.env[name]
@@ -102,6 +103,8 @@ export function createSocketServer(deps: SocketServerDeps): {
 
     const engine = new Engine({
         path: '/socket.io/',
+        // Also becomes Bun.serve maxRequestBodySize; must fit base64 uploads (50MB file) and their RPC relay.
+        maxHttpBufferSize: MAX_SOCKET_PAYLOAD_BYTES,
         cors: corsOptions,
         allowRequest: async (req) => {
             const origin = req.headers.get('origin')

@@ -19,23 +19,28 @@ export function getProjectName(path: string): string {
     return parts[parts.length - 1] ?? path
 }
 
-// ElevenLabs-style orb palettes [blob, blob, blob, base], kept dusty and mid-dark so a list of
-// avatars reads calm (matte) instead of glossy. Spread across hues so neighbours stay distinct.
+// ElevenLabs-style orb palettes [blob, blob, blob, base]. Muted-but-colourful: each family blends
+// two or three clearly different hues (not tints of one) so a list of avatars reads varied, while the
+// grain overlay still keeps them matte. Hues are spread around the whole wheel.
 const ORB_FAMILIES: ReadonlyArray<readonly [string, string, string, string]> = [
-    ['#6d8bad', '#4f6d92', '#93abc6', '#8aa1ba'],
-    ['#7d9d89', '#5e7f6b', '#a0bba9', '#8fa999'],
-    ['#b6876f', '#996a53', '#cba591', '#bb9a88'],
-    ['#9c7f9f', '#7f6183', '#b9a0b8', '#a68fa6'],
-    ['#8580af', '#676291', '#a6a2c6', '#9590b4'],
-    ['#b39967', '#967d4d', '#c9b48c', '#b8a67f'],
-    ['#6f9797', '#517979', '#97b8b8', '#83a3a3'],
-    ['#ae7f89', '#91616c', '#c6a1a9', '#b38f97'],
-    ['#7d889b', '#5e6a7f', '#a2abba', '#8d97a7'],
-    ['#8d926d', '#707551', '#adb193', '#9a9e7f'],
-    ['#6c8fa4', '#8a7ba1', '#9ab0bd', '#8797ad'],
-    ['#7a90b6', '#a7869b', '#a3b2cd', '#9295b0'],
-    ['#83998a', '#ab9670', '#acbaab', '#9fa28b'],
-    ['#a28370', '#7f8ca4', '#bea595', '#9f958f']
+    ['#5b8def', '#9b6bdf', '#6fd3e0', '#7f9be6'], // blue / violet / cyan
+    ['#3fae8a', '#e3c35a', '#7cc9a8', '#8fbf8a'], // emerald / sand
+    ['#e2735a', '#f0a95c', '#e98fa0', '#e8957a'], // coral / amber / pink
+    ['#b86ad8', '#e870a6', '#7f7be0', '#c985d0'], // purple / magenta / indigo
+    ['#4aa3c7', '#4cc3a0', '#8fd0e8', '#6dbdc4'], // sky / teal
+    ['#d9a441', '#e5785b', '#efcf7d', '#e2a867'], // gold / orange
+    ['#7a6fe0', '#4fa6e8', '#c07ae0', '#8a8be6'], // indigo / blue / orchid
+    ['#e0627f', '#f09a5c', '#b567c9', '#e57f8f'], // rose / peach / plum
+    ['#5fb35c', '#2f9fb0', '#c4d95f', '#7cbf86'], // green / teal / lime
+    ['#e08a4f', '#d9585f', '#f0c261', '#e5805a'], // tangerine / red / yellow
+    ['#3f7fd0', '#38b5a5', '#9a7be0', '#5c9bd8'], // royal blue / aqua / violet
+    ['#d96aa8', '#7aa0f0', '#f2b27a', '#d98fb8'], // pink / periwinkle / peach
+    ['#8f6fd6', '#d9708f', '#5cc0d8', '#a888d8'], // lavender / rose / cyan
+    ['#6cb76a', '#e8b84f', '#4fa8b8', '#92c487'], // leaf / honey / teal
+    ['#cf5f74', '#7b68d8', '#e8a15f', '#c0708e'], // crimson / violet / amber
+    ['#45a5e0', '#e57fb0', '#7be0c0', '#8cb4e6'], // azure / pink / mint
+    ['#a0b84a', '#4ea88a', '#e0c85f', '#98b868'], // olive / jade / yellow
+    ['#e07a45', '#c25fb0', '#6f8fe8', '#d98a80']  // orange / magenta / blue
 ]
 
 // Fine monochrome grain, blended with `overlay` on top of the gradients for a frosted, matte finish.

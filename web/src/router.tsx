@@ -915,7 +915,7 @@ function GroupRow(props: {
             style={{ WebkitTouchCallout: 'none' }}
             aria-current={props.selected ? 'page' : undefined}
         >
-            <GroupAvatar seed={item.group.id} members={members} size={52} />
+            <GroupAvatar seed={item.group.id} members={members} size={44} />
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">{item.group.name}</span>

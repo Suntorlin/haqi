@@ -308,7 +308,7 @@ export function SessionHeader(props: {
     const infoSheet = (
         <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle>
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
-                <SessionAvatar session={session} size={60} ring={avatarRing} muted={!session.active} />
+                <SessionAvatar session={session} size={48} ring={avatarRing} muted={!session.active} />
                 <div className="min-w-0 flex-1">
                     <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
                     <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--social-fg-muted)]">
