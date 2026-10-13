@@ -361,7 +361,7 @@ describe('SettingsPage', () => {
         renderWithProviders(<SettingsPage />)
 
         fireEvent.click(screen.getByRole('button', { name: /Default Send Mode/i }))
-        fireEvent.click(screen.getByRole('option', { name: /Queue/i }))
+        fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Queue/i }))
 
         expect(window.localStorage.getItem('hapi:codexSendModeDefault')).toBe('queue')
     })
@@ -370,7 +370,7 @@ describe('SettingsPage', () => {
         renderWithProviders(<SettingsPage />)
 
         fireEvent.click(screen.getByRole('button', { name: /Session Reopen Position/i }))
-        fireEvent.click(screen.getByRole('option', { name: /Restore last position/i }))
+        fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Restore last position/i }))
 
         expect(window.localStorage.getItem('hapi:sessionReopenPosition:v1')).toBe('restore')
     })

@@ -5,13 +5,16 @@ import { ApiError, parseErrorCode, type ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
 import { useTranslation } from '@/lib/use-translation'
 import { AccountQuota } from './Quota'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
-import { buttonVariants } from '@/components/ui/button'
+import { ChevronDownIcon } from '@/components/mobile/icons'
+import { SettingsSwitchRow } from '@/components/settings/SettingsParts'
+import { Button } from '@/components/ui/button'
+import { Chip } from '@/components/ui/Chip'
 import { FormField, SelectInput } from '@/components/ui/FormControls'
+import { IconButton } from '@/components/ui/IconButton'
+import { ListGroup } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
+import { TextField } from '@/components/ui/TextField'
 
-const field = `${DIALOG_INPUT_CLASS} min-w-0 disabled:opacity-50`
-const button = buttonVariants({ variant: 'secondary', size: 'sm' })
 export const accountsKey = (machineId: string) => ['claude-accounts', machineId] as const
 // Claude keys its keychain entry by the literal CLAUDE_CONFIG_DIR string, while the runner passes the symlink-resolved path
 // (claude-accounts may be a symlink). `cd -P` makes the login land on the entry the runner will look up; if cd fails nothing runs.
@@ -49,8 +52,8 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
         catch (error) { setChecks(old => ({ ...old, [id]: failure(error, t('settings.claudeAccounts.checkFailed')) })) }
         finally { setWorking(false) }
     }
-    if (query.isPending) return <p role="status" className="text-sm text-[var(--app-hint)]">{t('settings.claudeAccounts.loading')}</p>
-    if (query.isError) return <div role="alert" className="space-y-2 text-sm"><p>{query.error.message}</p><button type="button" className={button} onClick={() => void query.refetch()}>{t('settings.claudeAccounts.retry')}</button></div>
+    if (query.isPending) return <p role="status" className="text-[13px] text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.loading')}</p>
+    if (query.isError) return <div role="alert" className="flex flex-col items-start gap-2 text-[13px]"><p>{query.error.message}</p><Button variant="secondary" onClick={() => void query.refetch()}>{t('settings.claudeAccounts.retry')}</Button></div>
     if (!draft) return null
     const pool = draft.pool
     const update = (index: number, patch: Partial<ClaudeAccountPool['profiles'][number]>) => change({ ...pool, profiles: pool.profiles.map((p, i) => i === index ? { ...p, ...patch } : p) })
@@ -61,58 +64,67 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
         ;[profiles[index], profiles[target]] = [profiles[target]!, profiles[index]!]
         change({ ...pool, profiles })
     }
-    return <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3 text-[15px] text-[var(--social-fg)]">
-            {t('settings.claudeAccounts.autoSwitch')}
-            <Switch checked={pool.autoSwitch} disabled={working} onCheckedChange={autoSwitch => change({ ...pool, autoSwitch })} ariaLabel={t('settings.claudeAccounts.autoSwitch')} />
-        </div>
-        {!pool.profiles.length && <p className="text-sm text-[var(--app-hint)]">{t('settings.claudeAccounts.empty')}</p>}
-        {pool.profiles.map((profile, index) => <fieldset disabled={working} key={profile.id} className="flex flex-col gap-2.5 rounded-2xl border border-[var(--social-border)] p-3">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <input className={`${field} min-w-[180px] flex-1`} type="email" aria-label={t('settings.claudeAccounts.emailLabel', { index: index + 1 })} placeholder="user@example.com" value={profile.email} onChange={e => { update(index, { email: e.target.value }); setChecks(old => ({ ...old, [profile.id]: '' })) }} />
-                <button
-                    type="button"
+    return <div className="flex flex-col gap-4">
+        <ListGroup>
+            <SettingsSwitchRow
+                title={t('settings.claudeAccounts.autoSwitch')}
+                label={t('settings.claudeAccounts.autoSwitch')}
+                checked={pool.autoSwitch}
+                disabled={working}
+                onCheckedChange={autoSwitch => change({ ...pool, autoSwitch })}
+            />
+        </ListGroup>
+        {!pool.profiles.length && <p className="px-1 text-[13px] text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.empty')}</p>}
+        {pool.profiles.map((profile, index) => <fieldset disabled={working} key={profile.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[var(--social-border)] p-4">
+            <TextField type="email" aria-label={t('settings.claudeAccounts.emailLabel', { index: index + 1 })} placeholder="user@example.com" value={profile.email} onChange={e => { update(index, { email: e.target.value }); setChecks(old => ({ ...old, [profile.id]: '' })) }} />
+            <div className="flex items-center justify-between gap-3">
+                <Chip
                     role="radio"
                     aria-checked={pool.initialAccount === profile.id}
+                    aria-pressed={undefined}
+                    selected={pool.initialAccount === profile.id}
                     disabled={!profile.enabled}
                     onClick={() => change({ ...pool, initialAccount: profile.id })}
-                    className={`h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors disabled:opacity-40 ${pool.initialAccount === profile.id
-                        ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
-                        : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]'}`}
+                    className="relative shrink-0 before:absolute before:inset-x-0 before:-inset-y-1.5 before:content-['']"
                 >
                     {t('settings.claudeAccounts.default')}
-                </button>
+                </Chip>
                 <div className="flex shrink-0 items-center gap-2 text-[13px] text-[var(--social-fg-muted)]">
                     {t('settings.claudeAccounts.enabled')}
-                    <Switch checked={profile.enabled} onCheckedChange={enabled => update(index, { enabled })} ariaLabel={`${t('settings.claudeAccounts.enabled')} ${index + 1}`} />
+                    <Switch className="-my-3 py-3" checked={profile.enabled} onCheckedChange={enabled => update(index, { enabled })} ariaLabel={`${t('settings.claudeAccounts.enabled')} ${index + 1}`} />
                 </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-                <button type="button" className={button} aria-label={`${t('settings.claudeAccounts.moveUp')} ${index + 1}`} disabled={index === 0} onClick={() => reorder(index, -1)}>↑</button>
-                <button type="button" className={button} aria-label={`${t('settings.claudeAccounts.moveDown')} ${index + 1}`} disabled={index === pool.profiles.length - 1} onClick={() => reorder(index, 1)}>↓</button>
-                <button type="button" className={button} disabled={dirty} onClick={() => void check(profile.id)}>{t('settings.claudeAccounts.check')}</button>
-                <button type="button" className={`${button} text-[var(--social-danger)]`} onClick={() => {
+            <div className="flex items-center gap-2">
+                <Button variant="secondary" className="px-4" disabled={dirty} onClick={() => void check(profile.id)}>{t('settings.claudeAccounts.check')}</Button>
+                <Button variant="secondary" className="px-4 text-[var(--social-danger)]" onClick={() => {
                     const profiles = pool.profiles.filter(p => p.id !== profile.id)
                     change({ ...pool, profiles, initialAccount: pool.initialAccount === profile.id ? profiles.find(p => p.enabled)?.id ?? '' : pool.initialAccount })
-                }}>{t('settings.claudeAccounts.remove')}</button>
-                {checks[profile.id] && <span role="status" className="text-xs text-[var(--app-hint)]">{checks[profile.id]}</span>}
+                }}>{t('settings.claudeAccounts.remove')}</Button>
+                <div className="ml-auto flex items-center gap-1">
+                    <IconButton variant="muted" label={`${t('settings.claudeAccounts.moveUp')} ${index + 1}`} disabled={index === 0} onClick={() => reorder(index, -1)}><ChevronDownIcon className="h-4 w-4 rotate-180" /></IconButton>
+                    <IconButton variant="muted" label={`${t('settings.claudeAccounts.moveDown')} ${index + 1}`} disabled={index === pool.profiles.length - 1} onClick={() => reorder(index, 1)}><ChevronDownIcon className="h-4 w-4" /></IconButton>
+                </div>
             </div>
+            {checks[profile.id] && <p role="status" className="text-[12px] text-[var(--social-fg-muted)]">{checks[profile.id]}</p>}
             <AccountQuota snapshot={query.data?.usage?.[profile.id]} />
         </fieldset>)}
         <div className="flex flex-wrap gap-2">
-            <button type="button" className={button} disabled={working || pool.profiles.length >= 10} onClick={() => {
+            <Button variant="secondary" disabled={working || pool.profiles.length >= 10} onClick={() => {
                 const id = `account-${crypto.randomUUID().slice(0, 8)}`
                 change({ ...pool, initialAccount: pool.initialAccount || id, profiles: [...pool.profiles, { id, email: '', enabled: true, trustGroup: 'personal' }] })
-            }}>{t('settings.claudeAccounts.add')}</button>
-            <button type="button" className={buttonVariants({ size: 'sm' })} disabled={working || !dirty} onClick={() => void save()}>{working ? t('settings.claudeAccounts.working') : t('settings.claudeAccounts.save')}</button>
-            <button type="button" className={button} disabled={working || dirty} onClick={() => void query.refetch()}>{t('settings.claudeAccounts.refresh')}</button>
-            {dirty && <button type="button" className={button} disabled={working} onClick={() => { setDirty(false); setNotice('') }}>{t('settings.claudeAccounts.discard')}</button>}
+            }}>{t('settings.claudeAccounts.add')}</Button>
+            <Button disabled={working || !dirty} onClick={() => void save()}>{working ? t('settings.claudeAccounts.working') : t('settings.claudeAccounts.save')}</Button>
+            <Button variant="secondary" disabled={working || dirty} onClick={() => void query.refetch()}>{t('settings.claudeAccounts.refresh')}</Button>
+            {dirty && <Button variant="secondary" disabled={working} onClick={() => { setDirty(false); setNotice('') }}>{t('settings.claudeAccounts.discard')}</Button>}
         </div>
-        {notice && <p role="status" className="text-sm">{notice}</p>}
-        <details className="text-xs text-[var(--app-hint)]">
-            <summary className="cursor-pointer">{t('settings.claudeAccounts.help')}</summary>
-            <p className="mt-2">{t('settings.claudeAccounts.help.login')}</p>
-            {pool.profiles.map(p => <code key={p.id} className="mt-1 block break-all rounded-lg bg-[var(--social-muted)] p-2">{loginCommand(p.id)}</code>)}
+        {notice && <p role="status" className="px-1 text-[13px] text-[var(--social-fg)]">{notice}</p>}
+        <details className="group text-[12px] text-[var(--social-fg-muted)]">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-1 [&::-webkit-details-marker]:hidden">
+                {t('settings.claudeAccounts.help')}
+                <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+            </summary>
+            <p className="mt-1">{t('settings.claudeAccounts.help.login')}</p>
+            {pool.profiles.map(p => <code key={p.id} className="mt-1 block break-all rounded-md bg-[var(--social-muted)] p-2">{loginCommand(p.id)}</code>)}
             <p className="mt-2">{t('settings.claudeAccounts.help.notes')}</p>
         </details>
     </div>
@@ -124,9 +136,9 @@ export function ClaudeAccountsSettings({ api, machines }: { api: ApiClient; mach
     const online = machines.filter(m => m.active)
     const machineId = online.some(m => m.id === selected) ? selected : online[0]?.id
     if (!machineId) {
-        return <p role="status" className="px-3 py-3 text-sm text-[var(--app-hint)]">{t('settings.claudeAccounts.noMachine')}</p>
+        return <p role="status" className="px-1 text-[13px] text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.noMachine')}</p>
     }
-    return <div className="flex flex-col gap-3 px-3 py-3">
+    return <div className="flex flex-col gap-4">
         {online.length > 1 && <FormField label={t('settings.claudeAccounts.machine')}>
             <SelectInput aria-label={t('settings.claudeAccounts.machine')} value={machineId} onChange={e => setSelected(e.target.value)}>
                 {online.map(m => <option key={m.id} value={m.id}>{m.metadata?.host ?? m.id}</option>)}
