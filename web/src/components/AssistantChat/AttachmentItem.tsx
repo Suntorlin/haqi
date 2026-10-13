@@ -1,5 +1,6 @@
 import { AttachmentPrimitive, useThreadComposerAttachment } from '@assistant-ui/react'
 import { Spinner } from '@/components/Spinner'
+import { useTranslation } from '@/lib/use-translation'
 
 function ErrorIcon() {
     return (
@@ -31,23 +32,24 @@ function RemoveIcon() {
 }
 
 export function AttachmentItem() {
+    const { t } = useTranslation()
     const { name, status } = useThreadComposerAttachment()
     const isUploading = status.type === 'running'
     const isError = status.type === 'incomplete'
 
     return (
-        <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-lg bg-[var(--app-subtle-bg)] px-3 py-2 text-base text-[var(--app-fg)]">
-            {isUploading ? <Spinner size="sm" label={null} className="text-[var(--app-hint)]" /> : null}
+        <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--social-fg)]">
+            {isUploading ? <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" /> : null}
             {isError ? (
-                <span className="text-red-500">
+                <span className="text-[var(--social-danger)]">
                     <ErrorIcon />
                 </span>
             ) : null}
-            <span className="max-w-[150px] truncate">{name}</span>
+            <span className="max-w-[180px] truncate">{name}</span>
             <AttachmentPrimitive.Remove
-                className="ml-auto flex h-5 w-5 items-center justify-center rounded text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)]"
-                aria-label="Remove attachment"
-                title="Remove attachment"
+                className="ml-auto flex h-6 w-6 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
+                aria-label={t('composer.attachment.remove')}
+                title={t('composer.attachment.remove')}
             >
                 <RemoveIcon />
             </AttachmentPrimitive.Remove>

@@ -375,10 +375,10 @@ describe('SettingsPage', () => {
         expect(window.localStorage.getItem('hapi:sessionReopenPosition:v1')).toBe('restore')
     })
 
-    it('persists mobile empty queue row preference', () => {
+    it('persists the empty queue bar preference', () => {
         renderWithProviders(<SettingsPage />)
 
-        fireEvent.click(screen.getByRole('switch', { name: /Show Empty Mobile Queue Row/i }))
+        fireEvent.click(screen.getByRole('switch', { name: /Show the queue bar when empty/i }))
 
         expect(window.localStorage.getItem('hapi:mobileQueueEmptyState')).toBe('show')
     })

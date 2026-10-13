@@ -43,6 +43,7 @@ import {
     MobileComposerAction,
     MobileComposerToggle,
     MobileComposerToolPanel,
+    QueueStrip,
     VoiceCallBar,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
@@ -507,22 +508,9 @@ export function HappyComposer(props: {
         && codexQueueInlinePanelMode !== 'off'
     const inlineQueuePendingCount = Math.max(0, codexQueueSummary?.pendingCount ?? codexQueuePendingCount)
     const inlineQueueNextPreview = codexQueueSummary?.nextPreview?.trim() ?? ''
-    const hideEmptyInlineQueuePanelOnMobile = mobileQueueEmptyStatePreference === 'hide'
+    const hideEmptyInlineQueuePanel = mobileQueueEmptyStatePreference === 'hide'
         && inlineQueuePendingCount <= 0
         && codexQueueEntries.length <= 0
-    const inlineQueueHeadline = useMemo(() => {
-        if (inlineQueueNextPreview.length > 0) {
-            return `${t('queue.inline.next')}: ${inlineQueueNextPreview}`
-        }
-        const firstEntryPreview = codexQueueEntries[0]?.preview?.trim()
-        if (firstEntryPreview) {
-            return `${t('queue.inline.next')}: ${firstEntryPreview}`
-        }
-        if (inlineQueuePendingCount > 0) {
-            return t('queue.inline.pending', { count: inlineQueuePendingCount })
-        }
-        return t('queue.inline.empty')
-    }, [inlineQueueNextPreview, codexQueueEntries, inlineQueuePendingCount, t])
     const trimmed = composerText.trim()
     const hasText = trimmed.length > 0
     const hasRuntimeAttachments = attachments.length > 0
@@ -1114,78 +1102,15 @@ export function HappyComposer(props: {
         </div>
     ) : null
 
-    const inlineQueuePanel = showInlineQueuePanel ? (
-        <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
-            <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                    {t('queue.dialog.title')}
-                </span>
-                <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
-                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                </span>
-                <span
-                    className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
-                    title={inlineQueueHeadline}
-                >
-                    {inlineQueueHeadline}
-                </span>
-                <button
-                    type="button"
-                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={handleCodexQueueOpen}
-                    disabled={controlsDisabled || !onCodexQueueOpen}
-                >
-                    {t('queue.inline.open')}
-                </button>
-            </div>
-
-            {codexQueueInlinePanelMode === 'full' ? (
-                <div className="mt-2 space-y-1">
-                    {codexQueueEntries.length > 0 ? (
-                        <>
-                            {codexQueueEntries.slice(0, 5).map((entry, index) => {
-                                const previewText = entry.preview || t('queue.dialog.emptyMessage')
-
-                                return (
-                                    <div
-                                        key={entry.id}
-                                        className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
-                                    >
-                                        <span className="text-[10px] text-[var(--app-hint)]">
-                                            #{index + 1}
-                                        </span>
-                                        <span
-                                            className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
-                                        >
-                                            {previewText}
-                                        </span>
-                                        <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
-                                            {new Date(entry.enqueuedAt).toLocaleTimeString([], {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
-                                        </span>
-                                    </div>
-                                )
-                            })}
-                            {codexQueueEntries.length > 5 ? (
-                                <div className="px-1 text-[11px] text-[var(--app-hint)]">
-                                    +{codexQueueEntries.length - 5}
-                                </div>
-                            ) : null}
-                        </>
-                    ) : inlineQueuePendingCount > 0 ? (
-                        <div className="px-1 text-xs text-[var(--app-hint)]">
-                            {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                        </div>
-                    ) : (
-                        <div className="px-1 text-xs text-[var(--app-hint)]">
-                            {t('queue.dialog.empty')}
-                        </div>
-                    )}
-                </div>
-            ) : null}
-        </div>
+    // Empty queues stay hidden unless the user asked to see them; the send-mode chip already says "排队".
+    const inlineQueuePanel = showInlineQueuePanel && !hideEmptyInlineQueuePanel ? (
+        <QueueStrip
+            pendingCount={inlineQueuePendingCount}
+            nextPreview={inlineQueueNextPreview || codexQueueEntries[0]?.preview?.trim() || ''}
+            entries={codexQueueInlinePanelMode === 'full' ? codexQueueEntries : undefined}
+            disabled={controlsDisabled}
+            onOpen={onCodexQueueOpen ? handleCodexQueueOpen : undefined}
+        />
     ) : null
 
     const attachmentsRow = attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
@@ -1193,7 +1118,7 @@ export function HappyComposer(props: {
             {restoredDraftAttachments.map((attachment) => (
                 <div
                     key={`draft:${attachment.path}`}
-                    className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                    className="flex max-w-full items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] py-1.5 pl-3 pr-1.5 text-[13px] text-[var(--social-fg)]"
                     title={attachment.path}
                 >
                     <span className="max-w-[180px] truncate">
@@ -1201,11 +1126,12 @@ export function HappyComposer(props: {
                     </span>
                     <button
                         type="button"
-                        className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
                         onClick={() => {
                             handleRemoveDraftAttachment(attachment)
                         }}
-                        aria-label={`Remove ${attachment.filename}`}
+                        aria-label={t('composer.attachment.remove')}
+                        title={t('composer.attachment.remove')}
                     >
                         ×
                     </button>
@@ -1332,7 +1258,7 @@ export function HappyComposer(props: {
                 <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
                     {overlays}
 
-                    {inlineQueuePanel}
+                    {inlineQueuePanel ? <div className="px-3 pt-2">{inlineQueuePanel}</div> : null}
 
                     {attachmentsRow}
 
@@ -1424,6 +1350,7 @@ export function HappyComposer(props: {
                 {overlays}
 
                 {voiceCallBar ? <div className="pb-2">{voiceCallBar}</div> : null}
+                {inlineQueuePanel ? <div className="pb-2">{inlineQueuePanel}</div> : null}
 
                 <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
                     <div className="relative overflow-hidden rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
@@ -1442,8 +1369,6 @@ export function HappyComposer(props: {
                                 </button>
                             </div>
                         ) : null}
-
-                        {inlineQueuePanel}
 
                         {attachmentsRow}
 

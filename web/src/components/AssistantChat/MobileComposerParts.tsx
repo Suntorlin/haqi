@@ -192,6 +192,60 @@ export function MobileComposerAction(props: {
 }
 
 /**
+ * Queue mode status above the input, the same slim bar as the voice bar: how many messages wait
+ * and what goes next, with "管理" to open the queue. "full" mode also lists the first entries.
+ */
+export function QueueStrip(props: {
+    pendingCount: number
+    nextPreview: string
+    entries?: ReadonlyArray<{ id: string; preview: string; enqueuedAt: number }>
+    disabled: boolean
+    onOpen?: () => void
+}) {
+    const { t } = useTranslation()
+    const entries = props.entries ?? []
+    return (
+        <div role="status">
+            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
+                <QueueListIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
+                <span className="shrink-0 font-medium text-[var(--social-fg)]">
+                    {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[var(--social-fg-muted)]" title={props.nextPreview || undefined}>
+                    {props.nextPreview ? `· ${t('queue.inline.next')}：${props.nextPreview}` : ''}
+                </span>
+                {props.onOpen ? (
+                    <button
+                        type="button"
+                        onClick={props.onOpen}
+                        disabled={props.disabled}
+                        className="shrink-0 rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12.5px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-border)] disabled:opacity-50"
+                    >
+                        {t('queue.inline.open')}
+                    </button>
+                ) : null}
+            </div>
+            {entries.length > 0 ? (
+                <div className="mt-1.5 flex flex-col gap-1 px-3.5">
+                    {entries.slice(0, 5).map((entry, index) => (
+                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                            <span className="w-4 shrink-0 tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
+                            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{entry.preview || t('queue.dialog.emptyMessage')}</span>
+                            <span className="shrink-0 text-[var(--social-fg-subtle)]">
+                                {new Date(entry.enqueuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    ))}
+                    {entries.length > 5 ? (
+                        <div className="text-[12px] text-[var(--social-fg-subtle)]">+{entries.length - 5}</div>
+                    ) : null}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+/**
  * Shown above the input while a voice conversation runs: status, mute and hang up. It keeps the call
  * controls reachable when the action button turns into "stop" for a running agent.
  */
