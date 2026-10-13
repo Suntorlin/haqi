@@ -1,4 +1,3 @@
-export { CliDivider } from './CliDivider'
 export { LoopControls } from './LoopControls'
 export { LoopSettingsPanel } from './LoopSettingsPanel'
 export { CreateLoopModal, type CreateLoopData } from './CreateLoopModal'

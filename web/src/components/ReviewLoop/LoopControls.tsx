@@ -1,5 +1,9 @@
 import { useState } from 'react'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { cn } from '@/lib/utils'
 import type { ReviewLoopStatus } from '@/types/api'
 
 type LoopControlsProps = {
@@ -12,23 +16,11 @@ type LoopControlsProps = {
 
 function StatusIndicator({ status }: { status: ReviewLoopStatus }) {
     if (status === 'executing') {
-        return (
-            <div className="font-mono text-xs text-[var(--app-hint)] flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--app-link)] animate-[blink_1s_step-end_infinite]" />
-                <span>Executing...</span>
-                <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
-            </div>
-        )
+        return <Badge variant="warning" dot live>Executing...</Badge>
     }
 
     if (status === 'reviewing') {
-        return (
-            <div className="font-mono text-xs text-[var(--app-hint)] flex items-center gap-1.5">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--app-link)] animate-[blink_1s_step-end_infinite]" />
-                <span>Reviewing...</span>
-                <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
-            </div>
-        )
+        return <Badge variant="info" dot live>Reviewing...</Badge>
     }
 
     // Terminal states: accepted, aborted, canceled — show nothing
@@ -39,43 +31,43 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
     const [instruction, setInstruction] = useState('')
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
+    const cancelDialog = (
+        <ConfirmDialog
+            isOpen={showCancelConfirm}
+            onClose={() => setShowCancelConfirm(false)}
+            title="Cancel Review Loop"
+            description="Are you sure you want to cancel this review loop? This action cannot be undone."
+            confirmLabel="Cancel Loop"
+            confirmingLabel="Canceling..."
+            onConfirm={async () => {
+                onCancel()
+            }}
+            isPending={isPending}
+            destructive
+        />
+    )
+
     // Active states: show pause + cancel buttons
     if (status === 'executing' || status === 'reviewing') {
         return (
-            <div className="space-y-2">
+            <div className="flex flex-col items-start gap-3">
                 <StatusIndicator status={status} />
-                <div className="flex items-center gap-2 flex-wrap">
-                    <button
+                <div className="flex flex-wrap items-center gap-2">
+                    <Button type="button" variant="secondary" onClick={onPause} disabled={isPending}>
+                        {isPending ? 'Pausing...' : 'Pause'}
+                    </Button>
+                    <Button
                         type="button"
-                        onClick={onPause}
-                        disabled={isPending}
-                        className="rounded-sm border border-amber-500/50 bg-transparent px-3 py-1 font-mono text-xs text-amber-500 hover:bg-amber-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isPending ? 'Pausing...' : 'Pause ⏸'}
-                    </button>
-                    <button
-                        type="button"
+                        variant="outline"
+                        className="text-[var(--social-danger)]"
                         onClick={() => setShowCancelConfirm(true)}
                         disabled={isPending}
-                        className="rounded-sm border border-[var(--app-border)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Cancel &#x2717;
-                    </button>
+                        Cancel
+                    </Button>
                 </div>
 
-                <ConfirmDialog
-                    isOpen={showCancelConfirm}
-                    onClose={() => setShowCancelConfirm(false)}
-                    title="Cancel Review Loop"
-                    description="Are you sure you want to cancel this review loop? This action cannot be undone."
-                    confirmLabel="Cancel Loop"
-                    confirmingLabel="Canceling..."
-                    onConfirm={async () => {
-                        onCancel()
-                    }}
-                    isPending={isPending}
-                    destructive
-                />
+                {cancelDialog}
             </div>
         )
     }
@@ -96,71 +88,50 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
 
         return (
             <>
-                <div className="font-mono text-xs border border-[var(--app-border)] rounded-sm overflow-hidden min-w-0">
-                    {/* Header */}
-                    <div className="px-2 py-1 bg-[var(--app-subtle-bg)] text-[var(--app-fg)] font-medium" style={{ borderBottom: '1px solid var(--app-border)' }}>
+                <div className="flex min-w-0 flex-col gap-3">
+                    <div className="text-[15px] font-semibold text-[var(--social-fg)]">
                         {status === 'paused' ? 'Paused — Add Instructions' : 'Action Required'}
                     </div>
 
-                    <div className="p-2 space-y-2 min-w-0">
-                        {status === 'paused' && (
-                            <div className="text-amber-500">
-                                Loop paused. Add your instructions for the reviewer below, then continue.
-                            </div>
-                        )}
-
-                        {/* Instruction label */}
-                        <div className="text-[var(--app-hint)]">
-                            {'>'} {status === 'paused' ? 'Instructions for reviewer:' : 'Additional instruction (optional):'}
+                    {status === 'paused' && (
+                        <div className="rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-[13px] text-[var(--app-badge-warning-text)]">
+                            Loop paused. Add your instructions for the reviewer below, then continue.
                         </div>
+                    )}
 
-                        {/* Textarea */}
+                    <label className="flex min-w-0 flex-col gap-1.5">
+                        <span className="px-1 text-[13px] text-[var(--social-fg-muted)]">
+                            {status === 'paused' ? 'Instructions for reviewer:' : 'Additional instruction (optional):'}
+                        </span>
                         <textarea
                             value={instruction}
                             onChange={(e) => setInstruction(e.target.value)}
                             onKeyDown={handleKeyDown}
                             placeholder="..."
-                            className="w-full min-w-0 resize-none rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] px-2 py-1.5 font-mono text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:border-[var(--app-link)]"
+                            className={cn(DIALOG_INPUT_CLASS, 'min-w-0 resize-none')}
                             rows={3}
                             disabled={isPending}
                             autoFocus={status === 'paused'}
                         />
+                    </label>
 
-                        {/* Buttons */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                                type="button"
-                                onClick={handleContinue}
-                                disabled={isPending}
-                                className="rounded-sm border border-[var(--app-link)] bg-[var(--app-subtle-bg)] px-3 py-1 font-mono text-xs text-[var(--app-fg)] hover:bg-[var(--app-link)] hover:text-[var(--app-button-text)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {isPending ? 'Sending...' : 'Continue \u25B8'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowCancelConfirm(true)}
-                                disabled={isPending}
-                                className="rounded-sm border border-[var(--app-border)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Cancel &#x2717;
-                            </button>
-                        </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="text-[var(--social-danger)]"
+                            onClick={() => setShowCancelConfirm(true)}
+                            disabled={isPending}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={handleContinue} disabled={isPending}>
+                            {isPending ? 'Sending...' : 'Continue'}
+                        </Button>
                     </div>
                 </div>
 
-                <ConfirmDialog
-                    isOpen={showCancelConfirm}
-                    onClose={() => setShowCancelConfirm(false)}
-                    title="Cancel Review Loop"
-                    description="Are you sure you want to cancel this review loop? This action cannot be undone."
-                    confirmLabel="Cancel Loop"
-                    confirmingLabel="Canceling..."
-                    onConfirm={async () => {
-                        onCancel()
-                    }}
-                    isPending={isPending}
-                    destructive
-                />
+                {cancelDialog}
             </>
         )
     }
