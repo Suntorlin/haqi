@@ -92,9 +92,13 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows. |
 | `Switch`, `SwitchTrack` | `Switch.tsx` | Monochrome toggle. |
 | `SettingChip`, `ToggleChip` | `SettingChip.tsx` | Composer-toolbar setting that opens a sheet (phone) or menu (desktop). |
+| `SwitchChip` | `SettingChip.tsx` | Two-state setting shown as its value; one tap flips it (send mode: direct / queue). |
 | `Dialog*`, `ConfirmDialog` | `dialog.tsx`, `ConfirmDialog.tsx` | Radix dialog; bottom sheet on phones (`.app-dialog-content`). |
 | `Toast`, `Card*` | `Toast.tsx`, `card.tsx` | Transient message; plain card. |
 | `BottomSheet`, `SheetSection/Row/Option/SwitchRow`, `ContextMenu` | `components/mobile/` | Phone sheets and long-press / right-click menus (>= 44px rows, scroll when tall). |
+| `InputHistory` | `ui/InputHistory.tsx` | Chevron on a text input that opens its history (recent paths, preview URLs) as a dropdown. Built on `CONTEXT_MENU_SURFACE` + `ContextMenuItem` (`components/mobile/ContextMenu.tsx`), the same surface and rows as menus. Never a row of chips. |
+| `.social-glass`, `BottomSheet popoverAnchor` | `index.css`, `components/mobile/BottomSheet.tsx` | Frosted card anchored under a button (desktop session info). Phones keep the sheet. |
+| `SessionDockLayout`, `useSessionDock` | `components/`, `hooks/` | Desktop: terminal / preview docked left or right of the chat, resizable, open on the right by default. |
 | `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. |
 | Settings helpers | `components/settings/SettingsParts.tsx` | `SettingsGroup`, `SettingsBlock`, `SettingsSelectRow`, ... built on `ListGroup` / `ListRow`. |
 | `HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. |
