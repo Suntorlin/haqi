@@ -79,6 +79,7 @@ export function SettingChip<T extends string>(props: {
                         <ContextMenuItem
                             key={option.value}
                             label={option.label}
+                            description={option.description}
                             checked={option.value === group.value}
                             onSelect={() => choose(option.value)}
                             trailing={(
