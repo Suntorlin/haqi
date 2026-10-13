@@ -13,6 +13,8 @@ import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader, SubPageHeaderButton } from '@/components/mobile/SubPageHeader'
+import { Badge } from '@/components/ui/badge'
+import { TextField } from '@/components/ui/TextField'
 
 function RefreshIcon(props: { className?: string }) {
     return (
@@ -115,7 +117,7 @@ function StatusBadge(props: { status: GitFileStatus['status'] }) {
 
     return (
         <span
-            className="inline-flex items-center justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold"
+            className="inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 text-[12px] font-semibold"
             style={{ color, borderColor: color }}
         >
             {label}
@@ -127,7 +129,7 @@ function LineChanges(props: { added: number; removed: number }) {
     if (!props.added && !props.removed) return null
 
     return (
-        <span className="flex items-center gap-1 text-[11px] font-mono">
+        <span className="flex items-center gap-1 text-[12px] font-mono">
             {props.added ? (
                 <span className="text-[var(--app-diff-added-text)]">+{props.added}</span>
             ) : null}
@@ -153,12 +155,10 @@ function GitFileRow(props: {
         >
             <FileIcon fileName={props.file.fileName} size={22} />
             <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{props.file.fileName}</div>
+                <div className="truncate">{props.file.fileName}</div>
                 <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--app-hint)]">
                     {props.file.repo ? (
-                        <span className="shrink-0 rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--app-fg)]">
-                            {props.file.repo}
-                        </span>
+                        <Badge className="shrink-0">{props.file.repo}</Badge>
                     ) : null}
                     <span className="truncate">{subtitle}</span>
                 </div>
@@ -189,7 +189,7 @@ function SearchResultRow(props: {
         >
             {icon}
             <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{props.file.fileName}</div>
+                <div className="truncate">{props.file.fileName}</div>
                 <div className="truncate text-xs text-[var(--app-hint)]">{subtitle}</div>
             </div>
         </button>
@@ -367,17 +367,15 @@ export default function FilesPage() {
 
             <div className="bg-[var(--app-bg)]">
                 <div className="mx-auto w-full max-w-content p-3 border-b border-[var(--app-border)]">
-                    <div className="flex items-center gap-2 rounded-md bg-[var(--app-subtle-bg)] px-3 py-2">
-                        <SearchIcon className="text-[var(--app-hint)]" />
-                        <input
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder={t('files.search')}
-                            className="w-full bg-transparent text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
-                            autoCapitalize="none"
-                            autoCorrect="off"
-                        />
-                    </div>
+                    <TextField
+                        variant="pill"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        placeholder={t('files.search')}
+                        leading={<SearchIcon />}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                    />
                 </div>
             </div>
 
@@ -388,7 +386,7 @@ export default function FilesPage() {
                         role="tab"
                         aria-selected={activeTab === 'changes'}
                         onClick={() => handleTabChange('changes')}
-                        className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'changes' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
+                        className={`relative min-h-11 py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'changes' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
                     >
                         {t('files.tab.changes')}
                         <span
@@ -400,7 +398,7 @@ export default function FilesPage() {
                         role="tab"
                         aria-selected={activeTab === 'directories'}
                         onClick={() => handleTabChange('directories')}
-                        className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'directories' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
+                        className={`relative min-h-11 py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'directories' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
                     >
                         {t('files.tab.directories')}
                         <span
@@ -423,12 +421,9 @@ export default function FilesPage() {
                         {isAggregatedRepoView ? (
                             <div className="mt-1 flex flex-wrap gap-1">
                                 {repoSummaries.map((repo) => (
-                                    <span
-                                        key={`${repo.name}-${repo.branch ?? 'detached'}`}
-                                        className="rounded border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
-                                    >
+                                    <Badge key={`${repo.name}-${repo.branch ?? 'detached'}`}>
                                         {repo.branch ? `${repo.name} · ${repo.branch}` : repo.name}
-                                    </span>
+                                    </Badge>
                                 ))}
                             </div>
                         ) : null}
@@ -439,7 +434,7 @@ export default function FilesPage() {
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
                     {showGitErrorBanner && activeTab === 'changes' ? (
-                        <div className="border-b border-[var(--app-divider)] bg-amber-500/10 px-3 py-2 text-xs text-[var(--app-hint)]">
+                        <div className="border-b border-[var(--app-divider)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-xs text-[var(--app-badge-warning-text)]">
                             {gitError}
                         </div>
                     ) : null}
@@ -483,7 +478,7 @@ export default function FilesPage() {
                                     {stagedGroups.map((group, groupIndex) => (
                                         <div key={`staged-group-${group.repo ?? 'root'}-${groupIndex}`}>
                                             {showRepoGroupHeaders ? (
-                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-hint)]">
+                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--app-hint)]">
                                                     {formatRepoGroupLabel(group.repo)} ({group.files.length})
                                                 </div>
                                             ) : null}
@@ -512,7 +507,7 @@ export default function FilesPage() {
                                     {unstagedGroups.map((group, groupIndex) => (
                                         <div key={`unstaged-group-${group.repo ?? 'root'}-${groupIndex}`}>
                                             {showRepoGroupHeaders ? (
-                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[11px] font-medium text-[var(--app-hint)]">
+                                                <div className="border-b border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-[12px] font-semibold text-[var(--app-hint)]">
                                                     {formatRepoGroupLabel(group.repo)} ({group.files.length})
                                                 </div>
                                             ) : null}
