@@ -1005,4 +1005,7 @@ export default {
   'preview.error.invalid': '预览地址格式不对',
   'preview.error.save': '保存预览地址失败',
   'preview.error.clear': '清除预览地址失败',
+  'voice.call.connecting': '正在连接语音…',
+  'voice.call.active': '语音对话中',
+  'voice.call.muted': '语音对话中 · 麦克风已静音',
 } as const

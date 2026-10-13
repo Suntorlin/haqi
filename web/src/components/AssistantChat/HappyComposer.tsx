@@ -43,7 +43,8 @@ import {
     MobileComposerAction,
     MobileComposerSettingsSheet,
     MobileComposerToggle,
-    MobileComposerToolPanel
+    MobileComposerToolPanel,
+    VoiceCallBar
 } from '@/components/AssistantChat/MobileComposerParts'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
@@ -1220,6 +1221,15 @@ export function HappyComposer(props: {
 
     const hasDraft = hasText || hasAnyAttachments
     const showStop = threadIsRunning && !(hasDraft && canSend)
+    const voiceActive = voiceStatus === 'connected' || voiceStatus === 'connecting'
+    const voiceCallBar = voiceActive && onVoiceToggle ? (
+        <VoiceCallBar
+            status={voiceStatus}
+            micMuted={voiceMicMuted}
+            onToggleMic={onVoiceMicToggle}
+            onEnd={onVoiceToggle}
+        />
+    ) : null
 
     // One panel for every conversation setting: bottom sheet on phones, right-hand panel on desktop.
     const settingsSheet = (
@@ -1310,6 +1320,8 @@ export function HappyComposer(props: {
 
                     {attachmentsRow}
 
+                    {voiceCallBar ? <div className="px-3 pt-2">{voiceCallBar}</div> : null}
+
                     <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
                         <div className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
                             {!active ? (
@@ -1377,9 +1389,6 @@ export function HappyComposer(props: {
                     {showToolPanel ? (
                         <MobileComposerToolPanel
                             controlsDisabled={controlsDisabled}
-                            voiceEnabled={voiceEnabled}
-                            voiceActive={voiceStatus === 'connected' || voiceStatus === 'connecting'}
-                            onVoiceToggle={closePanelThen(onVoiceToggle ?? (() => {}))}
                             showTerminalButton={showTerminalButton}
                             onTerminal={closePanelThen(onTerminal ?? (() => {}))}
                             showSettingsButton={hasChatSettings}
@@ -1394,7 +1403,6 @@ export function HappyComposer(props: {
         )
     }
 
-    const voiceActive = voiceStatus === 'connected' || voiceStatus === 'connecting'
     const settingsLabel = [
         showModelSettings ? modelOptions.find((option) => option.value === currentModelValue)?.label : null,
         showPermissionSettings ? permissionModeOptions.find((option) => option.mode === permissionMode)?.label : null
@@ -1404,6 +1412,8 @@ export function HappyComposer(props: {
         <div className={`shrink-0 bg-[var(--app-bg)] px-6 pb-5 pt-1 ${cliMode ? 'cli-composer' : ''}`}>
             <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
                 {overlays}
+
+                {voiceCallBar ? <div className="pb-2">{voiceCallBar}</div> : null}
 
                 <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
                     <div className="relative overflow-hidden rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
@@ -1449,12 +1459,6 @@ export function HappyComposer(props: {
 
                         <DesktopComposerToolbar
                             controlsDisabled={controlsDisabled}
-                            voiceEnabled={voiceEnabled}
-                            voiceActive={voiceActive}
-                            voiceConnected={voiceStatus === 'connected'}
-                            voiceMicMuted={voiceMicMuted}
-                            onVoiceToggle={onVoiceToggle ?? (() => {})}
-                            onVoiceMicToggle={onVoiceMicToggle}
                             showTerminalButton={showTerminalButton}
                             onTerminal={onTerminal ?? (() => {})}
                             showSettingsButton={hasChatSettings}
@@ -1469,12 +1473,12 @@ export function HappyComposer(props: {
                                     showStop={showStop}
                                     abortDisabled={abortDisabled}
                                     isAborting={isAborting}
-                                    voiceEnabled={false}
-                                    voiceStatus="disconnected"
+                                    voiceEnabled={voiceEnabled}
+                                    voiceStatus={voiceStatus}
                                     controlsDisabled={controlsDisabled}
                                     onSend={() => { void sendComposerNow() }}
                                     onAbort={handleAbort}
-                                    onVoiceToggle={() => {}}
+                                    onVoiceToggle={onVoiceToggle ?? (() => {})}
                                 />
                             )}
                         />
