@@ -1,6 +1,7 @@
 import type { ToolViewProps } from '@/components/ToolCard/views/_all'
 import { DiffView } from '@/components/DiffView'
 import { isObject } from '@hapi/protocol'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { resolveDisplayPath } from '@/utils/path'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -543,7 +544,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
 
             {mobile ? (
                 <div className="border-t border-[var(--app-border)] px-2 py-2 md:hidden">
-                    <Button variant="outline" size="sm" onClick={handleBackToFileList}>
+                    <Button variant="outline" size="sm" className={HIT_AREA_CLASS} onClick={handleBackToFileList}>
                         Back to files
                     </Button>
                 </div>

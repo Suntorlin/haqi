@@ -19,7 +19,7 @@ import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { Button } from '@/components/ui/button'
 import { CountBadge, DotBadge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_28_CLASS, HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -55,7 +55,7 @@ export function MobileComposerToolPanel(props: {
     return (
         <div className="pb-3 pt-3">
             {props.settings ? (
-                <div className="social-scroll-x flex gap-2 overflow-x-auto px-5 pb-3">
+                <div className="social-scroll-x flex gap-2 overflow-x-auto px-5 pb-3 [&>button]:h-11 [&>button]:text-[13px]">
                     {props.settings}
                 </div>
             ) : null}
@@ -218,7 +218,7 @@ export function QueueStrip(props: {
                         size="sm"
                         onClick={props.onOpen}
                         disabled={props.disabled}
-                        className={cn('h-7 px-3', HIT_AREA_CLASS)}
+                        className={cn('h-7 px-3', HIT_AREA_28_CLASS)}
                     >
                         {t('queue.inline.open')}
                     </Button>
@@ -268,7 +268,7 @@ export function VoiceCallBar(props: {
                     size="sm"
                     label={props.micMuted ? t('voice.unmute') : t('voice.mute')}
                     onClick={props.onToggleMic}
-                    className={cn('h-7 w-7', HIT_AREA_CLASS)}
+                    className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                 >
                     <MicIcon muted={props.micMuted} className="h-4 w-4" />
                 </IconButton>
@@ -277,7 +277,7 @@ export function VoiceCallBar(props: {
                 variant="destructive"
                 size="sm"
                 onClick={props.onEnd}
-                className={cn('h-7 px-3', HIT_AREA_CLASS)}
+                className={cn('h-7 px-3', HIT_AREA_28_CLASS)}
             >
                 {t('voice.end')}
             </Button>
@@ -327,19 +327,18 @@ export function DesktopComposerToolbar(props: {
                 </IconButton>
             ) : null}
             {compact ? (
-                <button
-                    type="button"
+                <IconButton
+                    size="sm"
+                    label={t('composer.compact.hint')}
                     onClick={compact.onRun}
                     disabled={compact.disabled}
                     className={toolbarIconClass}
-                    aria-label={t('composer.compact')}
-                    title={t('composer.compact.hint')}
                 >
                     <CompactIcon className="h-[18px] w-[18px]" />
-                </button>
+                </IconButton>
             ) : null}
             {props.settings ? (
-                <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto">
+                <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto [&>button]:text-[13px]">
                     {props.settings}
                 </div>
             ) : null}

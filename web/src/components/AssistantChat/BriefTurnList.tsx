@@ -19,7 +19,7 @@ import { Spinner } from '@/components/Spinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
-import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSessionReopenPositionPreference } from '@/hooks/useSessionReopenPositionPreference'
@@ -1234,6 +1234,7 @@ export function BriefTurnList(props: {
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            className={HIT_AREA_CLASS}
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
@@ -1301,6 +1302,7 @@ export function BriefTurnList(props: {
                                         <Button
                                             variant="outline"
                                             size="sm"
+                                            className={HIT_AREA_CLASS}
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
