@@ -83,6 +83,10 @@ Modular session creation:
 - Model selector
 - Permission mode toggle (YOLO mode)
 
+## Design system
+
+Principles, tokens and component catalog: [DESIGN.md](./DESIGN.md). Live preview: `/design.html`.
+
 ## Authentication
 
 See `src/hooks/useAuth.ts` and `src/hooks/useAuthSource.ts`.

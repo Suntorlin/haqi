@@ -47,6 +47,7 @@ Bun workspaces; `shared` consumed by cli, hub, web.
 - `cli/README.md` - CLI commands, config, runner
 - `hub/README.md` - Hub config, HTTP API, Socket.IO events
 - `web/README.md` - Routes, components, hooks
+- `web/DESIGN.md` - Web design system: principles, tokens, components (read before any UI change)
 - `docs/guide/` - User guides (installation, how-it-works, FAQ)
 
 ## Shared rules
@@ -58,6 +59,7 @@ Bun workspaces; `shared` consumed by cli, hub, web.
 - Prefer 4-space indentation
 - Zod for runtime validation (schemas in `shared/src/schemas.ts`)
 - Write necessary tests ONLY.
+- Web UI: follow `web/DESIGN.md` (tokens + `components/ui` primitives only; 44px touch targets; light + dark)
 
 ## Common commands (repo root)
 
