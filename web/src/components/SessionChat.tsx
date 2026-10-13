@@ -44,6 +44,9 @@ import { PlanApprovalOverlay } from '@/components/ToolCard/PlanApprovalOverlay'
 import { findLatestPendingQuestionTool } from '@/components/ToolCard/questionTools'
 import { findLatestPendingPlanApprovalTool } from '@/components/ToolCard/exitPlanMode'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { TextField } from '@/components/ui/TextField'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
@@ -329,10 +332,10 @@ function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapsho
     return null
 }
 
-function getCodexPlanStatusBadgeClass(status: CodexPlanStatus): string {
-    if (status === 'completed') return 'bg-emerald-500/10 text-emerald-600'
-    if (status === 'in_progress') return 'bg-blue-500/10 text-blue-600'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+function getCodexPlanStatusBadgeVariant(status: CodexPlanStatus): 'success' | 'info' | 'default' {
+    if (status === 'completed') return 'success'
+    if (status === 'in_progress') return 'info'
+    return 'default'
 }
 
 const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
@@ -1454,12 +1457,12 @@ export function SessionChat(props: {
                     <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
                         {showCodexPlanNotebook && latestCodexPlan ? (
                             <div className="px-3 pt-2">
-                                <div className="mx-auto w-full max-w-content rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/50 p-2.5">
+                                <div className="mx-auto w-full max-w-content rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                        <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                             {t('queuePlan.title')}
                                         </span>
-                                        <span className="text-[10px] text-[var(--app-hint)]">
+                                        <span className="text-[12px] text-[var(--social-fg-subtle)]">
                                             {t('queuePlan.updated', {
                                                 time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
                                                     hour: '2-digit',
@@ -1468,43 +1471,45 @@ export function SessionChat(props: {
                                             })}
                                         </span>
                                         <div className="ml-auto flex items-center gap-1">
-                                            <button
+                                            <Button
                                                 type="button"
-                                                className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="px-3"
                                                 onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}
                                             >
                                                 {isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
-                                            </button>
-                                            <button
+                                            </Button>
+                                            <Button
                                                 type="button"
-                                                className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="px-3"
                                                 onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}
                                             >
                                                 {t('queuePlan.close')}
-                                            </button>
+                                            </Button>
                                         </div>
                                     </div>
 
                                     {!isCodexPlanCollapsed ? (
                                         <div className="mt-2 space-y-1.5">
                                             {latestCodexPlan.explanation ? (
-                                                <div className="text-xs text-[var(--app-hint)]">
+                                                <div className="text-[13px] text-[var(--social-fg-muted)]">
                                                     {latestCodexPlan.explanation}
                                                 </div>
                                             ) : null}
                                             <div className="space-y-1">
                                                 {latestCodexPlan.entries.map((entry, index) => (
-                                                    <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-xs">
-                                                        <span
-                                                            className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getCodexPlanStatusBadgeClass(entry.status)}`}
-                                                        >
+                                                    <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-[13px]">
+                                                        <Badge variant={getCodexPlanStatusBadgeVariant(entry.status)}>
                                                             {entry.status === 'completed'
                                                                 ? t('queuePlan.status.completed')
                                                                 : entry.status === 'in_progress'
                                                                     ? t('queuePlan.status.inProgress')
                                                                     : t('queuePlan.status.pending')}
-                                                        </span>
-                                                        <span className="min-w-0 flex-1 break-words text-[var(--app-fg)]">
+                                                        </Badge>
+                                                        <span className="min-w-0 flex-1 break-words pt-0.5 text-[var(--social-fg)]">
                                                             {entry.step}
                                                         </span>
                                                     </div>
@@ -1662,7 +1667,7 @@ export function SessionChat(props: {
                         </DialogHeader>
                         <div className="mt-3 max-h-[calc(85vh-7rem)] space-y-3 overflow-y-auto pr-1">
                             <div
-                                className={`rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
+                                className={`rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
                                 onClick={() => {
                                     if (!isMcpGuideExpanded) {
                                         setIsMcpGuideExpanded(true)
@@ -1682,69 +1687,69 @@ export function SessionChat(props: {
                                 aria-expanded={isMcpGuideExpanded}
                             >
                                 <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                    <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                         {t('mcp.guide.title')}
                                     </div>
-                                    <button
+                                    <Button
                                         type="button"
-                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                        variant="outline"
+                                        size="sm"
                                         onClick={() => setIsMcpGuideExpanded((prev) => !prev)}
                                     >
                                         {isMcpGuideExpanded ? t('mcp.guide.collapse') : t('mcp.guide.expand')}
-                                    </button>
+                                    </Button>
                                 </div>
                                 {isMcpGuideExpanded ? (
                                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                                         {MCP_GUIDES.map((guide) => (
                                             <div
                                                 key={guide.id}
-                                                className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5"
+                                                className="rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3"
                                             >
-                                                <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                <div className="text-[15px] font-semibold text-[var(--social-fg)]">
                                                     {guide.label}
                                                 </div>
-                                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                <div className="mt-1 text-[13px] text-[var(--social-fg-muted)]">
                                                     {t(guide.descriptionKey)}
                                                 </div>
                                                 <div className="mt-2 flex items-center gap-2">
-                                                    <a
-                                                        href={guide.url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                                    >
-                                                        {t('mcp.guide.open')}
-                                                    </a>
-                                                    <button
+                                                    <Button asChild variant="outline" size="sm">
+                                                        <a href={guide.url} target="_blank" rel="noreferrer">
+                                                            {t('mcp.guide.open')}
+                                                        </a>
+                                                    </Button>
+                                                    <Button
                                                         type="button"
+                                                        variant="outline"
+                                                        size="sm"
                                                         onClick={() => handleInsertMcpGuidePrompt(guide)}
-                                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
                                                     >
                                                         {t('mcp.guide.insertPrompt')}
-                                                    </button>
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ))}
-                                        <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5">
-                                            <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                        <div className="rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
+                                            <div className="text-[15px] font-semibold text-[var(--social-fg)]">
                                                 {t('mcp.guide.custom.title')}
                                             </div>
                                             <div className="mt-2 space-y-2">
-                                                <input
+                                                <TextField
                                                     type="text"
                                                     value={customMcpGuideInput}
                                                     onChange={(event) => setCustomMcpGuideInput(event.target.value)}
-                                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1.5 text-xs text-[var(--app-fg)] outline-none transition-colors focus:border-[var(--app-link)]"
                                                     placeholder={t('mcp.guide.custom.placeholder')}
                                                 />
-                                                <button
+                                                <Button
                                                     type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full"
                                                     onClick={handleInsertCustomMcpGuidePrompt}
                                                     disabled={customMcpGuideInput.trim().length === 0}
-                                                    className="w-full rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
                                                     {t('mcp.guide.insertPrompt')}
-                                                </button>
+                                                </Button>
                                             </div>
                                         </div>
                                     </div>
@@ -1752,40 +1757,41 @@ export function SessionChat(props: {
                             </div>
 
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-xs text-[var(--app-hint)]">
+                                <div className="text-[13px] text-[var(--social-fg-muted)]">
                                     {mcpFlavor ? `${t('mcp.dialog.flavor')}: ${mcpFlavor}` : null}
                                     {mcpCheckedAt ? ` · ${new Date(mcpCheckedAt).toLocaleString()}` : null}
                                 </div>
-                                <button
+                                <Button
                                     type="button"
-                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    variant="outline"
+                                    size="sm"
                                     onClick={() => void refreshMcpStatus()}
                                     disabled={isMcpLoading}
                                 >
                                     {t('mcp.dialog.refresh')}
-                                </button>
+                                </Button>
                             </div>
 
                             {isMcpLoading ? (
-                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-[13px] text-[var(--social-fg-muted)]">
                                     {t('mcp.dialog.loading')}
                                 </div>
                             ) : null}
 
                             {mcpError ? (
-                                <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                <div className="rounded-2xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-[13px] text-[var(--app-badge-error-text)]">
                                     {mcpError}
                                 </div>
                             ) : null}
 
                             {mcpWarning ? (
-                                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">
+                                <div className="rounded-2xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] p-3 text-[13px] text-[var(--app-badge-warning-text)]">
                                     {mcpWarning}
                                 </div>
                             ) : null}
 
                             {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
-                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-[13px] text-[var(--social-fg-muted)]">
                                     {t('mcp.dialog.empty')}
                                 </div>
                             ) : null}
@@ -1795,47 +1801,41 @@ export function SessionChat(props: {
                                     {mcpServers.map((server) => (
                                         <div
                                             key={`${server.name}:${server.source ?? 'unknown'}`}
-                                            className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                            className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3"
                                         >
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                <div className="text-[15px] font-semibold text-[var(--social-fg)]">
                                                     {server.name}
                                                 </div>
-                                                <span
-                                                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                        server.available
-                                                            ? 'bg-emerald-500/10 text-emerald-600'
-                                                            : 'bg-red-500/10 text-red-500'
-                                                    }`}
-                                                >
+                                                <Badge variant={server.available ? 'success' : 'destructive'}>
                                                     {server.available ? t('mcp.server.available') : t('mcp.server.unavailable')}
-                                                </span>
+                                                </Badge>
                                             </div>
-                                            <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--app-hint)] sm:grid-cols-2">
+                                            <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-[var(--social-fg-muted)] sm:grid-cols-2">
                                                 <div>
-                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.status')}</span>
-                                                    <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.status}</div>
+                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.status')}</span>
+                                                    <div className="mt-1 break-all text-[15px] text-[var(--social-fg)]">{server.status}</div>
                                                 </div>
                                                 <div>
-                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
-                                                    <div className="mt-1 text-sm text-[var(--app-fg)]">{server.transport ?? 'unknown'}</div>
+                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
+                                                    <div className="mt-1 text-[15px] text-[var(--social-fg)]">{server.transport ?? 'unknown'}</div>
                                                 </div>
                                                 {server.source ? (
                                                     <div>
-                                                        <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.source')}</span>
-                                                        <div className="mt-1 text-sm text-[var(--app-fg)]">{server.source}</div>
+                                                        <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.source')}</span>
+                                                        <div className="mt-1 text-[15px] text-[var(--social-fg)]">{server.source}</div>
                                                     </div>
                                                 ) : null}
                                                 {server.target ? (
                                                     <div>
-                                                        <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.target')}</span>
-                                                        <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">{server.target}</div>
+                                                        <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.target')}</span>
+                                                        <div className="mt-1 break-all text-[13px] font-mono text-[var(--social-fg)]">{server.target}</div>
                                                     </div>
                                                 ) : null}
                                                 {server.auth ? (
                                                     <div className="sm:col-span-2">
-                                                        <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
-                                                        <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.auth}</div>
+                                                        <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
+                                                        <div className="mt-1 break-all text-[15px] text-[var(--social-fg)]">{server.auth}</div>
                                                     </div>
                                                 ) : null}
                                             </div>
