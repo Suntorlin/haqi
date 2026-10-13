@@ -153,7 +153,7 @@ function DesktopSplitView(props: { list: ReactNode; listVisible: boolean; childr
     return (
         <div className="flex h-full min-h-0">
             <aside
-                className={`${props.listVisible ? 'flex' : 'hidden'} relative h-full shrink-0 flex-col border-r border-[var(--social-border)] bg-[var(--app-bg)]`}
+                className={`${props.listVisible ? 'flex' : 'hidden'} relative h-full shrink-0 flex-col border-r border-[var(--social-border)] bg-[var(--social-surface)]`}
                 style={{ width: sidebarWidth }}
             >
                 {props.list}
@@ -170,7 +170,7 @@ function DesktopSplitView(props: { list: ReactNode; listVisible: boolean; childr
                     />
                 </div>
             </aside>
-            <main className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+            <main className="flex min-w-0 flex-1 flex-col bg-[var(--social-surface)]">
                 <div className="min-h-0 flex-1">
                     {props.children}
                 </div>
@@ -183,9 +183,9 @@ function DesktopEmptyState(props: { title: string; subtitle?: string; action?: {
     return (
         <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             <Orb seed="haqi" size={76} />
-            <div className="mt-5 text-[17px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]">{props.title}</div>
+            <div className="mt-5 text-[16px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]">{props.title}</div>
             {props.subtitle ? (
-                <div className="mt-1.5 max-w-sm text-[13.5px] leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
+                <div className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
             ) : null}
             {props.action ? (
                 <Button type="button" onClick={props.action.onClick} className="mt-5">
@@ -459,7 +459,7 @@ function SessionsPage() {
                 />
             )}
             {sessionTags.length ? (
-                <div className="flex flex-wrap gap-1.5 px-5 pb-1 pt-0.5">
+                <div className="flex flex-wrap gap-2 px-5 pb-1 pt-0.5">
                     <button
                         type="button"
                         onClick={() => setSelectedSessionTag(null)}
@@ -547,7 +547,7 @@ function SessionsPage() {
         return (
             <SessionsLayoutContext.Provider value={layoutContext}>
                 {isSessionsIndex ? (
-                    <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                    <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                         <MobilePageHeader
                             title="HAQI"
                             subtitle={t('mobile.feed.onlineCount', { n: onlineCount, total: sessions.length })}
@@ -560,7 +560,7 @@ function SessionsPage() {
                         <MobileTabBar active="sessions" sessionsBadge={pendingSessionsCount} />
                     </div>
                 ) : (
-                    <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                    <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                         <Outlet />
                     </div>
                 )}
@@ -657,9 +657,9 @@ function SessionPage() {
             try {
                 return await api.resumeSession(currentSessionId)
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Resume failed'
+                const message = error instanceof Error ? error.message : t('session.resumeFailed')
                 addToast({
-                    title: 'Resume failed',
+                    title: t('session.resumeFailed'),
                     body: message,
                     sessionId: currentSessionId,
                     url: ''
@@ -733,7 +733,7 @@ function SessionPage() {
         if (sessionError && !sessionFetching) {
             return (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-                    <div className="max-w-sm text-sm text-[var(--app-hint)]">
+                    <div className="max-w-sm text-[13px] text-[var(--social-fg-muted)]">
                         {sessionNotFound ? t('session.load.notFound') : t('session.load.failed')}
                     </div>
                     <div className="flex items-center gap-2">
@@ -751,7 +751,7 @@ function SessionPage() {
         }
         return (
             <div className="flex-1 flex items-center justify-center p-4">
-                <LoadingState label={t('loading.session')} className="text-sm" />
+                <LoadingState label={t('loading.session')} className="text-[13px]" />
             </div>
         )
     }
@@ -918,7 +918,7 @@ function GroupRow(props: {
                     <span className="min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em]">{item.group.name}</span>
                     <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13.5px] leading-snug text-[var(--social-fg-muted)]">
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--social-fg-muted)]">
                     {hasLiveMember ? (
                         <span className="shrink-0 font-semibold text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
                     ) : null}
@@ -1118,7 +1118,7 @@ function GroupsLayout() {
                             placeholder={t('groups.dialog.description')}
                             aria-label={t('groups.dialog.description')}
                         />
-                        {createError ? <div className="text-sm text-[var(--social-danger)]">{createError}</div> : null}
+                        {createError ? <div className="text-[13px] text-[var(--social-danger)]">{createError}</div> : null}
                         <div className="flex justify-end gap-2">
                             <Button type="button" variant="secondary" onClick={() => { setShowCreateModal(false); setCreateError(null) }}>
                                 {t('button.cancel')}
@@ -1196,9 +1196,9 @@ function GroupsLayout() {
                 />
             </div>
             {isLoading ? (
-                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
+                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
             ) : visibleGroups.length === 0 ? (
-                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.groups.empty')}</div>
+                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.groups.empty')}</div>
             ) : (
                 visibleGroups.map((item) => (
                     <GroupRow
@@ -1224,7 +1224,7 @@ function GroupsLayout() {
     if (isMobileLayout) {
         if (isGroupsIndex) {
             return (
-                <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                     {listHeader}
                     {listBody}
                     <MobileTabBar active="groups" />
@@ -1234,7 +1234,7 @@ function GroupsLayout() {
         }
 
         return (
-            <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+            <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                 <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                     <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
                         <IconButton
@@ -1253,7 +1253,7 @@ function GroupsLayout() {
                                 <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} />
                             ) : null}
                             <div className="min-w-0 flex-1">
-                                <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                                <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                     {selectedGroup?.group.name ?? ''}
                                 </div>
                                 <div className="mt-[3px] truncate text-[12px] leading-tight text-[var(--social-fg-muted)]">
@@ -1329,17 +1329,6 @@ function GroupsIndexPage() {
 }
 
 // ─── ReviewLoops ────────────────────────────────────────────────────────────────
-
-function formatLoopAge(ts: number): string {
-    const diff = Date.now() - ts
-    const mins = Math.floor(diff / 60000)
-    if (mins < 1) return 'just now'
-    if (mins < 60) return `${mins}m ago`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h ago`
-    const days = Math.floor(hrs / 24)
-    return `${days}d ago`
-}
 
 function filterLoopsBySearch(loops: ReviewLoop[], query: string): ReviewLoop[] {
     const normalizedQuery = query.trim().toLowerCase()
@@ -1450,9 +1439,9 @@ function ReviewLoopsLayout() {
                 />
             </div>
             {isLoading ? (
-                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
+                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
             ) : visibleLoops.length === 0 ? (
-                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.loops.empty')}</div>
+                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.loops.empty')}</div>
             ) : (
                 visibleLoops.map((item) => (
                     <button
@@ -1462,7 +1451,7 @@ function ReviewLoopsLayout() {
                         className={SOCIAL_ROW_CLASS}
                         aria-current={selectedLoopId === item.id ? 'page' : undefined}
                     >
-                        {loopAvatar(item, 52)}
+                        {loopAvatar(item, 44)}
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
                                 <span className="min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em]">
@@ -1497,7 +1486,7 @@ function ReviewLoopsLayout() {
     if (isMobileLayout) {
         if (isLoopsIndex) {
             return (
-                <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+                <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                     {listHeader}
                     {listBody}
                     <MobileTabBar active="loops" />
@@ -1507,7 +1496,7 @@ function ReviewLoopsLayout() {
         }
 
         return (
-            <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+            <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                 <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                     <div className="flex h-[54px] items-center gap-2.5 pl-1 pr-4">
                         <IconButton
@@ -1519,7 +1508,7 @@ function ReviewLoopsLayout() {
                         </IconButton>
                         {selectedLoop ? loopAvatar(selectedLoop, 38) : null}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                            <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                 {selectedLoop?.requirement ?? ''}
                             </div>
                             {loopSubtitle ? (

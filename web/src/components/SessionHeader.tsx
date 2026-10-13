@@ -58,10 +58,10 @@ function getSessionTitle(session: Session): string {
 }
 
 const PERMISSION_TONE_TEXT: Record<PermissionModeTone, string> = {
-    neutral: 'text-[var(--app-hint)]',
-    info: 'text-blue-500',
-    warning: 'text-amber-500',
-    danger: 'text-red-500'
+    neutral: 'text-[var(--social-fg-muted)]',
+    info: 'text-[var(--app-badge-info-text)]',
+    warning: 'text-[var(--social-warning)]',
+    danger: 'text-[var(--social-danger)]'
 }
 
 /** One-line presence status for the chat header (like WeChat "对方正在输入…"). */
@@ -299,7 +299,7 @@ export function SessionHeader(props: {
                     <span className={permissionToneClass}>{` · ${permissionLabel}`}</span>
                 ) : null}
                 {contextPercentLeft !== null && contextPercentLeft <= 20 ? (
-                    <span className={contextPercentLeft <= 5 ? 'text-red-500' : 'text-amber-500'}>
+                    <span className={contextPercentLeft <= 5 ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'}>
                         {` · ${t('mobile.chat.contextLeft', { percent: contextPercentLeft })}`}
                     </span>
                 ) : null}
@@ -370,7 +370,7 @@ export function SessionHeader(props: {
                                 value={session.metadata.claudeAccount?.id ?? ''}
                                 disabled={accountSwitching}
                                 onChange={(event) => void handleAccountSwitch(event.target.value)}
-                                className="max-w-[210px] truncate bg-transparent text-right text-[13px] text-[var(--app-hint)] outline-none"
+                                className="min-h-11 max-w-[210px] truncate bg-transparent text-right text-[16px] text-[var(--social-fg-muted)] outline-none"
                             >
                                 {!session.metadata.claudeAccount ? <option value="">{t('sessionAccount.machineDefault')}</option> : null}
                                 {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
@@ -469,7 +469,7 @@ export function SessionHeader(props: {
         <>
             <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                 <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
-                    <IconButton label={t('button.back')} onClick={props.onBack} className="text-[var(--app-fg)]">
+                    <IconButton label={t('button.back')} onClick={props.onBack} className="text-[var(--social-fg)]">
                         <ChevronLeftIcon className="h-[26px] w-[26px]" />
                     </IconButton>
                     <button
@@ -487,7 +487,7 @@ export function SessionHeader(props: {
                             </div>
                         </div>
                     </button>
-                    <IconButton label={t('mobile.chat.info')} onClick={() => setInfoOpen(true)} className="text-[var(--app-fg)]">
+                    <IconButton label={t('mobile.chat.info')} onClick={() => setInfoOpen(true)} className="text-[var(--social-fg)]">
                         <MoreHorizontalIcon className="h-6 w-6" />
                     </IconButton>
                 </div>

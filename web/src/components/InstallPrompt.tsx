@@ -21,12 +21,12 @@ export function InstallPrompt() {
         if (showIOSGuide) {
             return (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
-                    <div className="w-full max-w-lg bg-[var(--app-bg)] rounded-t-2xl p-5 pb-8 space-y-4 animate-slide-up">
+                    <div className="w-full max-w-lg bg-[var(--social-surface)] rounded-t-2xl p-5 pb-8 space-y-4 animate-slide-up">
                         <div className="flex items-center justify-between">
                             <h3 className="text-[16px] font-semibold text-[var(--social-fg)]">
                                 {t('install.title')}
                             </h3>
-                            <IconButton label="Close" className="-mr-2" onClick={() => setShowIOSGuide(false)}>
+                            <IconButton label={t('button.close')} className="-mr-2" onClick={() => setShowIOSGuide(false)}>
                                 <CloseIcon className="w-5 h-5" />
                             </IconButton>
                         </div>
@@ -38,7 +38,7 @@ export function InstallPrompt() {
                                 </div>
                                 <div className="flex-1 pt-1">
                                     <p className="text-[15px] text-[var(--social-fg)]">
-                                        Tap the <ShareIcon className="inline w-5 h-5 align-text-bottom" /> Share button in the toolbar
+                                        {t('install.ios.share.before')} <ShareIcon className="inline w-5 h-5 align-text-bottom" /> {t('install.ios.share.after')}
                                     </p>
                                 </div>
                             </div>
@@ -49,7 +49,7 @@ export function InstallPrompt() {
                                 </div>
                                 <div className="flex-1 pt-1">
                                     <p className="text-[15px] text-[var(--social-fg)]">
-                                        Scroll down and tap <PlusCircleIcon className="inline w-5 h-5 align-text-bottom" /> <strong className="font-semibold">Add to Home Screen</strong>
+                                        {t('install.ios.add.before')} <PlusCircleIcon className="inline w-5 h-5 align-text-bottom" /> <strong className="font-semibold">{t('install.ios.add.label')}</strong>
                                     </p>
                                 </div>
                             </div>
@@ -60,7 +60,7 @@ export function InstallPrompt() {
                                 </div>
                                 <div className="flex-1 pt-1">
                                     <p className="text-[15px] text-[var(--social-fg)]">
-                                        Tap <strong className="font-semibold">Add</strong> in the top right corner
+                                        {t('install.ios.confirm.before')} <strong className="font-semibold">{t('install.ios.confirm.label')}</strong> {t('install.ios.confirm.after')}
                                     </p>
                                 </div>
                             </div>
@@ -82,7 +82,7 @@ export function InstallPrompt() {
         }
 
         return (
-            <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-bg)] border border-[var(--social-border)] rounded-2xl p-4 shadow-lg z-50">
+            <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-lg z-50">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <p className="text-[15px] font-semibold text-[var(--social-fg)]">
@@ -101,7 +101,7 @@ export function InstallPrompt() {
                         {t('install.button')}
                     </Button>
                     <IconButton
-                        label="Dismiss"
+                        label={t('button.dismiss')}
                         onClick={() => {
                             haptic.impact('light')
                             dismissInstall()
@@ -128,7 +128,7 @@ export function InstallPrompt() {
     }
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 bg-[var(--app-bg)] border border-[var(--social-border)] rounded-2xl p-4 shadow-lg z-50">
+        <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-lg z-50">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <p className="text-[15px] font-semibold text-[var(--social-fg)]">
@@ -142,7 +142,7 @@ export function InstallPrompt() {
                     {t('install.button')}
                 </Button>
                 <IconButton
-                    label="Dismiss"
+                    label={t('button.dismiss')}
                     onClick={() => {
                         haptic.impact('light')
                         dismissInstall()

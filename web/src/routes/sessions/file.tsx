@@ -75,9 +75,9 @@ function FileContentSkeleton() {
     return (
         <div role="status" aria-live="polite">
             <span className="sr-only">{t('file.loading')}</span>
-            <div className="animate-pulse space-y-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
+            <div className="animate-pulse space-y-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-code-bg)] p-3">
                 {Array.from({ length: 12 }).map((_, index) => (
-                    <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded bg-[var(--app-subtle-bg)]`} />
+                    <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded bg-[var(--social-hover)]`} />
                 ))}
             </div>
         </div>
@@ -125,10 +125,10 @@ function isBinaryContent(content: string): boolean {
     return nonPrintable / content.length > 0.1
 }
 
-function extractCommandError(result: GitCommandResponse | undefined): string | null {
+function extractCommandError(result: GitCommandResponse | undefined, fallback: string): string | null {
     if (!result) return null
     if (result.success) return null
-    return result.error ?? result.stderr ?? 'Failed to load diff'
+    return result.error ?? result.stderr ?? fallback
 }
 
 export default function FilePage() {
@@ -173,7 +173,7 @@ export default function FilePage() {
     })
 
     const diffContent = diffQuery.data?.success ? (diffQuery.data.stdout ?? '') : ''
-    const diffError = extractCommandError(diffQuery.data)
+    const diffError = extractCommandError(diffQuery.data, t('file.diffLoadFailed'))
     const diffSuccess = diffQuery.data?.success === true
     const diffFailed = diffQuery.data?.success === false
 
@@ -292,7 +292,7 @@ export default function FilePage() {
         || (staged !== true && fileQuery.isLoading)
     const loading = diffViewLoading || (displayMode === 'file' && fileQuery.isLoading)
     const fileError = fileContentResult && !fileContentResult.success
-        ? (fileContentResult.error ?? 'Failed to read file')
+        ? (fileContentResult.error ?? t('file.readFailed'))
         : null
     const missingPath = !filePath
     const diffErrorMessage = outsideWorkspaceCandidate
@@ -303,10 +303,10 @@ export default function FilePage() {
         <div className="flex h-full flex-col">
             <SubPageHeader title={fileName} subtitle={filePath || t('file.unknownPath')} onBack={goBack} />
 
-            <div className="bg-[var(--app-bg)]">
-                <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--app-divider)]">
+            <div className="bg-[var(--social-surface)]">
+                <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--social-divider)]">
                     <FileIcon fileName={fileName} size={20} />
-                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">{filePath}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--social-fg-muted)]">{filePath}</span>
                     <IconButton label={t('file.copyPath')} onClick={() => copyPath(filePath)} className="-my-2">
                         {pathCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                     </IconButton>
@@ -314,8 +314,8 @@ export default function FilePage() {
             </div>
 
             {diffContent ? (
-                <div className="bg-[var(--app-bg)]">
-                    <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--app-divider)]">
+                <div className="bg-[var(--social-surface)]">
+                    <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--social-divider)]">
                         <SegmentedControl
                             label={`${t('file.mode.diff')} / ${t('file.mode.file')}`}
                             value={displayMode}
@@ -325,13 +325,6 @@ export default function FilePage() {
                             ]}
                             onChange={setDisplayMode}
                         />
-                        <button
-                            type="button"
-                            onClick={() => setDisplayMode('file')}
-                            className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'file' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
-                        >
-                            {t('file.mode.file')}
-                        </button>
                     </div>
                 </div>
             ) : null}
@@ -344,7 +337,7 @@ export default function FilePage() {
                         </div>
                     ) : null}
                     {missingPath ? (
-                        <div className="text-sm text-[var(--app-hint)]">{t('file.noPath')}</div>
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.noPath')}</div>
                     ) : loading ? (
                         <FileContentSkeleton />
                     ) : displayMode === 'diff' && diffContent ? (
@@ -359,14 +352,14 @@ export default function FilePage() {
                             />
                         </Suspense>
                     ) : fileError ? (
-                        <div className="text-sm text-[var(--app-hint)]">{fileError}</div>
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">{fileError}</div>
                     ) : imageMimeType && (displayMode === 'file' || !diffContent) ? (
                         fileContentResult?.truncated ? (
-                            <div className="text-sm text-[var(--app-hint)]">
+                            <div className="text-[13px] text-[var(--social-fg-muted)]">
                                 Image preview unavailable because the file content is truncated.
                             </div>
                         ) : imagePreviewUrl ? (
-                            <div className="overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-code-bg)] p-2">
+                            <div className="overflow-hidden rounded-xl border border-[var(--social-border)] bg-[var(--app-code-bg)] p-2">
                                 <div className="max-h-[75vh] overflow-auto">
                                     <img
                                         src={imagePreviewUrl}
@@ -376,16 +369,16 @@ export default function FilePage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-sm text-[var(--app-hint)]">
+                            <div className="text-[13px] text-[var(--social-fg-muted)]">
                                 Failed to render image preview.
                             </div>
                         )
                     ) : binaryFile ? (
-                        <div className="text-sm text-[var(--app-hint)]">
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">
                             This looks like a binary file. It cannot be displayed.
                         </div>
                     ) : displayMode === 'diff' && diffError ? (
-                        <div className="text-sm text-[var(--app-hint)]">{diffError}</div>
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">{diffError}</div>
                     ) : displayMode === 'file' ? (
                         decodedContent ? (
                             <div className="relative">
@@ -403,10 +396,10 @@ export default function FilePage() {
                                 </pre>
                             </div>
                         ) : (
-                            <div className="text-sm text-[var(--app-hint)]">{t('file.empty')}</div>
+                            <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.empty')}</div>
                         )
                     ) : (
-                        <div className="text-sm text-[var(--app-hint)]">{t('file.noChanges')}</div>
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.noChanges')}</div>
                     )}
                 </div>
             </div>

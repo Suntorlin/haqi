@@ -8,11 +8,6 @@ import { Switch } from '@/components/ui/Switch'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
 
-/** Title and subtitle of a ListRow wrap instead of truncating: settings copy is a sentence, not a name. */
-function Wrap(props: { children: ReactNode }) {
-    return <span className="block whitespace-normal leading-snug">{props.children}</span>
-}
-
 const BLOCK_TITLE_CLASS = 'px-4 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]'
 
 /** Collapsible top-level group of the settings page: header row + stacked blocks. */
@@ -124,8 +119,9 @@ export function SettingsSwitchRow(props: {
 }) {
     return (
         <ListRow
-            title={<Wrap>{props.title}</Wrap>}
-            subtitle={props.subtitle ? <Wrap>{props.subtitle}</Wrap> : undefined}
+            wrap
+            title={props.title}
+            subtitle={props.subtitle}
             trailing={
                 <Switch
                     checked={props.checked}
@@ -160,7 +156,7 @@ export function SettingsSelectRow<T extends string>(props: {
     disabled?: boolean
 }) {
     const isMobileLayout = useIsMobileLayout()
-    const rowRef = useRef<HTMLDivElement | null>(null)
+    const rowRef = useRef<(HTMLButtonElement & HTMLDivElement) | null>(null)
     const [open, setOpen] = useState(false)
     const [anchor, setAnchor] = useState({ x: 0, y: 0 })
 
@@ -175,12 +171,17 @@ export function SettingsSelectRow<T extends string>(props: {
     }
 
     return (
-        <div ref={rowRef} className={cn(props.disabled && 'pointer-events-none opacity-50')} aria-disabled={props.disabled || undefined}>
+        <div>
             <ListRow
-                title={<Wrap>{props.title}</Wrap>}
-                subtitle={props.subtitle ? <Wrap>{props.subtitle}</Wrap> : undefined}
+                ref={rowRef}
+                wrap
+                title={props.title}
+                subtitle={props.subtitle}
                 trailing={<span className="block max-w-[10rem] whitespace-normal text-right leading-snug">{props.valueLabel}</span>}
-                onClick={props.disabled ? undefined : openPicker}
+                disabled={props.disabled}
+                aria-haspopup={isMobileLayout ? 'dialog' : 'menu'}
+                aria-expanded={open}
+                onClick={openPicker}
             />
             {isMobileLayout ? (
                 <BottomSheet open={open && !props.disabled} onOpenChange={setOpen} title={props.title}>
@@ -199,20 +200,18 @@ export function SettingsSelectRow<T extends string>(props: {
                 </BottomSheet>
             ) : open && !props.disabled ? (
                 <ContextMenu open anchorPoint={anchor} onClose={() => setOpen(false)} label={props.title}>
-                    <div className="flex max-h-[min(60vh,360px)] flex-col overflow-y-auto">
-                        {props.options.map((option) => (
-                            <ContextMenuItem
-                                key={option.value}
-                                label={option.label}
-                                description={option.description}
-                                checked={option.value === props.value}
-                                onSelect={() => choose(option.value)}
-                                trailing={(
-                                    <CheckIcon className={cn('h-4 w-4 shrink-0', option.value === props.value ? 'text-[var(--social-fg)]' : 'text-transparent')} />
-                                )}
-                            />
-                        ))}
-                    </div>
+                    {props.options.map((option) => (
+                        <ContextMenuItem
+                            key={option.value}
+                            label={option.label}
+                            description={option.description}
+                            checked={option.value === props.value}
+                            onSelect={() => choose(option.value)}
+                            trailing={(
+                                <CheckIcon className={cn('h-4 w-4 shrink-0', option.value === props.value ? 'text-[var(--social-fg)]' : 'text-transparent')} />
+                            )}
+                        />
+                    ))}
                 </ContextMenu>
             ) : null}
         </div>
