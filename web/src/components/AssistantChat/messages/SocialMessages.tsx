@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { MessagePrimitive, useAssistantState } from '@assistant-ui/react'
 import { LazyRainbowText } from '@/components/LazyRainbowText'
 import { MarkdownText } from '@/components/assistant-ui/markdown-text'
@@ -172,6 +173,13 @@ function ProcessText() {
 
 const ANSWER_COMPONENTS = { Text: MarkdownText } as const
 
+/** Long turns render only their latest steps first; earlier ones load on demand. */
+const PROCESS_PAGE_SIZE = 20
+
+function getChatViewport(element: HTMLElement | null): HTMLElement | null {
+    return element?.closest<HTMLElement>('.social-chat') ?? null
+}
+
 const PROCESS_COMPONENTS = {
     Text: ProcessText,
     Reasoning: ProcessReasoning,
@@ -257,11 +265,85 @@ export function SocialAssistantMessage() {
     const separatorAt = useTimeSeparatorAt(messageId)
     const layout = useMemo(() => computeTurnLayout(content), [content])
     const [expanded, setExpanded] = useState(false)
-    const toggleProcess = () => setExpanded((value) => !value)
+    const [processLimit, setProcessLimit] = useState(PROCESS_PAGE_SIZE)
+    const rootRef = useRef<HTMLDivElement | null>(null)
+    const answerRef = useRef<HTMLDivElement | null>(null)
+    const footerRef = useRef<HTMLButtonElement | null>(null)
+    const spacerRef = useRef<HTMLDivElement | null>(null)
+    const processRef = useRef<HTMLDivElement | null>(null)
+
+    const expandProcess = () => {
+        ctx.holdAutoScroll?.()
+        flushSync(() => setExpanded(true))
+        const viewport = getChatViewport(rootRef.current)
+        const footer = footerRef.current
+        if (!viewport || !footer) return
+        // When the footer sits low on screen, glide up so the start of the process is visible.
+        const box = viewport.getBoundingClientRect()
+        const footerTop = footer.getBoundingClientRect().top
+        if (footerTop > box.top + box.height * 0.55) {
+            viewport.scrollTo({ top: viewport.scrollTop + footerTop - (box.top + box.height * 0.3), behavior: 'smooth' })
+        }
+    }
+
+    // Collapse so the footer lands where the user tapped; nothing else on screen jumps.
+    const collapseProcess = (anchor: HTMLElement | null) => {
+        ctx.holdAutoScroll?.()
+        const viewport = getChatViewport(rootRef.current)
+        const footer = footerRef.current
+        if (!viewport || !footer) {
+            setExpanded(false)
+            return
+        }
+        const box = viewport.getBoundingClientRect()
+        const anchorTop = (anchor ?? footer).getBoundingClientRect().top
+        const targetTop = Math.min(Math.max(anchorTop, box.top + 16), box.bottom - footer.offsetHeight - 16)
+        flushSync(() => {
+            setExpanded(false)
+            setProcessLimit(PROCESS_PAGE_SIZE)
+        })
+        const desiredScrollTop = viewport.scrollTop + footer.getBoundingClientRect().top - targetTop
+        const maxScrollTop = viewport.scrollHeight - viewport.clientHeight
+        const spacer = spacerRef.current
+        if (spacer && desiredScrollTop > maxScrollTop + 1) {
+            // Not enough content below to hold the anchor: borrow space, then let it ease away.
+            spacer.style.transition = 'none'
+            spacer.style.height = `${Math.ceil(desiredScrollTop - maxScrollTop)}px`
+            viewport.scrollTop = desiredScrollTop
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                spacer.style.transition = 'height 340ms cubic-bezier(0.22, 1, 0.36, 1)'
+                spacer.style.height = '0px'
+            }))
+        } else {
+            viewport.scrollTop = Math.max(0, desiredScrollTop)
+        }
+        answerRef.current?.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' })
+    }
+
+    const toggleProcess = (anchor: HTMLElement | null) => {
+        if (expanded) {
+            collapseProcess(anchor)
+        } else {
+            expandProcess()
+        }
+    }
+
+    // Reveal earlier steps above the visible ones without moving what is on screen.
+    const showEarlierSteps = () => {
+        const viewport = getChatViewport(rootRef.current)
+        const firstVisible = processRef.current?.querySelector<HTMLElement>('.social-process-item')
+        const before = firstVisible?.getBoundingClientRect().top ?? null
+        ctx.holdAutoScroll?.()
+        flushSync(() => setProcessLimit((limit) => limit + PROCESS_PAGE_SIZE * 2))
+        if (viewport && firstVisible && before !== null) {
+            viewport.scrollTop += firstVisible.getBoundingClientRect().top - before
+        }
+    }
+
     const longPressHandlers = useLongPress({
         onLongPress: () => {
             haptic.impact('medium')
-            toggleProcess()
+            toggleProcess(footerRef.current)
         },
         threshold: 450
     })
@@ -269,6 +351,8 @@ export function SocialAssistantMessage() {
     const stats = ctx.runStats?.get(messageId)
     const startAt = stats?.startAt ?? createdAt?.getTime() ?? Date.now()
     const hasProcess = layout.processIndices.length > 0
+    const visibleProcessIndices = layout.processIndices.slice(-processLimit)
+    const hiddenProcessCount = layout.processIndices.length - visibleProcessIndices.length
     const answerText = layout.answerIndices
         .map((index) => content[index]?.text ?? '')
         .join('\n\n')
@@ -280,7 +364,7 @@ export function SocialAssistantMessage() {
     ].filter(Boolean).join(' · ')
 
     return (
-        <MessagePrimitive.Root className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
+        <MessagePrimitive.Root ref={rootRef} className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
             <div className="flex min-w-0 items-start gap-2.5">
                 <Orb seed={ctx.sessionId} size={28} muted={ctx.disabled} className="mt-1" />
@@ -293,6 +377,7 @@ export function SocialAssistantMessage() {
                         <>
                             {layout.answerIndices.length > 0 ? (
                                 <div
+                                    ref={answerRef}
                                     {...longPressHandlers}
                                     className="social-card w-fit min-w-0 max-w-full select-none rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3"
                                     style={{ WebkitTouchCallout: 'none' }}
@@ -303,6 +388,7 @@ export function SocialAssistantMessage() {
                                 </div>
                             ) : (
                                 <div
+                                    ref={answerRef}
                                     {...longPressHandlers}
                                     className="social-card w-fit select-none rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]"
                                     style={{ WebkitTouchCallout: 'none' }}
@@ -313,8 +399,9 @@ export function SocialAssistantMessage() {
 
                             {hasProcess ? (
                                 <button
+                                    ref={footerRef}
                                     type="button"
-                                    onClick={toggleProcess}
+                                    onClick={(event) => toggleProcess(event.currentTarget)}
                                     aria-expanded={expanded}
                                     className="flex w-fit items-center gap-1 px-1 text-[12px] text-[var(--social-fg-subtle)] [-webkit-tap-highlight-color:transparent]"
                                 >
@@ -324,9 +411,20 @@ export function SocialAssistantMessage() {
                             ) : null}
 
                             {expanded ? (
-                                <div className="social-process ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
-                                    {layout.processIndices.map((index) => (
-                                        <MessagePrimitive.PartByIndex key={index} index={index} components={PROCESS_COMPONENTS} />
+                                <div ref={processRef} className="social-process animate-process-in ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
+                                    {hiddenProcessCount > 0 ? (
+                                        <button
+                                            type="button"
+                                            onClick={showEarlierSteps}
+                                            className="w-fit rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12px] text-[var(--social-fg-muted)]"
+                                        >
+                                            {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
+                                        </button>
+                                    ) : null}
+                                    {visibleProcessIndices.map((index) => (
+                                        <div key={index} className="social-process-item min-w-0">
+                                            <MessagePrimitive.PartByIndex index={index} components={PROCESS_COMPONENTS} />
+                                        </div>
                                     ))}
                                     <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
                                         {answerText ? (
@@ -334,7 +432,9 @@ export function SocialAssistantMessage() {
                                                 {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
                                             </button>
                                         ) : null}
-                                        <button type="button" onClick={toggleProcess}>{t('mobile.turn.hideProcess')}</button>
+                                        <button type="button" onClick={(event) => collapseProcess(event.currentTarget)}>
+                                            {t('mobile.turn.hideProcess')}
+                                        </button>
                                     </div>
                                 </div>
                             ) : null}
@@ -346,6 +446,8 @@ export function SocialAssistantMessage() {
                     ))}
                 </div>
             </div>
+            {/* Collapse anchor helper; -mt-2 cancels the root's gap so it costs no space at rest. */}
+            <div ref={spacerRef} aria-hidden="true" className="-mt-2" style={{ height: 0 }} />
         </MessagePrimitive.Root>
     )
 }

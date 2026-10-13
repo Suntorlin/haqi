@@ -757,4 +757,10 @@ export default {
   'mobile.duration.seconds': '{s} 秒',
   'mobile.duration.minutes': '{m} 分 {s} 秒',
   'mobile.duration.hours': '{h} 小时 {m} 分',
+  'mobile.turn.showEarlier': '显示更早的 {n} 项',
+  'mobile.composer.stopVoice': '结束语音',
+  'mobile.composer.chatSettings': '对话设置',
+  'mobile.composer.sendMode': '发送方式',
+  'mobile.composer.planHint': '先出计划，确认后再执行',
+  'mobile.composer.other': '其他',
 } as const

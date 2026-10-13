@@ -102,3 +102,84 @@ export function SheetRow(props: {
 
     return <div className={className}>{content}</div>
 }
+
+function CheckIcon() {
+    return (
+        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <polyline points="5 12.5 10 17.5 19 7" />
+        </svg>
+    )
+}
+
+/** Single-choice row: tapping applies the value right away and moves the check mark. */
+export function SheetOption(props: {
+    label: ReactNode
+    description?: ReactNode
+    selected: boolean
+    disabled?: boolean
+    onSelect: () => void
+}) {
+    return (
+        <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={props.selected}
+            disabled={props.disabled}
+            onClick={props.onSelect}
+            className="social-pressable flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
+        >
+            <span className="min-w-0 flex-1">
+                <span className={cn('block text-[15px]', props.selected ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg)]')}>
+                    {props.label}
+                </span>
+                {props.description ? (
+                    <span className="mt-0.5 block text-[12.5px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
+                ) : null}
+            </span>
+            <span className={cn('shrink-0 text-[var(--social-fg)] transition-opacity', props.selected ? 'opacity-100' : 'opacity-0')}>
+                <CheckIcon />
+            </span>
+        </button>
+    )
+}
+
+/** On/off row with a monochrome switch; the whole row is the hit target. */
+export function SheetSwitchRow(props: {
+    label: ReactNode
+    description?: ReactNode
+    checked: boolean
+    disabled?: boolean
+    onCheckedChange: (checked: boolean) => void
+}) {
+    return (
+        <button
+            type="button"
+            role="switch"
+            aria-checked={props.checked}
+            disabled={props.disabled}
+            onClick={() => props.onCheckedChange(!props.checked)}
+            className="social-pressable flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
+        >
+            <span className="min-w-0 flex-1">
+                <span className="block text-[15px] text-[var(--social-fg)]">{props.label}</span>
+                {props.description ? (
+                    <span className="mt-0.5 block text-[12.5px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
+                ) : null}
+            </span>
+            <span
+                className={cn(
+                    'relative inline-flex h-[26px] w-[44px] shrink-0 items-center rounded-full transition-colors',
+                    props.checked ? 'bg-[var(--social-primary)]' : 'bg-[var(--social-border)]'
+                )}
+                aria-hidden="true"
+            >
+                <span
+                    className={cn(
+                        'h-[22px] w-[22px] rounded-full bg-[var(--app-bg)] shadow-sm transition-transform',
+                        props.checked ? 'translate-x-[20px]' : 'translate-x-[2px]'
+                    )}
+                />
+            </span>
+        </button>
+    )
+}

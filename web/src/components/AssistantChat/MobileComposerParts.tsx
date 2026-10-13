@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import {
-    ChecklistIcon,
     InfoCircleIcon,
     MicWaveIcon,
     PaperclipIcon,
@@ -14,23 +13,17 @@ import {
     SwitchIcon,
     TerminalIcon
 } from '@/components/mobile/icons'
+import { BottomSheet, SheetOption, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
 const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
 const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] text-[var(--social-fg)] transition-transform active:scale-95'
 
-function PanelTile(props: {
-    icon: ReactNode
-    label: string
-    onClick: () => void
-    disabled?: boolean
-    active?: boolean
-    badge?: number
-}) {
+function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; badge?: number }) {
     return (
         <button type="button" onClick={props.onClick} disabled={props.disabled} className={tileClass}>
-            <span className={cn(tileIconClass, props.active ? 'border-transparent bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : '')}>
+            <span className={tileIconClass}>
                 {props.icon}
                 {props.badge && props.badge > 0 ? (
                     <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
@@ -43,78 +36,143 @@ function PanelTile(props: {
     )
 }
 
-/** WeChat-style "+" panel: every secondary composer action lives here instead of a toolbar. */
+/**
+ * WeChat-style "+" panel. Every tile does one thing the same way: tap → act or open a sheet.
+ * Anything that is a setting (model, permissions, queue, plan…) lives in one settings sheet.
+ */
 export function MobileComposerToolPanel(props: {
     controlsDisabled: boolean
-    showSettingsButton: boolean
-    onSettings: () => void
-    showTerminalButton: boolean
-    onTerminal: () => void
-    showStatusButton: boolean
-    statusDisabled: boolean
-    onStatus: () => void
-    showQueueButton: boolean
-    queuePendingCount: number
-    onQueue: () => void
-    showPlanModeToggle: boolean
-    planModeEnabled: boolean
-    onPlanModeToggle: () => void
-    showSendModeToggle: boolean
-    sendMode: 'direct' | 'queue'
-    onSendModeToggle: () => void
-    showSwitchButton: boolean
-    switchDisabled: boolean
-    onSwitch: () => void
     voiceEnabled: boolean
     voiceActive: boolean
     onVoiceToggle: () => void
+    showTerminalButton: boolean
+    onTerminal: () => void
+    showSettingsButton: boolean
+    settingsBadge?: number
+    onSettings: () => void
 }) {
     const { t } = useTranslation()
     return (
-        <div className="grid grid-cols-4 gap-x-2 gap-y-4 px-5 pb-3 pt-4 [&_svg]:stroke-[1.6]">
+        <div className="grid grid-cols-4 gap-x-2 px-5 pb-3 pt-4 [&_svg]:stroke-[1.6]">
             <ComposerPrimitive.AddAttachment disabled={props.controlsDisabled} className={tileClass}>
                 <span className={tileIconClass}>
                     <PaperclipIcon className="h-6 w-6" />
                 </span>
                 {t('mobile.composer.attach')}
             </ComposerPrimitive.AddAttachment>
-            {props.showSettingsButton ? (
-                <PanelTile icon={<SlidersIcon className="h-6 w-6" />} label={t('mobile.composer.settings')} onClick={props.onSettings} disabled={props.controlsDisabled} />
+            {props.voiceEnabled ? (
+                <PanelTile
+                    icon={props.voiceActive ? <StopSquareIcon className="h-5 w-5" /> : <MicWaveIcon className="h-6 w-6" />}
+                    label={props.voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
+                    onClick={props.onVoiceToggle}
+                />
             ) : null}
             {props.showTerminalButton ? (
                 <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
             ) : null}
-            {props.voiceEnabled ? (
-                <PanelTile icon={<MicWaveIcon className="h-6 w-6" />} label={t('mobile.composer.voice')} onClick={props.onVoiceToggle} active={props.voiceActive} />
-            ) : null}
-            {props.showQueueButton ? (
-                <PanelTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={props.onQueue} disabled={props.controlsDisabled} badge={props.queuePendingCount} />
-            ) : null}
-            {props.showStatusButton ? (
-                <PanelTile icon={<InfoCircleIcon className="h-6 w-6" />} label={t('composer.status')} onClick={props.onStatus} disabled={props.statusDisabled} />
-            ) : null}
-            {props.showPlanModeToggle ? (
+            {props.showSettingsButton ? (
                 <PanelTile
-                    icon={<ChecklistIcon className="h-6 w-6" />}
-                    label={t('queue.mode.plan')}
-                    onClick={props.onPlanModeToggle}
-                    disabled={props.controlsDisabled}
-                    active={props.planModeEnabled}
+                    icon={<SlidersIcon className="h-6 w-6" />}
+                    label={t('mobile.composer.chatSettings')}
+                    onClick={props.onSettings}
+                    badge={props.settingsBadge}
                 />
-            ) : null}
-            {props.showSendModeToggle ? (
-                <PanelTile
-                    icon={props.sendMode === 'queue' ? <QueueListIcon className="h-6 w-6" /> : <SendArrowIcon className="h-6 w-6" />}
-                    label={props.sendMode === 'queue' ? t('queue.mode.queue') : t('queue.mode.direct')}
-                    onClick={props.onSendModeToggle}
-                    disabled={props.controlsDisabled}
-                    active={props.sendMode === 'queue'}
-                />
-            ) : null}
-            {props.showSwitchButton ? (
-                <PanelTile icon={<SwitchIcon className="h-6 w-6" />} label={t('composer.switchRemote')} onClick={props.onSwitch} disabled={props.switchDisabled} />
             ) : null}
         </div>
+    )
+}
+
+type Choice<T extends string> = { value: T; label: string; description?: string }
+
+type ChoiceGroup<T extends string> = {
+    options: ReadonlyArray<Choice<T>>
+    value: T
+    onChange: (value: T) => void
+}
+
+/** One sheet for every conversation setting; choices apply immediately and the sheet stays open. */
+export function MobileComposerSettingsSheet(props: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    disabled: boolean
+    permission: ChoiceGroup<string> | null
+    model: ChoiceGroup<string> | null
+    thinkEffort: ChoiceGroup<string> | null
+    serviceTier: ChoiceGroup<string> | null
+    sendMode: ChoiceGroup<'direct' | 'queue'> | null
+    planMode: { enabled: boolean; onChange: (enabled: boolean) => void } | null
+    queue: { pendingCount: number; onOpen: () => void } | null
+    status: { disabled: boolean; onOpen: () => void } | null
+    switchRemote: { disabled: boolean; onSwitch: () => void } | null
+}) {
+    const { t } = useTranslation()
+    const choiceSection = <T extends string>(title: string, group: ChoiceGroup<T> | null) => group ? (
+        <SheetSection title={title}>
+            {group.options.map((option) => (
+                <SheetOption
+                    key={option.value}
+                    label={option.label}
+                    description={option.description}
+                    selected={group.value === option.value}
+                    disabled={props.disabled}
+                    onSelect={() => group.onChange(option.value)}
+                />
+            ))}
+        </SheetSection>
+    ) : null
+
+    return (
+        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={t('mobile.composer.chatSettings')}>
+            <div className="pt-1">
+                {choiceSection(t('misc.permissionMode'), props.permission)}
+                {choiceSection(t('misc.model'), props.model)}
+                {choiceSection(t('newSession.think'), props.thinkEffort)}
+                {choiceSection(t('newSession.serviceTier'), props.serviceTier)}
+                {choiceSection(t('mobile.composer.sendMode'), props.sendMode)}
+                {props.planMode || props.queue || props.status || props.switchRemote ? (
+                    <SheetSection title={t('mobile.composer.other')}>
+                        {props.planMode ? (
+                            <SheetSwitchRow
+                                label={t('queue.mode.plan')}
+                                description={t('mobile.composer.planHint')}
+                                checked={props.planMode.enabled}
+                                disabled={props.disabled}
+                                onCheckedChange={props.planMode.onChange}
+                            />
+                        ) : null}
+                        {props.queue ? (
+                            <SheetRow
+                                icon={<QueueListIcon className="h-4 w-4" />}
+                                label={t('composer.queue')}
+                                value={props.queue.pendingCount > 0 ? t('queue.inline.pending', { count: props.queue.pendingCount }) : undefined}
+                                chevron
+                                disabled={props.disabled}
+                                onClick={props.queue.onOpen}
+                            />
+                        ) : null}
+                        {props.status ? (
+                            <SheetRow
+                                icon={<InfoCircleIcon className="h-4 w-4" />}
+                                label={t('composer.status')}
+                                chevron
+                                disabled={props.status.disabled}
+                                onClick={props.status.onOpen}
+                            />
+                        ) : null}
+                        {props.switchRemote ? (
+                            <SheetRow
+                                icon={<SwitchIcon className="h-4 w-4" />}
+                                label={t('composer.switchRemote')}
+                                chevron
+                                disabled={props.switchRemote.disabled}
+                                onClick={props.switchRemote.onSwitch}
+                            />
+                        ) : null}
+                    </SheetSection>
+                ) : null}
+                <div className="h-2" />
+            </div>
+        </BottomSheet>
     )
 }
 

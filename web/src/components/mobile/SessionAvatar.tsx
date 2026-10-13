@@ -19,23 +19,35 @@ export function getProjectName(path: string): string {
     return parts[parts.length - 1] ?? path
 }
 
-// ElevenLabs-style orb palettes [blob, blob, blob, base]: spread across hues so a long list stays varied.
+// ElevenLabs-style orb palettes [blob, blob, blob, base], kept dusty and mid-dark so a list of
+// avatars reads calm (matte) instead of glossy. Spread across hues so neighbours stay distinct.
 const ORB_FAMILIES: ReadonlyArray<readonly [string, string, string, string]> = [
-    ['#7dd3fc', '#38bdf8', '#a5f3fc', '#e0f2fe'],
-    ['#6ee7b7', '#34d399', '#a7f3d0', '#ecfdf5'],
-    ['#fdba74', '#fb923c', '#fde68a', '#fff7ed'],
-    ['#fda4af', '#fb7185', '#fecdd3', '#fff1f2'],
-    ['#c4b5fd', '#a78bfa', '#ddd6fe', '#f5f3ff'],
-    ['#fde047', '#facc15', '#fef9c3', '#fefce8'],
-    ['#93c5fd', '#60a5fa', '#c7d2fe', '#eff6ff'],
-    ['#5eead4', '#2dd4bf', '#99f6e4', '#f0fdfa'],
-    ['#fdba74', '#f472b6', '#fda4af', '#fff7ed'],
-    ['#a5f3fc', '#c4b5fd', '#86efac', '#f0f9ff'],
-    ['#93c5fd', '#fdba74', '#bae6fd', '#fff7ed'],
-    ['#86efac', '#fde047', '#bbf7d0', '#f7fee7'],
-    ['#f9a8d4', '#a5b4fc', '#fbcfe8', '#fdf2f8'],
-    ['#cbd5e1', '#94a3b8', '#e2e8f0', '#f8fafc']
+    ['#6d8bad', '#4f6d92', '#93abc6', '#8aa1ba'],
+    ['#7d9d89', '#5e7f6b', '#a0bba9', '#8fa999'],
+    ['#b6876f', '#996a53', '#cba591', '#bb9a88'],
+    ['#9c7f9f', '#7f6183', '#b9a0b8', '#a68fa6'],
+    ['#8580af', '#676291', '#a6a2c6', '#9590b4'],
+    ['#b39967', '#967d4d', '#c9b48c', '#b8a67f'],
+    ['#6f9797', '#517979', '#97b8b8', '#83a3a3'],
+    ['#ae7f89', '#91616c', '#c6a1a9', '#b38f97'],
+    ['#7d889b', '#5e6a7f', '#a2abba', '#8d97a7'],
+    ['#8d926d', '#707551', '#adb193', '#9a9e7f'],
+    ['#6c8fa4', '#8a7ba1', '#9ab0bd', '#8797ad'],
+    ['#7a90b6', '#a7869b', '#a3b2cd', '#9295b0'],
+    ['#83998a', '#ab9670', '#acbaab', '#9fa28b'],
+    ['#a28370', '#7f8ca4', '#bea595', '#9f958f']
 ]
+
+// Fine monochrome grain, blended with `overlay` on top of the gradients for a frosted, matte finish.
+const GRAIN_LAYER = `url("data:image/svg+xml,${encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'>"
+    + "<filter id='n' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='2' stitchTiles='stitch'/>"
+    + "<feColorMatrix type='saturate' values='0'/>"
+    + "<feComponentTransfer><feFuncR type='linear' slope='0.3' intercept='0.35'/>"
+    + "<feFuncG type='linear' slope='0.3' intercept='0.35'/><feFuncB type='linear' slope='0.3' intercept='0.35'/>"
+    + "<feFuncA type='linear' slope='0' intercept='1'/></feComponentTransfer></filter>"
+    + "<rect width='100%' height='100%' filter='url(%23n)'/></svg>"
+).replace(/%2523/g, '%23')}") 0 0 / 96px 96px`
 
 function hashString(value: string): number {
     let hash = 2166136261
@@ -62,29 +74,34 @@ export function getOrbBackground(seed: string): string {
     const between = (min: number, max: number) => Math.round(min + random() * (max - min))
     const [first, second, third, base] = ORB_FAMILIES[Math.floor(random() * ORB_FAMILIES.length)]
     return [
-        'radial-gradient(circle at 30% 24%, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.14) 22%, rgba(255,255,255,0) 42%)',
-        `radial-gradient(circle at ${between(8, 42)}% ${between(10, 45)}%, ${first} 0%, transparent 58%)`,
-        `radial-gradient(circle at ${between(58, 92)}% ${between(25, 70)}%, ${second} 0%, transparent 56%)`,
-        `radial-gradient(circle at ${between(25, 70)}% ${between(62, 95)}%, ${third} 0%, transparent 62%)`,
+        GRAIN_LAYER,
+        'linear-gradient(rgba(255,255,255,0.16), rgba(255,255,255,0.08))',
+        'radial-gradient(circle at 32% 26%, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 46%)',
+        `radial-gradient(circle at ${between(8, 42)}% ${between(10, 45)}%, ${first} 0%, transparent 60%)`,
+        `radial-gradient(circle at ${between(58, 92)}% ${between(25, 70)}%, ${second} 0%, transparent 58%)`,
+        `radial-gradient(circle at ${between(25, 70)}% ${between(62, 95)}%, ${third} 0%, transparent 64%)`,
         `linear-gradient(160deg, ${base}, ${second})`
     ].join(', ')
 }
 
-/** ElevenLabs-style soft gradient orb, unique per seed (no initials, no badges). */
+const ORB_BLEND_MODES = 'overlay, normal, normal, normal, normal, normal, normal'
+
+/** ElevenLabs-style soft gradient orb with a matte grain, unique per seed (no initials, no badges). */
 export function Orb(props: { seed: string; size: number; muted?: boolean; className?: string; style?: CSSProperties }) {
     const background = useMemo(() => getOrbBackground(props.seed), [props.seed])
     const size = props.size
     return (
         <span
-            className={cn('block shrink-0 rounded-full transition-[filter,opacity]', props.muted ? 'opacity-80 saturate-[0.4]' : '', props.className)}
+            className={cn('social-orb block shrink-0 rounded-full transition-[filter,opacity]', props.muted ? 'social-orb-muted' : '', props.className)}
             style={{
                 width: size,
                 height: size,
                 background,
+                backgroundBlendMode: ORB_BLEND_MODES,
                 boxShadow: [
-                    `inset 0 -${Math.round(size * 0.08)}px ${Math.round(size * 0.18)}px rgba(15, 23, 42, 0.10)`,
-                    `inset 0 ${Math.round(size * 0.04)}px ${Math.round(size * 0.1)}px rgba(255, 255, 255, 0.45)`,
-                    '0 0 0 0.5px rgba(15, 23, 42, 0.06)'
+                    `inset 0 -${Math.round(size * 0.1)}px ${Math.round(size * 0.22)}px rgba(15, 23, 42, 0.16)`,
+                    `inset 0 ${Math.round(size * 0.03)}px ${Math.round(size * 0.08)}px rgba(255, 255, 255, 0.18)`,
+                    '0 0 0 0.5px rgba(15, 23, 42, 0.08)'
                 ].join(', '),
                 ...props.style
             }}
@@ -102,15 +119,14 @@ const RING_BACKGROUNDS: Record<Exclude<AvatarRing, null>, string> = {
 }
 
 /**
- * Session avatar: an orb wrapped Instagram-style. The outer box size never changes, so rows stay
- * aligned: a ring (live / pending / seen) shrinks the orb inside a white gap; idle online sessions
- * get a green "active now" dot instead; pending approvals show a red counter.
+ * Session avatar: an orb wrapped Instagram-style. The ring is the only status signal (live / pending /
+ * seen); offline sessions fade. The outer box size never changes, so rows stay aligned, and pending
+ * approvals show a red counter.
  */
 export function SessionAvatar(props: {
     session: Pick<SessionLike, 'id'>
     size: number
     ring?: AvatarRing
-    presence?: boolean
     badgeCount?: number
     muted?: boolean
     className?: string
@@ -120,7 +136,6 @@ export function SessionAvatar(props: {
     const ringWidth = ring === 'seen' ? 1 : Math.max(2, Math.round(size * 0.04))
     const gap = ring ? Math.max(2, Math.round(size * 0.05)) : 0
     const inset = ring ? ringWidth + gap : 0
-    const dotSize = Math.max(10, Math.round(size * 0.22))
     const badgeCount = props.badgeCount ?? 0
 
     return (
@@ -138,13 +153,6 @@ export function SessionAvatar(props: {
                 className="absolute"
                 style={{ left: inset, top: inset }}
             />
-            {props.presence && !ring ? (
-                <span
-                    className="absolute rounded-full bg-[#22c55e] ring-[2.5px] ring-[var(--app-bg)]"
-                    style={{ width: dotSize, height: dotSize, right: Math.round(size * 0.02), bottom: Math.round(size * 0.02) }}
-                    aria-hidden="true"
-                />
-            ) : null}
             {badgeCount > 0 ? (
                 <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]">
                     {badgeCount > 99 ? '99+' : badgeCount}

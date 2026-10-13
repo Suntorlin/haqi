@@ -755,4 +755,10 @@ export default {
   'mobile.duration.seconds': '{s}s',
   'mobile.duration.minutes': '{m}m {s}s',
   'mobile.duration.hours': '{h}h {m}m',
+  'mobile.turn.showEarlier': 'Show {n} earlier',
+  'mobile.composer.stopVoice': 'End voice',
+  'mobile.composer.chatSettings': 'Chat settings',
+  'mobile.composer.sendMode': 'Sending',
+  'mobile.composer.planHint': 'Plan first, run after you approve',
+  'mobile.composer.other': 'Other',
 } as const

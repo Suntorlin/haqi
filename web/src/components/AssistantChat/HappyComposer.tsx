@@ -40,7 +40,7 @@ import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { StatusBar } from '@/components/AssistantChat/StatusBar'
 import { ComposerButtons } from '@/components/AssistantChat/ComposerButtons'
 import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
-import { MobileComposerAction, MobileComposerToggle, MobileComposerToolPanel } from '@/components/AssistantChat/MobileComposerParts'
+import { MobileComposerAction, MobileComposerSettingsSheet, MobileComposerToggle, MobileComposerToolPanel } from '@/components/AssistantChat/MobileComposerParts'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -1059,14 +1059,10 @@ export function HappyComposer(props: {
         setShowSettings(prev => !prev)
     }, [haptic])
 
-    // Mobile: the "+" panel and the model/permission overlay close on outside tap or Escape,
-    // because their toggle buttons are not permanently visible like on desktop.
+    // Mobile: the inline "+" panel closes on outside tap or Escape (the settings sheet dismisses itself).
     useEffect(() => {
-        if (!isMobileLayout || (!showToolPanel && !showSettings)) return
-        const close = () => {
-            setShowToolPanel(false)
-            setShowSettings(false)
-        }
+        if (!isMobileLayout || !showToolPanel) return
+        const close = () => setShowToolPanel(false)
         const handlePointerDown = (event: PointerEvent) => {
             if (mobileComposerRef.current?.contains(event.target as Node)) return
             close()
@@ -1080,7 +1076,7 @@ export function HappyComposer(props: {
             document.removeEventListener('pointerdown', handlePointerDown)
             document.removeEventListener('keydown', handleKeyDown)
         }
-    }, [isMobileLayout, showToolPanel, showSettings])
+    }, [isMobileLayout, showToolPanel])
 
     const handleSubmit = useCallback((event?: ReactFormEvent<HTMLFormElement>) => {
         if (event) {
@@ -1440,6 +1436,13 @@ export function HappyComposer(props: {
         </div>
     ) : null
 
+    const hasMobileSettings = showSettingsButton || supportsQueueControls || showSwitchButton
+    const applyMobileSetting = (apply: () => void) => {
+        if (controlsDisabled) return
+        apply()
+        haptic('light')
+    }
+
     if (isMobileLayout) {
         const hasDraft = hasText || hasAnyAttachments
         const showStop = threadIsRunning && !(hasDraft && canSend)
@@ -1463,7 +1466,7 @@ export function HappyComposer(props: {
                 style={{ paddingBottom: isIOSPWA ? 'max(env(safe-area-inset-bottom), 0.5rem)' : '0.5rem' }}
             >
                 <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
-                    {overlays}
+                    {showSettings ? null : overlays}
 
                     {inlineQueuePanel}
 
@@ -1536,31 +1539,76 @@ export function HappyComposer(props: {
                     {showToolPanel ? (
                         <MobileComposerToolPanel
                             controlsDisabled={controlsDisabled}
-                            showSettingsButton={showSettingsButton}
-                            onSettings={closePanelThen(handleSettingsToggle)}
-                            showTerminalButton={showTerminalButton}
-                            onTerminal={closePanelThen(onTerminal ?? (() => {}))}
-                            showStatusButton={showStatusButton}
-                            statusDisabled={controlsDisabled || threadIsRunning}
-                            onStatus={closePanelThen(handleCodexStatus)}
-                            showQueueButton={showQueueButton}
-                            queuePendingCount={Math.max(0, codexQueuePendingCount)}
-                            onQueue={closePanelThen(handleCodexQueueOpen)}
-                            showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
-                            planModeEnabled={isCodexPlanMode}
-                            onPlanModeToggle={handleCodexPlanModeToggle}
-                            showSendModeToggle={supportsQueueControls}
-                            sendMode={codexSendMode}
-                            onSendModeToggle={() => handleCodexSendModeChange(codexSendMode === 'queue' ? 'direct' : 'queue')}
-                            showSwitchButton={showSwitchButton}
-                            switchDisabled={switchDisabled}
-                            onSwitch={closePanelThen(() => { void handleSwitch() })}
                             voiceEnabled={voiceEnabled}
                             voiceActive={voiceStatus === 'connected' || voiceStatus === 'connecting'}
                             onVoiceToggle={closePanelThen(onVoiceToggle ?? (() => {}))}
+                            showTerminalButton={showTerminalButton}
+                            onTerminal={closePanelThen(onTerminal ?? (() => {}))}
+                            showSettingsButton={hasMobileSettings}
+                            settingsBadge={showQueueButton ? Math.max(0, codexQueuePendingCount) : 0}
+                            onSettings={closePanelThen(() => setShowSettings(true))}
                         />
                     ) : null}
                 </ComposerPrimitive.Root>
+
+                <MobileComposerSettingsSheet
+                    open={showSettings}
+                    onOpenChange={setShowSettings}
+                    disabled={controlsDisabled}
+                    permission={showPermissionSettings ? {
+                        options: permissionModeOptions.map((option) => ({ value: option.mode, label: option.label })),
+                        value: permissionMode,
+                        onChange: (mode) => applyMobileSetting(() => onPermissionModeChange?.(mode as PermissionMode))
+                    } : null}
+                    model={showModelSettings ? {
+                        options: modelOptions,
+                        value: currentModelValue,
+                        onChange: (value) => applyMobileSetting(() => onModelChange?.(value))
+                    } : null}
+                    thinkEffort={showThinkEffortSettings ? {
+                        options: thinkEffortOptions,
+                        value: currentThinkEffortValue,
+                        onChange: (value) => applyMobileSetting(() => onThinkEffortChange?.(value as SessionThinkEffort))
+                    } : null}
+                    serviceTier={showServiceTierSettings ? {
+                        options: serviceTierOptions,
+                        value: currentServiceTierValue,
+                        onChange: (value) => applyMobileSetting(() => onServiceTierChange?.(value as SessionServiceTier))
+                    } : null}
+                    sendMode={supportsQueueControls && onCodexSendModeChange ? {
+                        options: [
+                            { value: 'direct', label: t('queue.mode.direct'), description: t('queue.mode.directHint') },
+                            { value: 'queue', label: t('queue.mode.queue'), description: t('queue.mode.queueHint') }
+                        ],
+                        value: codexSendMode,
+                        onChange: (mode) => handleCodexSendModeChange(mode)
+                    } : null}
+                    planMode={supportsQueueControls && onCodexPlanModeChange ? {
+                        enabled: isCodexPlanMode,
+                        onChange: () => handleCodexPlanModeToggle()
+                    } : null}
+                    queue={showQueueButton ? {
+                        pendingCount: Math.max(0, codexQueuePendingCount),
+                        onOpen: () => {
+                            setShowSettings(false)
+                            handleCodexQueueOpen()
+                        }
+                    } : null}
+                    status={showStatusButton ? {
+                        disabled: controlsDisabled || threadIsRunning,
+                        onOpen: () => {
+                            setShowSettings(false)
+                            handleCodexStatus()
+                        }
+                    } : null}
+                    switchRemote={showSwitchButton ? {
+                        disabled: switchDisabled,
+                        onSwitch: () => {
+                            setShowSettings(false)
+                            void handleSwitch()
+                        }
+                    } : null}
+                />
             </div>
         )
     }

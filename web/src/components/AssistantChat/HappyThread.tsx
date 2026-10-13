@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
@@ -14,6 +14,43 @@ import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
 import type { RunStats } from '@/components/mobile/chatTimeline'
 import { useTranslation } from '@/lib/use-translation'
+
+const STICK_TO_BOTTOM_THRESHOLD_PX = 32
+
+/**
+ * Social layout replaces assistant-ui's auto-scroll: stay pinned to the bottom while content grows,
+ * except during a short hold requested by a message that is expanding or collapsing itself.
+ */
+function useStickToBottom(
+    enabled: boolean,
+    viewportRef: React.RefObject<HTMLDivElement | null>,
+    contentRef: React.RefObject<HTMLDivElement | null>
+): (durationMs?: number) => void {
+    const holdUntilRef = useRef(0)
+    useEffect(() => {
+        const viewport = viewportRef.current
+        const content = contentRef.current
+        if (!enabled || !viewport || !content) return
+        let nearBottom = true
+        const onScroll = () => {
+            nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= STICK_TO_BOTTOM_THRESHOLD_PX
+        }
+        onScroll()
+        viewport.addEventListener('scroll', onScroll, { passive: true })
+        const observer = new ResizeObserver(() => {
+            if (!nearBottom || performance.now() < holdUntilRef.current) return
+            viewport.scrollTop = viewport.scrollHeight
+        })
+        observer.observe(content)
+        return () => {
+            viewport.removeEventListener('scroll', onScroll)
+            observer.disconnect()
+        }
+    }, [enabled, viewportRef, contentRef])
+    return useCallback((durationMs = 700) => {
+        holdUntilRef.current = performance.now() + durationMs
+    }, [])
+}
 
 // Social layout collapses each agent turn, so a long turn can fill the latest page entirely.
 // Pull a few older pages so the user's own last message is on screen too.
@@ -147,7 +184,9 @@ export function HappyThread(props: {
     runStats?: ReadonlyMap<string, RunStats> | null
 }) {
     const viewportRef = useRef<HTMLDivElement | null>(null)
+    const contentRef = useRef<HTMLDivElement | null>(null)
     const isSocial = props.layout === 'social'
+    const holdAutoScroll = useStickToBottom(isSocial, viewportRef, contentRef)
     const {
         isNearBottom,
         showJumpToLatest,
@@ -203,17 +242,19 @@ export function HappyThread(props: {
             toolProgress: props.toolProgress,
             layout: props.layout ?? 'classic',
             timeSeparators: props.timeSeparators ?? null,
-            runStats: props.runStats ?? null
+            runStats: props.runStats ?? null,
+            holdAutoScroll
         }}>
             <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
+                    autoScroll={isSocial ? false : undefined}
                     className={cn(
                         'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
                         isSocial ? 'social-chat' : ''
                     )}
                 >
-                    <div className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-4 pb-5 pt-4' : isCompact ? 'p-2' : 'p-3'}`}>
+                    <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-4 pb-5 pt-4' : isCompact ? 'p-2' : 'p-3'}`}>
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (

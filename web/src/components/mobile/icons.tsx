@@ -249,16 +249,3 @@ export function TrashIcon(props: IconProps) {
         </Svg>
     )
 }
-
-export function ChecklistIcon(props: IconProps) {
-    return (
-        <Svg {...props} strokeWidth={1.8}>
-            <polyline points="4 7 5.5 8.5 8 6" />
-            <polyline points="4 13 5.5 14.5 8 12" />
-            <line x1="11" y1="7.5" x2="20" y2="7.5" />
-            <line x1="11" y1="13.5" x2="20" y2="13.5" />
-            <line x1="11" y1="19" x2="20" y2="19" />
-            <circle cx="5.8" cy="19" r="1.1" />
-        </Svg>
-    )
-}

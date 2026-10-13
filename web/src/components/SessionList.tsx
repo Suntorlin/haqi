@@ -520,7 +520,6 @@ function SessionItem(props: {
                             session={s}
                             size={52}
                             ring={effectiveActive && s.pendingRequestsCount > 0 ? 'pending' : effectiveThinking ? 'live' : null}
-                            presence={effectiveActive && !effectiveThinking}
                             muted={!effectiveActive}
                             badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
                         />

@@ -23,6 +23,8 @@ export type HappyChatContextValue = {
     timeSeparators?: ReadonlyMap<string, number> | null
     /** Thread message id of each agent turn -> start/end time (social layout). */
     runStats?: ReadonlyMap<string, RunStats> | null
+    /** Pause stick-to-bottom while a message changes its own height on purpose (social layout). */
+    holdAutoScroll?: (durationMs?: number) => void
 }
 
 const HappyChatContext = createContext<HappyChatContextValue | null>(null)
