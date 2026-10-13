@@ -43,11 +43,10 @@ import {
     MobileComposerAction,
     MobileComposerToggle,
     MobileComposerToolPanel,
-    SettingChip,
-    ToggleChip,
     VoiceCallBar,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
+import { SettingChip, ToggleChip } from '@/components/ui/SettingChip'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
@@ -1067,12 +1066,15 @@ export function HappyComposer(props: {
     useEffect(() => {
         if (!isMobileLayout || !showToolPanel) return
         const close = () => setShowToolPanel(false)
+        // A setting drawer opened from the panel is a portal: taps and Escape inside it must not
+        // close the panel, or the drawer would unmount before the picked option applies.
+        const inDialog = (target: EventTarget | null) => target instanceof Element && target.closest('[role="dialog"]') !== null
         const handlePointerDown = (event: PointerEvent) => {
-            if (mobileComposerRef.current?.contains(event.target as Node)) return
+            if (mobileComposerRef.current?.contains(event.target as Node) || inDialog(event.target)) return
             close()
         }
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') close()
+            if (event.key === 'Escape' && !inDialog(event.target)) close()
         }
         document.addEventListener('pointerdown', handlePointerDown)
         document.addEventListener('keydown', handleKeyDown)
@@ -1260,7 +1262,7 @@ export function HappyComposer(props: {
             {showPermissionSettings ? (
                 <SettingChip
                     title={t('misc.permissionMode')}
-                    valueLabel={t('composer.chip.permission', { value: optionLabel(permissionChoices, permissionMode) })}
+                    valueLabel={t('composer.chip.permission', { value: permissionModeText(permissionMode, t) })}
                     disabled={controlsDisabled}
                     group={{ options: permissionChoices, value: permissionMode as string, onChange: (value) => applyChatSetting(() => onPermissionModeChange?.(value as PermissionMode)) }}
                 />
