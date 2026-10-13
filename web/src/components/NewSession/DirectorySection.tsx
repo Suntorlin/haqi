@@ -2,8 +2,8 @@ import { useId, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FormField, SuggestionChip } from '@/components/ui/FormControls'
+import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 
 /** "/Users/me/projects/app" → "~/projects/app", so chips show the part that differs. */
@@ -30,7 +30,7 @@ export function DirectorySection(props: {
     return (
         <FormField label={t('newSession.directory')} htmlFor={id}>
             <div className="relative">
-                <input
+                <TextField
                     id={id}
                     type="text"
                     placeholder={t('newSession.placeholder')}
@@ -40,7 +40,6 @@ export function DirectorySection(props: {
                     onFocus={props.onDirectoryFocus}
                     onBlur={props.onDirectoryBlur}
                     disabled={props.isDisabled}
-                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                 />
                 {props.suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">

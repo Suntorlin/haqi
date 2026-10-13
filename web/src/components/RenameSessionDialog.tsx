@@ -6,6 +6,7 @@ import {
     DialogTitle
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 
 /** Text input style shared by the small name dialogs (rename session / group, new group). */
@@ -69,20 +70,19 @@ export function RenameSessionDialog(props: RenameSessionDialogProps) {
                     <DialogTitle>{props.title ?? t('dialog.rename.title')}</DialogTitle>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
-                    <input
+                    <TextField
                         ref={inputRef}
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={props.placeholder ?? t('dialog.rename.placeholder')}
-                        className={DIALOG_INPUT_CLASS}
                         disabled={isPending}
                         maxLength={255}
                     />
 
                     {error ? (
-                        <div className="text-sm text-[var(--social-danger)]">
+                        <div className="text-[13px] text-[var(--social-danger)]">
                             {error}
                         </div>
                     ) : null}
