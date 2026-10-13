@@ -14,6 +14,8 @@ import { decodeBase64 } from '@/lib/utils'
 import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
 import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
+import { IconButton } from '@/components/ui/IconButton'
+import { SegmentedControl } from '@/components/ui/FormControls'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
 const GitDiffViewer = lazy(() => import('@/components/GitDiffViewer'))
@@ -73,7 +75,7 @@ function FileContentSkeleton() {
     return (
         <div role="status" aria-live="polite">
             <span className="sr-only">{t('file.loading')}</span>
-            <div className="animate-pulse space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
+            <div className="animate-pulse space-y-2 rounded-xl border border-[var(--app-border)] bg-[var(--app-code-bg)] p-3">
                 {Array.from({ length: 12 }).map((_, index) => (
                     <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded bg-[var(--app-subtle-bg)]`} />
                 ))}
@@ -305,27 +307,24 @@ export default function FilePage() {
                 <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--app-divider)]">
                     <FileIcon fileName={fileName} size={20} />
                     <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">{filePath}</span>
-                    <button
-                        type="button"
-                        onClick={() => copyPath(filePath)}
-                        className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
-                        title={t('file.copyPath')}
-                    >
+                    <IconButton label={t('file.copyPath')} onClick={() => copyPath(filePath)} className="-my-2">
                         {pathCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
-                    </button>
+                    </IconButton>
                 </div>
             </div>
 
             {diffContent ? (
                 <div className="bg-[var(--app-bg)]">
                     <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--app-divider)]">
-                        <button
-                            type="button"
-                            onClick={() => setDisplayMode('diff')}
-                            className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'diff' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
-                        >
-                            {t('file.mode.diff')}
-                        </button>
+                        <SegmentedControl
+                            label={`${t('file.mode.diff')} / ${t('file.mode.file')}`}
+                            value={displayMode}
+                            options={[
+                                { value: 'diff', label: t('file.mode.diff') },
+                                { value: 'file', label: t('file.mode.file') }
+                            ]}
+                            onChange={setDisplayMode}
+                        />
                         <button
                             type="button"
                             onClick={() => setDisplayMode('file')}
@@ -340,7 +339,7 @@ export default function FilePage() {
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content p-4">
                     {diffErrorMessage ? (
-                        <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs text-[var(--app-hint)]">
+                        <div className="mb-3 rounded-xl bg-[var(--app-badge-warning-bg)] p-2 text-xs text-[var(--app-badge-warning-text)]">
                             {diffErrorMessage}
                         </div>
                     ) : null}
@@ -367,7 +366,7 @@ export default function FilePage() {
                                 Image preview unavailable because the file content is truncated.
                             </div>
                         ) : imagePreviewUrl ? (
-                            <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-code-bg)] p-2">
+                            <div className="overflow-hidden rounded-xl border border-[var(--app-border)] bg-[var(--app-code-bg)] p-2">
                                 <div className="max-h-[75vh] overflow-auto">
                                     <img
                                         src={imagePreviewUrl}
@@ -391,16 +390,15 @@ export default function FilePage() {
                         decodedContent ? (
                             <div className="relative">
                                 {canCopyContent ? (
-                                    <button
-                                        type="button"
+                                    <IconButton
+                                        label={t('file.copyContent')}
                                         onClick={() => copyContent(decodedContent)}
-                                        className="absolute right-2 top-2 z-10 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
-                                        title={t('file.copyContent')}
+                                        className="absolute right-1 top-1 z-10"
                                     >
                                         {contentCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
-                                    </button>
+                                    </IconButton>
                                 ) : null}
-                                <pre className="shiki overflow-auto rounded-md bg-[var(--app-code-bg)] p-3 pr-8 text-xs font-mono">
+                                <pre className="shiki overflow-auto rounded-xl bg-[var(--app-code-bg)] p-3 pr-12 text-xs font-mono">
                                     <code>{highlighted ?? decodedContent}</code>
                                 </pre>
                             </div>

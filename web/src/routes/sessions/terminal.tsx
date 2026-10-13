@@ -11,6 +11,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { TerminalView } from '@/components/Terminal/TerminalView'
 import { LoadingState } from '@/components/LoadingState'
 import { Button } from '@/components/ui/button'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import {
     Dialog,
@@ -24,9 +25,9 @@ function ConnectionIndicator(props: { status: 'idle' | 'connecting' | 'connected
     const isConnecting = props.status === 'connecting'
     const label = isConnected ? 'Connected' : isConnecting ? 'Connecting' : 'Offline'
     const colorClass = isConnected
-        ? 'bg-emerald-500'
+        ? 'bg-[var(--social-success)]'
         : isConnecting
-          ? 'bg-amber-400 animate-pulse'
+          ? 'bg-[var(--social-warning)] animate-pulse'
           : 'bg-[var(--app-hint)]'
 
     return (
@@ -150,7 +151,7 @@ function QuickKeyButton(props: {
             onPointerDown={handlePointerDown}
             disabled={disabled}
             aria-pressed={modifier ? isActive : undefined}
-            className={`flex-1 border-l border-[var(--app-border)] px-2 py-1.5 text-xs font-medium text-[var(--app-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--app-subtle-bg)] sm:px-3 sm:text-sm ${
+            className={`min-h-11 flex-1 border-l border-[var(--app-border)] px-2 py-1.5 text-[13px] text-[var(--app-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--app-subtle-bg)] sm:px-3 ${
                 isActive ? 'bg-[var(--app-link)] text-[var(--app-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'
             }`}
             aria-label={input.description}
@@ -408,7 +409,7 @@ export default function TerminalPage() {
 
             {session.active ? null : (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-md bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
+                    <div className="mx-auto w-full max-w-content rounded-xl bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
                         {t('terminal.inactive')}
                     </div>
                 </div>
@@ -416,7 +417,7 @@ export default function TerminalPage() {
 
             {errorMessage ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-md border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-xs text-[var(--app-badge-error-text)]">
+                    <div className="rounded-xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-xs text-[var(--app-badge-error-text)]">
                         {errorMessage}
                     </div>
                 </div>
@@ -424,7 +425,7 @@ export default function TerminalPage() {
 
             {exitInfo ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3 text-xs text-[var(--app-hint)]">
+                    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3 text-xs text-[var(--app-hint)]">
                         {exitInfo.code !== null ? t('terminal.exitedWithCode', { code: exitInfo.code }) : t('terminal.exited')}
                         {exitInfo.signal ? ` (${exitInfo.signal})` : ''}
                     </div>
@@ -440,20 +441,20 @@ export default function TerminalPage() {
             <div className="bg-[var(--app-bg)] border-t border-[var(--app-border)] pb-[env(safe-area-inset-bottom)]">
                 <div className="mx-auto w-full max-w-content px-3">
                     <div className="flex flex-col gap-2 py-2">
-                        <button
-                            type="button"
+                        <Button
+                            variant="secondary"
                             onClick={() => {
                                 void handlePasteAction()
                             }}
                             disabled={quickInputDisabled}
-                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm font-medium text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="w-full"
                         >
                             {t('button.paste')}
-                        </button>
+                        </Button>
                         {QUICK_INPUT_ROWS.map((row, rowIndex) => (
                             <div
                                 key={`terminal-quick-row-${rowIndex}`}
-                                className="flex items-stretch overflow-hidden rounded-md bg-[var(--app-secondary-bg)]"
+                                className="flex items-stretch overflow-hidden rounded-2xl bg-[var(--app-secondary-bg)]"
                             >
                                 {row.map((input) => {
                                     const modifier = input.modifier
@@ -497,7 +498,7 @@ export default function TerminalPage() {
                         value={manualPasteText}
                         onChange={(event) => setManualPasteText(event.target.value)}
                         placeholder={t('terminal.paste.placeholder')}
-                        className="mt-2 min-h-32 w-full resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                        className={`mt-2 min-h-32 resize-y ${DIALOG_INPUT_CLASS}`}
                         autoCapitalize="none"
                         autoCorrect="off"
                     />
