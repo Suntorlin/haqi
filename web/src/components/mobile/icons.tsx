@@ -419,3 +419,16 @@ export function CheckIcon(props: IconProps) {
         </Svg>
     )
 }
+
+/** Arrows folding onto a line: squeeze the conversation into a summary ("/compact"). */
+export function CompactIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <line x1="12" y1="2.5" x2="12" y2="8.5" />
+            <polyline points="8.5 5.5 12 9 15.5 5.5" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <polyline points="8.5 18.5 12 15 15.5 18.5" />
+            <line x1="12" y1="15" x2="12" y2="21.5" />
+        </Svg>
+    )
+}

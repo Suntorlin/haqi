@@ -89,6 +89,7 @@ type ComposerInjectedPrompt = {
 
 const defaultSuggestionHandler = async (): Promise<Suggestion[]> => []
 const SEND_DEBOUNCE_MS = 600
+const COMPACT_COMMAND = '/compact'
 const COMPOSER_DRAFT_STORAGE_PREFIX = 'hapi:sessionComposerDraft:'
 
 type ComposerDraft = {
@@ -891,6 +892,31 @@ export function HappyComposer(props: {
         onSendMessage
     ])
 
+    // Only the Claude CLI turns "/compact" into a compaction; other agents would read it as plain text.
+    const showCompactButton = agentFlavor === 'claude' && Boolean(onSendMessage)
+    const compactDisabled = controlsDisabled || sendBusy || isComposerSending || (threadIsRunning && !queueSendEnabled)
+
+    // Sends "/compact" on its own and leaves the draft alone; in queue mode it waits its turn.
+    const sendCompactCommand = useCallback(async () => {
+        if (compactDisabled || !claimSendSlot()) {
+            return
+        }
+        haptic('light')
+        setIsComposerSending(true)
+        try {
+            if (queueSendEnabled && onCodexQueueEnqueue) {
+                await onCodexQueueEnqueue({ text: COMPACT_COMMAND })
+                onCodexQueueUpdated?.()
+                return
+            }
+            await Promise.resolve(onSendMessage?.(COMPACT_COMMAND))
+        } catch {
+            haptic('error')
+        } finally {
+            setIsComposerSending(false)
+        }
+    }, [compactDisabled, claimSendSlot, haptic, queueSendEnabled, onCodexQueueEnqueue, onCodexQueueUpdated, onSendMessage])
+
     const handleRemoveDraftAttachment = useCallback((attachment: AttachmentMetadata) => {
         setDraftAttachments((prev) => prev.filter((item) => item.path !== attachment.path))
         if (onRemoveDraftAttachment) {
@@ -1221,6 +1247,10 @@ export function HappyComposer(props: {
         </>
     ) : null
     const composerExtras: ComposerExtras = {
+        compact: showCompactButton ? {
+            disabled: compactDisabled,
+            onRun: () => { void sendCompactCommand() }
+        } : null,
         queue: showQueueButton ? {
             pendingCount: Math.max(0, codexQueuePendingCount),
             disabled: controlsDisabled,
@@ -1332,6 +1362,7 @@ export function HappyComposer(props: {
                             showTerminalButton={showTerminalButton}
                             onTerminal={closePanelThen(onTerminal ?? (() => {}))}
                             extras={{
+                                compact: composerExtras.compact ? { ...composerExtras.compact, onRun: closePanelThen(composerExtras.compact.onRun) } : null,
                                 queue: composerExtras.queue ? { ...composerExtras.queue, onOpen: closePanelThen(composerExtras.queue.onOpen) } : null,
                                 status: composerExtras.status ? { ...composerExtras.status, onOpen: closePanelThen(composerExtras.status.onOpen) } : null,
                                 switchRemote: composerExtras.switchRemote ? { ...composerExtras.switchRemote, onSwitch: closePanelThen(composerExtras.switchRemote.onSwitch) } : null
