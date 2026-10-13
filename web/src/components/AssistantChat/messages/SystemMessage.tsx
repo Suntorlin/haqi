@@ -13,6 +13,7 @@ function isProminentEvent(event: AgentEvent | undefined): event is AgentEvent {
 }
 
 function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }) {
+    const { t } = useTranslation()
     const isError = event.type === 'api-error'
     const borderClass = isError
         ? 'border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)]'
@@ -35,7 +36,7 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
             </div>
             {resetsAt ? (
                 <div className={`mt-1 text-[11px] opacity-75 ${textClass}`}>
-                    Resets at {formatUnixTimestamp(resetsAt)}
+                    {t('event.resetsAt', { time: formatUnixTimestamp(resetsAt) })}
                 </div>
             ) : null}
         </div>
@@ -71,6 +72,8 @@ export function HappySystemMessage() {
     }
 
     const icon = presentation?.icon ?? null
+    // Events carry an English label in the thread; show the translated presentation instead.
+    const label = presentation?.text ?? text
 
     if (isSocial) {
         const separatorAt = ctx?.timeSeparators?.get(messageId)
@@ -80,7 +83,7 @@ export function HappySystemMessage() {
                 <div className="flex justify-center">
                     <span className="inline-flex max-w-[85%] items-center gap-1 rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-[12px] leading-snug text-[var(--social-fg-muted)]">
                         {icon ? <span aria-hidden="true">{icon}</span> : null}
-                        <span>{text}</span>
+                        <span>{label}</span>
                     </span>
                 </div>
             </div>
@@ -92,7 +95,7 @@ export function HappySystemMessage() {
             <div className="mx-auto w-fit max-w-[88%] px-2 text-center text-xs text-[var(--app-hint)] opacity-80 sm:max-w-[84%] lg:max-w-[76%]">
                 <span className="inline-flex items-center gap-1">
                     {icon ? <span aria-hidden="true">{icon}</span> : null}
-                    <span>{text}</span>
+                    <span>{label}</span>
                 </span>
             </div>
         </div>

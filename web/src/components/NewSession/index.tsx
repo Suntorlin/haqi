@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
-import { ClaudeAccountSelector } from '@/components/ClaudeAccounts/Selector'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
@@ -27,9 +26,6 @@ import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
 import { MachineSelector } from './MachineSelector'
-import { ModelSelector } from './ModelSelector'
-import { ServiceTierSelector } from './ServiceTierSelector'
-import { ThinkEffortSelector } from './ThinkEffortSelector'
 import {
     loadLastSessionConfig,
     loadPreferredAgent,
@@ -48,8 +44,8 @@ import {
     savePreferredThinkEffort,
     savePreferredYoloMode,
 } from './preferences'
+import { SessionParams } from './SessionParams'
 import { SessionTypeSelector } from './SessionTypeSelector'
-import { YoloToggle } from './YoloToggle'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
@@ -482,31 +478,24 @@ export function NewSession(props: {
                 isDisabled={isFormDisabled}
                 onAgentChange={setAgent}
             />
-            {agent === 'claude' && <ClaudeAccountSelector api={props.api} machineId={machineId} selection={claudeAccount} onChange={setClaudeAccount} disabled={isFormDisabled} />}
-            <ModelSelector
+            <SessionParams
+                key={agent}
+                api={props.api}
                 agent={agent}
+                machineId={machineId}
                 model={model}
                 customModel={customModel}
+                thinkEffort={thinkEffort}
+                serviceTier={serviceTier}
+                yoloMode={yoloMode}
+                claudeAccount={claudeAccount}
                 isDisabled={isFormDisabled}
                 onModelChange={setModel}
                 onCustomModelChange={setCustomModel}
-            />
-            <ThinkEffortSelector
-                agent={agent}
-                thinkEffort={thinkEffort}
-                isDisabled={isFormDisabled}
                 onThinkEffortChange={setThinkEffort}
-            />
-            <ServiceTierSelector
-                agent={agent}
-                serviceTier={serviceTier}
-                isDisabled={isFormDisabled}
                 onServiceTierChange={setServiceTier}
-            />
-            <YoloToggle
-                yoloMode={yoloMode}
-                isDisabled={isFormDisabled}
-                onToggle={setYoloMode}
+                onYoloChange={setYoloMode}
+                onClaudeAccountChange={setClaudeAccount}
             />
 
             {(error ?? spawnError) ? (

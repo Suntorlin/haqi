@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useTranslation } from '@/lib/use-translation'
-import { FormField, SelectInput } from '@/components/ui/FormControls'
+import { SettingChip } from '@/components/ui/SettingChip'
 import { accountsKey } from './Settings'
 
 type RateLimitSnapshot = import('@hapi/protocol/schemas').ClaudeRateLimitSnapshot
@@ -59,7 +59,8 @@ export function quotaOptionLabel(snapshot: RateLimitSnapshot | undefined, t: Tra
     return parts.length ? parts.join(' · ') : undefined
 }
 
-export function ClaudeAccountSelector({ api, machineId, selection, onChange, disabled }: {
+/** Account for a new Claude session as a chip; the choices list each account's remaining quota. */
+export function ClaudeAccountChip({ api, machineId, selection, onChange, disabled }: {
     api: ApiClient; machineId: string | null; selection?: ClaudeAccountSelection;
     onChange: (selection?: ClaudeAccountSelection) => void; disabled: boolean
 }) {
@@ -71,30 +72,31 @@ export function ClaudeAccountSelector({ api, machineId, selection, onChange, dis
         return null
     }
 
+    const options = [
+        {
+            value: '',
+            label: t('newSession.claudeAccount.machineDefault'),
+            description: t('newSession.claudeAccount.autoSwitch', { state: pool.autoSwitch ? t('newSession.claudeAccount.enabled') : t('newSession.claudeAccount.disabled') })
+        },
+        ...profiles.map((p) => ({
+            value: p.id,
+            label: pool.initialAccount === p.id ? `${p.email} · ${t('newSession.claudeAccount.default')}` : p.email,
+            description: quotaOptionLabel(query.data?.usage?.[p.id], t) ?? t('newSession.claudeAccount.remainingUnknown')
+        }))
+    ]
+    const value = selection?.accountId ?? ''
+    const current = value ? profiles.find(p => p.id === value)?.email ?? value : t('newSession.claudeAccount.machineDefault')
+
     return (
-        <FormField
-            label={t('newSession.claudeAccount')}
-            optional
-            hint={t('newSession.claudeAccount.autoSwitch', { state: pool.autoSwitch ? t('newSession.claudeAccount.enabled') : t('newSession.claudeAccount.disabled') })}
-        >
-            <SelectInput
-                aria-label={t('newSession.claudeAccount')}
-                value={selection?.accountId ?? ''}
-                onChange={(e) => onChange(e.target.value ? { accountId: e.target.value, automatic: pool.autoSwitch } : undefined)}
-                disabled={disabled}
-            >
-                <option value="">{t('newSession.claudeAccount.machineDefault')}</option>
-                {profiles.map((p) => {
-                    const quota = quotaOptionLabel(query.data?.usage?.[p.id], t)
-                    return (
-                        <option key={p.id} value={p.id}>
-                            {p.email}
-                            {pool.initialAccount === p.id ? ` · ${t('newSession.claudeAccount.default')}` : ''}
-                            {quota ? ` · ${quota}` : ` · ${t('newSession.claudeAccount.remainingUnknown')}`}
-                        </option>
-                    )
-                })}
-            </SelectInput>
-        </FormField>
+        <SettingChip
+            title={t('newSession.claudeAccount')}
+            valueLabel={t('composer.chip.account', { value: current })}
+            disabled={disabled}
+            group={{
+                options,
+                value,
+                onChange: (accountId) => onChange(accountId ? { accountId, automatic: pool.autoSwitch } : undefined)
+            }}
+        />
     )
 }

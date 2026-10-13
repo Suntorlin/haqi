@@ -403,3 +403,19 @@ export function MicIcon(props: IconProps & { muted?: boolean }) {
         </Svg>
     )
 }
+
+export function ChevronDownIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <polyline points="6 9 12 15 18 9" />
+        </Svg>
+    )
+}
+
+export function CheckIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2.4}>
+            <polyline points="5 12.5 10 17.5 19 7" />
+        </Svg>
+    )
+}
