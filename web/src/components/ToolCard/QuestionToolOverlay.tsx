@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { ChatToolCall } from '@/chat/types'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { ChevronDownIcon, CloseIcon } from '@/components/mobile/icons'
 import { Spinner } from '@/components/Spinner'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
-import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import {
     buildInitialQuestionOverlayState,
     buildQuestionToolAnswerPayload,
@@ -100,7 +100,7 @@ function OptionRow(props: {
             <span className="min-w-0 flex-1">
                 <div className="font-semibold text-[var(--app-fg)] break-words">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
+                    <div className="mt-0.5 text-[13px] text-[var(--app-hint)] break-words">
                         {props.description}
                     </div>
                 ) : null}
@@ -345,58 +345,26 @@ export function QuestionToolOverlay(props: {
     if (isMinimized) {
         return (
             <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-end p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4">
-                <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl">
-                    <div className="px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="default">{t('tool.questionOverlay.title')}</Badge>
-                                    <span className="font-mono text-xs text-[var(--app-hint)]">
-                                        [{clampedStep + 1}/{total}]
-                                    </span>
-                                </div>
-                                <div className="mt-1 text-xs text-[var(--app-hint)]">
-                                    {t('tool.questionOverlay.minimizedDescription', {
-                                        answeredCount,
-                                        total
-                                    })}
-                                </div>
-                                {currentQuestion.header ? (
-                                    <div className="mt-2 text-[15px] font-semibold text-[var(--app-fg)] break-words">
-                                        {currentQuestion.header}
-                                    </div>
-                                ) : null}
+                <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 shadow-2xl">
+                    <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-[15px] font-semibold text-[var(--app-fg)]">
+                                {currentQuestion.header || t('tool.questionOverlay.title')}
                             </div>
-
-                            <Button
-                                type="button"
-                                variant="default"
-                                disabled={loading}
-                                onClick={() => setIsMinimized(false)}
-                            >
-                                {t('tool.questionOverlay.resume')}
-                            </Button>
-                        </div>
-                    </div>
-
-                    {error ? (
-                        <div className="border-t border-[var(--app-border)] px-4 py-3">
-                            <div className="rounded-xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] px-3 py-2 text-xs text-[var(--social-danger)]">
-                                {error}
+                            <div className="text-[13px] text-[var(--app-hint)]">
+                                {t('tool.questionOverlay.minimizedDescription', { answeredCount, total })}
                             </div>
                         </div>
-                    ) : null}
-
-                    <div className="flex items-center justify-end gap-2 border-t border-[var(--app-border)] px-4 py-3">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            disabled={props.disabled || loading}
-                            onClick={() => void cancel()}
-                        >
-                            {t('tool.questionOverlay.close')}
+                        <Button type="button" size="sm" disabled={loading} onClick={() => setIsMinimized(false)}>
+                            {t('tool.questionOverlay.resume')}
                         </Button>
+                        <IconButton label={t('tool.questionOverlay.close')} size="sm" disabled={props.disabled || loading} onClick={() => void cancel()}>
+                            <CloseIcon className="h-4 w-4" />
+                        </IconButton>
                     </div>
+                    {error ? (
+                        <div className="rounded-xl bg-[var(--app-badge-error-bg)] px-3 py-2 text-[13px] text-[var(--social-danger)]">{error}</div>
+                    ) : null}
                 </div>
             </div>
         )
@@ -407,59 +375,29 @@ export function QuestionToolOverlay(props: {
             <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
             <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
                 <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] shadow-2xl sm:max-h-[min(88vh,860px)]">
-                    <div className="shrink-0 border-b border-[var(--app-border)] px-4 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="default">{t('tool.questionOverlay.title')}</Badge>
-                                    <span className="font-mono text-xs text-[var(--app-hint)]">
-                                        [{clampedStep + 1}/{total}]
-                                    </span>
-                                </div>
-                                <div className="mt-1 text-[13px] text-[var(--app-hint)]">
-                                    {t('tool.questionOverlay.description')}
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className={HIT_AREA_CLASS}
-                                    disabled={loading}
-                                    onClick={() => setIsMinimized(true)}
-                                >
-                                    {t('tool.questionOverlay.minimize')}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    className={HIT_AREA_CLASS}
-                                    disabled={props.disabled || loading}
-                                    onClick={() => void cancel()}
-                                >
-                                    {t('tool.questionOverlay.close')}
-                                </Button>
-                            </div>
+                    <div className="flex shrink-0 items-center justify-between gap-2 py-1 pl-4 pr-2">
+                        <span className="min-w-0 truncate text-[13px] text-[var(--social-fg-muted)]">
+                            {[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
+                        </span>
+                        <div className="flex shrink-0 items-center">
+                            <IconButton label={t('tool.questionOverlay.minimize')} size="sm" disabled={loading} onClick={() => setIsMinimized(true)}>
+                                <ChevronDownIcon className="h-4 w-4" />
+                            </IconButton>
+                            <IconButton label={t('tool.questionOverlay.close')} size="sm" disabled={props.disabled || loading} onClick={() => void cancel()}>
+                                <CloseIcon className="h-4 w-4" />
+                            </IconButton>
                         </div>
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-2 pt-1">
                         {error ? (
                             <div className="mb-3 rounded-xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] px-3 py-2 text-xs text-[var(--social-danger)]">
                                 {error}
                             </div>
                         ) : null}
 
-                        {currentQuestion.header ? (
-                            <div className="mb-2">
-                                <Badge variant="warning">{currentQuestion.header}</Badge>
-                            </div>
-                        ) : null}
-
                         {currentQuestion.question ? (
-                            <div className="text-[15px] text-[var(--app-fg)] break-words">
+                            <div className="text-[16px] font-semibold leading-snug text-[var(--app-fg)] break-words">
                                 {currentQuestion.question}
                             </div>
                         ) : null}
@@ -513,20 +451,18 @@ export function QuestionToolOverlay(props: {
                             </div>
                         ) : null}
 
-                        <div className="mt-3 text-xs text-[var(--app-hint)]">
-                            {questionAnswered
-                                ? t('tool.questionOverlay.readyHint')
-                                : t('tool.questionOverlay.skippedHint')}
-                        </div>
+                        {questionAnswered ? null : (
+                            <div className="mt-3 text-[13px] text-[var(--app-hint)]">{t('tool.questionOverlay.skippedHint')}</div>
+                        )}
                     </div>
 
-                    <div className="shrink-0 border-t border-[var(--app-border)] px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3">
+                    <div className="shrink-0 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:pb-3">
                         <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                                 {total > 1 ? (
                                     <Button
                                         type="button"
-                                        variant="outline"
+                                        variant="ghost"
                                         disabled={props.disabled || loading || clampedStep === 0}
                                         onClick={prev}
                                     >
