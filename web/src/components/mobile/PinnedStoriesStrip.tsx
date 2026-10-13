@@ -51,7 +51,7 @@ function PinnedStory(props: {
             <span className="relative flex h-16 w-16 items-center justify-center">
                 <SessionAvatar
                     session={session}
-                    size={64}
+                    size={56}
                     ring={isPending ? 'pending' : isLive ? 'live' : session.active ? 'seen' : null}
                     muted={!session.active}
                 />

@@ -781,7 +781,7 @@ function GroupInfoSheet(props: {
     return (
         <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={t('groups.info.title')} hideTitle>
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
-                <GroupAvatar seed={props.groupId} members={memberSessions} size={60} />
+                <GroupAvatar seed={props.groupId} members={memberSessions} size={48} />
                 <div className="min-w-0 flex-1">
                     <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
                     <div className="mt-1 truncate text-[13px] text-[var(--social-fg-muted)]">
@@ -880,7 +880,7 @@ function MemberActionsSheet(props: {
             {member ? (
                 <>
                     <div className="flex items-center gap-3.5 px-5 pb-4 pt-2">
-                        <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={52} ring={getMemberRing(status)} muted={status === 'offline'} />
+                        <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={44} ring={getMemberRing(status)} muted={status === 'offline'} />
                         <div className="min-w-0 flex-1">
                             <div className="line-clamp-2 text-[16px] font-semibold leading-snug text-[var(--social-fg)]">{title}</div>
                             <MemberStatusLine session={session} status={status} />

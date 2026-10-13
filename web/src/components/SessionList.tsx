@@ -526,7 +526,7 @@ function SessionItem(props: {
                     >
                         <SessionAvatar
                             session={s}
-                            size={52}
+                            size={44}
                             ring={effectiveActive && s.pendingRequestsCount > 0 ? 'pending' : effectiveThinking ? 'live' : null}
                             muted={!effectiveActive}
                             badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
