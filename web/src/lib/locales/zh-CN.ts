@@ -113,6 +113,7 @@ export default {
 
   'dialog.archive.title': '归档会话',
   'dialog.archive.description': '确定要归档 "{name}" 吗？这将断开活动会话。',
+  'dialog.archive.descriptionPinned': '确定要归档 "{name}" 吗？这将断开活动会话，并取消置顶。',
   'dialog.archive.confirm': '归档',
   'dialog.archive.confirming': '归档中…',
 

@@ -112,6 +112,7 @@ export default {
   'dialog.tags.error': 'Failed to save tags. Check the format and try again.',
   'dialog.archive.title': 'Archive session',
   'dialog.archive.description': 'Are you sure you want to archive "{name}"? This will disconnect active session.',
+  'dialog.archive.descriptionPinned': 'Are you sure you want to archive "{name}"? This will disconnect active session and unpin it.',
   'dialog.archive.confirm': 'Archive',
   'dialog.archive.confirming': 'Archiving…',
   'dialog.delete.title': 'Delete session',

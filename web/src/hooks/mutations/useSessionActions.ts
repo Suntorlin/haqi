@@ -6,6 +6,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { clearMessageWindow } from '@/lib/message-window-store'
 import { removeCachedSessionDetail } from '@/lib/session-detail-cache'
 import { isKnownFlavor } from '@/lib/agentFlavorUtils'
+import { useArchiveSession } from '@/hooks/mutations/useArchiveSession'
 
 type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 type SessionServiceTier = 'auto' | 'fast' | 'flex'
@@ -63,12 +64,13 @@ export function useSessionActions(
         onSuccess: () => void invalidateSession(),
     })
 
+    const archive = useArchiveSession(api)
     const archiveMutation = useMutation({
         mutationFn: async () => {
             if (!api || !sessionId) {
                 throw new Error('Session unavailable')
             }
-            await api.archiveSession(sessionId)
+            await archive(sessionId)
         },
         onSuccess: () => void invalidateSession(),
     })

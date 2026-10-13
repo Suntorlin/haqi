@@ -694,7 +694,7 @@ function SessionItem(props: {
                 isOpen={archiveOpen}
                 onClose={() => setArchiveOpen(false)}
                 title={t('dialog.archive.title')}
-                description={t('dialog.archive.description', { name: sessionName })}
+                description={t(pinned ? 'dialog.archive.descriptionPinned' : 'dialog.archive.description', { name: sessionName })}
                 confirmLabel={t('dialog.archive.confirm')}
                 confirmingLabel={t('dialog.archive.confirming')}
                 onConfirm={archiveSession}

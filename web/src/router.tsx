@@ -72,6 +72,7 @@ import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned } from '@/lib/session-pins'
 import { useSessionPin } from '@/hooks/mutations/useSessionPin'
+import { useArchiveSession } from '@/hooks/mutations/useArchiveSession'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
@@ -306,6 +307,8 @@ function SessionsPage() {
             })
         })
     }, [addToast, pinSession, t])
+    const archiveSession = useArchiveSession(api)
+    const archivePinnedSession = useCallback((session: SessionSummary) => archiveSession(session.id), [archiveSession])
 
     const handleRefresh = useCallback(() => {
         void refetch()
@@ -453,6 +456,7 @@ function SessionsPage() {
                     onSelect={selectSession}
                     onNewSession={() => openNewSession()}
                     onUnpin={unpinSession}
+                    onArchive={archivePinnedSession}
                 />
             )}
             {sessionTags.length ? (
