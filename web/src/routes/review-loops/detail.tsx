@@ -1,9 +1,10 @@
-import { useCallback } from 'react'
+import { useCallback, type ReactNode } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useAppContext } from '@/lib/app-context'
 import { useReviewLoop } from '@/hooks/queries/useReviewLoop'
 import { useReviewLoopActions } from '@/hooks/mutations/useReviewLoopActions'
 import { LoadingState } from '@/components/LoadingState'
+import { Badge } from '@/components/ui/badge'
 import {
     ReviewLoopStatusBadge,
     ProgressBar,
@@ -14,16 +15,19 @@ import {
 } from '@/components/ReviewLoop'
 import type { ReviewLoopUserPreference } from '@/types/api'
 
-// ─── Terminal Section Divider ────────────────────────────────────────────────────
+// ─── Layout helpers ──────────────────────────────────────────────────────────────
 
-function SectionDivider({ title }: { title: string }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
     return (
-        <div className="flex items-center gap-2 text-[var(--app-hint)] font-mono text-xs select-none mt-4 mb-2">
-            <div className="border-t border-[var(--app-border)] w-4" />
-            <span className="shrink-0">{title}</span>
-            <div className="flex-1 border-t border-[var(--app-border)]" />
-        </div>
+        <section className="flex min-w-0 flex-col gap-1.5">
+            <h2 className="px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{title}</h2>
+            {children}
+        </section>
     )
+}
+
+function Card({ children }: { children: ReactNode }) {
+    return <div className="min-w-0 rounded-2xl border border-[var(--social-border)] p-4">{children}</div>
 }
 
 // ─── Main Detail Page ────────────────────────────────────────────────────────────
@@ -56,16 +60,16 @@ export default function ReviewLoopDetailPage() {
 
     if (isLoading || !loop) {
         return (
-            <div className="flex h-full items-center justify-center p-4 font-mono">
-                <LoadingState label="loading..." className="text-sm" />
+            <div className="flex h-full items-center justify-center p-4">
+                <LoadingState label="Loading..." className="text-[15px]" />
             </div>
         )
     }
 
     if (error) {
         return (
-            <div className="flex h-full items-center justify-center p-4 font-mono">
-                <div className="text-sm text-[var(--app-badge-error-text)]">err: {error}</div>
+            <div className="flex h-full items-center justify-center p-4">
+                <div className="text-[15px] text-[var(--social-danger)]">{error}</div>
             </div>
         )
     }
@@ -79,72 +83,72 @@ export default function ReviewLoopDetailPage() {
     const isTerminal = loop.status === 'accepted' || loop.status === 'aborted' || loop.status === 'canceled'
 
     return (
-        <div className="flex h-full flex-col overflow-y-auto font-mono min-w-0">
-            <div className="mx-auto w-full max-w-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] min-w-0">
-                {/* ╭─ Header ─╮ */}
-                <div className="border border-[var(--app-divider)] rounded-sm p-4">
-                    <div className="text-sm text-[var(--app-fg)] leading-relaxed whitespace-pre-wrap">
+        <div className="flex h-full min-w-0 flex-col overflow-y-auto">
+            <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+                <Card>
+                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-[var(--social-fg)]">
                         {loop.requirement.length > 300
                             ? loop.requirement.slice(0, 300) + '...'
                             : loop.requirement}
                     </div>
 
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--app-hint)]">
-                        <span>status: <ReviewLoopStatusBadge status={loop.status} /></span>
-                        <span>round: {loop.currentRound}/{loop.maxRounds}</span>
-                        <span>progress: <ProgressBar progress={latestProgress} /></span>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <ReviewLoopStatusBadge status={loop.status} />
+                        <Badge>Round {loop.currentRound}/{loop.maxRounds}</Badge>
                     </div>
-                </div>
+                    <div className="mt-3">
+                        <ProgressBar progress={latestProgress} />
+                    </div>
+                </Card>
 
-                {/* ─── Acceptance Criteria ─── */}
                 {loop.acceptanceCriteria && latestVerdict?.criteriaStatus && latestVerdict.criteriaStatus.length > 0 ? (
-                    <>
-                        <SectionDivider title="Acceptance Criteria" />
-                        <div className="border border-[var(--app-divider)] rounded-sm p-3">
+                    <Section title="Acceptance Criteria">
+                        <Card>
                             <CriteriaChecklist criteria={latestVerdict.criteriaStatus} />
-                        </div>
-                    </>
+                        </Card>
+                    </Section>
                 ) : loop.acceptanceCriteria ? (
-                    <>
-                        <SectionDivider title="Acceptance Criteria" />
-                        <div className="border border-[var(--app-divider)] rounded-sm p-3">
-                            <pre className="font-mono text-xs text-[var(--app-fg)] whitespace-pre-wrap">{loop.acceptanceCriteria}</pre>
-                        </div>
-                    </>
+                    <Section title="Acceptance Criteria">
+                        <Card>
+                            <div className="whitespace-pre-wrap text-[15px] text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
+                        </Card>
+                    </Section>
                 ) : null}
 
-                {/* ─── Settings ─── */}
-                <SectionDivider title="Settings" />
-                <div className="border border-[var(--app-divider)] rounded-sm p-3">
-                    <LoopSettingsPanel
-                        userPreference={loop.userPreference}
-                        maxRounds={loop.maxRounds}
-                        currentRound={loop.currentRound}
-                        onUpdatePreference={handleUpdatePreference}
-                        onUpdateMaxRounds={handleUpdateMaxRounds}
-                        disabled={isPending || isTerminal}
-                    />
-                </div>
+                <Section title="Settings">
+                    <Card>
+                        <LoopSettingsPanel
+                            userPreference={loop.userPreference}
+                            maxRounds={loop.maxRounds}
+                            currentRound={loop.currentRound}
+                            onUpdatePreference={handleUpdatePreference}
+                            onUpdateMaxRounds={handleUpdateMaxRounds}
+                            disabled={isPending || isTerminal}
+                        />
+                    </Card>
+                </Section>
 
-                {/* ─── Controls ─── */}
-                <SectionDivider title="Controls" />
-                <div className="border border-[var(--app-divider)] rounded-sm p-3">
-                    <LoopControls
-                        status={loop.status}
-                        onContinue={handleContinue}
-                        onPause={handlePause}
-                        onCancel={handleCancel}
-                        isPending={isPending}
-                    />
-                </div>
-
-                {/* ─── Timeline ─── */}
-                <SectionDivider title={`Timeline (${rounds.length} rounds)`} />
-                {rounds.length === 0 ? (
-                    <div className="text-xs text-[var(--app-hint)] py-2">no rounds yet.</div>
-                ) : (
-                    <RoundTimeline rounds={rounds} />
+                {isTerminal ? null : (
+                    <Section title="Controls">
+                        <Card>
+                            <LoopControls
+                                status={loop.status}
+                                onContinue={handleContinue}
+                                onPause={handlePause}
+                                onCancel={handleCancel}
+                                isPending={isPending}
+                            />
+                        </Card>
+                    </Section>
                 )}
+
+                <Section title={`Timeline (${rounds.length} rounds)`}>
+                    {rounds.length === 0 ? (
+                        <div className="px-1 py-2 text-[15px] text-[var(--social-fg-muted)]">No rounds yet.</div>
+                    ) : (
+                        <RoundTimeline rounds={rounds} />
+                    )}
+                </Section>
             </div>
         </div>
     )
