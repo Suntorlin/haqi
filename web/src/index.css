@@ -50,12 +50,13 @@
     --app-scrollbar-thumb: rgba(17, 24, 39, 0.22);
     --app-scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
 
-    /* Social (mobile) layout tokens: zinc monochrome (light) */
+    /* Social layout tokens: zinc monochrome (light) */
     --social-fg: #09090b;
     --social-fg-muted: #71717a;
     --social-fg-subtle: #a1a1aa;
     --social-surface: #ffffff;
     --social-muted: #f4f4f5;
+    --social-hover: #f8f8f9;
     --social-border: #e4e4e7;
     --social-primary: #18181b;
     --social-primary-fg: #fafafa;
@@ -116,12 +117,13 @@
     --app-scrollbar-thumb: rgba(255, 255, 255, 0.24);
     --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
 
-    /* Social (mobile) layout tokens: zinc monochrome (dark) */
+    /* Social layout tokens: zinc monochrome (dark) */
     --social-fg: #fafafa;
     --social-fg-muted: #a1a1aa;
     --social-fg-subtle: #71717a;
     --social-surface: #09090b;
     --social-muted: #1c1c1f;
+    --social-hover: #141416;
     --social-border: #27272a;
     --social-primary: #fafafa;
     --social-primary-fg: #09090b;
@@ -468,10 +470,10 @@ html[data-theme="dark"] .shiki span {
 }
 
 /* ------------------------------------------------------------------ */
-/* Social (mobile) layout: minimal monochrome (shadcn / ElevenLabs / IG) */
+/* Social layout: minimal monochrome (shadcn / ElevenLabs / IG), phone and desktop */
 /* ------------------------------------------------------------------ */
 
-/* Applied on <html> while the mobile layout is active, so portals (sheets, menus, dialogs) match too. */
+/* Applied on <html> so portals (sheets, menus, dialogs) match too. */
 html.social-app {
     --app-bg: var(--tg-theme-bg-color, #ffffff);
     --app-fg: var(--tg-theme-text-color, #09090b);
@@ -657,6 +659,20 @@ html.social-app[data-theme="dark"] {
     animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
+/* Desktop: the same sheets slide in from the right edge (WeChat "chat info" panel). */
+@keyframes panel-in {
+    from {
+        transform: translateX(100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+.animate-panel-in {
+    animation: panel-in 0.26s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
 .animate-fade-in {
     animation: fade-in 0.2s ease-out;
 }
@@ -666,7 +682,14 @@ html.social-app[data-theme="dark"] {
     transition: background-color 0.15s ease, transform 0.15s ease;
 }
 
-.social-pressable:active {
+@media (hover: hover) {
+    .social-pressable:hover {
+        background-color: var(--social-hover);
+    }
+}
+
+.social-pressable:active,
+.social-pressable[aria-current="page"] {
     background-color: var(--social-muted);
 }
 
@@ -715,39 +738,41 @@ html.social-app[data-theme="dark"] {
     contain-intrinsic-size: auto 44px;
 }
 
-/* Mobile: every dialog becomes the same bottom sheet as "session info" / "chat settings". */
-html.social-app .app-dialog-content {
-    top: auto;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    /* Neutralise Tailwind's centring translate; the minifier drops a bare `translate: none`. */
-    --tw-translate-x: 0px;
-    --tw-translate-y: 0px;
-    translate: none;
-    transform: none;
-    width: 100%;
-    max-width: 36rem;
-    margin: 0 auto;
-    max-height: 88dvh;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    border-radius: 24px 24px 0 0;
-    border-top: 1px solid var(--social-border);
-    background: var(--app-bg);
-    padding: 26px 20px calc(20px + env(safe-area-inset-bottom));
-    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
-    animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
-}
+/* Phones: every dialog becomes the same bottom sheet as "session info" / "chat settings". */
+@media (max-width: 1023px) {
+    html.social-app .app-dialog-content {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        /* Neutralise Tailwind's centring translate; the minifier drops a bare `translate: none`. */
+        --tw-translate-x: 0px;
+        --tw-translate-y: 0px;
+        translate: none;
+        transform: none;
+        width: 100%;
+        max-width: 36rem;
+        margin: 0 auto;
+        max-height: 88dvh;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        border-radius: 24px 24px 0 0;
+        border-top: 1px solid var(--social-border);
+        background: var(--app-bg);
+        padding: 26px 20px calc(20px + env(safe-area-inset-bottom));
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
+        animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    }
 
-html.social-app .app-dialog-content::before {
-    content: '';
-    position: absolute;
-    top: 8px;
-    left: 50%;
-    width: 36px;
-    height: 4px;
-    margin-left: -18px;
-    border-radius: 999px;
-    background: var(--social-border);
+    html.social-app .app-dialog-content::before {
+        content: '';
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        width: 36px;
+        height: 4px;
+        margin-left: -18px;
+        border-radius: 999px;
+        background: var(--social-border);
+    }
 }

@@ -14,6 +14,7 @@ import { Orb } from '@/components/mobile/SessionAvatar'
 import { formatChatTimestamp, formatElapsed, getLatestProgressText } from '@/components/mobile/chatTimeline'
 import type { ChatBlock, ToolCallBlock } from '@/chat/types'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
@@ -248,10 +249,14 @@ function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: b
     )
 }
 
-/** After the agent finishes: only the conclusion; long-press (or the footer) reveals the process. */
+/**
+ * After the agent finishes: only the conclusion; the footer reveals the process.
+ * Phones also long-press the conclusion; desktop keeps the text selectable and copies on hover.
+ */
 export function SocialAssistantMessage() {
     const { t } = useTranslation()
     const ctx = useHappyChatContext()
+    const isMobileLayout = useIsMobileLayout()
     const { haptic } = usePlatform()
     const { copied, copy } = useCopyToClipboard()
     const messageId = useAssistantState(({ message }) => message.id)
@@ -354,6 +359,11 @@ export function SocialAssistantMessage() {
         },
         threshold: 450
     })
+    // Phones: the card is a long-press target (no text selection or callout). Desktop: plain selectable text.
+    const pressProps = isMobileLayout
+        ? { ...longPressHandlers, style: { WebkitTouchCallout: 'none' as const } }
+        : {}
+    const pressClass = isMobileLayout ? 'select-none' : ''
 
     const stats = ctx.runStats?.get(messageId)
     const startAt = stats?.startAt ?? createdAt?.getTime() ?? Date.now()
@@ -371,7 +381,7 @@ export function SocialAssistantMessage() {
     ].filter(Boolean).join(' · ')
 
     return (
-        <MessagePrimitive.Root ref={rootRef} className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
+        <MessagePrimitive.Root ref={rootRef} className="group/turn flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
             <div className="flex min-w-0 items-start gap-2.5">
                 <Orb seed={ctx.sessionId} size={28} muted={ctx.disabled} className="mt-1" />
@@ -384,9 +394,8 @@ export function SocialAssistantMessage() {
                         <>
                             {layout.answerIndices.length > 0 ? (
                                 <div
-                                    {...longPressHandlers}
-                                    className="social-card w-fit min-w-0 max-w-full select-none rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3"
-                                    style={{ WebkitTouchCallout: 'none' }}
+                                    {...pressProps}
+                                    className={cn('social-card w-fit min-w-0 max-w-full rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3', pressClass)}
                                 >
                                     {layout.answerIndices.map((index) => (
                                         <MessagePrimitive.PartByIndex key={index} index={index} components={ANSWER_COMPONENTS} />
@@ -394,25 +403,37 @@ export function SocialAssistantMessage() {
                                 </div>
                             ) : (
                                 <div
-                                    {...longPressHandlers}
-                                    className="social-card w-fit select-none rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]"
-                                    style={{ WebkitTouchCallout: 'none' }}
+                                    {...pressProps}
+                                    className={cn('social-card w-fit rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]', pressClass)}
                                 >
                                     {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
                                 </div>
                             )}
 
-                            {hasProcess ? (
-                                <button
-                                    ref={footerRef}
-                                    type="button"
-                                    onClick={toggleProcess}
-                                    aria-expanded={expanded}
-                                    className="flex w-fit items-center gap-1 px-1 text-[12px] text-[var(--social-fg-subtle)] [-webkit-tap-highlight-color:transparent]"
-                                >
-                                    {footer}
-                                    <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
-                                </button>
+                            {hasProcess || (!isMobileLayout && answerText) ? (
+                                <div className="flex items-center gap-3 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                    {hasProcess ? (
+                                        <button
+                                            ref={footerRef}
+                                            type="button"
+                                            onClick={toggleProcess}
+                                            aria-expanded={expanded}
+                                            className="flex w-fit items-center gap-1 transition-colors hover:text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent]"
+                                        >
+                                            {footer}
+                                            <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
+                                        </button>
+                                    ) : null}
+                                    {!isMobileLayout && answerText && !expanded ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => void copy(answerText)}
+                                            className="opacity-0 transition-opacity hover:text-[var(--social-fg-muted)] focus-visible:opacity-100 group-hover/turn:opacity-100"
+                                        >
+                                            {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
+                                        </button>
+                                    ) : null}
+                                </div>
                             ) : null}
 
                             {expanded ? (

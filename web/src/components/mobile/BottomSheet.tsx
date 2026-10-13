@@ -1,8 +1,12 @@
 import type { ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
 
-/** iOS-style bottom sheet with a grabber; content scrolls when taller than the viewport. */
+/**
+ * Secondary panel shared by both layouts: an iOS-style bottom sheet with a grabber on phones,
+ * a panel sliding in from the right edge on desktop (WeChat "chat info"). Content scrolls.
+ */
 export function BottomSheet(props: {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -11,6 +15,45 @@ export function BottomSheet(props: {
     children: ReactNode
     className?: string
 }) {
+    const isMobileLayout = useIsMobileLayout()
+
+    if (!isMobileLayout) {
+        return (
+            <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
+                <DialogPrimitive.Portal>
+                    <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-black/20" />
+                    <DialogPrimitive.Content
+                        aria-describedby={undefined}
+                        className={cn(
+                            'animate-panel-in fixed inset-y-0 right-0 z-[70] flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--social-border)] bg-[var(--app-bg)] text-[var(--social-fg)] shadow-[-16px_0_48px_rgba(0,0,0,0.08)] outline-none',
+                            props.className
+                        )}
+                    >
+                        <div className="flex h-14 shrink-0 items-center gap-2 pl-5 pr-3">
+                            <DialogPrimitive.Title
+                                className={props.hideTitle ? 'sr-only' : 'min-w-0 flex-1 truncate text-[15px] font-semibold'}
+                            >
+                                {props.title}
+                            </DialogPrimitive.Title>
+                            <DialogPrimitive.Close
+                                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
+                                aria-label="Close"
+                            >
+                                <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </DialogPrimitive.Close>
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
+                            {props.children}
+                        </div>
+                    </DialogPrimitive.Content>
+                </DialogPrimitive.Portal>
+            </DialogPrimitive.Root>
+        )
+    }
+
     return (
         <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
             <DialogPrimitive.Portal>

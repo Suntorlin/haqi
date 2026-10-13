@@ -25,6 +25,7 @@ import { SyncingBanner } from '@/components/SyncingBanner'
 import { ReconnectingBanner } from '@/components/ReconnectingBanner'
 import { VoiceErrorBanner } from '@/components/VoiceErrorBanner'
 import { LoadingState } from '@/components/LoadingState'
+import { DesktopNavRail } from '@/components/mobile/MobileTabBar'
 import { ToastContainer } from '@/components/ToastContainer'
 import { ToastProvider, useToast } from '@/lib/toast-context'
 import type { SyncEvent } from '@/types/api'
@@ -53,10 +54,10 @@ function AppInner() {
     const { addToast } = useToast()
     const isMobileLayout = useIsMobileLayout()
 
-    // The mobile layout swaps the app palette for the minimal monochrome one (see index.css).
+    // Minimal monochrome palette for every layout (see index.css); set on <html> so portals match.
     useLayoutEffect(() => {
-        document.documentElement.classList.toggle('social-app', isMobileLayout)
-    }, [isMobileLayout])
+        document.documentElement.classList.add('social-app')
+    }, [])
 
     useEffect(() => {
         const tg = getTelegramWebApp()
@@ -383,9 +384,18 @@ function AppInner() {
                 />
                 <VoiceErrorBanner />
                 <OfflineBanner />
-                <div className="h-full flex flex-col">
-                    <Outlet />
-                </div>
+                {isMobileLayout ? (
+                    <div className="h-full flex flex-col">
+                        <Outlet />
+                    </div>
+                ) : (
+                    <div className="flex h-full">
+                        <DesktopNavRail />
+                        <div className="flex h-full min-w-0 flex-1 flex-col">
+                            <Outlet />
+                        </div>
+                    </div>
+                )}
                 <ToastContainer />
                 <InstallPrompt />
             </VoiceProvider>

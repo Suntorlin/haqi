@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 
 const STORAGE_KEY = 'hapi:sessionsSidebarWidth'
 const MIN_SIDEBAR_WIDTH = 280
-const DEFAULT_SIDEBAR_WIDTH = 420
-const DEFAULT_XL_SIDEBAR_WIDTH = 480
+const DEFAULT_SIDEBAR_WIDTH = 380
+const DEFAULT_XL_SIDEBAR_WIDTH = 400
 const MAX_WIDTH_VIEWPORT_RATIO = 0.7
 const FALLBACK_MAX_WIDTH = 860
 

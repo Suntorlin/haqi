@@ -763,4 +763,10 @@ export default {
   'mobile.composer.sendMode': '发送方式',
   'mobile.composer.planHint': '先出计划，确认后再执行',
   'mobile.composer.other': '其他',
+  'desktop.empty.title': '选一个会话开始',
+  'desktop.empty.subtitle': '运行中的会话头像带彩色外圈，等你批准的是橙色外圈。',
+  'desktop.empty.new': '新会话',
+  'desktop.loops.pick': '选一个评审循环查看进度',
+  'desktop.groups.pick': '选一个群组开始',
+  'desktop.composer.settingsHint': '对话设置：权限、模型、思考程度、发送方式',
 } as const

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useLocation, useNavigate } from '@tanstack/react-router'
+import { useSessions } from '@/hooks/queries/useSessions'
 import { usePlatform } from '@/hooks/usePlatform'
+import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -52,18 +54,32 @@ const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/review-loops' | 
     settings: '/settings'
 }
 
-/** Instagram-style icon-only bottom tab bar for the mobile top-level pages. */
-export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number }) {
-    const { t } = useTranslation()
-    const navigate = useNavigate()
-    const { haptic } = usePlatform()
+type NavTab = { key: MobileTab; label: string; icon: (filled: boolean) => ReactNode; badge?: number }
 
-    const tabs: Array<{ key: MobileTab; label: string; icon: (filled: boolean) => ReactNode; badge?: number }> = [
-        { key: 'sessions', label: t('mobile.tab.sessions'), icon: (filled) => <ChatsIcon filled={filled} />, badge: props.sessionsBadge },
+function useNavTabs(sessionsBadge?: number): NavTab[] {
+    const { t } = useTranslation()
+    return [
+        { key: 'sessions', label: t('mobile.tab.sessions'), icon: (filled) => <ChatsIcon filled={filled} />, badge: sessionsBadge },
         { key: 'groups', label: t('mobile.tab.groups'), icon: (filled) => <GroupsIcon filled={filled} /> },
         { key: 'loops', label: t('mobile.tab.loops'), icon: (filled) => <LoopsIcon filled={filled} /> },
         { key: 'settings', label: t('mobile.tab.me'), icon: (filled) => <MeIcon filled={filled} /> }
     ]
+}
+
+function NavBadge(props: { count?: number }) {
+    if (!props.count || props.count <= 0) return null
+    return (
+        <span className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]">
+            {props.count > 99 ? '99+' : props.count}
+        </span>
+    )
+}
+
+/** Instagram-style icon-only bottom tab bar for the mobile top-level pages. */
+export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number }) {
+    const navigate = useNavigate()
+    const { haptic } = usePlatform()
+    const tabs = useNavTabs(props.sessionsBadge)
 
     return (
         <nav className="social-bar relative z-20 shrink-0 border-t border-[var(--social-border)] pb-[env(safe-area-inset-bottom)]">
@@ -89,11 +105,7 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
                         >
                             <span className="relative">
                                 {tab.icon(isActive)}
-                                {tab.badge && tab.badge > 0 ? (
-                                    <span className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]">
-                                        {tab.badge > 99 ? '99+' : tab.badge}
-                                    </span>
-                                ) : null}
+                                <NavBadge count={tab.badge} />
                             </span>
                         </button>
                     )
@@ -103,11 +115,80 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
     )
 }
 
-/** Compact large-title page header used by the mobile top-level pages. */
-export function MobilePageHeader(props: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+function getActiveTab(pathname: string): MobileTab {
+    if (pathname.startsWith('/groups')) return 'groups'
+    if (pathname.startsWith('/review-loops')) return 'loops'
+    if (pathname.startsWith('/settings')) return 'settings'
+    return 'sessions'
+}
+
+/** Desktop counterpart of the tab bar: a slim icon rail on the left edge (WeChat / Instagram web). */
+export function DesktopNavRail() {
+    const navigate = useNavigate()
+    const pathname = useLocation({ select: (location) => location.pathname })
+    const { api } = useAppContext()
+    const { sessions } = useSessions(api)
+    const pendingSessions = sessions.filter((session) => session.active && session.pendingRequestsCount > 0).length
+    const tabs = useNavTabs(pendingSessions)
+    const active = getActiveTab(pathname)
+
+    const renderTab = (tab: NavTab) => {
+        const isActive = tab.key === active
+        return (
+            <button
+                key={tab.key}
+                type="button"
+                onClick={() => navigate({ to: TAB_ROUTES[tab.key] })}
+                className={cn(
+                    'relative flex h-11 w-11 items-center justify-center rounded-[14px] transition-colors',
+                    isActive
+                        ? 'bg-[var(--social-muted)] text-[var(--social-fg)]'
+                        : 'text-[var(--social-fg-muted)] hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]'
+                )}
+                aria-current={isActive ? 'page' : undefined}
+                aria-label={tab.label}
+                title={tab.label}
+            >
+                <span className="relative">
+                    {tab.icon(isActive)}
+                    <NavBadge count={tab.badge} />
+                </span>
+            </button>
+        )
+    }
+
+    return (
+        <nav className="flex h-full w-[72px] shrink-0 flex-col items-center border-r border-[var(--social-border)] bg-[var(--app-bg)] pb-4 pt-[calc(1rem+env(safe-area-inset-top))]">
+            <button
+                type="button"
+                onClick={() => navigate({ to: '/sessions' })}
+                className="mb-6 flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--social-primary)] text-[15px] font-bold tracking-[-0.04em] text-[var(--social-primary-fg)]"
+                aria-label="HAQI"
+                title="HAQI"
+            >
+                H
+            </button>
+            <div className="flex flex-col items-center gap-2">
+                {tabs.filter((tab) => tab.key !== 'settings').map(renderTab)}
+            </div>
+            <div className="mt-auto flex flex-col items-center gap-2">
+                {tabs.filter((tab) => tab.key === 'settings').map(renderTab)}
+            </div>
+        </nav>
+    )
+}
+
+/** Compact large-title page header of the top-level pages (phone pages, desktop list columns). */
+export function MobilePageHeader(props: {
+    title: ReactNode
+    subtitle?: ReactNode
+    actions?: ReactNode
+    /** Align with a `max-w-content` page body (settings) instead of the list column. */
+    contentWidth?: boolean
+}) {
     return (
         <header className="social-bar relative z-20 shrink-0 pt-[env(safe-area-inset-top)]">
-            <div className="mx-auto flex h-[54px] max-w-xl items-center gap-2 pl-5 pr-3">
+            <div className={cn('mx-auto flex h-[54px] items-center gap-2 pr-3 lg:h-[68px]', props.contentWidth ? 'max-w-content pl-3' : 'max-w-xl pl-5')}>
                 <div className="min-w-0 flex-1">
                     <div className="truncate text-[24px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">
                         {props.title}
@@ -134,7 +215,7 @@ export function MobileHeaderIconButton(props: { label: string; onClick: () => vo
             type="button"
             onClick={props.onClick}
             className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full text-[var(--social-fg)] transition-colors [-webkit-tap-highlight-color:transparent] active:bg-[var(--social-muted)]',
+                'flex h-10 w-10 items-center justify-center rounded-full text-[var(--social-fg)] transition-colors [-webkit-tap-highlight-color:transparent] hover:bg-[var(--social-muted)] active:bg-[var(--social-muted)]',
                 props.active ? 'bg-[var(--social-muted)]' : ''
             )}
             title={props.label}

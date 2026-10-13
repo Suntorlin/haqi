@@ -761,4 +761,10 @@ export default {
   'mobile.composer.sendMode': 'Sending',
   'mobile.composer.planHint': 'Plan first, run after you approve',
   'mobile.composer.other': 'Other',
+  'desktop.empty.title': 'Pick a chat to start',
+  'desktop.empty.subtitle': 'Running chats have a colored ring; orange means one is waiting for your approval.',
+  'desktop.empty.new': 'New chat',
+  'desktop.loops.pick': 'Pick a review loop to see its progress',
+  'desktop.groups.pick': 'Pick a group to start',
+  'desktop.composer.settingsHint': 'Chat settings: permissions, model, thinking, send mode',
 } as const

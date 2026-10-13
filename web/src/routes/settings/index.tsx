@@ -2,7 +2,6 @@ import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
 import { useState, useRef, useEffect, useMemo, useCallback, useId, type ChangeEvent, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
-import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -95,25 +94,6 @@ function persistSettingsGroupExpandedState(state: SettingsGroupExpandedState) {
         return
     }
     window.localStorage.setItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY, JSON.stringify(state))
-}
-
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
 }
 
 function CheckIcon(props: { className?: string }) {
@@ -241,7 +221,6 @@ export default function SettingsPage() {
     const { t, locale, setLocale } = useTranslation()
     const { api } = useAppContext()
     const queryClient = useQueryClient()
-    const goBack = useAppGoBack()
     const isMobileLayout = useIsMobileLayout()
     const [isOpen, setIsOpen] = useState(false)
     const [isThemeOpen, setIsThemeOpen] = useState(false)
@@ -1051,22 +1030,7 @@ export default function SettingsPage() {
 
     return (
         <div className="flex h-full flex-col">
-            {isMobileLayout ? (
-                <MobilePageHeader title={t('settings.title')} />
-            ) : (
-                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                    <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
-                        <button
-                            type="button"
-                            onClick={goBack}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        >
-                            <BackIcon />
-                        </button>
-                        <div className="flex-1 font-semibold">{t('settings.title')}</div>
-                    </div>
-                </div>
-            )}
+            <MobilePageHeader title={t('settings.title')} contentWidth />
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">

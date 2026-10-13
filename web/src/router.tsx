@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -21,7 +21,8 @@ import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } f
 import { ActiveStoriesStrip } from '@/components/mobile/ActiveStoriesStrip'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { ChevronLeftIcon, ClearIcon, FolderStackIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
-import { GroupAvatar, PairAvatar } from '@/components/mobile/SessionAvatar'
+import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
+import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
 import { NewSession } from '@/components/NewSession'
@@ -97,129 +98,6 @@ function BackIcon(props: { className?: string }) {
     )
 }
 
-function PlusIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-    )
-}
-
-function SettingsIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-    )
-}
-
-function GroupsIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="8.5" cy="7" r="4" />
-            <path d="M20 8v6" />
-            <path d="M23 11h-6" />
-        </svg>
-    )
-}
-
-function DensityIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="4" y1="7" x2="20" y2="7" />
-            <line x1="4" y1="12" x2="20" y2="12" />
-            <line x1="4" y1="17" x2="20" y2="17" />
-        </svg>
-    )
-}
-
-function SidebarIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M9 3v18" />
-        </svg>
-    )
-}
-
-function CloseIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-    )
-}
-
 type NewSessionSearch = {
     directory?: string
     machineId?: string
@@ -255,6 +133,12 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
+function getTagChipClass(selected: boolean): string {
+    return `h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${selected
+        ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
+        : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]'}`
+}
+
 function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: () => void }) {
     const { tag, selected, onSelect } = props
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tag })
@@ -267,10 +151,65 @@ function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: (
             {...listeners}
             onClick={onSelect}
             style={{ transform: CSS.Transform.toString(transform), transition }}
-            className={`shrink-0 cursor-grab select-none rounded-full px-2.5 py-1 text-xs transition-colors active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''} ${selected ? 'bg-[var(--app-link)] text-white' : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'}`}
+            className={`${getTagChipClass(selected)} cursor-grab select-none active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''}`}
         >
             #{tag}
         </button>
+    )
+}
+
+/** Desktop list | content split: resizable list column next to the main pane (WeChat for desktop). */
+function DesktopSplitView(props: { list: ReactNode; listVisible: boolean; children: ReactNode }) {
+    const { t } = useTranslation()
+    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+
+    return (
+        <div className="flex h-full min-h-0">
+            <aside
+                className={`${props.listVisible ? 'flex' : 'hidden'} relative h-full shrink-0 flex-col border-r border-[var(--social-border)] bg-[var(--app-bg)]`}
+                style={{ width: sidebarWidth }}
+            >
+                {props.list}
+                <div
+                    className="group absolute inset-y-0 -right-[5px] z-20 w-[9px] cursor-col-resize"
+                    role="separator"
+                    aria-orientation="vertical"
+                    aria-label={t('sessions.sidebar.resize')}
+                    title={t('sessions.sidebar.resize')}
+                    onPointerDown={startSidebarResize}
+                >
+                    <div
+                        className={`absolute inset-y-0 left-1/2 w-[2px] -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--social-fg-subtle)]' : 'bg-transparent group-hover:bg-[var(--social-border)]'}`}
+                    />
+                </div>
+            </aside>
+            <main className="flex min-w-0 flex-1 flex-col bg-[var(--app-bg)]">
+                <div className="min-h-0 flex-1">
+                    {props.children}
+                </div>
+            </main>
+        </div>
+    )
+}
+
+function DesktopEmptyState(props: { title: string; subtitle?: string; action?: { label: string; onClick: () => void } }) {
+    return (
+        <div className="flex h-full flex-col items-center justify-center px-8 text-center">
+            <Orb seed="haqi" size={76} />
+            <div className="mt-5 text-[17px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]">{props.title}</div>
+            {props.subtitle ? (
+                <div className="mt-1.5 max-w-sm text-[13.5px] leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
+            ) : null}
+            {props.action ? (
+                <button
+                    type="button"
+                    onClick={props.action.onClick}
+                    className="mt-5 rounded-full bg-[var(--social-primary)] px-5 py-2 text-[14px] font-medium text-[var(--social-primary-fg)] transition-opacity hover:opacity-90"
+                >
+                    {props.action.label}
+                </button>
+            ) : null}
+        </div>
     )
 }
 
@@ -324,10 +263,8 @@ function SessionsPage() {
     const { addToast } = useToast()
     const { sessions, isLoading, error, refetch } = useSessions(api)
     const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
-    const { density, toggleDensity } = useSessionListDensity()
-    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
+    const { density } = useSessionListDensity()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
-    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const isMobileLayout = useIsMobileLayout()
     const [mobileListMode, setMobileListMode] = useState<MobileSessionListMode>(loadMobileSessionListMode)
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
@@ -339,7 +276,6 @@ function SessionsPage() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     )
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: true })
-    const chatRouteMatch = matchRoute({ to: '/sessions/$sessionId', fuzzy: false })
     const selectedSessionId = sessionMatch && sessionMatch.sessionId !== 'new' ? sessionMatch.sessionId : null
 
     const selectedSessionPreset = useMemo<NewSessionPreset | undefined>(() => {
@@ -404,7 +340,6 @@ function SessionsPage() {
             ...(preset ?? selectedSessionPreset),
             ...(selectedSessionTag ? { tag: selectedSessionTag } : {})
         }
-        setMobileSidebarOpen(false)
         navigate({
             to: '/sessions/new',
             search: toNewSessionSearch(resolvedPreset)
@@ -420,7 +355,6 @@ function SessionsPage() {
             return
         }
 
-        setMobileSidebarOpen(false)
         try {
             const lastConfig = loadLastSessionConfig()
             const quickCreateAgent = lastConfig?.agent ?? loadPreferredAgent()
@@ -499,23 +433,8 @@ function SessionsPage() {
         t
     ])
 
-    const projectCount = new Set(visibleSessions.map(s => s.metadata?.worktree?.basePath ?? s.metadata?.path ?? 'Other')).size
-    const isSessionChatRoute = Boolean(chatRouteMatch && chatRouteMatch.sessionId !== 'new')
     const isSessionsIndex = pathname === '/sessions' || pathname === '/sessions/'
     const showDesktopSidebar = isSessionsIndex || !desktopSidebarHidden
-    const toggleDensityLabel = density === 'comfortable'
-        ? t('sessions.display.toggleToCompact')
-        : t('sessions.display.toggleToComfortable')
-    const desktopSidebarToggleLabel = showDesktopSidebar
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
-    const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
-
-    useEffect(() => {
-        if (isSessionsIndex) {
-            setMobileSidebarOpen(false)
-        }
-    }, [isSessionsIndex])
 
     useEffect(() => {
         if (isSessionsIndex && desktopSidebarHidden) {
@@ -523,297 +442,140 @@ function SessionsPage() {
         }
     }, [isSessionsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
 
-    useEffect(() => {
-        if (!mobileSidebarOpen) return
-        const previousOverflow = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-
-        const handleResize = () => {
-            if (window.innerWidth >= 1024) {
-                setMobileSidebarOpen(false)
-            }
-        }
-
-        window.addEventListener('resize', handleResize)
-        return () => {
-            window.removeEventListener('resize', handleResize)
-            document.body.style.overflow = previousOverflow
-        }
-    }, [mobileSidebarOpen])
-
     const selectSession = useCallback((sessionId: string) => {
-        setMobileSidebarOpen(false)
         navigate({
             to: '/sessions/$sessionId',
             params: { sessionId },
         })
     }, [navigate])
 
-    const openSidebarOnMobile = useCallback(() => {
-        setMobileSidebarOpen(true)
-    }, [])
-
-    const closeSidebarOnMobile = useCallback(() => {
-        setMobileSidebarOpen(false)
-    }, [])
-
-    const toggleSidebarFromHeader = useCallback(() => {
-        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-            toggleDesktopSidebar()
-            return
-        }
-        setMobileSidebarOpen(true)
-    }, [toggleDesktopSidebar])
-
-    const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
-        const inDrawer = options?.inDrawer === true
-        const onClose = options?.onClose
-
-        return (
-            <>
-                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                    {/* Tab switcher row */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
-                        <div className="flex items-center gap-1">
-                            <button
-                                type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
-                            >
-                                Sessions
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/groups' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Groups
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/review-loops' })}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Loops
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            {!isSessionsIndex ? (
-                                <button
-                                    type="button"
-                                    onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                    title={desktopSidebarToggleLabel}
-                                    aria-label={desktopSidebarToggleLabel}
-                                >
-                                    <SidebarIcon className="h-4 w-4" />
-                                </button>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={toggleDensityLabel}
-                                aria-label={toggleDensityLabel}
-                            >
-                                <DensityIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={t('settings.title')}
-                            >
-                                <SettingsIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => openNewSession()}
-                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
-                                title={t('sessions.new')}
-                            >
-                                <PlusIcon className="h-5 w-5" />
-                            </button>
-                            {inDrawer && onClose ? (
-                                <>
-                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                        title={t('sessions.sidebar.close')}
-                                        aria-label={t('sessions.sidebar.close')}
-                                    >
-                                        <CloseIcon className="h-4 w-4" />
-                                    </button>
-                                </>
-                            ) : null}
-                        </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
-                            {t('sessions.count', { n: visibleSessions.length, m: projectCount })}
-                        </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
-                        <input
-                            value={sessionSearchQuery}
-                            onChange={(e) => setSessionSearchQuery(e.target.value)}
-                            placeholder={t('sessions.search.placeholder')}
-                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
-                        />
-                        {sessionTags.length ? (
-                            <div className="session-tag-scroll mt-2 flex gap-1.5 overflow-x-auto pb-0.5">
-                                <button
-                                    type="button"
-                                    onClick={() => setSelectedSessionTag(null)}
-                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs transition-colors ${selectedSessionTag === null ? 'bg-[var(--app-link)] text-white' : 'bg-[var(--app-secondary-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'}`}
-                                >
-                                    {t('sessions.tags.all')}
-                                </button>
-                                <DndContext sensors={tagSensors} onDragEnd={handleTagDragEnd}>
-                                    <SortableContext items={orderedSessionTags} strategy={horizontalListSortingStrategy}>
-                                        {orderedSessionTags.map((tag) => (
-                                            <SortableSessionTag
-                                                key={tag}
-                                                tag={tag}
-                                                selected={selectedSessionTag === tag}
-                                                onSelect={() => setSelectedSessionTag(tag)}
-                                            />
-                                        ))}
-                                    </SortableContext>
-                                </DndContext>
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-
-                <div className="flex min-h-0 flex-1 flex-col">
-                    {error ? (
-                        <div className="mx-auto w-full max-w-content px-3 py-2">
-                            <div className="text-sm text-red-600">{error}</div>
-                        </div>
-                    ) : null}
-                    <div className="min-h-0 flex-1">
-                        <SessionList
-                            sessions={visibleSessions}
-                            availableTags={orderedSessionTags}
-                            selectedSessionId={selectedSessionId}
-                            onSelect={selectSession}
-                            onNewSession={openNewSession}
-                            onQuickCreateInProject={quickCreateInProject}
-                            onRefresh={handleRefresh}
-                            isLoading={isLoading}
-                            renderHeader={false}
-                            api={api}
-                            density={density}
-                        />
-                    </div>
-                </div>
-            </>
-        )
+    const onlineCount = sessions.filter((session) => session.active).length
+    const pendingSessionsCount = sessions.filter((session) => session.active && session.pendingRequestsCount > 0).length
+    const toggleListMode = () => {
+        const next: MobileSessionListMode = mobileListMode === 'recent' ? 'projects' : 'recent'
+        setMobileListMode(next)
+        persistMobileSessionListMode(next)
+    }
+    const layoutContext: SessionsLayoutContextValue = {
+        toggleSidebarFromHeader: toggleDesktopSidebar,
+        showDesktopSidebar,
+        density
     }
 
-    if (isMobileLayout) {
-        const onlineCount = sessions.filter((session) => session.active).length
-        const pendingSessionsCount = sessions.filter((session) => session.active && session.pendingRequestsCount > 0).length
-        const toggleListMode = () => {
-            const next: MobileSessionListMode = mobileListMode === 'recent' ? 'projects' : 'recent'
-            setMobileListMode(next)
-            persistMobileSessionListMode(next)
-        }
-        const mobileListHeader = (
-            <div className="pb-2">
-                <div className="px-5 pb-3 pt-1">
-                    <MobileSearchField
-                        value={sessionSearchQuery}
-                        onChange={setSessionSearchQuery}
-                        placeholder={t('sessions.search.placeholder')}
-                    />
-                </div>
-                {sessionSearchQuery ? null : (
-                    <ActiveStoriesStrip
-                        sessions={sessions}
-                        onSelect={selectSession}
-                        onNewSession={() => openNewSession()}
-                    />
-                )}
-                {sessionTags.length ? (
-                    <div className="session-tag-scroll flex gap-2 overflow-x-auto px-5 pb-1 pt-1">
-                        <button
-                            type="button"
-                            onClick={() => setSelectedSessionTag(null)}
-                            className={`h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${selectedSessionTag === null ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : 'border-[var(--social-border)] text-[var(--social-fg)]'}`}
-                        >
-                            {t('sessions.tags.all')}
-                        </button>
-                        {orderedSessionTags.map((tag) => (
-                            <button
-                                key={tag}
-                                type="button"
-                                onClick={() => setSelectedSessionTag(tag)}
-                                className={`h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${selectedSessionTag === tag ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : 'border-[var(--social-border)] text-[var(--social-fg)]'}`}
-                            >
-                                #{tag}
-                            </button>
-                        ))}
-                    </div>
-                ) : null}
+    const listHeader = (
+        <div className="pb-2">
+            <div className="px-5 pb-3 pt-1">
+                <MobileSearchField
+                    value={sessionSearchQuery}
+                    onChange={setSessionSearchQuery}
+                    placeholder={t('sessions.search.placeholder')}
+                />
             </div>
-        )
+            {sessionSearchQuery ? null : (
+                <ActiveStoriesStrip
+                    sessions={sessions}
+                    onSelect={selectSession}
+                    onNewSession={() => openNewSession()}
+                />
+            )}
+            {sessionTags.length ? (
+                <div className="session-tag-scroll flex gap-2 overflow-x-auto px-5 pb-1 pt-1">
+                    <button
+                        type="button"
+                        onClick={() => setSelectedSessionTag(null)}
+                        className={getTagChipClass(selectedSessionTag === null)}
+                    >
+                        {t('sessions.tags.all')}
+                    </button>
+                    {isMobileLayout ? orderedSessionTags.map((tag) => (
+                        <button
+                            key={tag}
+                            type="button"
+                            onClick={() => setSelectedSessionTag(tag)}
+                            className={getTagChipClass(selectedSessionTag === tag)}
+                        >
+                            #{tag}
+                        </button>
+                    )) : (
+                        // Desktop keeps drag-to-reorder for tag filters.
+                        <DndContext sensors={tagSensors} onDragEnd={handleTagDragEnd}>
+                            <SortableContext items={orderedSessionTags} strategy={horizontalListSortingStrategy}>
+                                {orderedSessionTags.map((tag) => (
+                                    <SortableSessionTag
+                                        key={tag}
+                                        tag={tag}
+                                        selected={selectedSessionTag === tag}
+                                        onSelect={() => setSelectedSessionTag(tag)}
+                                    />
+                                ))}
+                            </SortableContext>
+                        </DndContext>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    )
 
+    const listBody = mobileListMode === 'recent' ? (
+        <SessionFeed
+            sessions={visibleSessions}
+            availableTags={orderedSessionTags}
+            selectedSessionId={selectedSessionId}
+            onSelect={selectSession}
+            api={api}
+            listHeader={listHeader}
+            emptyLabel={isLoading ? t('mobile.feed.loading') : t('mobile.feed.empty')}
+        />
+    ) : (
+        <SessionList
+            sessions={visibleSessions}
+            availableTags={orderedSessionTags}
+            selectedSessionId={selectedSessionId}
+            onSelect={selectSession}
+            onNewSession={openNewSession}
+            onQuickCreateInProject={quickCreateInProject}
+            onRefresh={handleRefresh}
+            isLoading={isLoading}
+            renderHeader={false}
+            api={api}
+            density={density}
+            listHeader={listHeader}
+            itemVariant="feed"
+        />
+    )
+
+    const listActions = (
+        <>
+            <MobileHeaderIconButton
+                label={mobileListMode === 'recent' ? t('mobile.list.switchToProjects') : t('mobile.list.switchToRecent')}
+                onClick={toggleListMode}
+            >
+                {mobileListMode === 'recent'
+                    ? <FolderStackIcon className="h-[22px] w-[22px]" />
+                    : <RecentIcon className="h-[22px] w-[22px]" />}
+            </MobileHeaderIconButton>
+            <MobileHeaderIconButton label={t('sessions.new')} onClick={() => openNewSession()}>
+                <PlusCircleIcon className="h-[24px] w-[24px]" />
+            </MobileHeaderIconButton>
+        </>
+    )
+    const listError = error ? (
+        <div className="px-5 py-2 text-sm text-red-600">{error}</div>
+    ) : null
+
+    if (isMobileLayout) {
         return (
-            <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
+            <SessionsLayoutContext.Provider value={layoutContext}>
                 {isSessionsIndex ? (
                     <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
                         <MobilePageHeader
                             title="HAQI"
                             subtitle={t('mobile.feed.onlineCount', { n: onlineCount, total: sessions.length })}
-                            actions={(
-                                <>
-                                    <MobileHeaderIconButton
-                                        label={mobileListMode === 'recent' ? t('mobile.list.switchToProjects') : t('mobile.list.switchToRecent')}
-                                        onClick={toggleListMode}
-                                    >
-                                        {mobileListMode === 'recent'
-                                            ? <FolderStackIcon className="h-[22px] w-[22px]" />
-                                            : <RecentIcon className="h-[22px] w-[22px]" />}
-                                    </MobileHeaderIconButton>
-                                    <MobileHeaderIconButton label={t('sessions.new')} onClick={() => openNewSession()}>
-                                        <PlusCircleIcon className="h-[24px] w-[24px]" />
-                                    </MobileHeaderIconButton>
-                                </>
-                            )}
+                            actions={listActions}
                         />
-                        {error ? (
-                            <div className="px-4 py-2 text-sm text-red-600">{error}</div>
-                        ) : null}
+                        {listError}
                         <div className="min-h-0 flex-1">
-                            {mobileListMode === 'recent' ? (
-                                <SessionFeed
-                                    sessions={visibleSessions}
-                                    availableTags={orderedSessionTags}
-                                    onSelect={selectSession}
-                                    api={api}
-                                    listHeader={mobileListHeader}
-                                    emptyLabel={isLoading ? t('mobile.feed.loading') : t('mobile.feed.empty')}
-                                />
-                            ) : (
-                                <SessionList
-                                    sessions={visibleSessions}
-                                    availableTags={orderedSessionTags}
-                                    selectedSessionId={selectedSessionId}
-                                    onSelect={selectSession}
-                                    onNewSession={openNewSession}
-                                    onQuickCreateInProject={quickCreateInProject}
-                                    onRefresh={handleRefresh}
-                                    isLoading={isLoading}
-                                    renderHeader={false}
-                                    api={api}
-                                    density={density}
-                                    listHeader={mobileListHeader}
-                                    itemVariant="feed"
-                                />
-                            )}
+                            {listBody}
                         </div>
                         <MobileTabBar active="sessions" sessionsBadge={pendingSessionsCount} />
                     </div>
@@ -827,72 +589,33 @@ function SessionsPage() {
     }
 
     return (
-        <SessionsLayoutContext.Provider value={{ toggleSidebarFromHeader, showDesktopSidebar, density }}>
-            <div className="flex h-full min-h-0">
-                <div
-                    className={`${isSessionsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col bg-[var(--app-bg)] lg:border-r lg:border-[var(--app-divider)]`}
-                    style={sidebarStyle}
-                >
-                    {renderSidebarContent()}
-                </div>
-
-                <div
-                    className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
-                    role="separator"
-                    aria-orientation="vertical"
-                    aria-label={t('sessions.sidebar.resize')}
-                    title={t('sessions.sidebar.resize')}
-                    onPointerDown={startSidebarResize}
-                >
-                    <div
-                        className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                    />
-                </div>
-
-                {!isSessionsIndex && !showDesktopSidebar && !isSessionChatRoute ? (
-                    <button
-                        type="button"
-                        onClick={toggleDesktopSidebar}
-                        className="fixed left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-30 hidden h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:flex"
-                        title={t('sessions.sidebar.showDesktop')}
-                        aria-label={t('sessions.sidebar.showDesktop')}
-                    >
-                        <SidebarIcon className="h-5 w-5" />
-                    </button>
-                ) : null}
-
-                {!isSessionsIndex && !isSessionChatRoute ? (
-                    <button
-                        type="button"
-                        onClick={openSidebarOnMobile}
-                        className="fixed left-3 top-[calc(4rem+env(safe-area-inset-top))] z-30 flex h-10 w-10 items-center justify-center rounded-full border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-hint)] shadow-sm transition-colors hover:text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] lg:hidden"
-                        title={t('sessions.sidebar.open')}
-                        aria-label={t('sessions.sidebar.open')}
-                    >
-                        <SidebarIcon className="h-5 w-5" />
-                    </button>
-                ) : null}
-
-                {mobileSidebarOpen ? (
-                    <div className="fixed inset-0 z-40 flex lg:hidden">
-                        <button
-                            type="button"
-                            onClick={closeSidebarOnMobile}
-                            className="absolute inset-0 bg-black/35"
-                            aria-label={t('sessions.sidebar.close')}
+        <SessionsLayoutContext.Provider value={layoutContext}>
+            <DesktopSplitView
+                listVisible={showDesktopSidebar}
+                list={(
+                    <>
+                        <MobilePageHeader
+                            title={t('mobile.tab.sessions')}
+                            subtitle={t('mobile.feed.onlineCount', { n: onlineCount, total: sessions.length })}
+                            actions={listActions}
                         />
-                        <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
-                            {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
+                        {listError}
+                        <div className="min-h-0 flex-1">
+                            {listBody}
                         </div>
-                    </div>
-                ) : null}
-
-                <div className={`${isSessionsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
-                    <div className="flex-1 min-h-0">
-                        <Outlet />
-                    </div>
-                </div>
-            </div>
+                    </>
+                )}
+            >
+                {isSessionsIndex ? (
+                    <DesktopEmptyState
+                        title={t('desktop.empty.title')}
+                        subtitle={t('desktop.empty.subtitle')}
+                        action={{ label: t('desktop.empty.new'), onClick: () => openNewSession() }}
+                    />
+                ) : (
+                    <Outlet />
+                )}
+            </DesktopSplitView>
         </SessionsLayoutContext.Provider>
     )
 }
@@ -1197,49 +920,13 @@ function NewSessionPage() {
     )
 }
 
-function GroupListItem(props: {
-    item: GroupDetail
-    selected: boolean
-    density: SessionListDensity
-    onSelect: (groupId: string) => void
-    onOpenActions: (groupId: string, point: { x: number; y: number }) => void
-}) {
-    const { item, selected, density, onSelect, onOpenActions } = props
-    const { haptic } = usePlatform()
-    const isCompact = density === 'compact'
+/** Shared look of list rows (sessions, groups, loops): full-bleed on phones, inset pills on desktop. */
+const SOCIAL_ROW_CLASS = 'social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3'
 
-    const longPressHandlers = useLongPress({
-        onLongPress: (point) => {
-            haptic.impact('medium')
-            onOpenActions(item.group.id, point)
-        },
-        onClick: () => {
-            onSelect(item.group.id)
-        },
-        threshold: 500
-    })
-
-    return (
-        <button
-            type="button"
-            {...longPressHandlers}
-            className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none hover:bg-[var(--app-subtle-bg)] ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 pl-5 pr-3 py-3'} ${selected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
-            style={{ WebkitTouchCallout: 'none' }}
-            aria-current={selected ? 'page' : undefined}
-        >
-            <div className={`truncate font-medium text-[var(--app-fg)] ${isCompact ? 'text-sm' : 'text-base'}`}>
-                {item.group.name}
-            </div>
-            <div className={`truncate text-[var(--app-hint)] ${isCompact ? 'text-[11px]' : 'text-xs'}`}>
-                {item.members.length} {item.members.length === 1 ? 'member' : 'members'}
-            </div>
-        </button>
-    )
-}
-
-function MobileGroupRow(props: {
+function GroupRow(props: {
     item: GroupDetail
     members: SessionSummary[]
+    selected?: boolean
     onSelect: (groupId: string) => void
     onOpenActions: (groupId: string, point: { x: number; y: number }) => void
 }) {
@@ -1260,8 +947,9 @@ function MobileGroupRow(props: {
         <button
             type="button"
             {...longPressHandlers}
-            className="social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none"
+            className={SOCIAL_ROW_CLASS}
             style={{ WebkitTouchCallout: 'none' }}
+            aria-current={props.selected ? 'page' : undefined}
         >
             <GroupAvatar seed={item.group.id} members={members} size={52} />
             <div className="flex min-w-0 flex-1 flex-col justify-center">
@@ -1305,7 +993,6 @@ function GroupsLayout() {
     const matchRoute = useMatchRoute()
     const { t } = useTranslation()
     const { groups, isLoading } = useGroups(api)
-    const { density, toggleDensity } = useSessionListDensity()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [groupSearchQuery, setGroupSearchQuery] = useState('')
@@ -1320,10 +1007,8 @@ function GroupsLayout() {
     const [renameDraft, setRenameDraft] = useState('')
     const [renameError, setRenameError] = useState<string | null>(null)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
-    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
-    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
     const isMobileLayout = useIsMobileLayout()
     const { sessions: allSessions } = useSessions(api)
     const sessionsById = useMemo(() => new Map(allSessions.map((session) => [session.id, session])), [allSessions])
@@ -1335,13 +1020,6 @@ function GroupsLayout() {
     const selectedGroup = selectedGroupId
         ? groups.find((item) => item.group.id === selectedGroupId) ?? null
         : null
-    const toggleDensityLabel = density === 'comfortable'
-        ? t('sessions.display.toggleToCompact')
-        : t('sessions.display.toggleToComfortable')
-    const desktopSidebarToggleLabel = showDesktopSidebar
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
-    const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
     const visibleGroups = useMemo(
         () => filterGroupsBySearch(groups, groupSearchQuery),
         [groups, groupSearchQuery]
@@ -1367,12 +1045,6 @@ function GroupsLayout() {
     }, [actionGroupId, groups])
 
     useEffect(() => {
-        if (isGroupsIndex) {
-            setMobileSidebarOpen(false)
-        }
-    }, [isGroupsIndex])
-
-    useEffect(() => {
         if (isGroupsIndex && desktopSidebarHidden) {
             setDesktopSidebarHidden(false)
         }
@@ -1393,24 +1065,6 @@ function GroupsLayout() {
             replace: true
         })
     }, [groups, isGroupsIndex, isLoading, isMobileLayout, navigate])
-
-    useEffect(() => {
-        if (!mobileSidebarOpen) return
-        const previousOverflow = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-
-        const handleResize = () => {
-            if (window.innerWidth >= 1024) {
-                setMobileSidebarOpen(false)
-            }
-        }
-
-        window.addEventListener('resize', handleResize)
-        return () => {
-            window.removeEventListener('resize', handleResize)
-            document.body.style.overflow = previousOverflow
-        }
-    }, [mobileSidebarOpen])
 
     const handleCreate = async () => {
         if (isCreateRequestInFlight) {
@@ -1487,155 +1141,6 @@ function GroupsLayout() {
         if (selectedGroupId === removedGroupId) {
             navigate({ to: '/groups' })
         }
-    }
-
-    const closeSidebarOnMobile = useCallback(() => {
-        setMobileSidebarOpen(false)
-    }, [])
-
-    const toggleSidebarFromBar = useCallback(() => {
-        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-            toggleDesktopSidebar()
-            return
-        }
-        setMobileSidebarOpen(true)
-    }, [toggleDesktopSidebar])
-
-    const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
-        const inDrawer = options?.inDrawer === true
-        const onClose = options?.onClose
-
-        return (
-            <>
-                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                    {/* Tab switcher row - exactly matching SessionsPage */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
-                        <div className="flex items-center gap-1">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    onClose?.()
-                                    navigate({ to: '/sessions' })
-                                }}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Sessions
-                            </button>
-                            <button
-                                type="button"
-                                className="rounded-md px-2.5 py-1.5 text-xs bg-[var(--app-button)] text-[var(--app-button-text)] font-medium"
-                            >
-                                Groups
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    onClose?.()
-                                    navigate({ to: '/review-loops' })
-                                }}
-                                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Loops
-                            </button>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            {!isGroupsIndex ? (
-                                <button
-                                    type="button"
-                                    onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                    title={desktopSidebarToggleLabel}
-                                    aria-label={desktopSidebarToggleLabel}
-                                >
-                                    <SidebarIcon className="h-4 w-4" />
-                                </button>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={toggleDensityLabel}
-                                aria-label={toggleDensityLabel}
-                            >
-                                <DensityIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={t('settings.title')}
-                            >
-                                <SettingsIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setShowCreateModal(true)}
-                                className="session-list-new-button p-1.5 rounded-full text-[var(--app-link)] transition-colors"
-                                title="New Group"
-                                aria-label="New Group"
-                            >
-                                <PlusIcon className="h-5 w-5" />
-                            </button>
-                            {inDrawer && onClose ? (
-                                <>
-                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                        title={t('sessions.sidebar.close')}
-                                        aria-label={t('sessions.sidebar.close')}
-                                    >
-                                        <CloseIcon className="h-4 w-4" />
-                                    </button>
-                                </>
-                            ) : null}
-                        </div>
-                    </div>
-                    {/* Count info row - matching SessionsPage */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
-                            {visibleGroups.length} {visibleGroups.length === 1 ? 'group' : 'groups'} • {totalMemberCount} {totalMemberCount === 1 ? 'member' : 'members'}
-                        </div>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
-                        <input
-                            value={groupSearchQuery}
-                            onChange={(e) => setGroupSearchQuery(e.target.value)}
-                            placeholder={t('groups.search.placeholder')}
-                            className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                    {isLoading ? (
-                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">Loading...</div>
-                    ) : visibleGroups.length === 0 ? (
-                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
-                            {groupSearchQuery.trim() ? 'No groups match.' : 'No groups yet.'}
-                        </div>
-                    ) : (
-                        <div className="py-1">
-                            {visibleGroups.map((item) => (
-                                <GroupListItem
-                                    key={item.group.id}
-                                    item={item}
-                                    selected={selectedGroupId === item.group.id}
-                                    density={density}
-                                    onSelect={(groupId) => {
-                                        setActionMenuOpen(false)
-                                        setMobileSidebarOpen(false)
-                                        navigate({ to: '/groups/$groupId', params: { groupId } })
-                                    }}
-                                    onOpenActions={handleOpenGroupActions}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </>
-        )
     }
 
     const groupModals = (
@@ -1754,47 +1259,61 @@ function GroupsLayout() {
         </>
     )
 
-    if (isMobileLayout) {
-        const membersOf = (item: GroupDetail) => item.members
-            .map((member) => (member.sessionId ? sessionsById.get(member.sessionId) : undefined))
-            .filter((session): session is NonNullable<typeof session> => Boolean(session))
+    const membersOf = (item: GroupDetail) => item.members
+        .map((member) => (member.sessionId ? sessionsById.get(member.sessionId) : undefined))
+        .filter((session): session is NonNullable<typeof session> => Boolean(session))
+    const openGroup = (groupId: string) => {
+        setActionMenuOpen(false)
+        navigate({ to: '/groups/$groupId', params: { groupId } })
+    }
+    const listHeader = (
+        <MobilePageHeader
+            title={t('mobile.tab.groups')}
+            subtitle={t('mobile.groups.summary', { n: visibleGroups.length, m: totalMemberCount })}
+            actions={(
+                <MobileHeaderIconButton label={t('mobile.groups.new')} onClick={() => setShowCreateModal(true)}>
+                    <PlusCircleIcon className="h-[24px] w-[24px]" />
+                </MobileHeaderIconButton>
+            )}
+        />
+    )
+    const listBody = (
+        <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
+            <div className="px-5 pb-3 pt-1">
+                <MobileSearchField
+                    value={groupSearchQuery}
+                    onChange={setGroupSearchQuery}
+                    placeholder={t('groups.search.placeholder')}
+                />
+            </div>
+            {isLoading ? (
+                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
+            ) : visibleGroups.length === 0 ? (
+                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.groups.empty')}</div>
+            ) : (
+                visibleGroups.map((item) => (
+                    <GroupRow
+                        key={item.group.id}
+                        item={item}
+                        members={membersOf(item)}
+                        selected={selectedGroupId === item.group.id}
+                        onSelect={openGroup}
+                        onOpenActions={handleOpenGroupActions}
+                    />
+                ))
+            )}
+        </div>
+    )
+    const groupSubtitle = selectedGroup
+        ? `${t('mobile.groups.members', { n: selectedGroup.members.length })}${selectedGroup.group.description?.trim() ? ` · ${selectedGroup.group.description}` : ''}`
+        : null
 
+    if (isMobileLayout) {
         if (isGroupsIndex) {
             return (
                 <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-                    <MobilePageHeader
-                        title={t('mobile.tab.groups')}
-                        subtitle={t('mobile.groups.summary', { n: visibleGroups.length, m: totalMemberCount })}
-                        actions={(
-                            <MobileHeaderIconButton label={t('mobile.groups.new')} onClick={() => setShowCreateModal(true)}>
-                                <PlusCircleIcon className="h-[24px] w-[24px]" />
-                            </MobileHeaderIconButton>
-                        )}
-                    />
-                    <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
-                        <div className="px-5 pb-3 pt-1">
-                            <MobileSearchField
-                                value={groupSearchQuery}
-                                onChange={setGroupSearchQuery}
-                                placeholder={t('groups.search.placeholder')}
-                            />
-                        </div>
-                        {isLoading ? (
-                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
-                        ) : visibleGroups.length === 0 ? (
-                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.groups.empty')}</div>
-                        ) : (
-                            visibleGroups.map((item) => (
-                                <MobileGroupRow
-                                    key={item.group.id}
-                                    item={item}
-                                    members={membersOf(item)}
-                                    onSelect={(groupId) => navigate({ to: '/groups/$groupId', params: { groupId } })}
-                                    onOpenActions={handleOpenGroupActions}
-                                />
-                            ))
-                        )}
-                    </div>
+                    {listHeader}
+                    {listBody}
                     <MobileTabBar active="groups" />
                     {groupModals}
                 </div>
@@ -1821,8 +1340,7 @@ function GroupsLayout() {
                                 {selectedGroup?.group.name ?? 'Group'}
                             </div>
                             <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--app-hint)]">
-                                {t('mobile.groups.members', { n: selectedGroup?.members.length ?? 0 })}
-                                {selectedGroup?.group.description?.trim() ? ` · ${selectedGroup.group.description}` : ''}
+                                {groupSubtitle}
                             </div>
                         </div>
                     </div>
@@ -1836,89 +1354,42 @@ function GroupsLayout() {
     }
 
     return (
-        <div className="flex h-full min-h-0">
-            {/* Sidebar - matching SessionsPage width system */}
-            <div
-                className={`${isGroupsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]`}
-                style={sidebarStyle}
+        <>
+            <DesktopSplitView
+                listVisible={showDesktopSidebar}
+                list={(
+                    <>
+                        {listHeader}
+                        {listBody}
+                    </>
+                )}
             >
-                {renderSidebarContent()}
-            </div>
-
-            {/* Sidebar resize handle - matching SessionsPage */}
-            <div
-                className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('sessions.sidebar.resize')}
-                title={t('sessions.sidebar.resize')}
-                onPointerDown={startSidebarResize}
-            >
-                <div
-                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                />
-            </div>
-
-            {/* Main area */}
-            <div className={`${isGroupsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 flex-1 flex-col bg-[var(--app-bg)]`}>
-                {!isGroupsIndex ? (
-                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
-                        <button
-                            type="button"
-                            onClick={toggleSidebarFromBar}
-                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('sessions.sidebar.open')}
-                            aria-label={t('sessions.sidebar.open')}
-                        >
-                            <SidebarIcon className="h-5 w-5" />
-                        </button>
-                        <div className="min-w-0 flex-1">
-                            <span className="truncate text-sm font-semibold text-[var(--app-fg)]">
-                                {selectedGroup?.group.name ?? 'Group'}
-                            </span>
-                            {selectedGroup?.group.description?.trim() ? (
-                                <span className="ml-1.5 truncate text-xs text-[var(--app-hint)]">
-                                    {selectedGroup.group.description}
-                                </span>
+                {isGroupsIndex ? (
+                    <DesktopEmptyState title={isLoading || groups.length > 0 ? t('desktop.groups.pick') : t('mobile.groups.empty')} />
+                ) : (
+                    <div className="flex h-full min-h-0 flex-col">
+                        <DesktopPaneHeader
+                            avatar={selectedGroup ? (
+                                <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={36} />
                             ) : null}
+                            title={selectedGroup?.group.name ?? 'Group'}
+                            subtitle={groupSubtitle}
+                            listVisible={showDesktopSidebar}
+                            onToggleList={toggleDesktopSidebar}
+                        />
+                        <div className="min-h-0 flex-1">
+                            <Outlet />
                         </div>
                     </div>
-                ) : null}
-                <div className="flex-1 min-h-0">
-                    <Outlet />
-                </div>
-            </div>
-
-            {mobileSidebarOpen ? (
-                <div
-                    className="fixed inset-0 z-40 flex lg:hidden"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Groups sidebar"
-                >
-                    <button
-                        type="button"
-                        className="absolute inset-0 bg-black/35"
-                        onClick={closeSidebarOnMobile}
-                        aria-label={t('sessions.sidebar.close')}
-                    />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
-                        {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
-                    </div>
-                </div>
-            ) : null}
-
+                )}
+            </DesktopSplitView>
             {groupModals}
-        </div>
+        </>
     )
 }
 
 function GroupsIndexPage() {
-    return (
-        <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-            Select a group to get started
-        </div>
-    )
+    return null
 }
 
 // ─── ReviewLoops ────────────────────────────────────────────────────────────────
@@ -1932,42 +1403,6 @@ function formatLoopAge(ts: number): string {
     if (hrs < 24) return `${hrs}h ago`
     const days = Math.floor(hrs / 24)
     return `${days}d ago`
-}
-
-function LoopListItem(props: {
-    item: ReviewLoop
-    selected: boolean
-    density: SessionListDensity
-    onSelect: (loopId: string) => void
-}) {
-    const { item, selected, density, onSelect } = props
-    const isCompact = density === 'compact'
-    const truncatedReq = item.requirement.length > 50
-        ? item.requirement.slice(0, 50) + '...'
-        : item.requirement
-
-    return (
-        <button
-            type="button"
-            onClick={() => onSelect(item.id)}
-            className={`session-list-item flex w-full flex-col text-left font-mono transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--app-link)] select-none hover:bg-[var(--app-subtle-bg)] ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1 pl-3 pr-3 py-2.5'} ${selected ? 'bg-[var(--app-subtle-bg)]' : ''}`}
-            style={{ WebkitTouchCallout: 'none' }}
-            aria-current={selected ? 'page' : undefined}
-        >
-            <div className={`flex items-center gap-2 min-w-0 ${isCompact ? 'text-xs' : 'text-sm'}`}>
-                <span className="truncate min-w-0 text-[var(--app-fg)]">{truncatedReq}</span>
-            </div>
-            <div className={`flex items-center gap-2 flex-wrap ${isCompact ? 'text-[10px]' : 'text-[11px]'}`}>
-                <ReviewLoopStatusBadge status={item.status} />
-                <span className="text-[var(--app-hint)]">
-                    R{item.currentRound}/{item.maxRounds}
-                </span>
-                <span className="text-[var(--app-hint)]">
-                    {formatLoopAge(item.updatedAt)}
-                </span>
-            </div>
-        </button>
-    )
 }
 
 function filterLoopsBySearch(loops: ReviewLoop[], query: string): ReviewLoop[] {
@@ -1995,12 +1430,9 @@ function ReviewLoopsLayout() {
     const { t } = useTranslation()
     const { loops, isLoading } = useReviewLoops(api)
     const { sessions } = useSessions(api)
-    const { density, toggleDensity } = useSessionListDensity()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
-    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
     const [loopSearchQuery, setLoopSearchQuery] = useState('')
     const [createModalOpen, setCreateModalOpen] = useState(false)
-    const { sidebarWidth, isResizing, startSidebarResize } = useSessionSidebarWidth()
     const isMobileLayout = useIsMobileLayout()
 
     const handleCreateLoop = useCallback(async (data: CreateLoopData) => {
@@ -2034,13 +1466,6 @@ function ReviewLoopsLayout() {
     const selectedLoopId = loopMatch ? loopMatch.loopId : null
     const isLoopsIndex = pathname === '/review-loops' || pathname === '/review-loops/'
     const showDesktopSidebar = isLoopsIndex || !desktopSidebarHidden
-    const toggleDensityLabel = density === 'comfortable'
-        ? t('sessions.display.toggleToCompact')
-        : t('sessions.display.toggleToComfortable')
-    const desktopSidebarToggleLabel = showDesktopSidebar
-        ? t('sessions.sidebar.hideDesktop')
-        : t('sessions.sidebar.showDesktop')
-    const sidebarStyle = { '--sessions-sidebar-width': `${sidebarWidth}px` } as CSSProperties
 
     const visibleLoops = useMemo(
         () => filterLoopsBySearch(loops, loopSearchQuery),
@@ -2050,250 +1475,97 @@ function ReviewLoopsLayout() {
     const activeCount = visibleLoops.filter((l) => l.status === 'executing' || l.status === 'reviewing' || l.status === 'waiting_user').length
 
     useEffect(() => {
-        if (isLoopsIndex) {
-            setMobileSidebarOpen(false)
-        }
-    }, [isLoopsIndex])
-
-    useEffect(() => {
         if (isLoopsIndex && desktopSidebarHidden) {
             setDesktopSidebarHidden(false)
         }
     }, [isLoopsIndex, desktopSidebarHidden, setDesktopSidebarHidden])
 
-    useEffect(() => {
-        if (!mobileSidebarOpen) return
-        const previousOverflow = document.body.style.overflow
-        document.body.style.overflow = 'hidden'
-
-        const handleResize = () => {
-            if (window.innerWidth >= 1024) {
-                setMobileSidebarOpen(false)
-            }
-        }
-
-        window.addEventListener('resize', handleResize)
-        return () => {
-            window.removeEventListener('resize', handleResize)
-            document.body.style.overflow = previousOverflow
-        }
-    }, [mobileSidebarOpen])
-
-    const closeSidebarOnMobile = useCallback(() => {
-        setMobileSidebarOpen(false)
-    }, [])
-
-    const toggleSidebarFromBar = useCallback(() => {
-        if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-            toggleDesktopSidebar()
-            return
-        }
-        setMobileSidebarOpen(true)
-    }, [toggleDesktopSidebar])
-
     const selectedLoop = selectedLoopId
         ? loops.find((item) => item.id === selectedLoopId) ?? null
         : null
 
-    const renderSidebarContent = (options?: { inDrawer?: boolean; onClose?: () => void }) => {
-        const inDrawer = options?.inDrawer === true
-        const onClose = options?.onClose
-
-        return (
-            <>
-                <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)] font-mono">
-                    {/* Tab switcher row - terminal style */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between border-b border-[var(--app-divider)] px-3 py-2">
-                        <div className="flex items-center gap-0.5 text-xs">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    onClose?.()
-                                    navigate({ to: '/sessions' })
-                                }}
-                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Sessions
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    onClose?.()
-                                    navigate({ to: '/groups' })
-                                }}
-                                className="border border-[var(--app-divider)] rounded-sm px-2 py-1 text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                            >
-                                Groups
-                            </button>
-                            <button
-                                type="button"
-                                className="border border-[var(--app-fg)] rounded-sm px-2 py-1 bg-[var(--app-fg)] text-[var(--app-bg)] font-medium"
-                            >
-                                Loops
-                            </button>
+    const sessionById = new Map(sessions.map((session) => [session.id, session]))
+    const loopAvatar = (loop: ReviewLoop, size: number) => (
+        <PairAvatar
+            first={sessionById.get(loop.workerSessionId) ?? null}
+            second={sessionById.get(loop.reviewerSessionId) ?? null}
+            size={size}
+            seed={loop.id}
+        />
+    )
+    const listHeader = (
+        <MobilePageHeader
+            title={t('mobile.tab.loops')}
+            subtitle={t('mobile.loops.summary', { n: visibleLoops.length, active: activeCount })}
+            actions={(
+                <MobileHeaderIconButton label={t('mobile.loops.new')} onClick={() => setCreateModalOpen(true)}>
+                    <PlusCircleIcon className="h-[24px] w-[24px]" />
+                </MobileHeaderIconButton>
+            )}
+        />
+    )
+    const listBody = (
+        <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
+            <div className="px-5 pb-3 pt-1">
+                <MobileSearchField
+                    value={loopSearchQuery}
+                    onChange={setLoopSearchQuery}
+                    placeholder={t('mobile.loops.search')}
+                />
+            </div>
+            {isLoading ? (
+                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
+            ) : visibleLoops.length === 0 ? (
+                <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.loops.empty')}</div>
+            ) : (
+                visibleLoops.map((item) => (
+                    <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
+                        className={SOCIAL_ROW_CLASS}
+                        aria-current={selectedLoopId === item.id ? 'page' : undefined}
+                    >
+                        {loopAvatar(item, 52)}
+                        <div className="flex min-w-0 flex-1 flex-col justify-center">
+                            <div className="flex items-baseline gap-2">
+                                <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">
+                                    {item.requirement}
+                                </span>
+                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
+                                    {formatRelativeTime(item.updatedAt, t)}
+                                </span>
+                            </div>
+                            <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--social-fg-muted)]">
+                                <ReviewLoopStatusBadge status={item.status} />
+                                <span>{t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}</span>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                            {!isLoopsIndex ? (
-                                <button
-                                    type="button"
-                                    onClick={toggleDesktopSidebar}
-                                    className="hidden lg:flex p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                    title={desktopSidebarToggleLabel}
-                                    aria-label={desktopSidebarToggleLabel}
-                                >
-                                    <SidebarIcon className="h-4 w-4" />
-                                </button>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={toggleDensity}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={toggleDensityLabel}
-                                aria-label={toggleDensityLabel}
-                            >
-                                <DensityIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => navigate({ to: '/settings' })}
-                                className="p-1.5 rounded-full text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                                title={t('settings.title')}
-                            >
-                                <SettingsIcon className="h-5 w-5" />
-                            </button>
-                            {inDrawer && onClose ? (
-                                <>
-                                    <span className="mx-0.5 h-5 w-px bg-[var(--app-divider)]" aria-hidden="true" />
-                                    <button
-                                        type="button"
-                                        onClick={onClose}
-                                        className="p-1.5 rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                        title={t('sessions.sidebar.close')}
-                                        aria-label={t('sessions.sidebar.close')}
-                                    >
-                                        <CloseIcon className="h-4 w-4" />
-                                    </button>
-                                </>
-                            ) : null}
-                        </div>
-                    </div>
-                    {/* Count info row */}
-                    <div className="mx-auto w-full max-w-content flex items-center justify-between px-3 py-1.5">
-                        <div className="text-xs text-[var(--app-hint)]">
-                            {visibleLoops.length} {visibleLoops.length === 1 ? 'loop' : 'loops'} {activeCount > 0 ? `\u2022 ${activeCount} active` : ''}
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setCreateModalOpen(true)}
-                            className="rounded-sm border border-[var(--app-divider)] px-2 py-0.5 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors"
-                        >
-                            + new
-                        </button>
-                    </div>
-                    <div className="mx-auto w-full max-w-content px-3 pb-2">
-                        <input
-                            value={loopSearchQuery}
-                            onChange={(e) => setLoopSearchQuery(e.target.value)}
-                            placeholder="/ search..."
-                            className="w-full rounded-sm border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-xs font-mono outline-none focus:border-[var(--app-link)]"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                    {isLoading ? (
-                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">Loading...</div>
-                    ) : visibleLoops.length === 0 ? (
-                        <div className="px-3 py-4 text-sm text-[var(--app-hint)]">
-                            {loopSearchQuery.trim() ? 'No loops match.' : 'No review loops yet.'}
-                        </div>
-                    ) : (
-                        <div className="py-1">
-                            {visibleLoops.map((item) => (
-                                <LoopListItem
-                                    key={item.id}
-                                    item={item}
-                                    selected={selectedLoopId === item.id}
-                                    density={density}
-                                    onSelect={(loopId) => {
-                                        setMobileSidebarOpen(false)
-                                        navigate({ to: '/review-loops/$loopId', params: { loopId } })
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </>
-        )
-    }
+                    </button>
+                ))
+            )}
+        </div>
+    )
+    const createLoopModal = (
+        <CreateLoopModal
+            open={createModalOpen}
+            onClose={() => setCreateModalOpen(false)}
+            onSubmit={handleCreateLoop}
+            sessions={sessions}
+        />
+    )
+    const loopSubtitle = selectedLoop
+        ? t('mobile.loops.round', { n: selectedLoop.currentRound, max: selectedLoop.maxRounds })
+        : null
 
     if (isMobileLayout) {
-        const sessionById = new Map(sessions.map((session) => [session.id, session]))
-
         if (isLoopsIndex) {
             return (
                 <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-                    <MobilePageHeader
-                        title={t('mobile.tab.loops')}
-                        subtitle={t('mobile.loops.summary', { n: visibleLoops.length, active: activeCount })}
-                        actions={(
-                            <MobileHeaderIconButton label={t('mobile.loops.new')} onClick={() => setCreateModalOpen(true)}>
-                                <PlusCircleIcon className="h-[24px] w-[24px]" />
-                            </MobileHeaderIconButton>
-                        )}
-                    />
-                    <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
-                        <div className="px-5 pb-3 pt-1">
-                            <MobileSearchField
-                                value={loopSearchQuery}
-                                onChange={setLoopSearchQuery}
-                                placeholder={t('mobile.loops.search')}
-                            />
-                        </div>
-                        {isLoading ? (
-                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
-                        ) : visibleLoops.length === 0 ? (
-                            <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.loops.empty')}</div>
-                        ) : (
-                            visibleLoops.map((item) => (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
-                                    className="social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left"
-                                >
-                                    <PairAvatar
-                                        first={sessionById.get(item.workerSessionId) ?? null}
-                                        second={sessionById.get(item.reviewerSessionId) ?? null}
-                                        size={52}
-                                        seed={item.id}
-                                    />
-                                    <div className="flex min-w-0 flex-1 flex-col justify-center">
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">
-                                                {item.requirement}
-                                            </span>
-                                            <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
-                                                {formatRelativeTime(item.updatedAt, t)}
-                                            </span>
-                                        </div>
-                                        <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--social-fg-muted)]">
-                                            <ReviewLoopStatusBadge status={item.status} />
-                                            <span>{t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}</span>
-                                        </div>
-                                    </div>
-                                </button>
-                            ))
-                        )}
-                    </div>
+                    {listHeader}
+                    {listBody}
                     <MobileTabBar active="loops" />
-                    <CreateLoopModal
-                        open={createModalOpen}
-                        onClose={() => setCreateModalOpen(false)}
-                        onSubmit={handleCreateLoop}
-                        sessions={sessions}
-                    />
+                    {createLoopModal}
                 </div>
             )
         }
@@ -2310,21 +1582,14 @@ function ReviewLoopsLayout() {
                         >
                             <ChevronLeftIcon className="h-[26px] w-[26px]" />
                         </button>
-                        {selectedLoop ? (
-                            <PairAvatar
-                                first={sessionById.get(selectedLoop.workerSessionId) ?? null}
-                                second={sessionById.get(selectedLoop.reviewerSessionId) ?? null}
-                                size={38}
-                                seed={selectedLoop.id}
-                            />
-                        ) : null}
+                        {selectedLoop ? loopAvatar(selectedLoop, 38) : null}
                         <div className="min-w-0 flex-1">
                             <div className="truncate text-[16px] font-semibold leading-tight">
                                 {selectedLoop?.requirement ?? 'review-loop'}
                             </div>
-                            {selectedLoop ? (
+                            {loopSubtitle ? (
                                 <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--app-hint)]">
-                                    {t('mobile.loops.round', { n: selectedLoop.currentRound, max: selectedLoop.maxRounds })}
+                                    {loopSubtitle}
                                 </div>
                             ) : null}
                         </div>
@@ -2338,84 +1603,38 @@ function ReviewLoopsLayout() {
     }
 
     return (
-        <div className="flex h-full min-h-0">
-            {/* Sidebar */}
-            <div
-                className={`${isLoopsIndex ? 'flex' : showDesktopSidebar ? 'hidden lg:flex' : 'hidden'} w-full lg:w-[var(--sessions-sidebar-width)] shrink-0 flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)]`}
-                style={sidebarStyle}
+        <>
+            <DesktopSplitView
+                listVisible={showDesktopSidebar}
+                list={(
+                    <>
+                        {listHeader}
+                        {listBody}
+                    </>
+                )}
             >
-                {renderSidebarContent()}
-            </div>
-
-            {/* Sidebar resize handle */}
-            <div
-                className={`${showDesktopSidebar ? 'hidden lg:block' : 'hidden'} group relative w-2 shrink-0 cursor-col-resize`}
-                role="separator"
-                aria-orientation="vertical"
-                aria-label={t('sessions.sidebar.resize')}
-                title={t('sessions.sidebar.resize')}
-                onPointerDown={startSidebarResize}
-            >
-                <div
-                    className={`absolute inset-y-0 left-1/2 w-px -translate-x-1/2 transition-colors ${isResizing ? 'bg-[var(--app-link)]' : 'bg-transparent group-hover:bg-[var(--app-divider)]'}`}
-                />
-            </div>
-
-            {/* Main area */}
-            <div className={`${isLoopsIndex ? 'hidden lg:flex' : 'flex'} min-w-0 min-h-0 flex-1 flex-col bg-[var(--app-bg)]`}>
-                {!isLoopsIndex ? (
-                    <div className="flex items-center gap-2 border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))] lg:pt-2">
-                        <button
-                            type="button"
-                            onClick={toggleSidebarFromBar}
-                            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                            title={t('sessions.sidebar.open')}
-                            aria-label={t('sessions.sidebar.open')}
-                        >
-                            <SidebarIcon className="h-5 w-5" />
-                        </button>
-                        <div className="min-w-0 flex-1">
-                            <span className="truncate text-sm font-mono text-[var(--app-fg)]">
-                                {selectedLoop
-                                    ? (selectedLoop.requirement.length > 60
-                                        ? selectedLoop.requirement.slice(0, 60) + '...'
-                                        : selectedLoop.requirement)
-                                    : 'review-loop'}
-                            </span>
+                {isLoopsIndex ? (
+                    <DesktopEmptyState
+                        title={t('desktop.loops.pick')}
+                        action={{ label: t('mobile.loops.new'), onClick: () => setCreateModalOpen(true) }}
+                    />
+                ) : (
+                    <div className="flex h-full min-h-0 flex-col">
+                        <DesktopPaneHeader
+                            avatar={selectedLoop ? loopAvatar(selectedLoop, 36) : null}
+                            title={selectedLoop?.requirement ?? 'review-loop'}
+                            subtitle={loopSubtitle}
+                            listVisible={showDesktopSidebar}
+                            onToggleList={toggleDesktopSidebar}
+                        />
+                        <div className="min-h-0 flex-1">
+                            <Outlet />
                         </div>
                     </div>
-                ) : null}
-                <div className="flex-1 min-h-0">
-                    <Outlet />
-                </div>
-            </div>
-
-            {mobileSidebarOpen ? (
-                <div
-                    className="fixed inset-0 z-40 flex lg:hidden"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Loops sidebar"
-                >
-                    <button
-                        type="button"
-                        className="absolute inset-0 bg-black/35"
-                        onClick={closeSidebarOnMobile}
-                        aria-label={t('sessions.sidebar.close')}
-                    />
-                    <div className="relative flex h-full w-[min(88vw,420px)] max-w-full flex-col border-r border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl">
-                        {renderSidebarContent({ inDrawer: true, onClose: closeSidebarOnMobile })}
-                    </div>
-                </div>
-            ) : null}
-
-            <CreateLoopModal
-                open={createModalOpen}
-                onClose={() => setCreateModalOpen(false)}
-                onSubmit={handleCreateLoop}
-                sessions={sessions}
-            />
-        </div>
+                )}
+            </DesktopSplitView>
+            {createLoopModal}
+        </>
     )
 }
 

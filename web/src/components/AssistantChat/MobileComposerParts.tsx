@@ -9,6 +9,7 @@ import {
     QueueListIcon,
     SendArrowIcon,
     SlidersIcon,
+    SpeakerIcon,
     StopSquareIcon,
     SwitchIcon,
     TerminalIcon
@@ -276,5 +277,97 @@ export function MobileComposerAction(props: {
         >
             <SendArrowIcon className="h-[18px] w-[18px]" />
         </button>
+    )
+}
+
+const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
+
+/**
+ * Desktop composer toolbar: the same four entries as the phone "+" panel, laid out inline.
+ * Each does one thing; every setting opens the shared "chat settings" panel.
+ */
+export function DesktopComposerToolbar(props: {
+    controlsDisabled: boolean
+    voiceEnabled: boolean
+    voiceActive: boolean
+    voiceConnected: boolean
+    voiceMicMuted?: boolean
+    onVoiceToggle: () => void
+    onVoiceMicToggle?: () => void
+    showTerminalButton: boolean
+    onTerminal: () => void
+    showSettingsButton: boolean
+    settingsLabel: string
+    settingsBadge?: number
+    onSettings: () => void
+    action: ReactNode
+}) {
+    const { t } = useTranslation()
+    const badge = props.settingsBadge ?? 0
+    return (
+        <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
+            <ComposerPrimitive.AddAttachment
+                disabled={props.controlsDisabled}
+                className={toolbarIconClass}
+                aria-label={t('mobile.composer.attach')}
+                title={t('mobile.composer.attach')}
+            >
+                <PaperclipIcon className="h-[18px] w-[18px]" />
+            </ComposerPrimitive.AddAttachment>
+            {props.voiceEnabled ? (
+                <button
+                    type="button"
+                    onClick={props.onVoiceToggle}
+                    className={cn(toolbarIconClass, props.voiceActive ? 'bg-[var(--social-badge)] text-white hover:bg-[var(--social-badge)] hover:text-white' : '')}
+                    aria-label={props.voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
+                    title={props.voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
+                >
+                    {props.voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
+                </button>
+            ) : null}
+            {props.voiceConnected && props.onVoiceMicToggle ? (
+                <button
+                    type="button"
+                    onClick={props.onVoiceMicToggle}
+                    className={cn(toolbarIconClass, props.voiceMicMuted ? 'bg-[var(--social-muted)] text-[var(--social-fg)]' : '')}
+                    aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
+                    title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
+                >
+                    <SpeakerIcon muted={props.voiceMicMuted} className="h-[18px] w-[18px]" />
+                </button>
+            ) : null}
+            {props.showTerminalButton ? (
+                <button
+                    type="button"
+                    onClick={props.onTerminal}
+                    disabled={props.controlsDisabled}
+                    className={toolbarIconClass}
+                    aria-label={t('composer.terminal')}
+                    title={t('composer.terminal')}
+                >
+                    <TerminalIcon className="h-[18px] w-[18px]" />
+                </button>
+            ) : null}
+            {props.showSettingsButton ? (
+                <button
+                    type="button"
+                    onClick={props.onSettings}
+                    className="relative ml-1 flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-[var(--social-border)] pl-2.5 pr-3 text-[12.5px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]"
+                    aria-label={t('mobile.composer.chatSettings')}
+                    title={t('desktop.composer.settingsHint')}
+                >
+                    <SlidersIcon className="h-[15px] w-[15px] shrink-0 [stroke-width:1.8]" />
+                    <span className="truncate">{props.settingsLabel}</span>
+                    {badge > 0 ? (
+                        <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
+                            {badge > 99 ? '99+' : badge}
+                        </span>
+                    ) : null}
+                </button>
+            ) : null}
+            <div className="ml-auto flex shrink-0 items-center pl-2">
+                {props.action}
+            </div>
+        </div>
     )
 }

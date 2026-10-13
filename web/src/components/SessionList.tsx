@@ -513,8 +513,9 @@ function SessionItem(props: {
                     <button
                         type="button"
                         {...longPressHandlers}
-                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none focus-visible:outline-none ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
+                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none focus-visible:outline-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3 ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
                         style={{ WebkitTouchCallout: 'none' }}
+                        aria-current={selected ? 'page' : undefined}
                     >
                         <SessionAvatar
                             session={s}
@@ -1230,6 +1231,7 @@ export function SessionList(props: {
 export function SessionFeed(props: {
     sessions: SessionSummary[]
     availableTags?: string[]
+    selectedSessionId?: string | null
     onSelect: (sessionId: string) => void
     api: ApiClient | null
     listHeader?: ReactNode
@@ -1271,6 +1273,7 @@ export function SessionFeed(props: {
                         showPath={false}
                         api={api}
                         availableTags={availableTags}
+                        selected={session.id === props.selectedSessionId}
                         density="comfortable"
                         variant="feed"
                         sortable={false}
