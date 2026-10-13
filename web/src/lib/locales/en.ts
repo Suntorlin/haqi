@@ -275,6 +275,8 @@ export default {
   // Composer buttons
   'composer.settings': 'Settings',
   'composer.terminal': 'Terminal',
+  'composer.compact': 'Compact context',
+  'composer.compact.hint': 'Compact context (/compact): clear the history, keep a summary',
   'composer.abort': 'Abort',
   'composer.switchRemote': 'Switch to remote',
   'composer.attach': 'Attach file',

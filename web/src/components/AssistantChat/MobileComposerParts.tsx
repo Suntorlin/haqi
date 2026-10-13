@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import {
+    CompactIcon,
     InfoCircleIcon,
     MicIcon,
     MicWaveIcon,
@@ -49,7 +50,7 @@ export function MobileComposerToolPanel(props: {
     extras: ComposerExtras
 }) {
     const { t } = useTranslation()
-    const { queue, status, switchRemote } = props.extras
+    const { compact, queue, status, switchRemote } = props.extras
     return (
         <div className="pb-3 pt-3">
             {props.settings ? (
@@ -67,6 +68,9 @@ export function MobileComposerToolPanel(props: {
                 {props.showTerminalButton ? (
                     <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
                 ) : null}
+                {compact ? (
+                    <PanelTile icon={<CompactIcon className="h-6 w-6" />} label={t('composer.compact')} onClick={compact.onRun} disabled={compact.disabled} />
+                ) : null}
                 {queue ? (
                     <PanelTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={queue.onOpen} disabled={queue.disabled} badge={queue.pendingCount} />
                 ) : null}
@@ -81,8 +85,9 @@ export function MobileComposerToolPanel(props: {
     )
 }
 
-/** Composer extras that are actions, not settings: the queue, "/status", switching to remote. */
+/** Composer extras that are actions, not settings: "/compact", the queue, "/status", switching to remote. */
 export type ComposerExtras = {
+    compact: { disabled: boolean; onRun: () => void } | null
     queue: { pendingCount: number; disabled: boolean; onOpen: () => void } | null
     status: { disabled: boolean; onOpen: () => void } | null
     switchRemote: { disabled: boolean; onSwitch: () => void } | null
@@ -289,8 +294,8 @@ export function VoiceCallBar(props: {
 const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
 
 /**
- * Desktop composer toolbar: attach and terminal, then each conversation setting as a chip that
- * opens its own small menu, and "…" for the queue / status / switch actions.
+ * Desktop composer toolbar: attach, terminal and "/compact", then each conversation setting as a
+ * chip that opens its own small menu, and "…" for the queue / status / switch actions.
  */
 export function DesktopComposerToolbar(props: {
     controlsDisabled: boolean
@@ -301,7 +306,7 @@ export function DesktopComposerToolbar(props: {
     action: ReactNode
 }) {
     const { t } = useTranslation()
-    const { queue, status, switchRemote } = props.extras
+    const { compact, queue, status, switchRemote } = props.extras
     const [moreAnchor, setMoreAnchor] = useState<{ x: number; y: number } | null>(null)
     const pending = queue?.pendingCount ?? 0
     const runThen = (action: () => void) => () => {
@@ -329,6 +334,18 @@ export function DesktopComposerToolbar(props: {
                     title={t('composer.terminal')}
                 >
                     <TerminalIcon className="h-[18px] w-[18px]" />
+                </button>
+            ) : null}
+            {compact ? (
+                <button
+                    type="button"
+                    onClick={compact.onRun}
+                    disabled={compact.disabled}
+                    className={toolbarIconClass}
+                    aria-label={t('composer.compact')}
+                    title={t('composer.compact.hint')}
+                >
+                    <CompactIcon className="h-[18px] w-[18px]" />
                 </button>
             ) : null}
             {props.settings ? (

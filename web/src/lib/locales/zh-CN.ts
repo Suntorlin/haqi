@@ -277,6 +277,8 @@ export default {
   // Composer buttons
   'composer.settings': '设置',
   'composer.terminal': '终端',
+  'composer.compact': '压缩上下文',
+  'composer.compact.hint': '压缩上下文（/compact）：清空对话历史，只保留一份摘要',
   'composer.abort': '中止',
   'composer.switchRemote': '切换到远程',
   'composer.attach': '添加文件',
