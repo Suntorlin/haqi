@@ -44,14 +44,14 @@ function PinnedStory(props: {
         <button
             type="button"
             {...pressHandlers}
-            className="flex w-16 shrink-0 select-none flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
+            className="flex w-14 shrink-0 select-none flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
             style={{ WebkitTouchCallout: 'none' }}
             title={title}
         >
-            <span className="relative flex h-16 w-16 items-center justify-center">
+            <span className="relative flex h-[46px] w-14 items-center justify-center">
                 <SessionAvatar
                     session={session}
-                    size={56}
+                    size={46}
                     ring={isPending ? 'pending' : isLive ? 'live' : session.active ? 'seen' : null}
                     muted={!session.active}
                 />
@@ -68,7 +68,7 @@ function PinnedStory(props: {
                     </span>
                 ) : null}
             </span>
-            <span className={cn('w-full truncate text-center text-[11.5px]', isPending || isLive ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
+            <span className={cn('w-full truncate text-center text-[11px]', isPending || isLive ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
                 {title}
             </span>
         </button>
@@ -102,15 +102,15 @@ export function PinnedStoriesStrip(props: {
                 <button
                     type="button"
                     onClick={props.onNewSession}
-                    className="flex w-16 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
+                    className="flex w-14 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
                 >
-                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]">
-                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                    <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]">
+                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
                             <line x1="12" y1="5" x2="12" y2="19" />
                             <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
                     </span>
-                    <span className="w-full truncate text-center text-[11.5px] text-[var(--social-fg-muted)]">
+                    <span className="w-full truncate text-center text-[11px] text-[var(--social-fg-muted)]">
                         {t('mobile.stories.new')}
                     </span>
                 </button>
