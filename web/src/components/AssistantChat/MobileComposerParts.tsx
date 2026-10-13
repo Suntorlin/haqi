@@ -357,7 +357,7 @@ export function DesktopComposerToolbar(props: {
                 <button
                     type="button"
                     onClick={props.onSettings}
-                    className="relative ml-1 flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-[var(--social-border)] pl-2.5 pr-3 text-[12.5px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]"
+                    className="relative ml-0.5 flex h-8 min-w-0 items-center gap-1.5 rounded-full px-2.5 text-[12.5px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
                     aria-label={t('mobile.composer.chatSettings')}
                     title={t('desktop.composer.settingsHint')}
                 >
