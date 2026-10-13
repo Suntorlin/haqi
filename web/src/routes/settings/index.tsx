@@ -1,5 +1,5 @@
 import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
-import { useState, useRef, useEffect, useMemo, useCallback, useId, type ChangeEvent, type ReactNode } from 'react'
+import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
@@ -26,14 +26,25 @@ import { useMemory } from '@/hooks/queries/useMemory'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { queryKeys } from '@/lib/query-keys'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
-import { Switch } from '@/components/ui/Switch'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { CodexCredentialProfile, CodexCredentialStateResponse } from '@/types/api'
-import { CONTEXT_MENU_SURFACE } from '@/components/mobile/ContextMenu'
-import { buttonVariants } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { SelectInput } from '@/components/ui/FormControls'
+import { TextField } from '@/components/ui/TextField'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import {
+    SettingsBlock,
+    SettingsCard,
+    SettingsGroup,
+    SettingsNotice,
+    SettingsPanel,
+    SettingsSelectRow,
+    SettingsStat,
+    SettingsSwitchRow,
+    SettingsValueRow
+} from '@/components/settings/SettingsParts'
 import { cn } from '@/lib/utils'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
@@ -57,9 +68,6 @@ type SettingsGroupExpandedState = {
     dataDiagnostics: boolean
     about: boolean
 }
-
-/** Option rows in the settings dropdowns: same look as context menu items. */
-const DROPDOWN_ITEM_CLASS = 'flex w-full justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] leading-tight text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)]'
 
 function getDefaultSettingsGroupExpandedState(): SettingsGroupExpandedState {
     return {
@@ -102,82 +110,6 @@ function persistSettingsGroupExpandedState(state: SettingsGroupExpandedState) {
         return
     }
     window.localStorage.setItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY, JSON.stringify(state))
-}
-
-function CheckIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="20 6 9 17 4 12" />
-        </svg>
-    )
-}
-
-function ChevronDownIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    )
-}
-
-type SettingsSectionProps = {
-    title: string
-    description: string
-    isExpanded: boolean
-    onToggle: () => void
-    children: ReactNode
-}
-
-function SettingsSection(props: SettingsSectionProps) {
-    const sectionContentId = useId()
-    return (
-        <section className="border-b border-[var(--app-divider)]">
-            <button
-                type="button"
-                onClick={props.onToggle}
-                className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                aria-expanded={props.isExpanded}
-                aria-controls={sectionContentId}
-            >
-                <div className="flex min-w-0 flex-col">
-                    <span className="font-medium text-[var(--app-fg)]">{props.title}</span>
-                    <span className="text-xs text-[var(--app-hint)]">{props.description}</span>
-                </div>
-                <ChevronDownIcon
-                    className={`mt-0.5 shrink-0 text-[var(--app-hint)] transition-transform ${
-                        props.isExpanded ? 'rotate-180' : ''
-                    }`}
-                />
-            </button>
-            {props.isExpanded && (
-                <div id={sectionContentId}>
-                    {props.children}
-                </div>
-            )}
-        </section>
-    )
 }
 
 type TranslationFn = (key: string, params?: Record<string, string | number>) => string
@@ -230,30 +162,12 @@ export default function SettingsPage() {
     const { api } = useAppContext()
     const queryClient = useQueryClient()
     const isMobileLayout = useIsMobileLayout()
-    const [isOpen, setIsOpen] = useState(false)
-    const [isThemeOpen, setIsThemeOpen] = useState(false)
-    const [isFontOpen, setIsFontOpen] = useState(false)
-    const [isVoiceOpen, setIsVoiceOpen] = useState(false)
-    const [isQueuePanelOpen, setIsQueuePanelOpen] = useState(false)
-    const [isSendModeOpen, setIsSendModeOpen] = useState(false)
-    const [isSessionReopenPositionOpen, setIsSessionReopenPositionOpen] = useState(false)
-    const [isImageCompressionLevelOpen, setIsImageCompressionLevelOpen] = useState(false)
-    const [isImageCompressionTargetSizeOpen, setIsImageCompressionTargetSizeOpen] = useState(false)
     const [groupExpandedState, setGroupExpandedState] = useState<SettingsGroupExpandedState>(() => readSettingsGroupExpandedState())
     const isClaudeAccountsGroupExpanded = groupExpandedState.claudeAccounts
     const isGeneralGroupExpanded = groupExpandedState.general
     const isInteractionGroupExpanded = groupExpandedState.interaction
     const isDataDiagnosticsGroupExpanded = groupExpandedState.dataDiagnostics
     const isAboutGroupExpanded = groupExpandedState.about
-    const containerRef = useRef<HTMLDivElement>(null)
-    const themeContainerRef = useRef<HTMLDivElement>(null)
-    const fontContainerRef = useRef<HTMLDivElement>(null)
-    const voiceContainerRef = useRef<HTMLDivElement>(null)
-    const queuePanelContainerRef = useRef<HTMLDivElement>(null)
-    const sendModeContainerRef = useRef<HTMLDivElement>(null)
-    const sessionReopenPositionContainerRef = useRef<HTMLDivElement>(null)
-    const imageCompressionLevelContainerRef = useRef<HTMLDivElement>(null)
-    const imageCompressionTargetSizeContainerRef = useRef<HTMLDivElement>(null)
     const { fontScale, setFontScale } = useFontScale()
     const { themePreference, setThemePreference } = useThemePreference()
     const { queueInlinePanelMode, setQueueInlinePanelMode } = useQueueInlinePanel()
@@ -610,21 +524,6 @@ export default function SettingsPage() {
         }
     })
 
-    const handleLocaleChange = (newLocale: Locale) => {
-        setLocale(newLocale)
-        setIsOpen(false)
-    }
-
-    const handleFontScaleChange = (newScale: FontScale) => {
-        setFontScale(newScale)
-        setIsFontOpen(false)
-    }
-
-    const handleThemePreferenceChange = (newPreference: ThemePreference) => {
-        setThemePreference(newPreference)
-        setIsThemeOpen(false)
-    }
-
     const handleSkipArchiveConfirmToggle = (value: boolean) => {
         setSkipArchiveConfirmation(value)
     }
@@ -633,47 +532,13 @@ export default function SettingsPage() {
         setSessionQuickArchiveEnabled(value)
     }
 
-    const handleQueuePanelModeChange = (mode: QueueInlinePanelMode) => {
-        setQueueInlinePanelMode(mode)
-        setIsQueuePanelOpen(false)
-    }
-
-    const handleCodexSendModeDefaultChange = (mode: typeof codexSendModes[number]) => {
-        setCodexSendModeDefault(mode)
-        setIsSendModeOpen(false)
-    }
-
-    const handleSessionReopenPositionChange = (mode: SessionReopenPositionPreference) => {
-        setSessionReopenPosition(mode)
-        setIsSessionReopenPositionOpen(false)
-    }
-
     const handleProjectQuickCreateToggle = (value: boolean) => {
         setProjectQuickCreateEnabled(value)
-    }
-
-    const handleImageUploadCompressionToggle = (value: boolean) => {
-        setImageUploadCompressionEnabled(value)
-        if (!value) {
-            setIsImageCompressionLevelOpen(false)
-            setIsImageCompressionTargetSizeOpen(false)
-        }
-    }
-
-    const handleImageUploadCompressionLevelChange = (level: ImageUploadCompressionLevel) => {
-        setImageUploadCompressionLevel(level)
-        setIsImageCompressionLevelOpen(false)
-    }
-
-    const handleImageUploadCompressionTargetSizeChange = (targetSize: ImageUploadCompressionTargetSize) => {
-        setImageUploadCompressionTargetSize(targetSize)
-        setIsImageCompressionTargetSizeOpen(false)
     }
 
     const handleVoiceLanguageChange = (language: Language) => {
         setVoiceLanguage(language.code)
         if (typeof window === 'undefined') {
-            setIsVoiceOpen(false)
             return
         }
         if (language.code === null) {
@@ -681,7 +546,6 @@ export default function SettingsPage() {
         } else {
             window.localStorage.setItem('hapi-voice-lang', language.code)
         }
-        setIsVoiceOpen(false)
     }
 
     const handleClaudeAccountsGroupToggle = () => {
@@ -692,35 +556,17 @@ export default function SettingsPage() {
     }
 
     const handleGeneralGroupToggle = () => {
-        setGroupExpandedState((previousState) => {
-            const nextGeneralExpanded = !previousState.general
-            if (!nextGeneralExpanded) {
-                setIsOpen(false)
-                setIsThemeOpen(false)
-                setIsFontOpen(false)
-                setIsVoiceOpen(false)
-            }
-            return {
-                ...previousState,
-                general: nextGeneralExpanded
-            }
-        })
+        setGroupExpandedState((previousState) => ({
+            ...previousState,
+            general: !previousState.general
+        }))
     }
 
     const handleInteractionGroupToggle = () => {
-        setGroupExpandedState((previousState) => {
-            const nextInteractionExpanded = !previousState.interaction
-            if (!nextInteractionExpanded) {
-                setIsQueuePanelOpen(false)
-                setIsSendModeOpen(false)
-                setIsImageCompressionLevelOpen(false)
-                setIsImageCompressionTargetSizeOpen(false)
-            }
-            return {
-                ...previousState,
-                interaction: nextInteractionExpanded
-            }
-        })
+        setGroupExpandedState((previousState) => ({
+            ...previousState,
+            interaction: !previousState.interaction
+        }))
     }
 
     const handleDataDiagnosticsGroupToggle = () => {
@@ -924,117 +770,42 @@ export default function SettingsPage() {
         }
     }
 
-    // Close dropdown when clicking outside
-    useEffect(() => {
-        if (
-            !isOpen &&
-            !isThemeOpen &&
-            !isFontOpen &&
-            !isVoiceOpen &&
-            !isQueuePanelOpen &&
-            !isSendModeOpen &&
-            !isSessionReopenPositionOpen &&
-            !isImageCompressionLevelOpen &&
-            !isImageCompressionTargetSizeOpen
-        ) return
-
-        const handleClickOutside = (event: MouseEvent) => {
-            if (isOpen && containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                setIsOpen(false)
-            }
-            if (isThemeOpen && themeContainerRef.current && !themeContainerRef.current.contains(event.target as Node)) {
-                setIsThemeOpen(false)
-            }
-            if (isFontOpen && fontContainerRef.current && !fontContainerRef.current.contains(event.target as Node)) {
-                setIsFontOpen(false)
-            }
-            if (isVoiceOpen && voiceContainerRef.current && !voiceContainerRef.current.contains(event.target as Node)) {
-                setIsVoiceOpen(false)
-            }
-            if (isQueuePanelOpen && queuePanelContainerRef.current && !queuePanelContainerRef.current.contains(event.target as Node)) {
-                setIsQueuePanelOpen(false)
-            }
-            if (isSendModeOpen && sendModeContainerRef.current && !sendModeContainerRef.current.contains(event.target as Node)) {
-                setIsSendModeOpen(false)
-            }
-            if (
-                isSessionReopenPositionOpen &&
-                sessionReopenPositionContainerRef.current &&
-                !sessionReopenPositionContainerRef.current.contains(event.target as Node)
-            ) {
-                setIsSessionReopenPositionOpen(false)
-            }
-            if (
-                isImageCompressionLevelOpen &&
-                imageCompressionLevelContainerRef.current &&
-                !imageCompressionLevelContainerRef.current.contains(event.target as Node)
-            ) {
-                setIsImageCompressionLevelOpen(false)
-            }
-            if (
-                isImageCompressionTargetSizeOpen &&
-                imageCompressionTargetSizeContainerRef.current &&
-                !imageCompressionTargetSizeContainerRef.current.contains(event.target as Node)
-            ) {
-                setIsImageCompressionTargetSizeOpen(false)
-            }
-        }
-
-        document.addEventListener('mousedown', handleClickOutside)
-        return () => document.removeEventListener('mousedown', handleClickOutside)
-    }, [
-        isOpen,
-        isThemeOpen,
-        isFontOpen,
-        isVoiceOpen,
-        isQueuePanelOpen,
-        isSendModeOpen,
-        isSessionReopenPositionOpen,
-        isImageCompressionLevelOpen,
-        isImageCompressionTargetSizeOpen
-    ])
-
-    // Close on escape key
-    useEffect(() => {
-        if (
-            !isOpen &&
-            !isThemeOpen &&
-            !isFontOpen &&
-            !isVoiceOpen &&
-            !isQueuePanelOpen &&
-            !isSendModeOpen &&
-            !isSessionReopenPositionOpen &&
-            !isImageCompressionLevelOpen &&
-            !isImageCompressionTargetSizeOpen
-        ) return
-
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setIsOpen(false)
-                setIsThemeOpen(false)
-                setIsFontOpen(false)
-                setIsVoiceOpen(false)
-                setIsQueuePanelOpen(false)
-                setIsSendModeOpen(false)
-                setIsSessionReopenPositionOpen(false)
-                setIsImageCompressionLevelOpen(false)
-                setIsImageCompressionTargetSizeOpen(false)
-            }
-        }
-
-        document.addEventListener('keydown', handleEscape)
-        return () => document.removeEventListener('keydown', handleEscape)
-    }, [
-        isOpen,
-        isThemeOpen,
-        isFontOpen,
-        isVoiceOpen,
-        isQueuePanelOpen,
-        isSendModeOpen,
-        isSessionReopenPositionOpen,
-        isImageCompressionLevelOpen,
-        isImageCompressionTargetSizeOpen
-    ])
+    const languageOptions = locales.map((loc) => ({ value: loc.value, label: loc.nativeLabel }))
+    const themeOptions = themePreferences.map((preference) => ({
+        value: preference,
+        label: t(`settings.display.theme.${preference}`)
+    }))
+    const fontOptions = fontScaleOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))
+    const voiceOptions = voiceLanguages.map((lang) => ({
+        value: lang.code ?? 'auto',
+        label: lang.code === null ? t('settings.voice.autoDetect') : getLanguageDisplayName(lang)
+    }))
+    const sendModeOptions = codexSendModes.map((mode) => ({
+        value: mode,
+        label: t(`queue.mode.${mode}`),
+        description: t(`queue.mode.${mode}Hint`)
+    }))
+    const queuePanelOptions = queueInlinePanelModes.map((mode) => ({
+        value: mode,
+        label: t(`settings.behavior.queueInlinePanel.${mode}`),
+        description: t(`settings.behavior.queueInlinePanel.${mode}.description`)
+    }))
+    const sessionReopenPositionOptions = sessionReopenPositionModes.map((mode) => ({
+        value: mode,
+        label: t(`settings.behavior.sessionReopenPosition.${mode}`),
+        description: t(`settings.behavior.sessionReopenPosition.${mode}.description`)
+    }))
+    const imageCompressionLevelOptions = imageUploadCompressionLevels.map((level) => ({
+        value: level,
+        label: t(`settings.behavior.imageCompression.level.${level}`)
+    }))
+    const imageCompressionTargetSizeOptions = imageUploadCompressionTargetSizes.map((targetSize) => ({
+        value: targetSize,
+        label: t(`settings.behavior.imageCompression.targetSize.${targetSize}`)
+    }))
+    const currentVoiceLanguageLabel = currentVoiceLanguage?.code
+        ? getLanguageDisplayName(currentVoiceLanguage)
+        : t('settings.voice.autoDetect')
 
     return (
         <div className="flex h-full flex-col">
@@ -1042,1032 +813,488 @@ export default function SettingsPage() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
-                    <SettingsSection
+                    <SettingsGroup
                         title={t('settings.group.claudeAccounts.title')}
                         description={t('settings.group.claudeAccounts.description')}
                         isExpanded={isClaudeAccountsGroupExpanded}
                         onToggle={handleClaudeAccountsGroupToggle}
                     >
                         <ClaudeAccountsSettings api={api} machines={machines} />
-                    </SettingsSection>
-                    <SettingsSection
+                    </SettingsGroup>
+
+                    <SettingsGroup
                         title={t('settings.group.general.title')}
                         description={t('settings.group.general.description')}
                         isExpanded={isGeneralGroupExpanded}
                         onToggle={handleGeneralGroupToggle}
                     >
-                    {/* Language section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.language.title')}
-                        </div>
-                        <div ref={containerRef} className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsOpen(!isOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span className="text-[var(--app-fg)]">{t('settings.language.label')}</span>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentLocale?.nativeLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
+                        <SettingsBlock title={t('settings.language.title')}>
+                            <SettingsSelectRow
+                                title={t('settings.language.label')}
+                                valueLabel={currentLocale?.nativeLabel ?? ''}
+                                options={languageOptions}
+                                value={locale}
+                                onChange={setLocale}
+                            />
+                        </SettingsBlock>
 
-                            {isOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[160px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.language.title')}
-                                >
-                                    {locales.map((loc) => {
-                                        const isSelected = locale === loc.value
-                                        return (
-                                            <button
-                                                key={loc.value}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleLocaleChange(loc.value)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span>{loc.nativeLabel}</span>
-                                                {isSelected && (
-                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                        <SettingsBlock title={t('settings.display.title')}>
+                            <SettingsSelectRow
+                                title={t('settings.display.theme')}
+                                valueLabel={currentThemeLabel}
+                                options={themeOptions}
+                                value={themePreference}
+                                onChange={setThemePreference}
+                            />
+                            <SettingsSelectRow
+                                title={t('settings.display.fontSize')}
+                                valueLabel={currentFontScaleLabel}
+                                options={fontOptions}
+                                value={String(fontScale)}
+                                onChange={(value) => {
+                                    const next = fontScaleOptions.find((opt) => String(opt.value) === value)
+                                    if (next) {
+                                        setFontScale(next.value)
+                                    }
+                                }}
+                            />
+                        </SettingsBlock>
 
-                    {/* Display section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.display.title')}
-                        </div>
-                        <div ref={themeContainerRef} className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsThemeOpen(!isThemeOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isThemeOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span className="text-[var(--app-fg)]">{t('settings.display.theme')}</span>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentThemeLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isThemeOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
+                        <SettingsBlock title={t('settings.voice.title')}>
+                            <SettingsSelectRow
+                                title={t('settings.voice.language')}
+                                valueLabel={currentVoiceLanguageLabel}
+                                options={voiceOptions}
+                                value={voiceLanguage ?? 'auto'}
+                                onChange={(value) => {
+                                    const next = voiceLanguages.find((lang) => (lang.code ?? 'auto') === value)
+                                    if (next) {
+                                        handleVoiceLanguageChange(next)
+                                    }
+                                }}
+                            />
+                        </SettingsBlock>
+                    </SettingsGroup>
 
-                            {isThemeOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[140px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.display.theme')}
-                                >
-                                    {themePreferences.map((preference) => {
-                                        const isSelected = themePreference === preference
-                                        return (
-                                            <button
-                                                key={preference}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleThemePreferenceChange(preference)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span>{t(`settings.display.theme.${preference}`)}</span>
-                                                {isSelected && (
-                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        <div ref={fontContainerRef} className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsFontOpen(!isFontOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isFontOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span className="text-[var(--app-fg)]">{t('settings.display.fontSize')}</span>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentFontScaleLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isFontOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isFontOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[140px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.display.fontSize')}
-                                >
-                                    {fontScaleOptions.map((opt) => {
-                                        const isSelected = fontScale === opt.value
-                                        return (
-                                            <button
-                                                key={opt.value}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleFontScaleChange(opt.value)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span>{opt.label}</span>
-                                                {isSelected && (
-                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Voice Assistant section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.voice.title')}
-                        </div>
-                        <div ref={voiceContainerRef} className="relative">
-                            <button
-                                type="button"
-                                onClick={() => setIsVoiceOpen(!isVoiceOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isVoiceOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <span className="text-[var(--app-fg)]">{t('settings.voice.language')}</span>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>
-                                        {currentVoiceLanguage
-                                            ? currentVoiceLanguage.code === null
-                                                ? t('settings.voice.autoDetect')
-                                                : getLanguageDisplayName(currentVoiceLanguage)
-                                            : t('settings.voice.autoDetect')}
-                                    </span>
-                                    <ChevronDownIcon className={`transition-transform ${isVoiceOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isVoiceOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[200px] max-h-[300px] overflow-y-auto flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.voice.title')}
-                                >
-                                    {voiceLanguages.map((lang) => {
-                                        const isSelected = voiceLanguage === lang.code
-                                        const displayName = lang.code === null
-                                            ? t('settings.voice.autoDetect')
-                                            : getLanguageDisplayName(lang)
-                                        return (
-                                            <button
-                                                key={lang.code ?? 'auto'}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleVoiceLanguageChange(lang)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span>{displayName}</span>
-                                                {isSelected && (
-                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    </SettingsSection>
-
-                    <SettingsSection
+                    <SettingsGroup
                         title={t('settings.group.interaction.title')}
                         description={t('settings.group.interaction.description')}
                         isExpanded={isInteractionGroupExpanded}
                         onToggle={handleInteractionGroupToggle}
                     >
-                    {/* Behavior section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.behavior.title')}
-                        </div>
-                        <div ref={sendModeContainerRef} className="relative border-b border-[var(--app-border)]">
-                            <button
-                                type="button"
-                                onClick={() => setIsSendModeOpen(!isSendModeOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isSendModeOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.defaultSendMode')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.defaultSendMode.description')}
-                                    </span>
-                                </div>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentCodexSendModeLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isSendModeOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isSendModeOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.behavior.defaultSendMode')}
-                                >
-                                    {codexSendModes.map((mode) => {
-                                        const isSelected = codexSendModeDefault === mode
-                                        return (
-                                            <button
-                                                key={mode}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleCodexSendModeDefaultChange(mode)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-start ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span className="flex min-w-0 flex-col">
-                                                    <span>{t(`queue.mode.${mode}`)}</span>
-                                                    <span
-                                                        className="mt-0.5 text-[12.5px] font-normal text-[var(--social-fg-muted)]"
-                                                    >
-                                                        {t(`queue.mode.${mode}Hint`)}
-                                                    </span>
-                                                </span>
-                                                {isSelected && (
-                                                    <span className="mt-0.5 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-
-                        <div ref={queuePanelContainerRef} className="relative border-b border-[var(--app-border)]">
-                            <button
-                                type="button"
-                                onClick={() => setIsQueuePanelOpen(!isQueuePanelOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isQueuePanelOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.queueInlinePanel')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.queueInlinePanel.description')} · {currentQueuePanelModeDescription}
-                                    </span>
-                                </div>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentQueuePanelLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isQueuePanelOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isQueuePanelOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.behavior.queueInlinePanel')}
-                                >
-                                    {queueInlinePanelModes.map((mode) => {
-                                        const isSelected = queueInlinePanelMode === mode
-                                        return (
-                                            <button
-                                                key={mode}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleQueuePanelModeChange(mode)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-start ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span className="flex min-w-0 flex-col">
-                                                    <span>{t(`settings.behavior.queueInlinePanel.${mode}`)}</span>
-                                                    <span
-                                                        className="mt-0.5 text-[12.5px] font-normal text-[var(--social-fg-muted)]"
-                                                    >
-                                                        {t(`settings.behavior.queueInlinePanel.${mode}.description`)}
-                                                    </span>
-                                                </span>
-                                                {isSelected && (
-                                                    <span className="mt-0.5 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        <div ref={sessionReopenPositionContainerRef} className="relative border-b border-[var(--app-border)]">
-                            <button
-                                type="button"
-                                onClick={() => setIsSessionReopenPositionOpen(!isSessionReopenPositionOpen)}
-                                className="flex w-full items-center justify-between px-3 py-3 text-left transition-colors hover:bg-[var(--app-subtle-bg)]"
-                                aria-expanded={isSessionReopenPositionOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.sessionReopenPosition')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.sessionReopenPosition.description')}
-                                    </span>
-                                </div>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentSessionReopenPositionLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isSessionReopenPositionOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isSessionReopenPositionOpen && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[240px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.behavior.sessionReopenPosition')}
-                                >
-                                    {sessionReopenPositionModes.map((mode) => {
-                                        const isSelected = sessionReopenPosition === mode
-                                        return (
-                                            <button
-                                                key={mode}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleSessionReopenPositionChange(mode)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-start ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span className="flex min-w-0 flex-col">
-                                                    <span>{t(`settings.behavior.sessionReopenPosition.${mode}`)}</span>
-                                                    <span
-                                                        className="mt-0.5 text-[12.5px] font-normal text-[var(--social-fg-muted)]"
-                                                    >
-                                                        {t(`settings.behavior.sessionReopenPosition.${mode}.description`)}
-                                                    </span>
-                                                </span>
-                                                {isSelected && (
-                                                    <span className="mt-0.5 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.mobileQueueEmptyState')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.mobileQueueEmptyState.description')}
-                                </span>
-                            </div>
-                            <Switch
+                        <SettingsBlock title={t('settings.behavior.title')}>
+                            <SettingsSelectRow
+                                title={t('settings.behavior.defaultSendMode')}
+                                subtitle={t('settings.behavior.defaultSendMode.description')}
+                                valueLabel={currentCodexSendModeLabel}
+                                options={sendModeOptions}
+                                value={codexSendModeDefault}
+                                onChange={setCodexSendModeDefault}
+                            />
+                            <SettingsSelectRow
+                                title={t('settings.behavior.queueInlinePanel')}
+                                subtitle={`${t('settings.behavior.queueInlinePanel.description')} · ${currentQueuePanelModeDescription}`}
+                                valueLabel={currentQueuePanelLabel}
+                                options={queuePanelOptions}
+                                value={queueInlinePanelMode}
+                                onChange={setQueueInlinePanelMode}
+                            />
+                            <SettingsSelectRow
+                                title={t('settings.behavior.sessionReopenPosition')}
+                                subtitle={t('settings.behavior.sessionReopenPosition.description')}
+                                valueLabel={currentSessionReopenPositionLabel}
+                                options={sessionReopenPositionOptions}
+                                value={sessionReopenPosition}
+                                onChange={setSessionReopenPosition}
+                            />
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.mobileQueueEmptyState')}
+                                subtitle={t('settings.behavior.mobileQueueEmptyState.description')}
+                                label={t('settings.behavior.mobileQueueEmptyState')}
                                 checked={mobileQueueEmptyStatePreference === 'show'}
                                 onCheckedChange={(checked) => setMobileQueueEmptyStatePreference(checked ? 'show' : 'hide')}
-                                ariaLabel={t('settings.behavior.mobileQueueEmptyState')}
                             />
-                        </div>
-                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.projectQuickCreate')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.projectQuickCreate.description')}
-                                </span>
-                            </div>
-                            <Switch
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.projectQuickCreate')}
+                                subtitle={t('settings.behavior.projectQuickCreate.description')}
+                                label={t('settings.behavior.projectQuickCreate')}
                                 checked={projectQuickCreateEnabled}
                                 onCheckedChange={handleProjectQuickCreateToggle}
-                                ariaLabel={t('settings.behavior.projectQuickCreate')}
                             />
-                        </div>
-                        <div className="flex items-start justify-between gap-3 px-3 py-3 border-b border-[var(--app-divider)]">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.imageCompression')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.imageCompression.description')}
-                                </span>
-                            </div>
-                            <Switch
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.imageCompression')}
+                                subtitle={t('settings.behavior.imageCompression.description')}
+                                label={t('settings.behavior.imageCompression')}
                                 checked={imageUploadCompressionEnabled}
-                                onCheckedChange={handleImageUploadCompressionToggle}
-                                ariaLabel={t('settings.behavior.imageCompression')}
+                                onCheckedChange={setImageUploadCompressionEnabled}
                             />
-                        </div>
-                        <div ref={imageCompressionLevelContainerRef} className="relative border-b border-[var(--app-divider)]">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (!imageUploadCompressionEnabled) {
-                                        return
-                                    }
-                                    setIsImageCompressionLevelOpen(!isImageCompressionLevelOpen)
-                                }}
+                            <SettingsSelectRow
+                                title={t('settings.behavior.imageCompression.level')}
+                                subtitle={t('settings.behavior.imageCompression.level.description')}
+                                valueLabel={currentImageCompressionLevelLabel}
+                                options={imageCompressionLevelOptions}
+                                value={imageUploadCompressionLevel}
+                                onChange={setImageUploadCompressionLevel}
                                 disabled={!imageUploadCompressionEnabled}
-                                className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
-                                    imageUploadCompressionEnabled
-                                        ? 'hover:bg-[var(--app-subtle-bg)]'
-                                        : 'cursor-not-allowed opacity-60'
-                                }`}
-                                aria-expanded={isImageCompressionLevelOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.imageCompression.level')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.imageCompression.level.description')}
-                                    </span>
-                                </div>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentImageCompressionLevelLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isImageCompressionLevelOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isImageCompressionLevelOpen && imageUploadCompressionEnabled && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.behavior.imageCompression.level')}
-                                >
-                                    {imageUploadCompressionLevels.map((level) => {
-                                        const isSelected = imageUploadCompressionLevel === level
-                                        return (
-                                            <button
-                                                key={level}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleImageUploadCompressionLevelChange(level)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span>{t(`settings.behavior.imageCompression.level.${level}`)}</span>
-                                                {isSelected && (
-                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        <div ref={imageCompressionTargetSizeContainerRef} className="relative border-b border-[var(--app-divider)]">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (!imageUploadCompressionEnabled) {
-                                        return
-                                    }
-                                    setIsImageCompressionTargetSizeOpen(!isImageCompressionTargetSizeOpen)
-                                }}
+                            />
+                            <SettingsSelectRow
+                                title={t('settings.behavior.imageCompression.targetSize')}
+                                subtitle={t('settings.behavior.imageCompression.targetSize.description')}
+                                valueLabel={currentImageCompressionTargetSizeLabel}
+                                options={imageCompressionTargetSizeOptions}
+                                value={imageUploadCompressionTargetSize}
+                                onChange={setImageUploadCompressionTargetSize}
                                 disabled={!imageUploadCompressionEnabled}
-                                className={`flex w-full items-center justify-between px-3 py-3 text-left transition-colors ${
-                                    imageUploadCompressionEnabled
-                                        ? 'hover:bg-[var(--app-subtle-bg)]'
-                                        : 'cursor-not-allowed opacity-60'
-                                }`}
-                                aria-expanded={isImageCompressionTargetSizeOpen}
-                                aria-haspopup="listbox"
-                            >
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.behavior.imageCompression.targetSize')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.behavior.imageCompression.targetSize.description')}
-                                    </span>
-                                </div>
-                                <span className="flex items-center gap-1 text-[var(--app-hint)]">
-                                    <span>{currentImageCompressionTargetSizeLabel}</span>
-                                    <ChevronDownIcon className={`transition-transform ${isImageCompressionTargetSizeOpen ? 'rotate-180' : ''}`} />
-                                </span>
-                            </button>
-
-                            {isImageCompressionTargetSizeOpen && imageUploadCompressionEnabled && (
-                                <div
-                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
-                                    role="listbox"
-                                    aria-label={t('settings.behavior.imageCompression.targetSize')}
-                                >
-                                    {imageUploadCompressionTargetSizes.map((targetSize) => {
-                                        const isSelected = imageUploadCompressionTargetSize === targetSize
-                                        return (
-                                            <button
-                                                key={targetSize}
-                                                type="button"
-                                                role="option"
-                                                aria-selected={isSelected}
-                                                onClick={() => handleImageUploadCompressionTargetSizeChange(targetSize)}
-                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
-                                            >
-                                                <span>{t(`settings.behavior.imageCompression.targetSize.${targetSize}`)}</span>
-                                                {isSelected && (
-                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
-                                                        <CheckIcon />
-                                                    </span>
-                                                )}
-                                            </button>
-                                        )
-                                    })}
-                                </div>
-                            )}
-                        </div>
-                        <div className="border-b border-[var(--app-divider)]">
-                            <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                                {t('settings.experimental.title')}
-                            </div>
-                            <div className="flex items-start justify-between gap-3 px-3 py-3">
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.experimental.preview.title')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.experimental.preview.description')}
-                                    </span>
-                                    {experimentalStatusMessage && (
-                                        <span className="mt-1 text-xs text-[var(--app-hint)]">
-                                            {experimentalStatusMessage}
-                                        </span>
-                                    )}
-                                </div>
-                                <Switch
-                                    checked={experimentalPreviewEnabled}
-                                    onCheckedChange={(enabled) => {
-                                        setExperimentalStatusMessage(null)
-                                        void toggleExperimentalPreviewMutation.mutateAsync(enabled)
-                                    }}
-                                    disabled={experimentalSettingsLoading || toggleExperimentalPreviewMutation.isPending}
-                                    ariaLabel={t('settings.experimental.preview.title')}
-                                />
-                            </div>
-                            <div className="flex items-start justify-between gap-3 px-3 py-3 border-t border-[var(--app-divider)]">
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.experimental.claudeLoginShell.title')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.experimental.claudeLoginShell.description')}
-                                    </span>
-                                </div>
-                                <Switch
-                                    checked={experimentalClaudeLoginShellEnabled}
-                                    onCheckedChange={(enabled) => {
-                                        setExperimentalStatusMessage(null)
-                                        void toggleExperimentalClaudeLoginShellMutation.mutateAsync(enabled)
-                                    }}
-                                    disabled={experimentalSettingsLoading || toggleExperimentalClaudeLoginShellMutation.isPending}
-                                    ariaLabel={t('settings.experimental.claudeLoginShell.title')}
-                                />
-                            </div>
-                            <div className="flex items-start justify-between gap-3 px-3 py-3 border-t border-[var(--app-divider)]">
-                                <div className="flex flex-col">
-                                    <span className="text-[var(--app-fg)]">
-                                        {t('settings.experimental.codexReportPrompt.title')}
-                                    </span>
-                                    <span className="text-xs text-[var(--app-hint)]">
-                                        {t('settings.experimental.codexReportPrompt.description')}
-                                    </span>
-                                </div>
-                                <Switch
-                                    checked={experimentalCodexReportPromptEnabled}
-                                    onCheckedChange={(enabled) => {
-                                        setExperimentalStatusMessage(null)
-                                        void toggleExperimentalCodexReportPromptMutation.mutateAsync(enabled)
-                                    }}
-                                    disabled={experimentalSettingsLoading || toggleExperimentalCodexReportPromptMutation.isPending}
-                                    ariaLabel={t('settings.experimental.codexReportPrompt.title')}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex items-start justify-between gap-3 border-b border-[var(--app-border)] px-3 py-3">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.enterBehavior')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.enterBehavior.description')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {enterBehavior === 'send'
-                                        ? t('settings.behavior.enterBehavior.send')
-                                        : t('settings.behavior.enterBehavior.newline')}
-                                </span>
-                            </div>
-                            <Switch
+                            />
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.enterBehavior')}
+                                subtitle={(
+                                    <>
+                                        {t('settings.behavior.enterBehavior.description')}
+                                        <br />
+                                        {enterBehavior === 'send'
+                                            ? t('settings.behavior.enterBehavior.send')
+                                            : t('settings.behavior.enterBehavior.newline')}
+                                    </>
+                                )}
+                                label={t('settings.behavior.enterBehavior')}
                                 checked={enterBehavior === 'newline'}
                                 onCheckedChange={(checked) => setEnterBehavior(checked ? 'newline' : 'send')}
-                                ariaLabel={t('settings.behavior.enterBehavior')}
                             />
-                        </div>
-                        <div className="flex items-start justify-between gap-3 px-3 py-3">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.sessionQuickArchive')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.sessionQuickArchive.description')}
-                                </span>
-                            </div>
-                            <Switch
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.sessionQuickArchive')}
+                                subtitle={t('settings.behavior.sessionQuickArchive.description')}
+                                label={t('settings.behavior.sessionQuickArchive')}
                                 checked={sessionQuickArchiveEnabled}
                                 onCheckedChange={handleSessionQuickArchiveToggle}
-                                ariaLabel={t('settings.behavior.sessionQuickArchive')}
                             />
-                        </div>
-                        <div className="flex items-start justify-between gap-3 border-t border-[var(--app-divider)] px-3 py-3">
-                            <div className="flex flex-col">
-                                <span className="text-[var(--app-fg)]">
-                                    {t('settings.behavior.archiveConfirm')}
-                                </span>
-                                <span className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.behavior.archiveConfirm.description')}
-                                </span>
-                            </div>
-                            <Switch
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.archiveConfirm')}
+                                subtitle={t('settings.behavior.archiveConfirm.description')}
+                                label={t('settings.behavior.archiveConfirm')}
                                 checked={skipArchiveConfirmation}
                                 onCheckedChange={handleSkipArchiveConfirmToggle}
-                                ariaLabel={t('settings.behavior.archiveConfirm')}
                             />
-                        </div>
-                    </div>
-                    </SettingsSection>
+                        </SettingsBlock>
 
-                    <SettingsSection
+                        <SettingsBlock title={t('settings.experimental.title')} hint={experimentalStatusMessage}>
+                            <SettingsSwitchRow
+                                title={t('settings.experimental.preview.title')}
+                                subtitle={t('settings.experimental.preview.description')}
+                                label={t('settings.experimental.preview.title')}
+                                checked={experimentalPreviewEnabled}
+                                onCheckedChange={(enabled) => {
+                                    setExperimentalStatusMessage(null)
+                                    void toggleExperimentalPreviewMutation.mutateAsync(enabled)
+                                }}
+                                disabled={experimentalSettingsLoading || toggleExperimentalPreviewMutation.isPending}
+                            />
+                            <SettingsSwitchRow
+                                title={t('settings.experimental.claudeLoginShell.title')}
+                                subtitle={t('settings.experimental.claudeLoginShell.description')}
+                                label={t('settings.experimental.claudeLoginShell.title')}
+                                checked={experimentalClaudeLoginShellEnabled}
+                                onCheckedChange={(enabled) => {
+                                    setExperimentalStatusMessage(null)
+                                    void toggleExperimentalClaudeLoginShellMutation.mutateAsync(enabled)
+                                }}
+                                disabled={experimentalSettingsLoading || toggleExperimentalClaudeLoginShellMutation.isPending}
+                            />
+                            <SettingsSwitchRow
+                                title={t('settings.experimental.codexReportPrompt.title')}
+                                subtitle={t('settings.experimental.codexReportPrompt.description')}
+                                label={t('settings.experimental.codexReportPrompt.title')}
+                                checked={experimentalCodexReportPromptEnabled}
+                                onCheckedChange={(enabled) => {
+                                    setExperimentalStatusMessage(null)
+                                    void toggleExperimentalCodexReportPromptMutation.mutateAsync(enabled)
+                                }}
+                                disabled={experimentalSettingsLoading || toggleExperimentalCodexReportPromptMutation.isPending}
+                            />
+                        </SettingsBlock>
+                    </SettingsGroup>
+
+                    <SettingsGroup
                         title={t('settings.group.dataDiagnostics.title')}
                         description={t('settings.group.dataDiagnostics.description')}
                         isExpanded={isDataDiagnosticsGroupExpanded}
                         onToggle={handleDataDiagnosticsGroupToggle}
                     >
-                    {/* Usage section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.usage.title')}
-                        </div>
-                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
-                            {t('settings.usage.description')}
-                        </div>
-                        <div className="px-3 pb-3">
-                            <button
-                                type="button"
-                                onClick={() => void loadUsageOverview(true)}
-                                disabled={usageLoading}
-                                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-                            >
-                                {usageLoading ? t('settings.usage.loading') : t('settings.usage.refresh')}
-                            </button>
-                        </div>
-
-                        {usageError ? (
-                            <div className="px-3 pb-3">
-                                <div className="rounded-xl bg-[var(--social-danger)]/10 px-3 py-2 text-[13px] text-[var(--social-danger)]">
-                                    {usageError}
-                                </div>
+                        <SettingsPanel title={t('settings.usage.title')} description={t('settings.usage.description')}>
+                            <div className="px-4">
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => void loadUsageOverview(true)}
+                                    disabled={usageLoading}
+                                >
+                                    {usageLoading ? t('settings.usage.loading') : t('settings.usage.refresh')}
+                                </Button>
                             </div>
-                        ) : null}
 
-                        {usageOverview ? (
-                            <div className="space-y-2 px-3 pb-3">
-                                {([usageOverview.claude, usageOverview.codex] as const).map((provider) => (
-                                    <div
-                                        key={provider.provider}
-                                        className="rounded-2xl border border-[var(--social-border)] p-4"
-                                    >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="font-medium text-[var(--app-fg)]">
-                                                {t(`settings.usage.provider.${provider.provider}`)}
-                                            </div>
-                                            <span className="text-xs text-[var(--app-hint)]">
-                                                {t('settings.usage.files')}: {formatNumber(provider.filesScanned)}
-                                            </span>
-                                        </div>
+                            {usageError ? <SettingsNotice tone="error">{usageError}</SettingsNotice> : null}
 
-                                        {provider.available ? (
-                                            <div className="mt-2 space-y-1 text-sm text-[var(--app-fg)]">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeTotalTokens')}</span>
-                                                    <span className="font-semibold">{formatNumber(provider.allTime.totalTokens)}</span>
+                            {usageOverview ? (
+                                <>
+                                    {([usageOverview.claude, usageOverview.codex] as const).map((provider) => (
+                                        <SettingsCard
+                                            key={provider.provider}
+                                            title={t(`settings.usage.provider.${provider.provider}`)}
+                                            trailing={`${t('settings.usage.files')}: ${formatNumber(provider.filesScanned)}`}
+                                        >
+                                            {provider.available ? (
+                                                <div className="flex flex-col gap-1.5">
+                                                    <SettingsStat
+                                                        label={t('settings.usage.allTimeTotalTokens')}
+                                                        value={formatNumber(provider.allTime.totalTokens)}
+                                                        strong
+                                                    />
+                                                    <SettingsStat
+                                                        label={t('settings.usage.last30DaysTotalTokens')}
+                                                        value={formatNumber(provider.last30Days.totalTokens)}
+                                                    />
+                                                    <SettingsStat
+                                                        label={t('settings.usage.allTimeEvents')}
+                                                        value={formatNumber(provider.eventCount)}
+                                                    />
+                                                    {provider.estimatedCost ? (
+                                                        <>
+                                                            <SettingsStat
+                                                                label={t('settings.usage.allTimeEstimatedCost')}
+                                                                value={`≈${formatUsd(provider.estimatedCost.allTimeUsd)}`}
+                                                                strong
+                                                            />
+                                                            <SettingsStat
+                                                                label={t('settings.usage.last30DaysEstimatedCost')}
+                                                                value={`≈${formatUsd(provider.estimatedCost.last30DaysUsd)}`}
+                                                            />
+                                                            <div className="text-[12px] text-[var(--social-fg-subtle)]">
+                                                                {t('settings.usage.estimateHint')} {formatUsd(provider.estimatedCost.usdPerMillionTokens)}/1M tokens
+                                                                {' · '}
+                                                                {t(`settings.usage.rateSource.${provider.estimatedCost.rateSource}`)}
+                                                                {provider.estimatedCost.pricingModel ? ` · ${provider.estimatedCost.pricingModel}` : ''}
+                                                            </div>
+                                                        </>
+                                                    ) : null}
+                                                    {provider.parseErrors > 0 ? (
+                                                        <SettingsStat
+                                                            label={t('settings.usage.parseErrors')}
+                                                            value={formatNumber(provider.parseErrors)}
+                                                        />
+                                                    ) : null}
                                                 </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[var(--app-hint)]">{t('settings.usage.last30DaysTotalTokens')}</span>
-                                                    <span>{formatNumber(provider.last30Days.totalTokens)}</span>
+                                            ) : (
+                                                <div className="text-[13px] text-[var(--social-fg-muted)]">
+                                                    {t('settings.usage.unavailable')}
                                                 </div>
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeEvents')}</span>
-                                                    <span>{formatNumber(provider.eventCount)}</span>
-                                                </div>
-                                                {provider.estimatedCost ? (
-                                                    <>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="text-[var(--app-hint)]">{t('settings.usage.allTimeEstimatedCost')}</span>
-                                                            <span className="font-semibold">≈{formatUsd(provider.estimatedCost.allTimeUsd)}</span>
-                                                        </div>
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <span className="text-[var(--app-hint)]">{t('settings.usage.last30DaysEstimatedCost')}</span>
-                                                            <span>≈{formatUsd(provider.estimatedCost.last30DaysUsd)}</span>
-                                                        </div>
-                                                        <div className="text-xs text-[var(--app-hint)]">
-                                                            {t('settings.usage.estimateHint')} {formatUsd(provider.estimatedCost.usdPerMillionTokens)}/1M tokens
-                                                            {' · '}
-                                                            {t(`settings.usage.rateSource.${provider.estimatedCost.rateSource}`)}
-                                                            {provider.estimatedCost.pricingModel ? ` · ${provider.estimatedCost.pricingModel}` : ''}
-                                                        </div>
-                                                    </>
-                                                ) : null}
-                                                {provider.parseErrors > 0 ? (
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="text-[var(--app-hint)]">{t('settings.usage.parseErrors')}</span>
-                                                        <span>{formatNumber(provider.parseErrors)}</span>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        ) : (
-                                            <div className="mt-2 text-sm text-[var(--app-hint)]">
-                                                {t('settings.usage.unavailable')}
-                                            </div>
-                                        )}
+                                            )}
 
-                                        {provider.roots.length > 0 ? (
-                                            <div className="mt-2 break-all text-xs text-[var(--app-hint)]">
-                                                {provider.roots.join(', ')}
-                                            </div>
-                                        ) : null}
+                                            {provider.roots.length > 0 ? (
+                                                <div className="break-all text-[12px] text-[var(--social-fg-subtle)]">
+                                                    {provider.roots.join(', ')}
+                                                </div>
+                                            ) : null}
+                                        </SettingsCard>
+                                    ))}
+                                    <div className="px-4 text-[12px] text-[var(--social-fg-subtle)]">
+                                        {t('settings.usage.updatedAt')}: {formatDateTime(usageOverview.generatedAt)}
                                     </div>
-                                ))}
-                                <div className="text-xs text-[var(--app-hint)]">
-                                    {t('settings.usage.updatedAt')}: {formatDateTime(usageOverview.generatedAt)}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
+                                </>
+                            ) : null}
+                        </SettingsPanel>
 
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.codexCredentials.title')}
-                        </div>
-                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
-                            {t('settings.codexCredentials.description')}
-                        </div>
-
-                        {activeMachines.length > 0 ? (
-                            <>
-                                <div className="grid gap-2 px-3 pb-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
-                                    <SelectInput
-                                        value={selectedCodexMachineId}
-                                        onChange={(event) => handleCodexMachineChange(event.target.value)}
-                                        aria-label={t('settings.codexCredentials.machine')}
-                                    >
-                                        {activeMachines.map((machine) => (
-                                            <option key={machine.id} value={machine.id}>
-                                                {machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id}
-                                            </option>
-                                        ))}
-                                    </SelectInput>
-                                    <button
-                                        type="button"
-                                        onClick={() => { void handleReloadCodexCredentials() }}
-                                        disabled={!selectedCodexMachineId || codexCredentialLoading}
-                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-                                    >
-                                        {t('settings.codexCredentials.actions.refresh')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => { void handleExportCodexCredentials() }}
-                                        disabled={!codexCredentialState?.current.exists || codexCredentialExporting}
-                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
-                                    >
-                                        {t('settings.codexCredentials.actions.export')}
-                                    </button>
-                                </div>
-
-                                <div className="px-3 pb-3">
-                                    <div className="rounded-2xl border border-[var(--social-border)] p-4">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="font-medium text-[var(--app-fg)]">
-                                                {t('settings.codexCredentials.current.title')}
-                                            </div>
-                                            <div className="text-xs text-[var(--app-hint)]">
-                                                {selectedCodexMachine?.metadata?.host ?? selectedCodexMachine?.id}
-                                            </div>
+                        <SettingsPanel
+                            title={t('settings.codexCredentials.title')}
+                            description={t('settings.codexCredentials.description')}
+                        >
+                            {activeMachines.length > 0 ? (
+                                <>
+                                    <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                                        <div className="min-w-0 md:flex-1">
+                                            <SelectInput
+                                                value={selectedCodexMachineId}
+                                                onChange={(event) => handleCodexMachineChange(event.target.value)}
+                                                aria-label={t('settings.codexCredentials.machine')}
+                                            >
+                                                {activeMachines.map((machine) => (
+                                                    <option key={machine.id} value={machine.id}>
+                                                        {machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id}
+                                                    </option>
+                                                ))}
+                                            </SelectInput>
                                         </div>
+                                        <div className="grid grid-cols-2 gap-2 md:flex">
+                                            <Button
+                                                variant="secondary"
+                                                onClick={() => { void handleReloadCodexCredentials() }}
+                                                disabled={!selectedCodexMachineId || codexCredentialLoading}
+                                            >
+                                                {t('settings.codexCredentials.actions.refresh')}
+                                            </Button>
+                                            <Button
+                                                variant="secondary"
+                                                onClick={() => { void handleExportCodexCredentials() }}
+                                                disabled={!codexCredentialState?.current.exists || codexCredentialExporting}
+                                            >
+                                                {t('settings.codexCredentials.actions.export')}
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    <SettingsCard
+                                        title={t('settings.codexCredentials.current.title')}
+                                        trailing={selectedCodexMachine?.metadata?.host ?? selectedCodexMachine?.id}
+                                    >
                                         {codexCredentialState?.current.exists ? (
-                                            <div className="mt-2 space-y-1 text-sm text-[var(--app-fg)]">
+                                            <div className="flex flex-col gap-1 text-[15px] text-[var(--social-fg)]">
                                                 {codexCurrentSummaryRows.map((row) => (
                                                     <div key={row}>{row}</div>
                                                 ))}
-                                                <div className="text-xs text-[var(--app-hint)]">
+                                                <div className="text-[12px] text-[var(--social-fg-subtle)]">
                                                     {codexCredentialState.current.activeProfileId
                                                         ? t('settings.codexCredentials.current.managed')
                                                         : t('settings.codexCredentials.current.unmanaged')}
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="mt-2 text-sm text-[var(--app-hint)]">
+                                            <div className="text-[13px] text-[var(--social-fg-muted)]">
                                                 {t('settings.codexCredentials.current.missing')}
                                             </div>
                                         )}
-                                    </div>
-                                </div>
+                                    </SettingsCard>
 
-                                {codexCredentialError ? (
-                                    <div className="px-3 pb-3">
-                                        <div className="rounded-xl bg-[var(--social-danger)]/10 px-3 py-2 text-[13px] text-[var(--social-danger)]">
-                                            {codexCredentialError}
-                                        </div>
-                                    </div>
-                                ) : null}
+                                    {codexCredentialError ? <SettingsNotice tone="error">{codexCredentialError}</SettingsNotice> : null}
+                                    {codexCredentialStatusMessage ? (
+                                        <SettingsNotice tone="success">{codexCredentialStatusMessage}</SettingsNotice>
+                                    ) : null}
 
-                                {codexCredentialStatusMessage ? (
-                                    <div className="px-3 pb-3">
-                                        <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-600 dark:text-emerald-400">
-                                            {codexCredentialStatusMessage}
-                                        </div>
-                                    </div>
-                                ) : null}
-
-                                <div className="grid gap-3 px-3 pb-3 lg:grid-cols-2">
-                                    <div className="space-y-2.5 rounded-2xl border border-[var(--social-border)] p-4">
-                                        <div className="font-medium text-[var(--app-fg)]">
-                                            {t('settings.codexCredentials.actions.saveCurrent')}
-                                        </div>
-                                        <input
-                                            value={codexCredentialNameDraft}
-                                            onChange={(event) => setCodexCredentialNameDraft(event.target.value)}
-                                            placeholder={t('settings.codexCredentials.name.placeholder')}
-                                            className={DIALOG_INPUT_CLASS}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => { void handleSaveCurrentCodexCredentials() }}
-                                            disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
-                                            className={buttonVariants({ size: 'sm' })}
-                                        >
-                                            {t('settings.codexCredentials.actions.saveCurrent')}
-                                        </button>
-                                    </div>
-
-                                    <div className="space-y-2.5 rounded-2xl border border-[var(--social-border)] p-4">
-                                        <div className="font-medium text-[var(--app-fg)]">
-                                            {t('settings.codexCredentials.import.title')}
-                                        </div>
-                                        <input
-                                            type="file"
-                                            accept="application/json,.json"
-                                            onChange={(event) => { void handleCodexCredentialFileChange(event) }}
-                                            className="block w-full text-[13px] text-[var(--social-fg-muted)] file:mr-3 file:rounded-full file:border file:border-[var(--social-border)] file:bg-[var(--app-bg)] file:px-3.5 file:py-1.5 file:text-[13px] file:text-[var(--social-fg)]"
-                                        />
-                                        <textarea
-                                            value={codexCredentialImportDraft}
-                                            onChange={(event) => setCodexCredentialImportDraft(event.target.value)}
-                                            placeholder={t('settings.codexCredentials.import.placeholder')}
-                                            className={`${DIALOG_INPUT_CLASS} h-36 font-mono text-[13px]`}
-                                            spellCheck={false}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => { void handleImportCodexCredentials() }}
-                                            disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
-                                            className={buttonVariants({ size: 'sm' })}
-                                        >
-                                            {t('settings.codexCredentials.actions.import')}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="px-3 pb-3">
-                                    <div className="mb-2 text-sm font-medium text-[var(--app-fg)]">
-                                        {t('settings.codexCredentials.profiles.title')}
-                                    </div>
-                                    {codexCredentialState?.profiles.length ? (
-                                        <div className="space-y-2">
-                                            {codexCredentialState.profiles.map((profile) => (
-                                                <div
-                                                    key={profile.id}
-                                                    className="rounded-2xl border border-[var(--social-border)] p-4"
+                                    <div className="grid gap-3 lg:grid-cols-2">
+                                        <SettingsCard title={t('settings.codexCredentials.actions.saveCurrent')} className="gap-3">
+                                            <TextField
+                                                value={codexCredentialNameDraft}
+                                                onChange={(event) => setCodexCredentialNameDraft(event.target.value)}
+                                                placeholder={t('settings.codexCredentials.name.placeholder')}
+                                                aria-label={t('settings.codexCredentials.name.placeholder')}
+                                            />
+                                            <div>
+                                                <Button
+                                                    onClick={() => { void handleSaveCurrentCodexCredentials() }}
+                                                    disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
                                                 >
-                                                    <div className="flex flex-wrap items-center justify-between gap-2">
-                                                        <div>
-                                                            <div className="font-medium text-[var(--app-fg)]">
-                                                                {profile.name}
+                                                    {t('settings.codexCredentials.actions.saveCurrent')}
+                                                </Button>
+                                            </div>
+                                        </SettingsCard>
+
+                                        <SettingsCard title={t('settings.codexCredentials.import.title')} className="gap-3">
+                                            <input
+                                                type="file"
+                                                accept="application/json,.json"
+                                                onChange={(event) => { void handleCodexCredentialFileChange(event) }}
+                                                className="block w-full text-[13px] text-[var(--social-fg-muted)] file:mr-3 file:h-11 file:cursor-pointer file:rounded-full file:border-0 file:bg-[var(--social-muted)] file:px-5 file:text-[15px] file:font-semibold file:text-[var(--social-fg)]"
+                                            />
+                                            <textarea
+                                                value={codexCredentialImportDraft}
+                                                onChange={(event) => setCodexCredentialImportDraft(event.target.value)}
+                                                placeholder={t('settings.codexCredentials.import.placeholder')}
+                                                className={cn(DIALOG_INPUT_CLASS, 'h-36 font-mono')}
+                                                spellCheck={false}
+                                            />
+                                            <div>
+                                                <Button
+                                                    onClick={() => { void handleImportCodexCredentials() }}
+                                                    disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
+                                                >
+                                                    {t('settings.codexCredentials.actions.import')}
+                                                </Button>
+                                            </div>
+                                        </SettingsCard>
+                                    </div>
+
+                                    <div className="flex flex-col gap-2">
+                                        <div className="px-1 text-[15px] font-semibold text-[var(--social-fg)]">
+                                            {t('settings.codexCredentials.profiles.title')}
+                                        </div>
+                                        {codexCredentialState?.profiles.length ? (
+                                            codexCredentialState.profiles.map((profile) => (
+                                                <SettingsCard key={profile.id}>
+                                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="truncate text-[15px] font-semibold text-[var(--social-fg)]">
+                                                                    {profile.name}
+                                                                </span>
+                                                                {profile.isActive ? (
+                                                                    <Badge variant="success" dot>
+                                                                        {t('settings.codexCredentials.profile.active')}
+                                                                    </Badge>
+                                                                ) : null}
                                                             </div>
-                                                            <div className="text-xs text-[var(--app-hint)]">
+                                                            <div className="mt-0.5 text-[12px] text-[var(--social-fg-subtle)]">
                                                                 {profile.importSource === 'current-auth'
                                                                     ? t('settings.codexCredentials.profile.sourceCurrent')
                                                                     : t('settings.codexCredentials.profile.sourceImported')}
                                                                 {' · '}
                                                                 {formatDateTime(profile.updatedAt)}
-                                                                {profile.isActive ? ` · ${t('settings.codexCredentials.profile.active')}` : ''}
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <button
-                                                                type="button"
+                                                            <Button
+                                                                variant="secondary"
                                                                 onClick={() => { void handleActivateCodexCredential(profile.id) }}
                                                                 disabled={profile.isActive || codexCredentialActionPendingId !== null}
-                                                                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                                             >
                                                                 {profile.isActive
                                                                     ? t('settings.codexCredentials.profile.active')
                                                                     : t('settings.codexCredentials.actions.activate')}
-                                                            </button>
-                                                            <button
-                                                                type="button"
+                                                            </Button>
+                                                            <Button
+                                                                variant="secondary"
                                                                 onClick={() => { void handleDeleteCodexCredential(profile) }}
                                                                 disabled={profile.isActive || codexCredentialActionPendingId !== null}
-                                                                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'text-[var(--social-danger)]')}
+                                                                className="text-[var(--social-danger)]"
                                                             >
                                                                 {t('settings.codexCredentials.actions.delete')}
-                                                            </button>
+                                                            </Button>
                                                         </div>
                                                     </div>
-                                                    <div className="mt-2 space-y-1 text-sm text-[var(--app-fg)]">
+                                                    <div className="flex flex-col gap-1 text-[13px] text-[var(--social-fg-muted)]">
                                                         {formatCodexCredentialSummary(profile.summary, t).map((row) => (
                                                             <div key={`${profile.id}:${row}`}>{row}</div>
                                                         ))}
                                                     </div>
-                                                </div>
-                                            ))}
+                                                </SettingsCard>
+                                            ))
+                                        ) : (
+                                            <div className="rounded-2xl border border-dashed border-[var(--social-border)] px-4 py-4 text-[13px] text-[var(--social-fg-muted)]">
+                                                {t('settings.codexCredentials.profiles.empty')}
+                                            </div>
+                                        )}
+                                        <div className="px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                            {t('settings.codexCredentials.futureSessionsHint')}
                                         </div>
-                                    ) : (
-                                        <div className="rounded-2xl border border-dashed border-[var(--social-border)] px-4 py-4 text-[13px] text-[var(--social-fg-muted)]">
-                                            {t('settings.codexCredentials.profiles.empty')}
-                                        </div>
-                                    )}
-                                    <div className="mt-2 text-xs text-[var(--app-hint)]">
-                                        {t('settings.codexCredentials.futureSessionsHint')}
                                     </div>
+                                </>
+                            ) : (
+                                <div className="px-4 text-[13px] text-[var(--social-fg-muted)]">
+                                    {t('settings.codexCredentials.noMachines')}
                                 </div>
-                            </>
-                        ) : (
-                            <div className="px-3 pb-3 text-sm text-[var(--app-hint)]">
-                                {t('settings.codexCredentials.noMachines')}
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </SettingsPanel>
 
-                    {/* Report domain section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
-                            {t('settings.reportDomain.title')}
-                        </div>
-                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
-                            {t('settings.reportDomain.description')}
-                        </div>
-                        <div className="px-3 pb-3">
-                            <input
+                        <SettingsPanel
+                            title={t('settings.reportDomain.title')}
+                            description={t('settings.reportDomain.description')}
+                        >
+                            <TextField
                                 value={reportDomainDraft}
                                 onChange={(event) => setReportDomainDraft(event.target.value)}
                                 placeholder={t('settings.reportDomain.placeholder')}
-                                className={`${DIALOG_INPUT_CLASS} disabled:opacity-60`}
+                                aria-label={t('settings.reportDomain.title')}
                                 spellCheck={false}
                                 disabled={reportDomainLoading || reportDomainEnvOverride}
                             />
-                            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-xs text-[var(--app-hint)]">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="min-w-0 px-1 text-[12px] text-[var(--social-fg-subtle)]">
                                     {reportDomainEnvOverride
                                         ? t('settings.reportDomain.status.envLocked')
                                         : isReportDomainDirty
@@ -2077,16 +1304,14 @@ export default function SettingsPage() {
                                     {t(`settings.reportDomain.source.${reportDomainSource}`)}
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
                                         onClick={() => { void handleReloadReportDomain() }}
                                         disabled={reportDomainLoading || saveReportDomainMutation.isPending}
-                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                     >
                                         {t('settings.reportDomain.actions.reload')}
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <Button
                                         onClick={() => { void handleSaveReportDomain() }}
                                         disabled={
                                             reportDomainLoading
@@ -2094,123 +1319,92 @@ export default function SettingsPage() {
                                             || !isReportDomainDirty
                                             || saveReportDomainMutation.isPending
                                         }
-                                        className={buttonVariants({ size: 'sm' })}
                                     >
                                         {saveReportDomainMutation.isPending
                                             ? t('settings.reportDomain.actions.saving')
                                             : t('settings.reportDomain.actions.save')}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                        </SettingsPanel>
 
-                    {/* Memory section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="flex items-center justify-between gap-3 px-3 py-2">
-                            <div className="text-[12px] font-medium text-[var(--social-fg-muted)]">
-                                {t('settings.memory.pureContextMode.title')}
-                            </div>
-                            <Switch
-                                checked={pureContextModeEnabled}
-                                onCheckedChange={(value) => { void handlePureContextModeToggle(value) }}
-                                disabled={memoryLoading || togglePureContextModeMutation.isPending}
-                                ariaLabel={t('settings.memory.pureContextMode.title')}
-                            />
-                        </div>
-                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
-                            {t('settings.memory.pureContextMode.description')}
-                        </div>
-                        <div className="flex items-center justify-between gap-3 px-3 py-2">
-                            <div className="text-[12px] font-medium text-[var(--social-fg-muted)]">
-                                {t('settings.memory.injection.title')}
-                            </div>
-                            <Switch
-                                checked={memoryInjectionEnabled}
-                                onCheckedChange={(value) => { void handleMemoryInjectionToggle(value) }}
-                                disabled={memoryLoading || toggleMemoryInjectionMutation.isPending || pureContextModeEnabled}
-                                ariaLabel={t('settings.memory.injection.title')}
-                            />
-                        </div>
-                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
-                            {t('settings.memory.description')}
-                        </div>
-                        <div className="px-3 pb-2 text-xs text-[var(--app-hint)] break-all">
-                            {memory?.path ?? t('settings.memory.pathLoading')}
-                        </div>
+                        <div className="flex flex-col gap-3">
+                            <SettingsBlock hint={memory?.path ?? t('settings.memory.pathLoading')}>
+                                <SettingsSwitchRow
+                                    title={t('settings.memory.pureContextMode.title')}
+                                    subtitle={t('settings.memory.pureContextMode.description')}
+                                    label={t('settings.memory.pureContextMode.title')}
+                                    checked={pureContextModeEnabled}
+                                    onCheckedChange={(value) => { void handlePureContextModeToggle(value) }}
+                                    disabled={memoryLoading || togglePureContextModeMutation.isPending}
+                                />
+                                <SettingsSwitchRow
+                                    title={t('settings.memory.injection.title')}
+                                    subtitle={t('settings.memory.description')}
+                                    label={t('settings.memory.injection.title')}
+                                    checked={memoryInjectionEnabled}
+                                    onCheckedChange={(value) => { void handleMemoryInjectionToggle(value) }}
+                                    disabled={memoryLoading || toggleMemoryInjectionMutation.isPending || pureContextModeEnabled}
+                                />
+                            </SettingsBlock>
 
-                        {memoryError ? (
-                            <div className="px-3 pb-2">
-                                <div className="rounded-xl bg-[var(--social-danger)]/10 px-3 py-2 text-[13px] text-[var(--social-danger)]">
-                                    {memoryError}
-                                </div>
-                            </div>
-                        ) : null}
+                            {memoryError ? <SettingsNotice tone="error">{memoryError}</SettingsNotice> : null}
 
-                        <div className="px-3 pb-3">
                             <textarea
                                 value={memoryDraft}
                                 onChange={(event) => setMemoryDraft(event.target.value)}
                                 placeholder={memoryLoading ? t('settings.memory.placeholder.loading') : t('settings.memory.placeholder.edit')}
-                                className={`${DIALOG_INPUT_CLASS} h-56 text-[14px] leading-relaxed`}
+                                aria-label={t('settings.memory.placeholder.edit')}
+                                className={cn(DIALOG_INPUT_CLASS, 'h-56 leading-relaxed')}
                                 spellCheck={false}
                             />
-                            <div className="mt-2 flex items-center justify-between gap-2">
-                                <span className="text-xs text-[var(--app-hint)]">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <span className="min-w-0 px-1 text-[12px] text-[var(--social-fg-subtle)]">
                                     {isMemoryDirty ? t('settings.memory.status.unsaved') : memoryStatusMessage ?? t('settings.memory.status.synced')}
                                 </span>
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="secondary"
                                         onClick={() => { void handleReloadMemory() }}
                                         disabled={saveMemoryMutation.isPending}
-                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                     >
                                         {t('settings.memory.actions.reload')}
-                                    </button>
-                                    <button
-                                        type="button"
+                                    </Button>
+                                    <Button
                                         onClick={() => { void handleSaveMemory() }}
                                         disabled={!isMemoryDirty || saveMemoryMutation.isPending}
-                                        className={buttonVariants({ size: 'sm' })}
                                     >
                                         {saveMemoryMutation.isPending ? t('settings.memory.actions.saving') : t('settings.memory.actions.save')}
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    </SettingsSection>
+                    </SettingsGroup>
 
-                    <SettingsSection
+                    <SettingsGroup
                         title={t('settings.group.about.title')}
                         description={t('settings.group.about.description')}
                         isExpanded={isAboutGroupExpanded}
                         onToggle={handleAboutGroupToggle}
                     >
-                    {/* About section */}
-                    <div className="border-b border-[var(--app-divider)]">
-                        <div className="flex w-full items-center justify-between px-3 py-3">
-                            <span className="text-[var(--app-fg)]">{t('settings.about.website')}</span>
-                            <a
-                                href="https://hapi.run"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-[var(--app-link)] hover:underline"
-                            >
-                                hapi.run
-                            </a>
-                        </div>
-                        <div className="flex w-full items-center justify-between px-3 py-3">
-                            <span className="text-[var(--app-fg)]">{t('settings.about.appVersion')}</span>
-                            <span className="text-[var(--app-hint)]">{__APP_VERSION__}</span>
-                        </div>
-                        <div className="flex w-full items-center justify-between px-3 py-3">
-                            <span className="text-[var(--app-fg)]">{t('settings.about.protocolVersion')}</span>
-                            <span className="text-[var(--app-hint)]">{PROTOCOL_VERSION}</span>
-                        </div>
-                    </div>
-                    </SettingsSection>
+                        <SettingsBlock>
+                            <SettingsValueRow
+                                title={t('settings.about.website')}
+                                value={(
+                                    <a
+                                        href="https://hapi.run"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="-my-3 inline-flex min-h-11 items-center text-[var(--app-link)] underline-offset-2 hover:underline"
+                                    >
+                                        hapi.run
+                                    </a>
+                                )}
+                            />
+                            <SettingsValueRow title={t('settings.about.appVersion')} value={__APP_VERSION__} />
+                            <SettingsValueRow title={t('settings.about.protocolVersion')} value={PROTOCOL_VERSION} />
+                        </SettingsBlock>
+                    </SettingsGroup>
                 </div>
             </div>
             {isMobileLayout ? <MobileTabBar active="settings" /> : null}

@@ -22,9 +22,9 @@ function QuotaLine({ label, usage, utilization, observedAt, resetsAt }: {
 }) {
     const { t } = useTranslation()
     const stale = typeof observedAt === 'number' && Date.now() - observedAt > 5 * 60_000
-    return <div className="text-[var(--app-hint)]">
+    return <div className="text-[var(--social-fg-muted)]">
         <span>{label} · {usage}</span>
-        {utilization !== undefined && <progress aria-label={label} value={utilization} max={1} className="mx-2 h-1.5 w-24 align-middle" />}
+        {utilization !== undefined && <progress aria-label={label} value={utilization} max={1} className="mx-2 h-1.5 w-24 appearance-none overflow-hidden rounded-full align-middle [&::-moz-progress-bar]:bg-[var(--social-fg)] [&::-webkit-progress-bar]:bg-[var(--social-muted)] [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-[var(--social-fg)]" />}
         <span>
             {typeof observedAt === 'number' ? ` · ${t('claudeAccounts.quota.observedAt', { time: new Date(observedAt).toLocaleTimeString() })}` : ''}
             {stale ? ` · ${t('claudeAccounts.quota.stale')}` : ''}
@@ -37,7 +37,7 @@ export function AccountQuota({ snapshot }: { snapshot?: ClaudeRateLimitSnapshot 
     const { t } = useTranslation()
     const usageLimits = snapshot?.usageLimits
     if (usageLimits?.length) {
-        return <div className="space-y-1 text-xs">
+        return <div className="space-y-1 text-[12px]">
             {usageLimits.map((limit, index) => {
                 const labelKey = usageKindLabelKeys[limit.kind]
                 const label = limit.kind === 'weekly_scoped' && limit.label
@@ -55,9 +55,9 @@ export function AccountQuota({ snapshot }: { snapshot?: ClaudeRateLimitSnapshot 
     const entries = Object.entries(snapshot ?? {}).filter((pair): pair is [string, ClaudeRateLimitEntry] =>
         pair[0] !== 'usageLimits' && Boolean(pair[1]))
     if (!entries.length) {
-        return <p className="text-xs text-[var(--app-hint)]">{t('claudeAccounts.quota.unknown')}</p>
+        return <p className="text-[12px] text-[var(--social-fg-muted)]">{t('claudeAccounts.quota.unknown')}</p>
     }
-    return <div className="space-y-1 text-xs">
+    return <div className="space-y-1 text-[12px]">
         {entries.map(([key, entry]) => {
             const label = t(labelKeys[key] ?? key)
             const usage = entry.utilization === undefined
