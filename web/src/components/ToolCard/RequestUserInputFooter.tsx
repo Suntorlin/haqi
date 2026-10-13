@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 
 function SelectionMark(props: { checked: boolean }) {
     const mark = props.checked ? '●' : '○'
@@ -34,7 +35,7 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:pointer-events-none disabled:opacity-50',
                 props.checked ? 'bg-[var(--app-subtle-bg)]' : null
             )}
             disabled={props.disabled}
@@ -42,7 +43,7 @@ function OptionRow(props: {
         >
             <SelectionMark checked={props.checked} />
             <span className="min-w-0 flex-1">
-                <div className="font-medium text-[var(--app-fg)] break-words">{props.title}</div>
+                <div className="font-semibold text-[var(--app-fg)] break-words">{props.title}</div>
                 {props.description ? (
                     <div className="mt-0.5 text-xs text-[var(--app-hint)] break-words">
                         {props.description}
@@ -182,7 +183,7 @@ export function RequestUserInputFooter(props: {
     const isPureTextQuestion = currentQuestion && currentQuestion.options.length === 0
 
     return (
-        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+        <div className="mt-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -197,7 +198,7 @@ export function RequestUserInputFooter(props: {
             </div>
 
             {error ? (
-                <div className="mt-2 text-xs text-red-600">
+                <div className="mt-2 text-xs text-[var(--social-danger)]">
                     {error}
                 </div>
             ) : null}
@@ -205,7 +206,7 @@ export function RequestUserInputFooter(props: {
             {currentQuestion ? (
                 <div className="mt-3">
                     {currentQuestion.question ? (
-                        <div className="text-sm text-[var(--app-fg)] break-words">
+                        <div className="text-[15px] text-[var(--app-fg)] break-words">
                             {currentQuestion.question}
                         </div>
                     ) : null}
@@ -217,7 +218,7 @@ export function RequestUserInputFooter(props: {
                             onChange={(e) => updateUserNote(currentQuestion.id, e.target.value)}
                             disabled={props.disabled || loading}
                             placeholder={t('tool.requestUserInput.textPlaceholder')}
-                            className="mt-3 w-full min-h-[88px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                            className={cn(DIALOG_INPUT_CLASS, 'mt-3 min-h-[88px] resize-y disabled:opacity-50')}
                         />
                     ) : (
                         // Question with options
@@ -248,7 +249,7 @@ export function RequestUserInputFooter(props: {
                                     onChange={(e) => updateUserNote(currentQuestion.id, e.target.value)}
                                     disabled={props.disabled || loading}
                                     placeholder={t('tool.requestUserInput.notePlaceholder')}
-                                    className="w-full min-h-[60px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] focus:border-transparent disabled:opacity-50"
+                                    className={cn(DIALOG_INPUT_CLASS, 'min-h-[60px] resize-y disabled:opacity-50')}
                                 />
                             </div>
                         </>
@@ -262,7 +263,6 @@ export function RequestUserInputFooter(props: {
                         <Button
                             type="button"
                             variant="outline"
-                            size="sm"
                             disabled={props.disabled || loading || clampedStep === 0}
                             onClick={prev}
                         >
@@ -276,7 +276,6 @@ export function RequestUserInputFooter(props: {
                         <Button
                             type="button"
                             variant="default"
-                            size="sm"
                             disabled={props.disabled || loading}
                             onClick={next}
                         >
@@ -286,7 +285,6 @@ export function RequestUserInputFooter(props: {
                         <Button
                             type="button"
                             variant="default"
-                            size="sm"
                             disabled={props.disabled || loading}
                             onClick={submit}
                             aria-busy={loading}

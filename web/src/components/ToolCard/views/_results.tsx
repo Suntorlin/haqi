@@ -10,6 +10,7 @@ import { parseUnifiedDiff } from '@/lib/gitDiff'
 import { ChecklistList, extractTodoChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
 import { useTranslation } from '@/lib/use-translation'
+import { Chip } from '@/components/ui/Chip'
 
 const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
@@ -165,7 +166,7 @@ function ResultNoteText(props: { kind: ResultNoteKind }) {
 /** Muted one-liner shown instead of a result body (done / no output / waiting / running). */
 function ResultNote(props: { kind: ResultNoteKind }) {
     const { t } = useTranslation()
-    return <div className="text-sm text-[var(--app-hint)]">{t(`tool.result.${props.kind}`)}</div>
+    return <div className="text-[13px] text-[var(--app-hint)]">{t(`tool.result.${props.kind}`)}</div>
 }
 
 function RawJsonDevOnly(props: { value: unknown }) {
@@ -174,7 +175,7 @@ function RawJsonDevOnly(props: { value: unknown }) {
 
     return (
         <details className="mt-3">
-            <summary className="cursor-pointer text-xs font-medium text-[var(--app-hint)]">
+            <summary className="cursor-pointer text-xs font-semibold text-[var(--app-hint)]">
                 Raw JSON
             </summary>
             <div className="mt-2">
@@ -432,7 +433,7 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
         <>
             <div className="flex flex-col gap-1">
                 {lines.map((line) => (
-                    <div key={line} className="text-sm font-mono text-[var(--app-fg)] break-all">
+                    <div key={line} className="text-[13px] font-mono text-[var(--app-fg)] break-all">
                         {line}
                     </div>
                 ))}
@@ -495,10 +496,10 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     const text = extractTextFromResult(result)
     if (typeof text === 'string' && text.trim().length > 0) {
-        const className = state === 'error' ? 'text-red-600' : 'text-[var(--app-fg)]'
+        const className = state === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--app-fg)]'
         return (
             <>
-                <div className={`text-sm ${className}`}>
+                <div className={`text-[13px] ${className}`}>
                     {renderText(text, { mode: state === 'error' ? 'code' : 'auto' })}
                 </div>
                 <RawJsonDevOnly value={result} />
@@ -508,7 +509,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">
+            <div className="text-[13px] text-[var(--app-hint)]">
                 <ResultNoteText kind={state === 'completed' ? 'done' : 'empty'} />
             </div>
             <RawJsonDevOnly value={result} />
@@ -663,10 +664,10 @@ function collabStatusTone(status: string | null): string {
         return 'text-[var(--app-link)]'
     }
     if (normalized.includes('complete') || normalized.includes('done')) {
-        return 'text-emerald-600'
+        return 'text-[var(--app-badge-success-text)]'
     }
     if (normalized.includes('error') || normalized.includes('fail')) {
-        return 'text-red-600'
+        return 'text-[var(--social-danger)]'
     }
     return 'text-[var(--app-hint)]'
 }
@@ -695,23 +696,18 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
 
             <div className="flex flex-wrap gap-1">
                 {collab.entries.map((entry) => (
-                    <button
+                    <Chip
                         key={entry.agentId}
-                        type="button"
-                        className={`rounded border px-2 py-1 text-xs transition-colors ${
-                            selected?.agentId === entry.agentId
-                                ? 'border-[var(--app-link)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)]'
-                                : 'border-[var(--app-border)] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)]'
-                        }`}
+                        selected={selected?.agentId === entry.agentId}
                         onClick={() => setSelectedAgentId(entry.agentId)}
                     >
                         {entry.agentId.slice(0, 8)}
-                    </button>
+                    </Chip>
                 ))}
             </div>
 
             {selected ? (
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
+                <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2 text-xs">
                     <div className={`font-semibold ${collabStatusTone(selected.status)}`}>
                         {selected.status ?? 'unknown'}
                     </div>
@@ -724,8 +720,8 @@ const CollabAgentResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {collab.prompt ? (
-                <div className="rounded-md border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
-                    <div className="mb-1 font-medium uppercase tracking-wide">prompt</div>
+                <div className="rounded-xl border border-[var(--app-border)] p-2 text-xs text-[var(--app-hint)]">
+                    <div className="mb-1 font-semibold uppercase tracking-wide">prompt</div>
                     <div className="break-words text-[var(--app-fg)]">{collab.prompt}</div>
                 </div>
             ) : null}
@@ -765,7 +761,7 @@ function extractTodos(input: unknown, result: unknown): TodoItem[] {
 }
 
 function todoTone(todo: TodoItem): string {
-    if (todo.status === 'completed') return 'text-emerald-600 line-through'
+    if (todo.status === 'completed') return 'text-[var(--app-badge-success-text)] line-through'
     if (todo.status === 'in_progress') return 'text-[var(--app-link)]'
     return 'text-[var(--app-hint)]'
 }
@@ -959,17 +955,17 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : null}
 
             {previewUrl ? (
-                <div className="overflow-hidden rounded border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
+                <div className="overflow-hidden rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-1">
                     <img
                         src={previewUrl}
                         alt={altText}
-                        className="mx-auto max-h-[420px] max-w-full rounded object-contain"
+                        className="mx-auto max-h-[420px] max-w-full rounded-md object-contain"
                     />
                 </div>
             ) : loading ? (
-                <div className="text-sm text-[var(--app-hint)]">Loading image…</div>
+                <div className="text-[13px] text-[var(--app-hint)]">Loading image…</div>
             ) : errorMessage ? (
-                <div className="text-sm text-red-500">{errorMessage}</div>
+                <div className="text-[13px] text-[var(--social-danger)]">{errorMessage}</div>
             ) : (
                 <ResultNote kind={placeholderForState(props.block.tool.state)} />
             )}

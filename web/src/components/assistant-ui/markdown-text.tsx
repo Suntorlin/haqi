@@ -7,6 +7,9 @@ import {
 } from '@assistant-ui/react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
+import { IconButton } from '@/components/ui/IconButton'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { useTranslation } from '@/lib/use-translation'
 import { SyntaxHighlighter } from '@/components/assistant-ui/shiki-highlighter'
 import { PathActionLink } from '@/components/assistant-ui/path-action-link'
 import { remarkPathLinks } from '@/components/assistant-ui/remark-path-links'
@@ -18,6 +21,7 @@ export const MARKDOWN_PLUGINS = [remarkGfm, remarkPathLinks]
 
 function CodeHeader(props: CodeHeaderProps) {
     const { copied, copy } = useCopyToClipboard()
+    const { t } = useTranslation()
     const language = props.language && props.language !== 'unknown' ? props.language : ''
 
     return (
@@ -25,14 +29,9 @@ function CodeHeader(props: CodeHeaderProps) {
             <div className="min-w-0 flex-1 pr-2 text-xs font-mono text-[var(--app-hint)]">
                 {language}
             </div>
-            <button
-                type="button"
-                onClick={() => copy(props.code)}
-                className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
-                title="Copy"
-            >
+            <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-7 w-7', HIT_AREA_CLASS)}>
                 {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
-            </button>
+            </IconButton>
         </div>
     )
 }

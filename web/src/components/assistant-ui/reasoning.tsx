@@ -3,6 +3,7 @@ import { useMessage } from '@assistant-ui/react'
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
 import { cn } from '@/lib/utils'
 import { defaultComponents, MARKDOWN_PLUGINS } from '@/components/assistant-ui/markdown-text'
+import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 
 function ChevronIcon(props: { className?: string; open?: boolean }) {
     return (
@@ -41,7 +42,7 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-sm text-[var(--app-hint)]')}
+            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-[13px] text-[var(--app-hint)]')}
         />
     )
 }
@@ -72,9 +73,10 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 type="button"
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    'flex items-center gap-1.5 text-xs font-medium',
+                    'flex items-center gap-1.5 text-xs font-semibold',
                     'text-[var(--app-hint)] hover:text-[var(--app-fg)]',
-                    'transition-colors cursor-pointer select-none'
+                    'transition-colors cursor-pointer select-none',
+                    TEXT_HIT_AREA_CLASS
                 )}
             >
                 <ChevronIcon open={isOpen} />

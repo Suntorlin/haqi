@@ -78,7 +78,7 @@ export function extractUpdatePlanChecklist(input: unknown, result: unknown): Che
 }
 
 function checklistTone(item: ChecklistItem): string {
-    if (item.status === 'completed') return 'text-emerald-600 line-through'
+    if (item.status === 'completed') return 'text-[var(--app-badge-success-text)] line-through'
     if (item.status === 'in_progress') return 'text-[var(--app-link)]'
     return 'text-[var(--app-hint)]'
 }
@@ -91,7 +91,7 @@ function checklistIcon(item: ChecklistItem): ReactNode {
 export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: string | null }) {
     if (props.items.length === 0) {
         return props.emptyLabel ? (
-            <div className="text-sm text-[var(--app-hint)]">{props.emptyLabel}</div>
+            <div className="text-[13px] text-[var(--app-hint)]">{props.emptyLabel}</div>
         ) : null
     }
 
@@ -100,7 +100,7 @@ export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: stri
             {props.items.map((item, idx) => {
                 const text = item.text.trim().length > 0 ? item.text.trim() : '(empty)'
                 return (
-                    <div key={item.id ?? String(idx)} className={`text-sm ${checklistTone(item)}`}>
+                    <div key={item.id ?? String(idx)} className={`text-[13px] ${checklistTone(item)}`}>
                         {checklistIcon(item)} {text}
                     </div>
                 )

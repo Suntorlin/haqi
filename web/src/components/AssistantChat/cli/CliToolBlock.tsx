@@ -8,6 +8,8 @@ import { isAskUserQuestionToolName } from '@/components/ToolCard/askUserQuestion
 import { isRequestUserInputToolName } from '@/components/ToolCard/requestUserInput'
 import { CliBlockRenderer } from './CliBlockRenderer'
 import { CliPermission, CliAskUserQuestion, CliRequestUserInput } from './CliPermissionFooter'
+import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { cn } from '@/lib/utils'
 
 /** CLI-style prefix character by tool category */
 function getToolPrefix(toolName: string): string {
@@ -83,7 +85,7 @@ function ResultPanel(props: {
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onExpand() }}
-                    className="text-[var(--app-link)] hover:underline mt-0.5"
+                    className={cn('mt-0.5 text-[var(--app-link)] hover:underline', TEXT_HIT_AREA_CLASS)}
                 >
                     show more…
                 </button>
@@ -133,7 +135,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className={`flex items-center gap-1.5 text-xs rounded px-1 -mx-1 w-full text-left transition-colors ${hasResult ? 'hover:bg-[var(--app-subtle-bg)] cursor-pointer' : 'cursor-default'}`}
+                className={cn('flex w-full items-center gap-1.5 rounded-md px-1 -mx-1 text-left text-xs transition-colors', TEXT_HIT_AREA_CLASS, hasResult ? 'cursor-pointer hover:bg-[var(--app-subtle-bg)]' : 'cursor-default')}
             >
                 {/* Status indicator */}
                 <span className={`shrink-0 w-3.5 text-center ${stateColor}`}>
@@ -198,7 +200,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
             ) : block.tool.permission?.status === 'pending' ? (
                 <CliPermission tool={block.tool} disabled={ctx?.disabled ?? false} />
             ) : block.tool.permission && (block.tool.permission.status === 'denied' || block.tool.permission.status === 'canceled') && block.tool.permission.reason ? (
-                <div className="ml-5 text-xs text-red-400 italic">denied: {block.tool.permission.reason}</div>
+                <div className="ml-5 text-xs text-[var(--social-danger)] italic">denied: {block.tool.permission.reason}</div>
             ) : null}
         </div>
     )

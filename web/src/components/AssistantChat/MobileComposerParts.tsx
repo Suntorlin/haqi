@@ -15,8 +15,13 @@ import {
     TerminalIcon
 } from '@/components/mobile/icons'
 import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { Button } from '@/components/ui/button'
+import { CountBadge, DotBadge } from '@/components/ui/badge'
+import { IconButton } from '@/components/ui/IconButton'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+
 
 const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
 const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] text-[var(--social-fg)] transition-transform active:scale-95'
@@ -26,11 +31,7 @@ function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void;
         <button type="button" onClick={props.onClick} disabled={props.disabled} className={tileClass}>
             <span className={tileIconClass}>
                 {props.icon}
-                {props.badge && props.badge > 0 ? (
-                    <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
-                        {props.badge > 99 ? '99+' : props.badge}
-                    </span>
-                ) : null}
+                <CountBadge count={props.badge ?? 0} className="absolute -right-1 -top-1" />
             </span>
             {props.label}
         </button>
@@ -91,16 +92,16 @@ export type ComposerExtras = {
 export function MobileComposerToggle(props: { open: boolean; onClick: () => void; disabled?: boolean }) {
     const { t } = useTranslation()
     return (
-        <button
-            type="button"
+        <IconButton
+            variant="muted"
+            label={t('mobile.composer.more')}
             onClick={props.onClick}
             disabled={props.disabled}
-            aria-label={t('mobile.composer.more')}
             aria-expanded={props.open}
-            className="mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg)] transition-transform [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:opacity-40"
+            className={cn('mb-[2px] h-9 w-9 transition-transform active:scale-95', HIT_AREA_CLASS)}
         >
             <PlusIcon className={cn('h-5 w-5 transition-transform duration-200', props.open ? 'rotate-45' : '')} />
-        </button>
+        </IconButton>
     )
 }
 
@@ -123,17 +124,16 @@ export function MobileComposerAction(props: {
     onVoiceToggle: () => void
 }) {
     const { t } = useTranslation()
-    const base = 'mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] transition-[transform,opacity] [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)]'
+    const base = cn('mb-[2px] h-9 w-9 transition-[transform,opacity] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)] disabled:opacity-100', HIT_AREA_CLASS)
     const voiceActive = props.voiceStatus === 'connected' || props.voiceStatus === 'connecting'
 
     if (props.showStop) {
         return (
-            <button
-                type="button"
+            <IconButton
+                variant="filled"
+                label={t('mobile.composer.stop')}
                 onClick={props.onAbort}
                 disabled={props.abortDisabled}
-                aria-label={t('mobile.composer.stop')}
-                title={t('mobile.composer.stop')}
                 className={base}
             >
                 {props.isAborting ? (
@@ -141,18 +141,17 @@ export function MobileComposerAction(props: {
                 ) : (
                     <StopSquareIcon className="h-3.5 w-3.5" />
                 )}
-            </button>
+            </IconButton>
         )
     }
 
     if (props.hasDraft || props.isSending) {
         return (
-            <button
-                type="button"
+            <IconButton
+                variant="filled"
+                label={t('composer.send')}
                 onClick={props.onSend}
                 disabled={!props.canSend || props.isSending}
-                aria-label={t('composer.send')}
-                title={t('composer.send')}
                 className={base}
             >
                 {props.isSending ? (
@@ -160,34 +159,28 @@ export function MobileComposerAction(props: {
                 ) : (
                     <SendArrowIcon className="h-[18px] w-[18px]" />
                 )}
-            </button>
+            </IconButton>
         )
     }
 
     if (props.voiceEnabled || voiceActive) {
         return (
-            <button
-                type="button"
+            <IconButton
+                variant="filled"
+                label={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
                 onClick={props.onVoiceToggle}
                 disabled={props.controlsDisabled && !voiceActive}
-                aria-label={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
-                title={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
                 className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-white' : '')}
             >
                 {voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
-            </button>
+            </IconButton>
         )
     }
 
     return (
-        <button
-            type="button"
-            disabled
-            aria-label={t('composer.send')}
-            className={base}
-        >
+        <IconButton variant="filled" label={t('composer.send')} disabled className={base}>
             <SendArrowIcon className="h-[18px] w-[18px]" />
-        </button>
+        </IconButton>
     )
 }
 
@@ -208,27 +201,28 @@ export function QueueStrip(props: {
         <div role="status">
             <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
                 <QueueListIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
-                <span className="shrink-0 font-medium text-[var(--social-fg)]">
+                <span className="shrink-0 font-semibold text-[var(--social-fg)]">
                     {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[var(--social-fg-muted)]" title={props.nextPreview || undefined}>
                     {props.nextPreview ? `· ${t('queue.inline.next')}：${props.nextPreview}` : ''}
                 </span>
                 {props.onOpen ? (
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={props.onOpen}
                         disabled={props.disabled}
-                        className="shrink-0 rounded-full bg-[var(--social-muted)] px-3 py-1 text-[12.5px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-border)] disabled:opacity-50"
+                        className={cn('h-7 px-3', HIT_AREA_CLASS)}
                     >
                         {t('queue.inline.open')}
-                    </button>
+                    </Button>
                 ) : null}
             </div>
             {entries.length > 0 ? (
                 <div className="mt-1.5 flex flex-col gap-1 px-3.5">
                     {entries.slice(0, 5).map((entry, index) => (
-                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[12.5px]">
+                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[13px]">
                             <span className="w-4 shrink-0 tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
                             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{entry.preview || t('queue.dialog.emptyMessage')}</span>
                             <span className="shrink-0 text-[var(--social-fg-subtle)]">
@@ -262,31 +256,31 @@ export function VoiceCallBar(props: {
         : props.micMuted ? t('voice.call.muted') : t('voice.call.active')
     return (
         <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
-            <span className={cn('h-2 w-2 shrink-0 rounded-full bg-[var(--social-badge)]', connecting ? 'opacity-50' : 'animate-pulse')} aria-hidden="true" />
+            <DotBadge className={cn('h-2 w-2 shrink-0 ring-0', connecting ? 'opacity-50' : 'animate-pulse')} />
             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
             {props.onToggleMic && !connecting ? (
-                <button
-                    type="button"
+                <IconButton
+                    size="sm"
+                    label={props.micMuted ? t('voice.unmute') : t('voice.mute')}
                     onClick={props.onToggleMic}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
-                    aria-label={props.micMuted ? t('voice.unmute') : t('voice.mute')}
-                    title={props.micMuted ? t('voice.unmute') : t('voice.mute')}
+                    className={cn('h-7 w-7', HIT_AREA_CLASS)}
                 >
                     <MicIcon muted={props.micMuted} className="h-4 w-4" />
-                </button>
+                </IconButton>
             ) : null}
-            <button
-                type="button"
+            <Button
+                variant="destructive"
+                size="sm"
                 onClick={props.onEnd}
-                className="shrink-0 rounded-full bg-[var(--social-badge)] px-3 py-1 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90"
+                className={cn('h-7 px-3', HIT_AREA_CLASS)}
             >
                 {t('voice.end')}
-            </button>
+            </Button>
         </div>
     )
 }
 
-const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
+const toolbarIconClass = 'relative [&_svg]:stroke-[1.7]'
 
 /**
  * Desktop composer toolbar: attach and terminal, then each conversation setting as a chip that
@@ -311,25 +305,21 @@ export function DesktopComposerToolbar(props: {
 
     return (
         <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
-            <ComposerPrimitive.AddAttachment
-                disabled={props.controlsDisabled}
-                className={toolbarIconClass}
-                aria-label={t('mobile.composer.attach')}
-                title={t('mobile.composer.attach')}
-            >
-                <PaperclipIcon className="h-[18px] w-[18px]" />
+            <ComposerPrimitive.AddAttachment asChild disabled={props.controlsDisabled}>
+                <IconButton size="sm" label={t('mobile.composer.attach')} className={toolbarIconClass}>
+                    <PaperclipIcon className="h-[18px] w-[18px]" />
+                </IconButton>
             </ComposerPrimitive.AddAttachment>
             {props.showTerminalButton ? (
-                <button
-                    type="button"
+                <IconButton
+                    size="sm"
+                    label={t('composer.terminal')}
                     onClick={props.onTerminal}
                     disabled={props.controlsDisabled}
                     className={toolbarIconClass}
-                    aria-label={t('composer.terminal')}
-                    title={t('composer.terminal')}
                 >
                     <TerminalIcon className="h-[18px] w-[18px]" />
-                </button>
+                </IconButton>
             ) : null}
             {props.settings ? (
                 <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto">
@@ -337,25 +327,20 @@ export function DesktopComposerToolbar(props: {
                 </div>
             ) : null}
             {queue || status || switchRemote ? (
-                <button
-                    type="button"
+                <IconButton
+                    size="sm"
+                    label={t('mobile.composer.more')}
                     onClick={(event) => {
                         const rect = event.currentTarget.getBoundingClientRect()
                         setMoreAnchor({ x: rect.left + rect.width / 2, y: rect.top - 4 })
                     }}
                     className={cn(toolbarIconClass, 'ml-0.5')}
-                    aria-label={t('mobile.composer.more')}
                     aria-haspopup="menu"
                     aria-expanded={moreAnchor !== null}
-                    title={t('mobile.composer.more')}
                 >
                     <MoreHorizontalIcon className="h-[18px] w-[18px]" />
-                    {pending > 0 ? (
-                        <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
-                            {pending > 99 ? '99+' : pending}
-                        </span>
-                    ) : null}
-                </button>
+                    <CountBadge count={pending} className="absolute -right-0.5 -top-0.5" />
+                </IconButton>
             ) : null}
             {moreAnchor ? (
                 <ContextMenu open anchorPoint={moreAnchor} onClose={() => setMoreAnchor(null)} label={t('mobile.composer.more')}>

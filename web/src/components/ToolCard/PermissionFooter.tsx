@@ -4,10 +4,13 @@ import type { SessionMetadataSummary } from '@/types/api'
 import type { ChatToolCall, ToolPermission } from '@/chat/types'
 import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { isCodexFamilyFlavor } from '@/lib/agentFlavorUtils'
 import { isExitPlanToolName } from '@/components/ToolCard/exitPlanMode'
 import { getInputStringAny } from '@/lib/toolInputUtils'
 import { useTranslation } from '@/lib/use-translation'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 
 function isToolAllowedForSession(toolName: string, toolInput: unknown, allowedTools: string[] | undefined): boolean {
     if (!allowedTools || allowedTools.length === 0) return false
@@ -78,17 +81,16 @@ function PermissionRowButton(props: {
     disabled: boolean
     onClick: () => void
 }) {
-    const base = 'flex w-full items-center justify-between rounded-md px-2 py-2 text-sm text-left transition-colors disabled:pointer-events-none disabled:opacity-50 hover:bg-[var(--app-subtle-bg)]'
     const tone = props.tone === 'allow'
-        ? 'text-emerald-600'
+        ? 'text-[var(--app-badge-success-text)] hover:text-[var(--app-badge-success-text)]'
         : props.tone === 'deny'
-            ? 'text-red-600'
-            : 'text-[var(--app-link)]'
+            ? 'text-[var(--social-danger)] hover:text-[var(--social-danger)]'
+            : 'text-[var(--social-fg)]'
 
     return (
-        <button
-            type="button"
-            className={`${base} ${tone}`}
+        <Button
+            variant="ghost"
+            className={cn('w-full justify-between rounded-xl px-3 text-left font-normal', tone)}
             disabled={props.disabled}
             aria-busy={props.loading === true}
             onClick={props.onClick}
@@ -99,7 +101,7 @@ function PermissionRowButton(props: {
                     <Spinner size="sm" label={null} className="text-current" />
                 </span>
             ) : null}
-        </button>
+        </Button>
     )
 }
 
@@ -225,7 +227,7 @@ export function PermissionFooter(props: {
         if (!permission.reason) return null
 
         return (
-            <div className="mt-2 text-xs text-red-600">
+            <div className="mt-2 text-xs text-[var(--social-danger)]">
                 {permission.reason}
             </div>
         )
@@ -236,7 +238,7 @@ export function PermissionFooter(props: {
             <div className="text-xs text-[var(--app-hint)]">{summary}</div>
 
             {error ? (
-                <div className="mt-2 text-xs text-red-600">
+                <div className="mt-2 text-xs text-[var(--social-danger)]">
                     {error}
                 </div>
             ) : null}
@@ -252,7 +254,7 @@ export function PermissionFooter(props: {
                         disabled={props.disabled || loading !== null || loadingForSession}
                         placeholder={t('tool.planNotePlaceholder')}
                         aria-label={t('tool.planNoteLabel')}
-                        className="w-full min-h-[72px] resize-y rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:border-transparent focus:outline-none focus:ring-2 focus:ring-[var(--app-button)] disabled:opacity-50"
+                        className={cn(DIALOG_INPUT_CLASS, 'min-h-[72px] resize-y disabled:opacity-50')}
                     />
                 </div>
             ) : null}

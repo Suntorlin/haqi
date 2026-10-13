@@ -41,14 +41,14 @@ function renderOtherAnswers(
             {customAnswers.map((answer, i) => (
                 <div
                     key={`other-${i}`}
-                    className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
+                    className="rounded-xl border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
-                        <span className="shrink-0 text-sm text-emerald-600">
+                        <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">
                             {isMulti ? '☑' : '●'}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                            <div className="text-[13px] text-[var(--app-badge-success-text)] font-semibold break-words">
                                 {answer}
                             </div>
                             <div className="mt-0.5 text-xs text-[var(--app-hint)]">
@@ -75,12 +75,12 @@ function renderFreeformAnswers(
             {cleaned.map((answer, i) => (
                 <div
                     key={i}
-                    className="rounded-md border border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-2"
+                    className="rounded-xl border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
-                        <span className="shrink-0 text-sm text-emerald-600">●</span>
+                        <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">●</span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-sm text-emerald-700 dark:text-emerald-300 font-medium break-words">
+                            <div className="text-[13px] text-[var(--app-badge-success-text)] font-semibold break-words">
                                 {answer}
                             </div>
                         </div>
@@ -120,21 +120,21 @@ export function AskUserQuestionView(props: ToolViewProps) {
                 const customAnswers = trimmedAnswers.filter((answer) => answer !== 'skipped' && !optionLabels.has(answer))
 
                 return (
-                    <div key={q.id} className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
+                    <div key={q.id} className="rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3">
                         {q.header ? (
-                            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--app-hint)]">
+                            <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)]">
                                 {q.header}
                             </div>
                         ) : null}
 
                         {q.question ? (
-                            <div className="text-sm text-[var(--app-fg)] break-words">
+                            <div className="text-[13px] text-[var(--app-fg)] break-words">
                                 {q.question}
                             </div>
                         ) : null}
 
                         {isSkipped ? (
-                            <div className="mt-3 rounded-md border border-[var(--app-border)] px-2 py-2 text-sm text-[var(--app-hint)]">
+                            <div className="mt-3 rounded-xl border border-[var(--app-border)] px-2 py-2 text-[13px] text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : q.options.length > 0 ? (
@@ -145,18 +145,18 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                         <div
                                             key={optIdx}
                                             className={cn(
-                                                "rounded-md border px-2 py-2",
+                                                "rounded-xl border px-2 py-2",
                                                 isSelected
-                                                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                                                    ? "border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)]"
                                                     : "border-[var(--app-border)]"
                                             )}
                                         >
                                             <div className="flex items-start gap-2">
                                                 {hasAnswers && (
                                                     <span className={cn(
-                                                        "shrink-0 text-sm",
+                                                        "shrink-0 text-[13px]",
                                                         isSelected
-                                                            ? "text-emerald-600"
+                                                            ? "text-[var(--app-badge-success-text)]"
                                                             : "text-[var(--app-hint)]"
                                                     )}>
                                                         {getSelectionMark(isMulti, isSelected)}
@@ -164,9 +164,9 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                                 )}
                                                 <div className="min-w-0 flex-1">
                                                     <div className={cn(
-                                                        "text-sm break-words",
+                                                        "text-[13px] break-words",
                                                         isSelected
-                                                            ? "text-emerald-700 dark:text-emerald-300 font-medium"
+                                                            ? "text-[var(--app-badge-success-text)] font-semibold"
                                                             : "text-[var(--app-fg)]"
                                                     )}>
                                                         {opt.label}

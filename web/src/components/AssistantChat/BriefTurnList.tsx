@@ -16,6 +16,11 @@ import {
 } from '@/components/AssistantChat/briefTurnPresentation'
 import { restoreScrollTopByDelta, shouldTriggerLoadOlder } from '@/components/AssistantChat/historyScroll'
 import { Spinner } from '@/components/Spinner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
+import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { cn } from '@/lib/utils'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSessionReopenPositionPreference } from '@/hooks/useSessionReopenPositionPreference'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -382,7 +387,7 @@ function LivePreviewCarousel(props: {
 
     return (
         <div className="min-h-[3.6rem] py-0.5">
-            <div className={`whitespace-pre-wrap break-words text-sm leading-6 text-[var(--app-hint)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
+            <div className={`whitespace-pre-wrap break-words text-[15px] leading-6 text-[var(--app-hint)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
                 {activeLine}
             </div>
             <div className="truncate text-xs leading-5 text-[var(--app-hint)]">
@@ -921,15 +926,15 @@ export function BriefTurnList(props: {
             <div className="space-y-2">
                 {userPreview.length > 0 ? (
                     <div className="flex justify-end">
-                        <div className="max-w-[92%] rounded-2xl rounded-br-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/60 px-3 py-2 text-sm text-[var(--app-fg)]">
-                            <BriefFullMarkdownContent content={userPreview} className="text-sm" />
+                        <div className="max-w-[92%] rounded-2xl rounded-br-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/60 px-3 py-2 text-[15px] text-[var(--app-fg)]">
+                            <BriefFullMarkdownContent content={userPreview} className="text-[15px]" />
                         </div>
                     </div>
                 ) : null}
 
                 <div className="flex justify-start">
                     {isLiveTurn ? (
-                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-blue-500/40 bg-[var(--app-bg)] px-3 py-2 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]">
+                        <div className="relative w-full max-w-[92%] rounded-2xl rounded-bl-md border border-[var(--app-badge-info-border)] bg-[var(--app-bg)] px-3 py-2">
                             <button
                                 type="button"
                                 className="block w-full text-left"
@@ -938,17 +943,16 @@ export function BriefTurnList(props: {
                             >
                                 <div className="flex min-h-[7.25rem] flex-col gap-1.5 py-1">
                                     <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-                                            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
+                                        <Badge variant="info" dot live>
                                             {generatingBadgeText}
-                                        </span>
-                                        <span className="ml-auto text-[11px] text-[var(--app-hint)]">{messageMeta}</span>
+                                        </Badge>
+                                        <span className="ml-auto text-[12px] text-[var(--app-hint)]">{messageMeta}</span>
                                     </div>
                                     <LivePreviewCarousel
                                         preview={assistantPreviewRaw}
                                         liveActivity={liveActivity}
                                     />
-                                    <div className="text-[11px] text-[var(--app-hint)]">
+                                    <div className="text-[12px] text-[var(--app-hint)]">
                                         <span className="underline decoration-dotted">Click to open details</span>
                                     </div>
                                 </div>
@@ -957,12 +961,12 @@ export function BriefTurnList(props: {
                     ) : shouldShowFullLastBlock ? (
                         <div className="w-full max-w-[92%] px-1 py-1">
                             <BriefFullMarkdownContent content={assistantPreview} />
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                            <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--app-hint)]">
                                 <span>{messageMeta}</span>
                                 <span>·</span>
                                 <button
                                     type="button"
-                                    className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                    className={cn('underline decoration-dotted hover:text-[var(--app-fg)]', TEXT_HIT_AREA_CLASS)}
                                     onClick={() => openTurnDetails(turn.id)}
                                 >
                                     Open details
@@ -972,7 +976,7 @@ export function BriefTurnList(props: {
                                         <span>·</span>
                                         <button
                                             type="button"
-                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                            className={cn('underline decoration-dotted hover:text-[var(--app-fg)]', TEXT_HIT_AREA_CLASS)}
                                             onClick={() => openTurnChangesDetails(turn.id, turnChangesSummary.toolId)}
                                         >
                                             Turn changes (+{turnChangesSummary.additions} -{turnChangesSummary.deletions})
@@ -984,12 +988,12 @@ export function BriefTurnList(props: {
                     ) : (
                         <div className="w-full max-w-[92%] px-1 py-1">
                             <BriefFullMarkdownContent content={assistantPreview} />
-                            <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
+                            <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--app-hint)]">
                                 <span>{messageMeta}</span>
                                 <span>·</span>
                                 <button
                                     type="button"
-                                    className="underline decoration-dotted hover:text-[var(--app-fg)]"
+                                    className={cn('underline decoration-dotted hover:text-[var(--app-fg)]', TEXT_HIT_AREA_CLASS)}
                                     onClick={() => openTurnDetails(turn.id)}
                                 >
                                     Open details
@@ -1153,7 +1157,7 @@ export function BriefTurnList(props: {
             <div className="relative flex min-h-0 flex-1 flex-col">
                 <div className="mx-auto flex h-full w-full max-w-content min-h-0 flex-col gap-3 px-3 py-3">
                     {props.warning ? (
-                        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                        <div className="rounded-xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-xs text-[var(--app-badge-warning-text)]">
                             {props.warning}
                         </div>
                     ) : null}
@@ -1175,14 +1179,14 @@ export function BriefTurnList(props: {
                                 <>
                                     {props.hasMore || props.isLoadingMore ? (
                                         <div className="pb-2">
-                                            <button
-                                                type="button"
-                                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-1.5 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] disabled:opacity-60"
+                                            <Button
+                                                variant="outline"
+                                                className="w-full"
                                                 onClick={loadOlderTurnsPreservingViewport}
                                                 disabled={props.isLoadingMore}
                                             >
                                                 {props.isLoadingMore ? 'Loading older turns…' : 'Load older turns'}
-                                            </button>
+                                            </Button>
                                         </div>
                                     ) : (
                                         <div className="h-1" />
@@ -1206,16 +1210,11 @@ export function BriefTurnList(props: {
                     <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
                         <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                             <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={closeTurnDetails}
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                    aria-label="Back"
-                                >
+                                <IconButton label="Back" onClick={closeTurnDetails}>
                                     <BackIcon />
-                                </button>
+                                </IconButton>
                                 <div className="min-w-0">
-                                    <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
+                                    <div className="truncate text-[15px] font-semibold text-[var(--app-fg)]">
                                         {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
                                     </div>
                                     {activeTurn ? (
@@ -1229,18 +1228,18 @@ export function BriefTurnList(props: {
 
                         <div className="min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]">
                             {activeTurn && activeDetail?.error ? (
-                                <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
+                                <div className="h-full overflow-y-auto p-4 text-[15px] text-[var(--social-danger)]">
                                     {activeDetail.error}
                                     <div className="mt-2">
-                                        <button
-                                            type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
                                         >
                                             Retry
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ) : null}
@@ -1260,7 +1259,7 @@ export function BriefTurnList(props: {
                                     />
                                 </div>
                             ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                                <div className="flex h-full items-center justify-center text-[15px] text-[var(--app-hint)]">
                                     {activeTurn && activeDetail?.isLoading ? (
                                         <span className="inline-flex items-center gap-2">
                                             <Spinner size="sm" label={null} className="text-current" />
@@ -1296,18 +1295,18 @@ export function BriefTurnList(props: {
 
                         <div className="min-h-0 flex-1 overflow-hidden">
                             {activeTurn && activeDetail?.error ? (
-                                <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
+                                <div className="h-full overflow-y-auto p-4 text-[15px] text-[var(--social-danger)]">
                                     {activeDetail.error}
                                     <div className="mt-2">
-                                        <button
-                                            type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
                                             onClick={() => {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
                                         >
                                             Retry
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             ) : null}
@@ -1327,7 +1326,7 @@ export function BriefTurnList(props: {
                                     />
                                 </div>
                             ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-[65vh] items-center justify-center text-sm text-[var(--app-hint)]">
+                                <div className="flex h-[65vh] items-center justify-center text-[15px] text-[var(--app-hint)]">
                                     {activeTurn && activeDetail?.isLoading ? (
                                         <span className="inline-flex items-center gap-2">
                                             <Spinner size="sm" label={null} className="text-current" />
