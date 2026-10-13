@@ -18,6 +18,7 @@ import { Virtuoso } from 'react-virtuoso'
 import type { SessionSummary } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
+import { cn } from '@/lib/utils'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
@@ -521,7 +522,7 @@ function SessionItem(props: {
                     <button
                         type="button"
                         {...longPressHandlers}
-                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none focus-visible:outline-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3 ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
+                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none ${sortable ? 'max-lg:pr-12' : ''} focus-visible:outline-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3 ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
                         style={{ WebkitTouchCallout: 'none' }}
                         aria-current={selected ? 'page' : undefined}
                     >
@@ -630,11 +631,17 @@ function SessionItem(props: {
                         type="button"
                         {...dragAttributes}
                         {...dragListeners}
-                        className="absolute inset-y-0 left-0 flex w-3 cursor-grab touch-none select-none items-center justify-center text-[var(--social-fg-muted)] opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-md:opacity-40"
+                        className={cn(
+                            'absolute inset-y-0 flex touch-none select-none items-center justify-center text-[var(--social-fg-subtle)] transition-opacity active:cursor-grabbing',
+                            isFeed
+                                // Phones: a 44px grip on the right (the row's long-press is the menu). Desktop: thin left strip.
+                                ? 'right-0 w-11 opacity-60 lg:left-0 lg:right-auto lg:w-3 lg:cursor-grab lg:opacity-0 lg:hover:opacity-100 lg:focus-visible:opacity-100'
+                                : 'left-0 w-3 cursor-grab opacity-0 hover:opacity-100 focus-visible:opacity-100 max-md:opacity-40'
+                        )}
                         title={t('sessions.reorder')}
                         aria-label={t('sessions.reorder')}
                     >
-                        <GripIcon className="h-3 w-3" />
+                        <GripIcon className={isFeed ? 'h-4 w-4 lg:h-3 lg:w-3' : 'h-3 w-3'} />
                     </button>
                 ) : null}
 
