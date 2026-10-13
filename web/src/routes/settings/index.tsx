@@ -30,6 +30,11 @@ import { Switch } from '@/components/ui/Switch'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { CodexCredentialProfile, CodexCredentialStateResponse } from '@/types/api'
+import { CONTEXT_MENU_SURFACE } from '@/components/mobile/ContextMenu'
+import { buttonVariants } from '@/components/ui/button'
+import { SelectInput } from '@/components/ui/FormControls'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { cn } from '@/lib/utils'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
     { value: 'en', nativeLabel: 'English' },
@@ -52,6 +57,9 @@ type SettingsGroupExpandedState = {
     dataDiagnostics: boolean
     about: boolean
 }
+
+/** Option rows in the settings dropdowns: same look as context menu items. */
+const DROPDOWN_ITEM_CLASS = 'flex w-full justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-[15px] leading-tight text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)]'
 
 function getDefaultSettingsGroupExpandedState(): SettingsGroupExpandedState {
     return {
@@ -1070,7 +1078,7 @@ export default function SettingsPage() {
 
                             {isOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[160px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[160px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.language.title')}
                                 >
@@ -1083,15 +1091,11 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleLocaleChange(loc.value)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span>{loc.nativeLabel}</span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1125,7 +1129,7 @@ export default function SettingsPage() {
 
                             {isThemeOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[140px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.display.theme')}
                                 >
@@ -1138,15 +1142,11 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleThemePreferenceChange(preference)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span>{t(`settings.display.theme.${preference}`)}</span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1173,7 +1173,7 @@ export default function SettingsPage() {
 
                             {isFontOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[140px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.display.fontSize')}
                                 >
@@ -1186,15 +1186,11 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleFontScaleChange(opt.value)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span>{opt.label}</span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1234,7 +1230,7 @@ export default function SettingsPage() {
 
                             {isVoiceOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[200px] max-h-[300px] overflow-y-auto rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[200px] max-h-[300px] overflow-y-auto flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.voice.title')}
                                 >
@@ -1250,15 +1246,11 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleVoiceLanguageChange(lang)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span>{displayName}</span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1306,7 +1298,7 @@ export default function SettingsPage() {
 
                             {isSendModeOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.defaultSendMode')}
                                 >
@@ -1319,24 +1311,18 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleCodexSendModeDefaultChange(mode)}
-                                                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-start ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span className="flex min-w-0 flex-col">
                                                     <span>{t(`queue.mode.${mode}`)}</span>
                                                     <span
-                                                        className={`text-xs ${
-                                                            isSelected ? 'text-[var(--app-link)] opacity-80' : 'text-[var(--app-hint)]'
-                                                        }`}
+                                                        className="mt-0.5 text-[12.5px] font-normal text-[var(--social-fg-muted)]"
                                                     >
                                                         {t(`queue.mode.${mode}Hint`)}
                                                     </span>
                                                 </span>
                                                 {isSelected && (
-                                                    <span className="mt-0.5 shrink-0 text-[var(--app-link)]">
+                                                    <span className="mt-0.5 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1371,7 +1357,7 @@ export default function SettingsPage() {
 
                             {isQueuePanelOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.queueInlinePanel')}
                                 >
@@ -1384,24 +1370,18 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleQueuePanelModeChange(mode)}
-                                                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-start ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span className="flex min-w-0 flex-col">
                                                     <span>{t(`settings.behavior.queueInlinePanel.${mode}`)}</span>
                                                     <span
-                                                        className={`text-xs ${
-                                                            isSelected ? 'text-[var(--app-link)] opacity-80' : 'text-[var(--app-hint)]'
-                                                        }`}
+                                                        className="mt-0.5 text-[12.5px] font-normal text-[var(--social-fg-muted)]"
                                                     >
                                                         {t(`settings.behavior.queueInlinePanel.${mode}.description`)}
                                                     </span>
                                                 </span>
                                                 {isSelected && (
-                                                    <span className="mt-0.5 shrink-0 text-[var(--app-link)]">
+                                                    <span className="mt-0.5 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1435,7 +1415,7 @@ export default function SettingsPage() {
 
                             {isSessionReopenPositionOpen && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[240px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden divide-y divide-[var(--app-divider)] z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[240px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.sessionReopenPosition')}
                                 >
@@ -1448,24 +1428,18 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleSessionReopenPositionChange(mode)}
-                                                className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-start ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span className="flex min-w-0 flex-col">
                                                     <span>{t(`settings.behavior.sessionReopenPosition.${mode}`)}</span>
                                                     <span
-                                                        className={`text-xs ${
-                                                            isSelected ? 'text-[var(--app-link)] opacity-80' : 'text-[var(--app-hint)]'
-                                                        }`}
+                                                        className="mt-0.5 text-[12.5px] font-normal text-[var(--social-fg-muted)]"
                                                     >
                                                         {t(`settings.behavior.sessionReopenPosition.${mode}.description`)}
                                                     </span>
                                                 </span>
                                                 {isSelected && (
-                                                    <span className="mt-0.5 shrink-0 text-[var(--app-link)]">
+                                                    <span className="mt-0.5 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1554,7 +1528,7 @@ export default function SettingsPage() {
 
                             {isImageCompressionLevelOpen && imageUploadCompressionEnabled && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.imageCompression.level')}
                                 >
@@ -1567,15 +1541,11 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleImageUploadCompressionLevelChange(level)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span>{t(`settings.behavior.imageCompression.level.${level}`)}</span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1619,7 +1589,7 @@ export default function SettingsPage() {
 
                             {isImageCompressionTargetSizeOpen && imageUploadCompressionEnabled && (
                                 <div
-                                    className="absolute right-3 top-full mt-1 min-w-[220px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+                                    className={`absolute right-3 top-full z-50 mt-1 flex min-w-[220px] flex-col ${CONTEXT_MENU_SURFACE}`}
                                     role="listbox"
                                     aria-label={t('settings.behavior.imageCompression.targetSize')}
                                 >
@@ -1632,15 +1602,11 @@ export default function SettingsPage() {
                                                 role="option"
                                                 aria-selected={isSelected}
                                                 onClick={() => handleImageUploadCompressionTargetSizeChange(targetSize)}
-                                                className={`flex items-center justify-between w-full px-3 py-2 text-base text-left transition-colors ${
-                                                    isSelected
-                                                        ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                                                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                                                }`}
+                                                className={`${DROPDOWN_ITEM_CLASS} items-center ${isSelected ? 'font-medium' : ''}`}
                                             >
                                                 <span>{t(`settings.behavior.imageCompression.targetSize.${targetSize}`)}</span>
                                                 {isSelected && (
-                                                    <span className="ml-2 text-[var(--app-link)]">
+                                                    <span className="ml-2 shrink-0 text-[var(--social-fg)]">
                                                         <CheckIcon />
                                                     </span>
                                                 )}
@@ -1725,17 +1691,17 @@ export default function SettingsPage() {
                                 <span className="text-xs text-[var(--app-hint)]">
                                     {t('settings.behavior.enterBehavior.description')}
                                 </span>
+                                <span className="text-xs text-[var(--app-hint)]">
+                                    {enterBehavior === 'send'
+                                        ? t('settings.behavior.enterBehavior.send')
+                                        : t('settings.behavior.enterBehavior.newline')}
+                                </span>
                             </div>
                             <Switch
                                 checked={enterBehavior === 'newline'}
                                 onCheckedChange={(checked) => setEnterBehavior(checked ? 'newline' : 'send')}
                                 ariaLabel={t('settings.behavior.enterBehavior')}
                             />
-                            <span className="shrink-0 text-xs text-[var(--app-hint)]">
-                                {enterBehavior === 'send'
-                                    ? t('settings.behavior.enterBehavior.send')
-                                    : t('settings.behavior.enterBehavior.newline')}
-                            </span>
                         </div>
                         <div className="flex items-start justify-between gap-3 px-3 py-3">
                             <div className="flex flex-col">
@@ -1789,7 +1755,7 @@ export default function SettingsPage() {
                                 type="button"
                                 onClick={() => void loadUsageOverview(true)}
                                 disabled={usageLoading}
-                                className="inline-flex rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                             >
                                 {usageLoading ? t('settings.usage.loading') : t('settings.usage.refresh')}
                             </button>
@@ -1797,7 +1763,7 @@ export default function SettingsPage() {
 
                         {usageError ? (
                             <div className="px-3 pb-3">
-                                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                <div className="rounded-xl bg-[var(--social-danger)]/10 px-3 py-2 text-[13px] text-[var(--social-danger)]">
                                     {usageError}
                                 </div>
                             </div>
@@ -1808,7 +1774,7 @@ export default function SettingsPage() {
                                 {([usageOverview.claude, usageOverview.codex] as const).map((provider) => (
                                     <div
                                         key={provider.provider}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                        className="rounded-2xl border border-[var(--social-border)] p-4"
                                     >
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="font-medium text-[var(--app-fg)]">
@@ -1889,10 +1855,9 @@ export default function SettingsPage() {
                         {activeMachines.length > 0 ? (
                             <>
                                 <div className="grid gap-2 px-3 pb-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
-                                    <select
+                                    <SelectInput
                                         value={selectedCodexMachineId}
                                         onChange={(event) => handleCodexMachineChange(event.target.value)}
-                                        className="rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
                                         aria-label={t('settings.codexCredentials.machine')}
                                     >
                                         {activeMachines.map((machine) => (
@@ -1900,12 +1865,12 @@ export default function SettingsPage() {
                                                 {machine.metadata?.displayName ?? machine.metadata?.host ?? machine.id}
                                             </option>
                                         ))}
-                                    </select>
+                                    </SelectInput>
                                     <button
                                         type="button"
                                         onClick={() => { void handleReloadCodexCredentials() }}
                                         disabled={!selectedCodexMachineId || codexCredentialLoading}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                     >
                                         {t('settings.codexCredentials.actions.refresh')}
                                     </button>
@@ -1913,14 +1878,14 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleExportCodexCredentials() }}
                                         disabled={!codexCredentialState?.current.exists || codexCredentialExporting}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                     >
                                         {t('settings.codexCredentials.actions.export')}
                                     </button>
                                 </div>
 
                                 <div className="px-3 pb-3">
-                                    <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="rounded-2xl border border-[var(--social-border)] p-4">
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="font-medium text-[var(--app-fg)]">
                                                 {t('settings.codexCredentials.current.title')}
@@ -1950,7 +1915,7 @@ export default function SettingsPage() {
 
                                 {codexCredentialError ? (
                                     <div className="px-3 pb-3">
-                                        <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                        <div className="rounded-xl bg-[var(--social-danger)]/10 px-3 py-2 text-[13px] text-[var(--social-danger)]">
                                             {codexCredentialError}
                                         </div>
                                     </div>
@@ -1958,14 +1923,14 @@ export default function SettingsPage() {
 
                                 {codexCredentialStatusMessage ? (
                                     <div className="px-3 pb-3">
-                                        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400">
+                                        <div className="rounded-xl bg-emerald-500/10 px-3 py-2 text-[13px] text-emerald-600 dark:text-emerald-400">
                                             {codexCredentialStatusMessage}
                                         </div>
                                     </div>
                                 ) : null}
 
                                 <div className="grid gap-3 px-3 pb-3 lg:grid-cols-2">
-                                    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="space-y-2.5 rounded-2xl border border-[var(--social-border)] p-4">
                                         <div className="font-medium text-[var(--app-fg)]">
                                             {t('settings.codexCredentials.actions.saveCurrent')}
                                         </div>
@@ -1973,19 +1938,19 @@ export default function SettingsPage() {
                                             value={codexCredentialNameDraft}
                                             onChange={(event) => setCodexCredentialNameDraft(event.target.value)}
                                             placeholder={t('settings.codexCredentials.name.placeholder')}
-                                            className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                            className={DIALOG_INPUT_CLASS}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => { void handleSaveCurrentCodexCredentials() }}
                                             disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
+                                            className={buttonVariants({ size: 'sm' })}
                                         >
                                             {t('settings.codexCredentials.actions.saveCurrent')}
                                         </button>
                                     </div>
 
-                                    <div className="space-y-2 rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+                                    <div className="space-y-2.5 rounded-2xl border border-[var(--social-border)] p-4">
                                         <div className="font-medium text-[var(--app-fg)]">
                                             {t('settings.codexCredentials.import.title')}
                                         </div>
@@ -1993,20 +1958,20 @@ export default function SettingsPage() {
                                             type="file"
                                             accept="application/json,.json"
                                             onChange={(event) => { void handleCodexCredentialFileChange(event) }}
-                                            className="block w-full text-sm text-[var(--app-fg)] file:mr-3 file:rounded-md file:border file:border-[var(--app-border)] file:bg-[var(--app-bg)] file:px-2.5 file:py-1.5 file:text-sm file:text-[var(--app-fg)]"
+                                            className="block w-full text-[13px] text-[var(--social-fg-muted)] file:mr-3 file:rounded-full file:border file:border-[var(--social-border)] file:bg-[var(--app-bg)] file:px-3.5 file:py-1.5 file:text-[13px] file:text-[var(--social-fg)]"
                                         />
                                         <textarea
                                             value={codexCredentialImportDraft}
                                             onChange={(event) => setCodexCredentialImportDraft(event.target.value)}
                                             placeholder={t('settings.codexCredentials.import.placeholder')}
-                                            className="h-36 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                            className={`${DIALOG_INPUT_CLASS} h-36 font-mono text-[13px]`}
                                             spellCheck={false}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => { void handleImportCodexCredentials() }}
                                             disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
+                                            className={buttonVariants({ size: 'sm' })}
                                         >
                                             {t('settings.codexCredentials.actions.import')}
                                         </button>
@@ -2022,7 +1987,7 @@ export default function SettingsPage() {
                                             {codexCredentialState.profiles.map((profile) => (
                                                 <div
                                                     key={profile.id}
-                                                    className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
+                                                    className="rounded-2xl border border-[var(--social-border)] p-4"
                                                 >
                                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                                         <div>
@@ -2043,7 +2008,7 @@ export default function SettingsPage() {
                                                                 type="button"
                                                                 onClick={() => { void handleActivateCodexCredential(profile.id) }}
                                                                 disabled={profile.isActive || codexCredentialActionPendingId !== null}
-                                                                className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                                             >
                                                                 {profile.isActive
                                                                     ? t('settings.codexCredentials.profile.active')
@@ -2053,7 +2018,7 @@ export default function SettingsPage() {
                                                                 type="button"
                                                                 onClick={() => { void handleDeleteCodexCredential(profile) }}
                                                                 disabled={profile.isActive || codexCredentialActionPendingId !== null}
-                                                                className="rounded-md border border-red-500/30 px-2.5 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                                                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'text-[var(--social-danger)]')}
                                                             >
                                                                 {t('settings.codexCredentials.actions.delete')}
                                                             </button>
@@ -2068,7 +2033,7 @@ export default function SettingsPage() {
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="rounded-md border border-dashed border-[var(--app-border)] px-3 py-4 text-sm text-[var(--app-hint)]">
+                                        <div className="rounded-2xl border border-dashed border-[var(--social-border)] px-4 py-4 text-[13px] text-[var(--social-fg-muted)]">
                                             {t('settings.codexCredentials.profiles.empty')}
                                         </div>
                                     )}
@@ -2097,7 +2062,7 @@ export default function SettingsPage() {
                                 value={reportDomainDraft}
                                 onChange={(event) => setReportDomainDraft(event.target.value)}
                                 placeholder={t('settings.reportDomain.placeholder')}
-                                className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
+                                className={`${DIALOG_INPUT_CLASS} disabled:opacity-60`}
                                 spellCheck={false}
                                 disabled={reportDomainLoading || reportDomainEnvOverride}
                             />
@@ -2116,7 +2081,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleReloadReportDomain() }}
                                         disabled={reportDomainLoading || saveReportDomainMutation.isPending}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                     >
                                         {t('settings.reportDomain.actions.reload')}
                                     </button>
@@ -2129,7 +2094,7 @@ export default function SettingsPage() {
                                             || !isReportDomainDirty
                                             || saveReportDomainMutation.isPending
                                         }
-                                        className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className={buttonVariants({ size: 'sm' })}
                                     >
                                         {saveReportDomainMutation.isPending
                                             ? t('settings.reportDomain.actions.saving')
@@ -2176,7 +2141,7 @@ export default function SettingsPage() {
 
                         {memoryError ? (
                             <div className="px-3 pb-2">
-                                <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+                                <div className="rounded-xl bg-[var(--social-danger)]/10 px-3 py-2 text-[13px] text-[var(--social-danger)]">
                                     {memoryError}
                                 </div>
                             </div>
@@ -2187,7 +2152,7 @@ export default function SettingsPage() {
                                 value={memoryDraft}
                                 onChange={(event) => setMemoryDraft(event.target.value)}
                                 placeholder={memoryLoading ? t('settings.memory.placeholder.loading') : t('settings.memory.placeholder.edit')}
-                                className="h-56 w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 text-sm text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
+                                className={`${DIALOG_INPUT_CLASS} h-56 text-[14px] leading-relaxed`}
                                 spellCheck={false}
                             />
                             <div className="mt-2 flex items-center justify-between gap-2">
@@ -2199,7 +2164,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleReloadMemory() }}
                                         disabled={saveMemoryMutation.isPending}
-                                        className="rounded-md border border-[var(--app-border)] px-2.5 py-1.5 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className={buttonVariants({ variant: 'secondary', size: 'sm' })}
                                     >
                                         {t('settings.memory.actions.reload')}
                                     </button>
@@ -2207,7 +2172,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleSaveMemory() }}
                                         disabled={!isMemoryDirty || saveMemoryMutation.isPending}
-                                        className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
+                                        className={buttonVariants({ size: 'sm' })}
                                     >
                                         {saveMemoryMutation.isPending ? t('settings.memory.actions.saving') : t('settings.memory.actions.save')}
                                     </button>
