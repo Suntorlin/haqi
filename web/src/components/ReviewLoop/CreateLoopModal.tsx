@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import type { ReviewLoopUserPreference, SessionSummary } from '@/types/api'
 import { BottomSheet, SheetSection } from '@/components/mobile/BottomSheet'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 import { ChevronRightIcon, SearchIcon } from '@/components/mobile/icons'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
-import { SegmentedControl } from '@/components/ui/FormControls'
+import { FormField, SegmentedControl } from '@/components/ui/FormControls'
+import { TextField } from '@/components/ui/TextField'
 import { matchesSessionSearch } from '@/lib/session-search'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
@@ -65,19 +66,20 @@ function SessionPicker(props: {
             </button>
             {open ? (
                 <div className="border-t border-[var(--social-border)]">
-                    <label className="flex items-center gap-2 px-4 py-2 text-[var(--social-fg-subtle)]">
-                        <SearchIcon className="h-4 w-4 shrink-0" />
-                        <input
+                    <div className="px-3 py-2">
+                        <TextField
+                            variant="pill"
                             autoFocus
                             value={search}
                             onChange={(event) => setSearch(event.target.value)}
                             placeholder={t('sessions.search.placeholder')}
-                            className="min-w-0 flex-1 bg-transparent text-[15px] text-[var(--social-fg)] outline-none placeholder:text-[var(--social-fg-subtle)]"
+                            aria-label={t('sessions.search.placeholder')}
+                            leading={<SearchIcon className="h-4 w-4" />}
                         />
-                    </label>
+                    </div>
                     <div className="max-h-64 overflow-y-auto border-t border-[var(--social-border)]">
                         {candidates.length === 0 ? (
-                            <div className="px-4 py-3 text-[14px] text-[var(--social-fg-muted)]">{t('loops.create.noMatch')}</div>
+                            <div className="px-4 py-3 text-[15px] text-[var(--social-fg-muted)]">{t('loops.create.noMatch')}</div>
                         ) : candidates.map((session) => (
                             <button
                                 key={session.id}
@@ -87,11 +89,11 @@ function SessionPicker(props: {
                                     setOpen(false)
                                 }}
                                 aria-current={session.id === props.selectedId ? 'true' : undefined}
-                                className="social-pressable flex w-full items-center gap-3 px-4 py-2 text-left aria-[current=true]:bg-[var(--social-muted)]"
+                                className="social-pressable flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left aria-[current=true]:bg-[var(--social-muted)]"
                             >
                                 <SessionAvatar session={session} size={28} muted={!session.active} />
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-[14px] text-[var(--social-fg)]">{getSessionTitle(session, { fallbackIdLength: 12 })}</span>
+                                    <span className="block truncate text-[15px] text-[var(--social-fg)]">{getSessionTitle(session, { fallbackIdLength: 12 })}</span>
                                     <span className="block truncate text-[12px] text-[var(--social-fg-muted)]">
                                         {getProjectName(getSessionProjectPath(session))}
                                         {session.active ? '' : ` · ${t('misc.offline')}`}
@@ -114,6 +116,9 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
     const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
     const [maxRounds, setMaxRounds] = useState(10)
     const [userPreference, setUserPreference] = useState<ReviewLoopUserPreference>('auto')
+    const requirementId = useId()
+    const criteriaId = useId()
+    const maxRoundsId = useId()
 
     useEffect(() => {
         if (open) {
@@ -166,38 +171,41 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                 />
 
                 <div className="flex flex-col gap-3 px-4 pb-3">
-                    <label className="flex flex-col gap-1.5">
-                        <span className="px-1 text-[12px] font-medium text-[var(--social-fg-muted)]">{t('loops.create.requirement')}</span>
+                    <FormField label={t('loops.create.requirement')} htmlFor={requirementId}>
                         <textarea
+                            id={requirementId}
                             value={requirement}
                             onChange={(event) => setRequirement(event.target.value)}
                             placeholder={t('loops.create.requirementPlaceholder')}
                             rows={3}
                             className={cn(DIALOG_INPUT_CLASS, 'resize-none')}
                         />
-                    </label>
-                    <label className="flex flex-col gap-1.5">
-                        <span className="px-1 text-[12px] font-medium text-[var(--social-fg-muted)]">{t('loops.create.criteria')}</span>
+                    </FormField>
+                    <FormField label={t('loops.create.criteria')} htmlFor={criteriaId}>
                         <textarea
+                            id={criteriaId}
                             value={acceptanceCriteria}
                             onChange={(event) => setAcceptanceCriteria(event.target.value)}
                             placeholder={t('loops.create.criteriaPlaceholder')}
                             rows={3}
                             className={cn(DIALOG_INPUT_CLASS, 'resize-none')}
                         />
-                    </label>
+                    </FormField>
                 </div>
 
                 <SheetSection>
                     <div className="flex min-h-[48px] items-center gap-3 px-4 py-2">
-                        <span className="flex-1 text-[15px] text-[var(--social-fg)]">{t('loops.create.maxRounds')}</span>
-                        <input
+                        <label htmlFor={maxRoundsId} className="flex-1 text-[15px] text-[var(--social-fg)]">{t('loops.create.maxRounds')}</label>
+                        <TextField
+                            id={maxRoundsId}
                             type="number"
+                            inputMode="numeric"
                             min={1}
                             max={100}
                             value={maxRounds}
                             onChange={(event) => setMaxRounds(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
-                            className="w-20 rounded-lg border border-[var(--social-border)] bg-[var(--app-bg)] px-2 py-1.5 text-center text-[15px] tabular-nums text-[var(--social-fg)] outline-none focus:border-[var(--social-fg-subtle)]"
+                            wrapperClassName="w-24"
+                            className="px-0 text-center tabular-nums"
                         />
                     </div>
                 </SheetSection>

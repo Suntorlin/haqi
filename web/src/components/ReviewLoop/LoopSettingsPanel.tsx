@@ -1,4 +1,5 @@
-import { cn } from '@/lib/utils'
+import { IconButton } from '@/components/ui/IconButton'
+import { SegmentedControl } from '@/components/ui/FormControls'
 import type { ReviewLoopUserPreference } from '@/types/api'
 
 type LoopSettingsPanelProps = {
@@ -16,6 +17,23 @@ const PREFERENCE_OPTIONS: Array<{ value: ReviewLoopUserPreference; label: string
     { value: 'silent', label: 'silent', description: 'Only on completion/failure' },
 ]
 
+function MinusIcon({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12" />
+        </svg>
+    )
+}
+
+function PlusGlyph({ className }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12" />
+            <line x1="12" y1="5" x2="12" y2="19" />
+        </svg>
+    )
+}
+
 export function LoopSettingsPanel({
     userPreference,
     maxRounds,
@@ -24,59 +42,47 @@ export function LoopSettingsPanel({
     onUpdateMaxRounds,
     disabled,
 }: LoopSettingsPanelProps) {
-    return (
-        <div className="font-mono text-xs min-w-0">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                {/* Notification mode */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[var(--app-hint)]">notify</span>
-                    <div className="flex items-center gap-0.5 flex-wrap">
-                        {PREFERENCE_OPTIONS.map((opt) => (
-                            <button
-                                key={opt.value}
-                                type="button"
-                                title={opt.description}
-                                disabled={disabled}
-                                onClick={() => onUpdatePreference(opt.value)}
-                                className={cn(
-                                    'rounded-sm px-2 py-0.5 font-mono text-xs transition-colors',
-                                    userPreference === opt.value
-                                        ? 'border border-[var(--app-link)] text-[var(--app-fg)]'
-                                        : 'border border-transparent text-[var(--app-hint)] hover:text-[var(--app-fg)]',
-                                    disabled && 'cursor-not-allowed opacity-50'
-                                )}
-                            >
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+    const activeOption = PREFERENCE_OPTIONS.find((option) => option.value === userPreference)
 
-                {/* Rounds control */}
-                <div className="flex items-center gap-2">
-                    <span className="text-[var(--app-hint)]">rounds</span>
-                    <div className="flex items-center gap-0">
-                        <button
-                            type="button"
-                            disabled={disabled || maxRounds <= 1}
-                            onClick={() => onUpdateMaxRounds(maxRounds - 1)}
-                            className="text-[var(--app-hint)] hover:text-[var(--app-fg)] disabled:opacity-30 disabled:cursor-not-allowed px-1 font-mono text-xs"
-                        >
-                            &#x25C0;
-                        </button>
-                        <span className="text-[var(--app-fg)] tabular-nums min-w-[3ch] text-center">
-                            {currentRound}/{maxRounds}
-                        </span>
-                        <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => onUpdateMaxRounds(maxRounds + 1)}
-                            className="text-[var(--app-hint)] hover:text-[var(--app-fg)] disabled:opacity-30 disabled:cursor-not-allowed px-1 font-mono text-xs"
-                        >
-                            &#x25B6;
-                        </button>
-                    </div>
-                </div>
+    return (
+        <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+                <div className="px-1 text-[13px] font-semibold text-[var(--social-fg-muted)]">Notify</div>
+                <SegmentedControl
+                    label="Notify"
+                    value={userPreference}
+                    options={PREFERENCE_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+                    onChange={onUpdatePreference}
+                    disabled={disabled}
+                />
+                {activeOption ? (
+                    <p className="px-1 text-[12px] text-[var(--social-fg-subtle)]">{activeOption.description}</p>
+                ) : null}
+            </div>
+
+            <div className="flex items-center gap-2 border-t border-[var(--social-divider)] pt-3">
+                <span className="flex-1 px-1 text-[15px] text-[var(--social-fg)]">Rounds</span>
+                <IconButton
+                    variant="muted"
+                    size="sm"
+                    label="Fewer rounds"
+                    disabled={disabled || maxRounds <= 1}
+                    onClick={() => onUpdateMaxRounds(maxRounds - 1)}
+                >
+                    <MinusIcon className="h-4 w-4" />
+                </IconButton>
+                <span className="min-w-[4ch] text-center text-[15px] tabular-nums text-[var(--social-fg)]">
+                    {currentRound}/{maxRounds}
+                </span>
+                <IconButton
+                    variant="muted"
+                    size="sm"
+                    label="More rounds"
+                    disabled={disabled}
+                    onClick={() => onUpdateMaxRounds(maxRounds + 1)}
+                >
+                    <PlusGlyph className="h-4 w-4" />
+                </IconButton>
             </div>
         </div>
     )
