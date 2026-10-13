@@ -1,21 +1,24 @@
-import type { ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import {
+    CheckIcon,
+    ChevronDownIcon,
     InfoCircleIcon,
     MicIcon,
     MicWaveIcon,
+    MoreHorizontalIcon,
     PaperclipIcon,
-    PlanIcon,
     PlusIcon,
     QueueListIcon,
     SendArrowIcon,
-    SlidersIcon,
     StopSquareIcon,
     SwitchIcon,
     TerminalIcon
 } from '@/components/mobile/icons'
-import { BottomSheet, SheetOption, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
+import { BottomSheet, SheetOption, SheetSection } from '@/components/mobile/BottomSheet'
+import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -39,134 +42,162 @@ function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void;
 }
 
 /**
- * WeChat-style "+" panel. Every tile does one thing the same way: tap → act or open a sheet.
- * Anything that is a setting (model, permissions, queue, plan…) lives in one settings sheet.
+ * WeChat-style "+" panel: the conversation settings as chips (each opens its own drawer), then
+ * one tile per action.
  */
 export function MobileComposerToolPanel(props: {
     controlsDisabled: boolean
+    settings: ReactNode
     showTerminalButton: boolean
     onTerminal: () => void
-    showSettingsButton: boolean
-    settingsBadge?: number
-    onSettings: () => void
+    extras: ComposerExtras
 }) {
     const { t } = useTranslation()
+    const { queue, status, switchRemote } = props.extras
     return (
-        <div className="grid grid-cols-4 gap-x-2 px-5 pb-3 pt-4 [&_svg]:stroke-[1.6]">
-            <ComposerPrimitive.AddAttachment disabled={props.controlsDisabled} className={tileClass}>
-                <span className={tileIconClass}>
-                    <PaperclipIcon className="h-6 w-6" />
-                </span>
-                {t('mobile.composer.attach')}
-            </ComposerPrimitive.AddAttachment>
-            {props.showTerminalButton ? (
-                <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
+        <div className="pb-3 pt-3">
+            {props.settings ? (
+                <div className="social-scroll-x flex gap-2 overflow-x-auto px-5 pb-3">
+                    {props.settings}
+                </div>
             ) : null}
-            {props.showSettingsButton ? (
-                <PanelTile
-                    icon={<SlidersIcon className="h-6 w-6" />}
-                    label={t('mobile.composer.chatSettings')}
-                    onClick={props.onSettings}
-                    badge={props.settingsBadge}
-                />
-            ) : null}
+            <div className="grid grid-cols-4 gap-x-2 gap-y-3 px-5 pt-1 [&_svg]:stroke-[1.6]">
+                <ComposerPrimitive.AddAttachment disabled={props.controlsDisabled} className={tileClass}>
+                    <span className={tileIconClass}>
+                        <PaperclipIcon className="h-6 w-6" />
+                    </span>
+                    {t('mobile.composer.attach')}
+                </ComposerPrimitive.AddAttachment>
+                {props.showTerminalButton ? (
+                    <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
+                ) : null}
+                {queue ? (
+                    <PanelTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={queue.onOpen} disabled={queue.disabled} badge={queue.pendingCount} />
+                ) : null}
+                {status ? (
+                    <PanelTile icon={<InfoCircleIcon className="h-6 w-6" />} label={t('composer.status')} onClick={status.onOpen} disabled={status.disabled} />
+                ) : null}
+                {switchRemote ? (
+                    <PanelTile icon={<SwitchIcon className="h-6 w-6" />} label={t('composer.switchRemote')} onClick={switchRemote.onSwitch} disabled={switchRemote.disabled} />
+                ) : null}
+            </div>
         </div>
     )
 }
 
 type Choice<T extends string> = { value: T; label: string; description?: string }
 
-type ChoiceGroup<T extends string> = {
+export type ChoiceGroup<T extends string> = {
     options: ReadonlyArray<Choice<T>>
     value: T
     onChange: (value: T) => void
 }
 
-/** One sheet for every conversation setting; choices apply immediately and the sheet stays open. */
-export function MobileComposerSettingsSheet(props: {
-    open: boolean
-    onOpenChange: (open: boolean) => void
-    disabled: boolean
-    permission: ChoiceGroup<string> | null
-    model: ChoiceGroup<string> | null
-    thinkEffort: ChoiceGroup<string> | null
-    serviceTier: ChoiceGroup<string> | null
-    sendMode: ChoiceGroup<'direct' | 'queue'> | null
-    planMode: { enabled: boolean; onChange: (enabled: boolean) => void } | null
-    queue: { pendingCount: number; onOpen: () => void } | null
-    status: { disabled: boolean; onOpen: () => void } | null
-    switchRemote: { disabled: boolean; onSwitch: () => void } | null
+// Borderless like the rest of the composer toolbar; the open chip keeps its hover fill.
+const chipClass = 'flex h-8 min-w-0 shrink-0 items-center gap-1 rounded-full pl-2.5 pr-2 text-[12.5px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] aria-expanded:bg-[var(--social-muted)] aria-expanded:text-[var(--social-fg)] disabled:opacity-40'
+
+/**
+ * One conversation setting shown as its current value. Tapping opens only that setting: a small
+ * menu next to the chip on desktop, a short drawer on phones. Picking applies it and closes.
+ */
+export function SettingChip<T extends string>(props: {
+    title: string
+    valueLabel: string
+    group: ChoiceGroup<T>
+    disabled?: boolean
 }) {
-    const { t } = useTranslation()
-    const choiceSection = <T extends string>(title: string, group: ChoiceGroup<T> | null) => group ? (
-        <SheetSection title={title}>
-            {group.options.map((option) => (
-                <SheetOption
-                    key={option.value}
-                    label={option.label}
-                    description={option.description}
-                    selected={group.value === option.value}
-                    disabled={props.disabled}
-                    onSelect={() => group.onChange(option.value)}
-                />
-            ))}
-        </SheetSection>
-    ) : null
+    const isMobileLayout = useIsMobileLayout()
+    const buttonRef = useRef<HTMLButtonElement | null>(null)
+    const [open, setOpen] = useState(false)
+    const [anchor, setAnchor] = useState({ x: 0, y: 0 })
+    const { group } = props
+
+    const openPicker = () => {
+        const rect = buttonRef.current?.getBoundingClientRect()
+        if (rect) setAnchor({ x: rect.left + rect.width / 2, y: rect.top - 4 })
+        setOpen(true)
+    }
+    const choose = (value: T) => {
+        setOpen(false)
+        if (value !== group.value) group.onChange(value)
+    }
 
     return (
-        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={t('mobile.composer.chatSettings')}>
-            <div className="pt-1">
-                {choiceSection(t('misc.permissionMode'), props.permission)}
-                {choiceSection(t('misc.model'), props.model)}
-                {choiceSection(t('newSession.think'), props.thinkEffort)}
-                {choiceSection(t('newSession.serviceTier'), props.serviceTier)}
-                {choiceSection(t('mobile.composer.sendMode'), props.sendMode)}
-                {props.planMode || props.queue || props.status || props.switchRemote ? (
-                    <SheetSection title={t('mobile.composer.other')}>
-                        {props.planMode ? (
-                            <SheetSwitchRow
-                                icon={<PlanIcon />}
-                                label={t('queue.mode.plan')}
-                                description={t('mobile.composer.planHint')}
-                                checked={props.planMode.enabled}
-                                disabled={props.disabled}
-                                onCheckedChange={props.planMode.onChange}
+        <>
+            <button
+                ref={buttonRef}
+                type="button"
+                onClick={openPicker}
+                disabled={props.disabled}
+                aria-haspopup={isMobileLayout ? 'dialog' : 'menu'}
+                aria-expanded={open}
+                aria-label={`${props.title} ${props.valueLabel}`}
+                title={props.title}
+                className={chipClass}
+            >
+                <span className="truncate">{props.valueLabel}</span>
+                <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
+            </button>
+            {isMobileLayout ? (
+                <BottomSheet open={open} onOpenChange={setOpen} title={props.title}>
+                    <SheetSection>
+                        {group.options.map((option) => (
+                            <SheetOption
+                                key={option.value}
+                                label={option.label}
+                                description={option.description}
+                                selected={option.value === group.value}
+                                onSelect={() => choose(option.value)}
                             />
-                        ) : null}
-                        {props.queue ? (
-                            <SheetRow
-                                icon={<QueueListIcon />}
-                                label={t('composer.queue')}
-                                value={props.queue.pendingCount > 0 ? t('queue.inline.pending', { count: props.queue.pendingCount }) : undefined}
-                                chevron
-                                disabled={props.disabled}
-                                onClick={props.queue.onOpen}
-                            />
-                        ) : null}
-                        {props.status ? (
-                            <SheetRow
-                                icon={<InfoCircleIcon />}
-                                label={t('composer.status')}
-                                chevron
-                                disabled={props.status.disabled}
-                                onClick={props.status.onOpen}
-                            />
-                        ) : null}
-                        {props.switchRemote ? (
-                            <SheetRow
-                                icon={<SwitchIcon />}
-                                label={t('composer.switchRemote')}
-                                chevron
-                                disabled={props.switchRemote.disabled}
-                                onClick={props.switchRemote.onSwitch}
-                            />
-                        ) : null}
+                        ))}
                     </SheetSection>
-                ) : null}
-                <div className="h-2" />
-            </div>
-        </BottomSheet>
+                    <div className="h-2" />
+                </BottomSheet>
+            ) : open ? (
+                <ContextMenu open anchorPoint={anchor} onClose={() => setOpen(false)} label={props.title}>
+                    {group.options.map((option) => (
+                        <ContextMenuItem
+                            key={option.value}
+                            label={option.label}
+                            checked={option.value === group.value}
+                            onSelect={() => choose(option.value)}
+                            trailing={(
+                                <CheckIcon className={cn('h-4 w-4 shrink-0', option.value === group.value ? 'text-[var(--social-fg)]' : 'text-transparent')} />
+                            )}
+                        />
+                    ))}
+                </ContextMenu>
+            ) : null}
+        </>
     )
+}
+
+/** On/off setting (plan mode) as a chip that fills when on. */
+export function ToggleChip(props: { label: string; title?: string; pressed: boolean; disabled?: boolean; onToggle: () => void }) {
+    return (
+        <button
+            type="button"
+            onClick={props.onToggle}
+            disabled={props.disabled}
+            aria-pressed={props.pressed}
+            title={props.title}
+            className={cn(
+                'flex h-8 shrink-0 items-center rounded-full px-2.5 text-[12.5px] transition-colors disabled:opacity-40',
+                props.pressed
+                    ? 'bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
+                    : 'text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]'
+            )}
+        >
+            {props.label}
+        </button>
+    )
+}
+
+/** Composer extras that are actions, not settings: the queue, "/status", switching to remote. */
+export type ComposerExtras = {
+    queue: { pendingCount: number; disabled: boolean; onOpen: () => void } | null
+    status: { disabled: boolean; onOpen: () => void } | null
+    switchRemote: { disabled: boolean; onSwitch: () => void } | null
 }
 
 export function MobileComposerToggle(props: { open: boolean; onClick: () => void; disabled?: boolean }) {
@@ -316,21 +347,26 @@ export function VoiceCallBar(props: {
 const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
 
 /**
- * Desktop composer toolbar: the same entries as the phone "+" panel, laid out inline.
- * Each does one thing; every setting opens the shared "chat settings" panel.
+ * Desktop composer toolbar: attach and terminal, then each conversation setting as a chip that
+ * opens its own small menu, and "…" for the queue / status / switch actions.
  */
 export function DesktopComposerToolbar(props: {
     controlsDisabled: boolean
     showTerminalButton: boolean
     onTerminal: () => void
-    showSettingsButton: boolean
-    settingsLabel: string
-    settingsBadge?: number
-    onSettings: () => void
+    settings: ReactNode
+    extras: ComposerExtras
     action: ReactNode
 }) {
     const { t } = useTranslation()
-    const badge = props.settingsBadge ?? 0
+    const { queue, status, switchRemote } = props.extras
+    const [moreAnchor, setMoreAnchor] = useState<{ x: number; y: number } | null>(null)
+    const pending = queue?.pendingCount ?? 0
+    const runThen = (action: () => void) => () => {
+        setMoreAnchor(null)
+        action()
+    }
+
     return (
         <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
             <ComposerPrimitive.AddAttachment
@@ -353,22 +389,50 @@ export function DesktopComposerToolbar(props: {
                     <TerminalIcon className="h-[18px] w-[18px]" />
                 </button>
             ) : null}
-            {props.showSettingsButton ? (
+            {props.settings ? (
+                <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto">
+                    {props.settings}
+                </div>
+            ) : null}
+            {queue || status || switchRemote ? (
                 <button
                     type="button"
-                    onClick={props.onSettings}
-                    className="relative ml-1 flex h-8 min-w-0 items-center gap-1.5 rounded-full border border-[var(--social-border)] pl-2.5 pr-3 text-[12.5px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]"
-                    aria-label={t('mobile.composer.chatSettings')}
-                    title={t('desktop.composer.settingsHint')}
+                    onClick={(event) => {
+                        const rect = event.currentTarget.getBoundingClientRect()
+                        setMoreAnchor({ x: rect.left + rect.width / 2, y: rect.top - 4 })
+                    }}
+                    className={cn(toolbarIconClass, 'ml-0.5')}
+                    aria-label={t('mobile.composer.more')}
+                    aria-haspopup="menu"
+                    aria-expanded={moreAnchor !== null}
+                    title={t('mobile.composer.more')}
                 >
-                    <SlidersIcon className="h-[15px] w-[15px] shrink-0 [stroke-width:1.8]" />
-                    <span className="truncate">{props.settingsLabel}</span>
-                    {badge > 0 ? (
-                        <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
-                            {badge > 99 ? '99+' : badge}
+                    <MoreHorizontalIcon className="h-[18px] w-[18px]" />
+                    {pending > 0 ? (
+                        <span className="absolute -right-0.5 -top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
+                            {pending > 99 ? '99+' : pending}
                         </span>
                     ) : null}
                 </button>
+            ) : null}
+            {moreAnchor ? (
+                <ContextMenu open anchorPoint={moreAnchor} onClose={() => setMoreAnchor(null)} label={t('mobile.composer.more')}>
+                    {queue ? (
+                        <ContextMenuItem
+                            icon={<QueueListIcon />}
+                            label={t('composer.queue')}
+                            disabled={queue.disabled}
+                            onSelect={runThen(queue.onOpen)}
+                            trailing={pending > 0 ? <span className="text-[13px] text-[var(--social-fg-muted)]">{t('queue.inline.pending', { count: pending })}</span> : undefined}
+                        />
+                    ) : null}
+                    {status ? (
+                        <ContextMenuItem icon={<InfoCircleIcon />} label={t('composer.status')} disabled={status.disabled} onSelect={runThen(status.onOpen)} />
+                    ) : null}
+                    {switchRemote ? (
+                        <ContextMenuItem icon={<SwitchIcon />} label={t('composer.switchRemote')} disabled={switchRemote.disabled} onSelect={runThen(switchRemote.onSwitch)} />
+                    ) : null}
+                </ContextMenu>
             ) : null}
             <div className="ml-auto flex shrink-0 items-center pl-2">
                 {props.action}

@@ -41,10 +41,12 @@ import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
 import {
     DesktopComposerToolbar,
     MobileComposerAction,
-    MobileComposerSettingsSheet,
     MobileComposerToggle,
     MobileComposerToolPanel,
-    VoiceCallBar
+    SettingChip,
+    ToggleChip,
+    VoiceCallBar,
+    type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
@@ -564,7 +566,6 @@ export function HappyComposer(props: {
         text: '',
         selection: { start: 0, end: 0 }
     })
-    const [showSettings, setShowSettings] = useState(false)
     const isMobileLayout = useIsMobileLayout()
     const [showToolPanel, setShowToolPanel] = useState(false)
     const mobileComposerRef = useRef<HTMLDivElement | null>(null)
@@ -1212,7 +1213,6 @@ export function HappyComposer(props: {
         </div>
     ) : null
 
-    const hasChatSettings = showSettingsButton || supportsQueueControls || showSwitchButton
     const applyChatSetting = (apply: () => void) => {
         if (controlsDisabled) return
         apply()
@@ -1231,74 +1231,88 @@ export function HappyComposer(props: {
         />
     ) : null
 
-    // One panel for every conversation setting: bottom sheet on phones, right-hand panel on desktop.
-    const settingsSheet = (
-        <MobileComposerSettingsSheet
-            open={showSettings}
-            onOpenChange={setShowSettings}
-            disabled={controlsDisabled}
-            permission={showPermissionSettings ? {
-                options: permissionModeOptions.map((option) => ({ value: option.mode, label: option.label })),
-                value: permissionMode,
-                onChange: (mode) => applyChatSetting(() => onPermissionModeChange?.(mode as PermissionMode))
-            } : null}
-            model={showModelSettings ? {
-                options: modelOptions,
-                value: currentModelValue,
-                onChange: (value) => applyChatSetting(() => onModelChange?.(value))
-            } : null}
-            thinkEffort={showThinkEffortSettings ? {
-                options: thinkEffortOptions,
-                value: currentThinkEffortValue,
-                onChange: (value) => applyChatSetting(() => onThinkEffortChange?.(value as SessionThinkEffort))
-            } : null}
-            serviceTier={showServiceTierSettings ? {
-                options: serviceTierOptions,
-                value: currentServiceTierValue,
-                onChange: (value) => applyChatSetting(() => onServiceTierChange?.(value as SessionServiceTier))
-            } : null}
-            sendMode={supportsQueueControls && onCodexSendModeChange ? {
-                options: [
-                    { value: 'direct', label: t('queue.mode.direct'), description: t('queue.mode.directHint') },
-                    { value: 'queue', label: t('queue.mode.queue'), description: t('queue.mode.queueHint') }
-                ],
-                value: codexSendMode,
-                onChange: (mode) => handleCodexSendModeChange(mode)
-            } : null}
-            planMode={supportsQueueControls && onCodexPlanModeChange ? {
-                enabled: isCodexPlanMode,
-                onChange: () => handleCodexPlanModeToggle()
-            } : null}
-            queue={showQueueButton ? {
-                pendingCount: Math.max(0, codexQueuePendingCount),
-                onOpen: () => {
-                    setShowSettings(false)
-                    handleCodexQueueOpen()
-                }
-            } : null}
-            status={showStatusButton ? {
-                disabled: controlsDisabled || threadIsRunning,
-                onOpen: () => {
-                    setShowSettings(false)
-                    handleCodexStatus()
-                }
-            } : null}
-            switchRemote={showSwitchButton ? {
-                disabled: switchDisabled,
-                onSwitch: () => {
-                    setShowSettings(false)
-                    void handleSwitch()
-                }
-            } : null}
-        />
-    )
+    // Each setting is a chip showing its value; tapping opens only that setting.
+    const optionLabel = (options: ReadonlyArray<{ value: string; label: string }>, value: string) =>
+        options.find((option) => option.value === value)?.label ?? value
+    const permissionChoices = permissionModeOptions.map((option) => ({ value: option.mode as string, label: option.label }))
+    const sendModeChoices = [
+        { value: 'direct' as const, label: t('queue.mode.direct'), description: t('queue.mode.directHint') },
+        { value: 'queue' as const, label: t('queue.mode.queue'), description: t('queue.mode.queueHint') }
+    ]
+    const settingChips = showSettingsButton || (supportsQueueControls && (onCodexSendModeChange || onCodexPlanModeChange)) ? (
+        <>
+            {showModelSettings ? (
+                <SettingChip
+                    title={t('misc.model')}
+                    valueLabel={optionLabel(modelOptions, currentModelValue)}
+                    disabled={controlsDisabled}
+                    group={{ options: modelOptions, value: currentModelValue, onChange: (value) => applyChatSetting(() => onModelChange?.(value)) }}
+                />
+            ) : null}
+            {showThinkEffortSettings ? (
+                <SettingChip
+                    title={t('newSession.think')}
+                    valueLabel={t('composer.chip.think', { value: optionLabel(thinkEffortOptions, currentThinkEffortValue) })}
+                    disabled={controlsDisabled}
+                    group={{ options: thinkEffortOptions, value: currentThinkEffortValue, onChange: (value) => applyChatSetting(() => onThinkEffortChange?.(value as SessionThinkEffort)) }}
+                />
+            ) : null}
+            {showPermissionSettings ? (
+                <SettingChip
+                    title={t('misc.permissionMode')}
+                    valueLabel={t('composer.chip.permission', { value: optionLabel(permissionChoices, permissionMode) })}
+                    disabled={controlsDisabled}
+                    group={{ options: permissionChoices, value: permissionMode as string, onChange: (value) => applyChatSetting(() => onPermissionModeChange?.(value as PermissionMode)) }}
+                />
+            ) : null}
+            {showServiceTierSettings ? (
+                <SettingChip
+                    title={t('newSession.serviceTier')}
+                    valueLabel={t('composer.chip.tier', { value: optionLabel(serviceTierOptions, currentServiceTierValue) })}
+                    disabled={controlsDisabled}
+                    group={{ options: serviceTierOptions, value: currentServiceTierValue, onChange: (value) => applyChatSetting(() => onServiceTierChange?.(value as SessionServiceTier)) }}
+                />
+            ) : null}
+            {supportsQueueControls && onCodexSendModeChange ? (
+                <SettingChip
+                    title={t('mobile.composer.sendMode')}
+                    valueLabel={t('composer.chip.sendMode', { value: optionLabel(sendModeChoices, codexSendMode) })}
+                    disabled={controlsDisabled}
+                    group={{ options: sendModeChoices, value: codexSendMode, onChange: (mode) => handleCodexSendModeChange(mode) }}
+                />
+            ) : null}
+            {supportsQueueControls && onCodexPlanModeChange ? (
+                <ToggleChip
+                    label={t('queue.mode.plan')}
+                    title={t('mobile.composer.planHint')}
+                    pressed={isCodexPlanMode}
+                    disabled={controlsDisabled}
+                    onToggle={handleCodexPlanModeToggle}
+                />
+            ) : null}
+        </>
+    ) : null
+    const composerExtras: ComposerExtras = {
+        queue: showQueueButton ? {
+            pendingCount: Math.max(0, codexQueuePendingCount),
+            disabled: controlsDisabled,
+            onOpen: handleCodexQueueOpen
+        } : null,
+        status: showStatusButton ? {
+            disabled: controlsDisabled || threadIsRunning,
+            onOpen: handleCodexStatus
+        } : null,
+        switchRemote: showSwitchButton ? {
+            disabled: switchDisabled,
+            onSwitch: () => { void handleSwitch() }
+        } : null
+    }
 
     if (isMobileLayout) {
         const toggleToolPanel = () => {
             haptic('light')
             if (!showToolPanel) {
                 textareaRef.current?.blur()
-                setShowSettings(false)
             }
             setShowToolPanel(!showToolPanel)
         }
@@ -1314,7 +1328,7 @@ export function HappyComposer(props: {
                 style={{ paddingBottom: isIOSPWA ? 'max(env(safe-area-inset-bottom), 0.5rem)' : '0.5rem' }}
             >
                 <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
-                    {showSettings ? null : overlays}
+                    {overlays}
 
                     {inlineQueuePanel}
 
@@ -1358,10 +1372,7 @@ export function HappyComposer(props: {
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    onFocus={() => {
-                                        setShowToolPanel(false)
-                                        setShowSettings(false)
-                                    }}
+                                    onFocus={() => setShowToolPanel(false)}
                                     className={`w-full flex-1 resize-none bg-transparent text-[16px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono' : ''}`}
                                 />
                             </div>
@@ -1389,24 +1400,21 @@ export function HappyComposer(props: {
                     {showToolPanel ? (
                         <MobileComposerToolPanel
                             controlsDisabled={controlsDisabled}
+                            settings={settingChips}
                             showTerminalButton={showTerminalButton}
                             onTerminal={closePanelThen(onTerminal ?? (() => {}))}
-                            showSettingsButton={hasChatSettings}
-                            settingsBadge={showQueueButton ? Math.max(0, codexQueuePendingCount) : 0}
-                            onSettings={closePanelThen(() => setShowSettings(true))}
+                            extras={{
+                                queue: composerExtras.queue ? { ...composerExtras.queue, onOpen: closePanelThen(composerExtras.queue.onOpen) } : null,
+                                status: composerExtras.status ? { ...composerExtras.status, onOpen: closePanelThen(composerExtras.status.onOpen) } : null,
+                                switchRemote: composerExtras.switchRemote ? { ...composerExtras.switchRemote, onSwitch: closePanelThen(composerExtras.switchRemote.onSwitch) } : null
+                            }}
                         />
                     ) : null}
                 </ComposerPrimitive.Root>
-
-                {settingsSheet}
             </div>
         )
     }
 
-    const settingsLabel = [
-        showModelSettings ? modelOptions.find((option) => option.value === currentModelValue)?.label : null,
-        showPermissionSettings ? permissionModeOptions.find((option) => option.mode === permissionMode)?.label : null
-    ].filter(Boolean).join(' · ') || t('mobile.composer.chatSettings')
 
     return (
         <div className={`shrink-0 bg-[var(--app-bg)] px-6 pb-5 pt-1 ${cliMode ? 'cli-composer' : ''}`}>
@@ -1461,10 +1469,8 @@ export function HappyComposer(props: {
                             controlsDisabled={controlsDisabled}
                             showTerminalButton={showTerminalButton}
                             onTerminal={onTerminal ?? (() => {})}
-                            showSettingsButton={hasChatSettings}
-                            settingsLabel={settingsLabel}
-                            settingsBadge={showQueueButton ? Math.max(0, codexQueuePendingCount) : 0}
-                            onSettings={() => setShowSettings(true)}
+                            settings={settingChips}
+                            extras={composerExtras}
                             action={(
                                 <MobileComposerAction
                                     hasDraft={hasDraft}
@@ -1485,8 +1491,6 @@ export function HappyComposer(props: {
                     </div>
                 </ComposerPrimitive.AttachmentDropzone>
             </ComposerPrimitive.Root>
-
-            {settingsSheet}
         </div>
     )
 }
