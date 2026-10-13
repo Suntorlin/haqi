@@ -50,8 +50,11 @@ import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
-import { FormField, SuggestionChip } from '@/components/ui/FormControls'
+import { FormField } from '@/components/ui/FormControls'
+import { InputHistory } from '@/components/ui/InputHistory'
 import { ChevronDownIcon } from '@/components/mobile/icons'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -437,15 +440,16 @@ export function NewSession(props: {
                 onPathClick={handlePathClick}
             />
             <div className="flex flex-col gap-5">
-                <button
+                <Button
                     type="button"
+                    variant="ghost"
                     aria-expanded={showAdvanced}
                     onClick={() => setShowAdvanced((open) => !open)}
-                    className="flex items-center gap-1 self-start rounded-full px-1 py-0.5 text-[12px] font-medium text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]"
+                    className="-ml-3 self-start px-3 text-[13px]"
                 >
                     {t('newSession.advanced')}
-                    <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                </button>
+                    <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform duration-150', showAdvanced && 'rotate-180')} />
+                </Button>
                 {showAdvanced ? (
                     <div className="flex flex-col gap-5">
                         <MachineSelector
@@ -457,27 +461,23 @@ export function NewSession(props: {
                         />
                         {experimentalSettings.previewEnabled ? (
                             <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
-                                <input
-                                    id={previewUrlId}
-                                    type="text"
-                                    placeholder="http://localhost:3000"
-                                    value={previewUrlInput}
-                                    onChange={(event) => setPreviewUrlInput(event.target.value)}
+                                <InputHistory
+                                    items={previewUrlHistory.slice(0, 8)}
+                                    label={t('preview.history')}
                                     disabled={isFormDisabled}
-                                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
-                                />
-                                {previewUrlHistory.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                        {previewUrlHistory.slice(0, 8).map((url) => (
-                                            <SuggestionChip
-                                                key={url}
-                                                label={url}
-                                                disabled={isFormDisabled}
-                                                onClick={() => setPreviewUrlInput(url)}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : null}
+                                    format={(url) => url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                    onPick={setPreviewUrlInput}
+                                >
+                                    <input
+                                        id={previewUrlId}
+                                        type="text"
+                                        placeholder="http://localhost:3000"
+                                        value={previewUrlInput}
+                                        onChange={(event) => setPreviewUrlInput(event.target.value)}
+                                        disabled={isFormDisabled}
+                                        className={`${DIALOG_INPUT_CLASS} disabled:opacity-50${previewUrlHistory.length > 0 ? ' pr-11' : ''}`}
+                                    />
+                                </InputHistory>
                             </FormField>
                         ) : null}
                         <SessionTypeSelector
