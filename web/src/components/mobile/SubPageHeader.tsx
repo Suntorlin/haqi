@@ -1,19 +1,14 @@
 import type { ReactNode } from 'react'
 import { ChevronLeftIcon } from '@/components/mobile/icons'
+import { IconButton } from '@/components/ui/IconButton'
 import { useTranslation } from '@/lib/use-translation'
 
 /** Round icon button for sub-page header actions. */
 export function SubPageHeaderButton(props: { label: string; onClick: () => void; children: ReactNode }) {
     return (
-        <button
-            type="button"
-            onClick={props.onClick}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] [-webkit-tap-highlight-color:transparent]"
-            title={props.label}
-            aria-label={props.label}
-        >
+        <IconButton label={props.label} onClick={props.onClick}>
             {props.children}
-        </button>
+        </IconButton>
     )
 }
 
@@ -24,14 +19,9 @@ export function SubPageHeader(props: { title: ReactNode; subtitle?: ReactNode; o
         <header className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
             <div className="flex h-[54px] items-center gap-1 pl-1 pr-3 lg:h-[60px] lg:pl-2 lg:pr-4">
                 {props.onBack ? (
-                    <button
-                        type="button"
-                        onClick={props.onBack}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)] [-webkit-tap-highlight-color:transparent]"
-                        aria-label={t('button.back')}
-                    >
+                    <IconButton label={t('button.back')} onClick={props.onBack} className="text-[var(--social-fg)]">
                         <ChevronLeftIcon className="h-6 w-6" />
-                    </button>
+                    </IconButton>
                 ) : (
                     <span className="w-3 shrink-0" />
                 )}
