@@ -64,8 +64,7 @@ export function LoopSettingsPanel({
                 <span className="flex-1 px-1 text-[15px] text-[var(--social-fg)]">Rounds</span>
                 <IconButton
                     variant="muted"
-                    size="sm"
-                    label="Fewer rounds"
+                                        label="Fewer rounds"
                     disabled={disabled || maxRounds <= 1}
                     onClick={() => onUpdateMaxRounds(maxRounds - 1)}
                 >
@@ -76,8 +75,7 @@ export function LoopSettingsPanel({
                 </span>
                 <IconButton
                     variant="muted"
-                    size="sm"
-                    label="More rounds"
+                                        label="More rounds"
                     disabled={disabled}
                     onClick={() => onUpdateMaxRounds(maxRounds + 1)}
                 >

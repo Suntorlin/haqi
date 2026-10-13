@@ -20,7 +20,7 @@ import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 
 export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
@@ -443,7 +443,7 @@ export function SocialAssistantMessage() {
                                         variant="secondary"
                                         size="sm"
                                         onClick={showEarlierSteps}
-                                        className={cn('h-7 w-fit px-3 text-[12px]', HIT_AREA_CLASS)}
+                                        className={cn('h-7 w-fit px-3 text-[12px]', HIT_AREA_28_CLASS)}
                                     >
                                         {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
                                     </Button>

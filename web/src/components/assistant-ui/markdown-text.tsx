@@ -8,7 +8,7 @@ import {
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_28_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { SyntaxHighlighter } from '@/components/assistant-ui/shiki-highlighter'
 import { PathActionLink } from '@/components/assistant-ui/path-action-link'
@@ -31,7 +31,7 @@ function CodeHeader(props: CodeHeaderProps) {
             <div className="min-w-0 flex-1 pr-2 text-xs font-mono text-[var(--app-hint)]">
                 {language}
             </div>
-            <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-7 w-7', HIT_AREA_CLASS)}>
+            <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-7 w-7', HIT_AREA_28_CLASS)}>
                 {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
             </IconButton>
         </div>
@@ -46,7 +46,7 @@ function Pre(props: ComponentPropsWithoutRef<'pre'>) {
             <pre
                 {...rest}
                 className={cn(
-                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--app-code-bg)] p-2 text-sm',
+                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--app-code-bg)] p-2 text-[13px]',
                     className
                 )}
             />
