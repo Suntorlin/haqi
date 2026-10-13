@@ -9,6 +9,7 @@ import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionAvatar } from '@/components/mobile/SessionAvatar'
 import { ArchiveBoxIcon, PinOffIcon } from '@/components/mobile/icons'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
+import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 /** Pinned sessions that need attention come first: waiting for approval, then running, then recent. */
@@ -58,16 +59,15 @@ function PinnedStory(props: {
                     muted={!session.active}
                 />
                 {isPending || isLive ? (
-                    <span
-                        className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md px-1.5 text-[12px] font-semibold leading-4 text-white ring-2 ring-[var(--app-bg)]"
-                        style={{
-                            background: isPending
-                                ? 'linear-gradient(90deg, #f59e0b, #f43f5e)'
-                                : 'linear-gradient(90deg, #c13584, #e1306c, #fd1d1d)'
-                        }}
+                    <Badge
+                        variant={isPending ? 'warning' : 'solid'}
+                        className={cn(
+                            'absolute -bottom-1.5 left-1/2 h-5 -translate-x-1/2 px-2 ring-2 ring-[var(--app-bg)]',
+                            !isPending && 'bg-[var(--social-badge)] text-white'
+                        )}
                     >
                         {isPending ? t('mobile.stories.pending') : t('mobile.stories.live')}
-                    </span>
+                    </Badge>
                 ) : null}
             </span>
             <span className={cn('mt-1.5 w-full truncate text-center text-[12px]', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
