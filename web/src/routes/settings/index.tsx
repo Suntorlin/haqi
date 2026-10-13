@@ -2,7 +2,6 @@ import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
 import { useState, useRef, useEffect, useMemo, useCallback, useId, type ChangeEvent, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
-import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -28,6 +27,8 @@ import { useMachines } from '@/hooks/queries/useMachines'
 import { queryKeys } from '@/lib/query-keys'
 import { PROTOCOL_VERSION } from '@hapi/protocol'
 import { Switch } from '@/components/ui/Switch'
+import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import type { CodexCredentialProfile, CodexCredentialStateResponse } from '@/types/api'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
@@ -93,25 +94,6 @@ function persistSettingsGroupExpandedState(state: SettingsGroupExpandedState) {
         return
     }
     window.localStorage.setItem(SETTINGS_GROUP_EXPANDED_STORAGE_KEY, JSON.stringify(state))
-}
-
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
 }
 
 function CheckIcon(props: { className?: string }) {
@@ -239,7 +221,7 @@ export default function SettingsPage() {
     const { t, locale, setLocale } = useTranslation()
     const { api } = useAppContext()
     const queryClient = useQueryClient()
-    const goBack = useAppGoBack()
+    const isMobileLayout = useIsMobileLayout()
     const [isOpen, setIsOpen] = useState(false)
     const [isThemeOpen, setIsThemeOpen] = useState(false)
     const [isFontOpen, setIsFontOpen] = useState(false)
@@ -1048,18 +1030,7 @@ export default function SettingsPage() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        <BackIcon />
-                    </button>
-                    <div className="flex-1 font-semibold">{t('settings.title')}</div>
-                </div>
-            </div>
+            <MobilePageHeader title={t('settings.title')} contentWidth />
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
@@ -1079,7 +1050,7 @@ export default function SettingsPage() {
                     >
                     {/* Language section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.language.title')}
                         </div>
                         <div ref={containerRef} className="relative">
@@ -1134,7 +1105,7 @@ export default function SettingsPage() {
 
                     {/* Display section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.display.title')}
                         </div>
                         <div ref={themeContainerRef} className="relative">
@@ -1237,7 +1208,7 @@ export default function SettingsPage() {
 
                     {/* Voice Assistant section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.voice.title')}
                         </div>
                         <div ref={voiceContainerRef} className="relative">
@@ -1308,7 +1279,7 @@ export default function SettingsPage() {
                     >
                     {/* Behavior section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.behavior.title')}
                         </div>
                         <div ref={sendModeContainerRef} className="relative border-b border-[var(--app-border)]">
@@ -1680,7 +1651,7 @@ export default function SettingsPage() {
                             )}
                         </div>
                         <div className="border-b border-[var(--app-divider)]">
-                            <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                                 {t('settings.experimental.title')}
                             </div>
                             <div className="flex items-start justify-between gap-3 px-3 py-3">
@@ -1807,7 +1778,7 @@ export default function SettingsPage() {
                     >
                     {/* Usage section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.usage.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -1908,7 +1879,7 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.codexCredentials.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -2008,7 +1979,7 @@ export default function SettingsPage() {
                                             type="button"
                                             onClick={() => { void handleSaveCurrentCodexCredentials() }}
                                             disabled={!codexCredentialState?.current.exists || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {t('settings.codexCredentials.actions.saveCurrent')}
                                         </button>
@@ -2035,7 +2006,7 @@ export default function SettingsPage() {
                                             type="button"
                                             onClick={() => { void handleImportCodexCredentials() }}
                                             disabled={!codexCredentialImportDraft.trim() || codexCredentialActionPendingId !== null}
-                                            className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                            className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             {t('settings.codexCredentials.actions.import')}
                                         </button>
@@ -2115,7 +2086,7 @@ export default function SettingsPage() {
 
                     {/* Report domain section */}
                     <div className="border-b border-[var(--app-divider)]">
-                        <div className="px-3 py-2 text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                        <div className="px-3 pb-1.5 pt-3 text-[12px] font-medium text-[var(--social-fg-muted)]">
                             {t('settings.reportDomain.title')}
                         </div>
                         <div className="px-3 pb-2 text-xs text-[var(--app-hint)]">
@@ -2158,7 +2129,7 @@ export default function SettingsPage() {
                                             || !isReportDomainDirty
                                             || saveReportDomainMutation.isPending
                                         }
-                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {saveReportDomainMutation.isPending
                                             ? t('settings.reportDomain.actions.saving')
@@ -2172,7 +2143,7 @@ export default function SettingsPage() {
                     {/* Memory section */}
                     <div className="border-b border-[var(--app-divider)]">
                         <div className="flex items-center justify-between gap-3 px-3 py-2">
-                            <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            <div className="text-[12px] font-medium text-[var(--social-fg-muted)]">
                                 {t('settings.memory.pureContextMode.title')}
                             </div>
                             <Switch
@@ -2186,7 +2157,7 @@ export default function SettingsPage() {
                             {t('settings.memory.pureContextMode.description')}
                         </div>
                         <div className="flex items-center justify-between gap-3 px-3 py-2">
-                            <div className="text-xs font-semibold text-[var(--app-hint)] uppercase tracking-wide">
+                            <div className="text-[12px] font-medium text-[var(--social-fg-muted)]">
                                 {t('settings.memory.injection.title')}
                             </div>
                             <Switch
@@ -2236,7 +2207,7 @@ export default function SettingsPage() {
                                         type="button"
                                         onClick={() => { void handleSaveMemory() }}
                                         disabled={!isMemoryDirty || saveMemoryMutation.isPending}
-                                        className="rounded-md bg-[var(--app-link)] px-2.5 py-1.5 text-sm text-white disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="rounded-md bg-[var(--app-button)] px-2.5 py-1.5 text-sm text-[var(--app-button-text)] disabled:cursor-not-allowed disabled:opacity-60"
                                     >
                                         {saveMemoryMutation.isPending ? t('settings.memory.actions.saving') : t('settings.memory.actions.save')}
                                     </button>
@@ -2277,6 +2248,7 @@ export default function SettingsPage() {
                     </SettingsSection>
                 </div>
             </div>
+            {isMobileLayout ? <MobileTabBar active="settings" /> : null}
         </div>
     )
 }

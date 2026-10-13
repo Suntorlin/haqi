@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type ClipboardEvent, type ComponentProps, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type ComponentProps, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Attachment, PendingAttachment } from '@assistant-ui/react'
@@ -27,23 +27,52 @@ import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/m
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
+import { ChatTimeSeparator } from '@/components/AssistantChat/messages/SocialMessages'
 import { FileIcon } from '@/components/FileIcon'
 import { Spinner } from '@/components/Spinner'
 import { cn } from '@/lib/utils'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { isImageMimeType } from '@/lib/fileAttachments'
+import { safeCopyToClipboard } from '@/lib/clipboard'
 import { NewSession } from '@/components/NewSession'
 import { useTranslation } from '@/lib/use-translation'
 import { getSessionTitle } from '@/lib/session-title'
 import { matchesSessionSearch } from '@/lib/session-search'
 import { useLongPress } from '@/hooks/useLongPress'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { FormField, SegmentedControl, SelectInput } from '@/components/ui/FormControls'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { queryKeys } from '@/lib/query-keys'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
-import { useChatViewMode } from '@/hooks/useChatViewMode'
+import { useChatViewMode, type ChatViewMode } from '@/hooks/useChatViewMode'
+import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { BottomSheet, SheetNote, SheetRow, SheetSection } from '@/components/mobile/BottomSheet'
+import { MobileSearchField } from '@/components/mobile/MobileSearchField'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
+import { TIME_SEPARATOR_GAP_MS } from '@/components/mobile/chatTimeline'
+import { GroupAvatar, SessionAvatar, getProjectName, getSessionProjectPath, type AvatarRing } from '@/components/mobile/SessionAvatar'
+import {
+    ChatBubbleIcon,
+    ChevronRightIcon,
+    DuplicateIcon,
+    MegaphoneIcon,
+    MoreHorizontalIcon,
+    NewSessionIcon,
+    PaperclipIcon,
+    PencilIcon,
+    PlusIcon,
+    ReplyIcon,
+    SendArrowIcon,
+    ShieldCheckIcon,
+    SparklesIcon,
+    TrashIcon
+} from '@/components/mobile/icons'
+import { useGroupInfoPanel } from './group-info'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -66,61 +95,11 @@ function useDebounce<T>(value: T, delay: number): T {
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
-function PlusIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-    )
-}
-
-function ChevronDownIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <polyline points="6 9 12 15 18 9" />
-        </svg>
-    )
-}
-
-function ChevronRightIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <polyline points="9 18 15 12 9 6" />
-        </svg>
-    )
-}
-
-function ChevronLeftIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
-
 function CloseIcon(props: { className?: string }) {
     return (
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-    )
-}
-
-function QuoteIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" />
-            <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" />
-        </svg>
-    )
-}
-
-function AttachmentIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.2-9.19a4 4 0 0 1 5.65 5.66l-9.2 9.19a2 2 0 0 1-2.82-2.83l8.48-8.48" />
         </svg>
     )
 }
@@ -135,33 +114,13 @@ function AttachmentErrorIcon(props: { className?: string }) {
     )
 }
 
-function SendIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="12" y1="19" x2="12" y2="5" />
-            <polyline points="5 12 12 5 19 12" />
-        </svg>
-    )
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function taskStatusClass(status: GroupTaskStatus): string {
-    if (status === 'completed' || status === 'manual_done') return 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
-    if (status === 'failed' || status === 'canceled' || status === 'expired') return 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]'
-    if (status === 'running' || status === 'enqueued') return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+function taskStatusDotClass(status: GroupTaskStatus): string {
+    if (status === 'completed' || status === 'manual_done') return 'bg-[var(--social-success)]'
+    if (status === 'failed' || status === 'canceled' || status === 'expired') return 'bg-[var(--social-danger)]'
+    if (status === 'running' || status === 'enqueued') return 'bg-[var(--social-warning)] animate-pulse'
+    return 'bg-[var(--social-fg-subtle)]'
 }
 
 function isTerminalStatus(status: GroupTaskStatus): boolean {
@@ -254,25 +213,7 @@ function formatTime(ms: number): string {
     return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-function getAvatarInitial(label: string): string {
-    const trimmed = label.trim()
-    if (!trimmed) {
-        return '?'
-    }
-    const first = Array.from(trimmed)[0]
-    return first.toUpperCase()
-}
-
-function getSessionAvatarTone(session: SessionSummary | undefined): string {
-    const flavor = session?.metadata?.flavor ?? ''
-    if (flavor === 'claude') return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30'
-    if (flavor === 'codex') return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30'
-    if (flavor === 'gemini') return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30'
-    if (flavor === 'opencode') return 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-500/20 dark:text-fuchsia-300 dark:border-fuchsia-500/30'
-    return 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-divider)]'
-}
-
-type MemberWorkStatus = 'offline' | 'pending' | 'working' | 'completed'
+type MemberWorkStatus = 'offline' | 'pending' | 'working' | 'online'
 
 function getMemberWorkStatus(session: SessionSummary | undefined): MemberWorkStatus {
     if (!session?.active) {
@@ -284,56 +225,44 @@ function getMemberWorkStatus(session: SessionSummary | undefined): MemberWorkSta
     if (session.thinking) {
         return 'working'
     }
-    return 'completed'
+    return 'online'
 }
 
-function getMemberStatusDotClass(status: MemberWorkStatus): string {
-    if (status === 'working') return 'bg-[var(--app-badge-info-text)] animate-pulse'
-    if (status === 'pending') return 'bg-[var(--app-badge-warning-text)]'
-    if (status === 'completed') return 'bg-[var(--app-badge-success-text)]'
-    return 'bg-[var(--app-hint)]'
+/** Same ring rules as the session list: pending approvals first, then live work; offline orbs fade. */
+function getMemberRing(status: MemberWorkStatus): AvatarRing {
+    if (status === 'pending') return 'pending'
+    if (status === 'working') return 'live'
+    return null
 }
 
-function getMemberStatusBadgeClass(status: MemberWorkStatus): string {
-    if (status === 'working') return 'bg-[var(--app-badge-info-bg)] text-[var(--app-badge-info-text)]'
-    if (status === 'pending') return 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
-    if (status === 'completed') return 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
-}
+/** "2 项待批准" / "正在思考…" / "在线", then agent · project, like the session list preview line. */
+function MemberStatusLine(props: { session: SessionSummary | undefined; status: MemberWorkStatus }) {
+    const { t } = useTranslation()
+    const { session, status } = props
+    const meta = [
+        session?.metadata?.flavor ?? null,
+        session ? getProjectName(getSessionProjectPath(session)) : null
+    ].filter(Boolean).join(' · ')
 
-function getMemberStatusLabel(
-    status: MemberWorkStatus,
-    t: (key: string, params?: Record<string, string | number>) => string
-): string {
-    if (status === 'pending') {
-        return t('session.item.pending')
-    }
-    if (status === 'working') {
-        return t('session.item.thinking')
-    }
-    if (status === 'completed') {
-        return t('session.item.completed')
-    }
-    return t('misc.offline')
-}
-
-function getSessionWorkingDirectory(session: SessionSummary | undefined): string {
-    const worktreePath = session?.metadata?.worktree?.worktreePath?.trim()
-    if (worktreePath) {
-        return worktreePath
-    }
-
-    const metadataPath = session?.metadata?.path?.trim()
-    if (metadataPath) {
-        return metadataPath
-    }
-
-    const basePath = session?.metadata?.worktree?.basePath?.trim()
-    if (basePath) {
-        return basePath
-    }
-
-    return '-'
+    return (
+        <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+            {status === 'pending' ? (
+                <span className="shrink-0 font-medium text-[var(--social-badge)]">
+                    {t('mobile.feed.pending', { n: session?.pendingRequestsCount ?? 0 })}
+                </span>
+            ) : status === 'working' ? (
+                <span className="inline-flex shrink-0 items-center font-medium text-[var(--social-fg)]">
+                    {t('mobile.feed.thinking')}
+                    <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
+                        <span /><span /><span />
+                    </span>
+                </span>
+            ) : (
+                <span className="shrink-0">{status === 'online' ? t('misc.online') : t('misc.offline')}</span>
+            )}
+            {meta ? <span className="min-w-0 truncate">{`· ${meta}`}</span> : null}
+        </span>
+    )
 }
 
 type PendingPermissionRequest = {
@@ -378,7 +307,7 @@ function formatPermissionArguments(value: unknown): string {
         return value
     }
     if (value === undefined) {
-        return '(empty)'
+        return '—'
     }
 
     try {
@@ -386,28 +315,6 @@ function formatPermissionArguments(value: unknown): string {
     } catch {
         return String(value)
     }
-}
-
-function buildSessionTooltipLines(options: {
-    session: SessionSummary | undefined
-    sessionId: string
-    statusLabel: string
-}): string[] {
-    const directory = getSessionWorkingDirectory(options.session)
-    const agentLabel = options.session?.metadata?.flavor ?? 'unknown'
-    const modelLabel = options.session?.metadata?.model?.trim() || options.session?.modelMode || 'default'
-    const branch = options.session?.metadata?.worktree?.branch ?? null
-    const machineId = options.session?.metadata?.machineId ?? null
-
-    return [
-        `Status: ${options.statusLabel}`,
-        `Session: ${options.sessionId}`,
-        `Directory: ${directory}`,
-        `Agent: ${agentLabel}`,
-        `Model: ${modelLabel}`,
-        ...(branch ? [`Branch: ${branch}`] : []),
-        ...(machineId ? [`Machine: ${machineId}`] : [])
-    ]
 }
 
 function getActorSessionId(message: GroupTimelineMessage): string | null {
@@ -419,6 +326,15 @@ function getActorSessionId(message: GroupTimelineMessage): string | null {
         return value || null
     }
     return null
+}
+
+function isSystemMessage(message: GroupTimelineMessage): boolean {
+    return message.type === 'system' || message.type === 'note_state'
+}
+
+/** Messages from the same sender close together are drawn as one run (one name line). */
+function getMessageActorKey(message: GroupTimelineMessage): string {
+    return getActorSessionId(message) ?? message.source
 }
 
 function canQuoteMessage(message: GroupTimelineMessage): boolean {
@@ -436,7 +352,7 @@ function parseQuoteFromText(text: string): { actorName: string; quotedText: stri
 
     const lines = text.split('\n')
     const quotedLines: string[] = []
-    let actorName = 'Unknown'
+    let actorName = ''
 
     for (const line of lines) {
         const trimmed = line.trim()
@@ -535,12 +451,13 @@ function splitCommandTextByMention(text: string): CommandTextPart[] {
     return parts.length > 0 ? parts : [{ type: 'text', value: text }]
 }
 
+/** Command text with @session mentions shown as the member's title (tap opens that chat). */
 function CommandText(props: {
     content: string
     sessionMap: Map<string, SessionSummary>
-    isUser: boolean
     onOpenSession: (sessionId: string) => void
 }) {
+    const { t } = useTranslation()
     const parts = splitCommandTextByMention(props.content)
 
     return (
@@ -552,17 +469,7 @@ function CommandText(props: {
                 }
 
                 if (part.sessionId === 'all') {
-                    return (
-                        <span
-                            key={key}
-                            className={cn(
-                                'font-semibold',
-                                props.isUser ? 'text-[var(--app-button-text)] opacity-90' : 'text-[var(--app-link)]'
-                            )}
-                        >
-                            {part.raw}
-                        </span>
-                    )
+                    return <span key={key} className="font-semibold">{part.raw}</span>
                 }
 
                 const session = props.sessionMap.get(part.sessionId)
@@ -574,49 +481,26 @@ function CommandText(props: {
                     fallbackSessionId: part.sessionId,
                     fallbackIdLength: 12
                 })
-                const mentionLabel = `@${sessionTitle}`
-                const showSessionId = sessionTitle !== part.sessionId
 
                 return (
-                    <span key={key}>
-                        <button
-                            type="button"
-                            onClick={() => props.onOpenSession(part.sessionId)}
-                            className={cn(
-                                'rounded px-0.5 align-baseline underline decoration-dotted underline-offset-2 transition-colors',
-                                props.isUser
-                                    ? 'text-[var(--app-button-text)] hover:bg-[var(--app-subtle-bg)]'
-                                    : 'text-[var(--app-link)] hover:bg-[var(--app-subtle-bg)]'
-                            )}
-                            title={`Open session ${sessionTitle} (${part.sessionId})`}
-                        >
-                            {mentionLabel}
-                        </button>
-                        {showSessionId ? (
-                            <span className={cn(props.isUser ? 'text-[var(--app-button-text)] opacity-70' : 'text-[var(--app-hint)]')}>
-                                ({part.sessionId})
-                            </span>
-                        ) : null}
-                    </span>
+                    <button
+                        key={key}
+                        type="button"
+                        onClick={() => props.onOpenSession(part.sessionId)}
+                        className="font-semibold underline decoration-dotted underline-offset-2"
+                        title={t('groups.message.openSession', { name: sessionTitle })}
+                    >
+                        {`@${sessionTitle}`}
+                    </button>
                 )
             })}
         </>
     )
 }
 
-function BubbleMarkdown(props: {
-    content: string
-    isUser: boolean
-}) {
+function BubbleMarkdown(props: { content: string }) {
     return (
-        <div
-            className={cn(
-                'aui-md min-w-0 max-w-full break-words text-sm',
-                props.isUser
-                    ? '[&_.aui-md-a]:text-[var(--app-button-text)] [&_.aui-md-a]:decoration-[var(--app-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--app-subtle-bg)] [&_.aui-md-blockquote]:border-[var(--app-divider)]'
-                    : ''
-            )}
-        >
+        <div className="aui-md min-w-0 max-w-full break-words [overflow-wrap:anywhere]">
             <ReactMarkdown
                 remarkPlugins={MARKDOWN_PLUGINS}
                 components={defaultComponents}
@@ -627,21 +511,29 @@ function BubbleMarkdown(props: {
     )
 }
 
-const COMPOSER_MIN_HEIGHT_PX = 38
-const COMPOSER_MAX_HEIGHT_PX = 120
-
+/** Grows the composer with its text, between the textarea's CSS min-height and max-height. */
 function resizeComposerTextarea(el: HTMLTextAreaElement | null): void {
     if (!el) return
 
+    // Empty: rest at the CSS min-height (a long placeholder must not stretch the box).
+    if (!el.value) {
+        el.style.height = ''
+        el.style.overflowY = 'hidden'
+        return
+    }
+
+    const style = window.getComputedStyle(el)
+    const minHeight = Number.parseFloat(style.minHeight) || 0
+    const maxHeight = Number.parseFloat(style.maxHeight) || 120
     const selectionStart = el.selectionStart
     const selectionEnd = el.selectionEnd
 
     el.style.height = 'auto'
     const scrollHeight = el.scrollHeight
-    const nextHeight = Math.min(Math.max(scrollHeight, COMPOSER_MIN_HEIGHT_PX), COMPOSER_MAX_HEIGHT_PX)
+    const nextHeight = Math.min(Math.max(scrollHeight, minHeight), maxHeight)
     el.style.height = `${nextHeight}px`
 
-    const shouldScroll = scrollHeight > COMPOSER_MAX_HEIGHT_PX
+    const shouldScroll = scrollHeight > maxHeight
     el.style.overflowY = shouldScroll ? 'auto' : 'hidden'
 
     // Re-apply selection to keep caret visible after internal textarea resize.
@@ -652,14 +544,40 @@ function resizeComposerTextarea(el: HTMLTextAreaElement | null): void {
     }
 }
 
-// ─── AddMemberModal ───────────────────────────────────────────────────────────
+// ─── Add member ──────────────────────────────────────────────────────────────
 
-function AddMemberModal(props: {
+const OFFLINE_PICK_LIMIT = 100
+
+function SessionPickRow(props: { session: SessionSummary; disabled: boolean; onPick: () => void }) {
+    const { session } = props
+    return (
+        <button
+            type="button"
+            disabled={props.disabled}
+            onClick={props.onPick}
+            className="social-pressable flex min-h-[56px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
+        >
+            <SessionAvatar session={session} size={36} muted={!session.active} />
+            <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] text-[var(--social-fg)]">
+                    {getSessionTitle(session, { fallbackIdLength: 12 })}
+                </span>
+                <span className="block truncate text-[12.5px] text-[var(--social-fg-muted)]">
+                    {[session.metadata?.flavor, getProjectName(getSessionProjectPath(session))].filter(Boolean).join(' · ')}
+                </span>
+            </span>
+        </button>
+    )
+}
+
+function AddMemberSheet(props: {
+    open: boolean
     existingMemberSessionIds: Set<string>
     onAdd: (sessionId: string) => Promise<void>
     onClose: () => void
     isPending: boolean
 }) {
+    const { t } = useTranslation()
     const { api } = useAppContext()
     const { sessions, isLoading: sessionsLoading } = useSessions(api)
     const { machines } = useMachines(api, true)
@@ -669,356 +587,412 @@ function AddMemberModal(props: {
     const [offlineExpanded, setOfflineExpanded] = useState(false)
     const [mode, setMode] = useState<'select' | 'create'>('select')
 
-    const onlineMachines = useMemo(() => machines.filter((m) => m.active), [machines])
+    useEffect(() => {
+        if (props.open) {
+            setSearch('')
+            setError(null)
+            setOfflineExpanded(false)
+            setMode('select')
+        }
+    }, [props.open])
 
     const { online, offline } = useMemo(() => {
-        const available = sessions.filter((s) => {
-            if (props.existingMemberSessionIds.has(s.id)) return false
-            return matchesSessionSearch(s, search)
-        })
+        const available = sessions
+            .filter((s) => !props.existingMemberSessionIds.has(s.id) && matchesSessionSearch(s, search))
+            .sort((a, b) => b.updatedAt - a.updatedAt)
         return {
             online: available.filter((s) => s.active),
             offline: available.filter((s) => !s.active)
         }
     }, [sessions, props.existingMemberSessionIds, search])
 
-    const handleAdd = async (sessionId: string) => {
-        setAddingId(sessionId)
+    const addAndClose = async (sessionId: string) => {
         setError(null)
         try {
             await props.onAdd(sessionId)
             props.onClose()
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to add member')
+            setError(err instanceof Error ? err.message : t('groups.member.addFailed'))
+        }
+    }
+
+    const handleAdd = async (sessionId: string) => {
+        setAddingId(sessionId)
+        try {
+            await addAndClose(sessionId)
         } finally {
             setAddingId(null)
         }
     }
 
-    const handleSessionCreated = async (sessionId: string) => {
-        setError(null)
-        try {
-            await props.onAdd(sessionId)
-            props.onClose()
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to add member')
-        }
-    }
-
-    const renderSessionRow = (s: (typeof sessions)[0]) => {
-        const title = getSessionTitle(s, { fallbackIdLength: 12 })
-        const path = s.metadata?.path ?? ''
-        const workStatus = getMemberWorkStatus(s)
-        const dotClass = getMemberStatusDotClass(workStatus)
-        return (
-            <button
-                key={s.id}
-                type="button"
-                disabled={addingId === s.id || props.isPending}
-                onClick={() => { void handleAdd(s.id) }}
-                className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-[var(--app-subtle-bg)] disabled:opacity-60"
-            >
-                <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
-                <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-[var(--app-fg)]">{title}</div>
-                    {path
-                        ? <div className="truncate text-xs text-[var(--app-hint)]">{path}</div>
-                        : <div className="truncate text-xs text-[var(--app-hint)]">{s.id.slice(0, 20)}…</div>
-                    }
-                </div>
-            </button>
-        )
+    const handleOpenChange = (open: boolean) => {
+        if (!open) props.onClose()
     }
 
     if (mode === 'create') {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="flex w-full max-w-lg flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '90vh' }}>
-                    <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
-                        <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => setMode('select')}
-                                className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                                title="Back to selection"
-                            >
-                                <ChevronLeftIcon />
-                            </button>
-                            <div className="font-semibold text-sm text-[var(--app-fg)]">Create New Session</div>
-                        </div>
-                        <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
-                            <CloseIcon />
-                        </button>
-                    </div>
-
-                    <div className="flex-1 min-h-0 overflow-y-auto">
-                        <NewSession
-                            api={api}
-                            machines={machines}
-                            onSuccess={handleSessionCreated}
-                            onCancel={() => setMode('select')}
-                        />
-                    </div>
-
-                    {error ? <div className="border-t border-[var(--app-divider)] px-4 py-2 text-xs text-red-600">{error}</div> : null}
-                </div>
-            </div>
+            <BottomSheet open={props.open} onOpenChange={handleOpenChange} title={t('groups.member.createTitle')}>
+                {error ? <SheetNote tone="error">{error}</SheetNote> : null}
+                <NewSession
+                    api={api}
+                    machines={machines}
+                    onSuccess={addAndClose}
+                    onCancel={() => setMode('select')}
+                />
+            </BottomSheet>
         )
     }
 
+    const rowDisabled = addingId !== null || props.isPending
+    const visibleOffline = offlineExpanded || search ? offline.slice(0, OFFLINE_PICK_LIMIT) : []
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="flex w-full max-w-sm flex-col rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl" style={{ maxHeight: '80vh' }}>
-                <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
-                    <div className="font-semibold text-sm text-[var(--app-fg)]">Add Member</div>
-                    <button type="button" onClick={props.onClose} className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]">
-                        <CloseIcon />
-                    </button>
-                </div>
-
-                {/* Mode toggle */}
-                <div className="border-b border-[var(--app-divider)]">
-                    <button
-                        type="button"
-                        onClick={() => setMode('create')}
-                        className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left text-sm text-[var(--app-link)] hover:bg-[var(--app-subtle-bg)] transition-colors"
-                    >
-                        <PlusIcon className="h-3.5 w-3.5 shrink-0" />
-                        Create new session
-                        <ChevronRightIcon className="ml-auto h-3.5 w-3.5 text-[var(--app-hint)]" />
-                    </button>
-                </div>
-
-                <div className="border-b border-[var(--app-divider)] px-3 py-2">
-                    <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search sessions..." className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-1.5 text-sm outline-none focus:border-[var(--app-link)]" />
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                    {sessionsLoading ? (
-                        <div className="px-4 py-3 text-sm text-[var(--app-hint)]">Loading sessions…</div>
-                    ) : online.length === 0 && offline.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-[var(--app-hint)]">{search ? 'No sessions match.' : 'No sessions available.'}</div>
-                    ) : (
-                        <>
-                            {online.length > 0 ? (
-                                <>
-                                    <div className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">Online ({online.length})</div>
-                                    {online.map(renderSessionRow)}
-                                </>
-                            ) : null}
-                            {offline.length > 0 ? (
-                                <>
-                                    <button type="button" onClick={() => setOfflineExpanded((v) => !v)} className="flex w-full items-center gap-1.5 px-4 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] transition-colors">
-                                        <ChevronRightIcon className={`h-3 w-3 transition-transform ${offlineExpanded ? 'rotate-90' : ''}`} />
-                                        Offline ({offline.length})
-                                    </button>
-                                    {offlineExpanded ? offline.map(renderSessionRow) : null}
-                                </>
-                            ) : null}
-                        </>
-                    )}
-                </div>
-
-                {error ? <div className="border-t border-[var(--app-divider)] px-4 py-2 text-xs text-red-600">{error}</div> : null}
+        <BottomSheet open={props.open} onOpenChange={handleOpenChange} title={t('groups.detail.addMember')}>
+            <div className="px-4 pb-3 pt-1">
+                <MobileSearchField value={search} onChange={setSearch} placeholder={t('sessions.search.placeholder')} />
             </div>
-        </div>
+            <SheetSection>
+                <SheetRow icon={<NewSessionIcon />} label={t('groups.member.createNew')} chevron onClick={() => setMode('create')} />
+            </SheetSection>
+            {error ? <SheetNote tone="error">{error}</SheetNote> : null}
+            {sessionsLoading ? (
+                <SheetNote>{t('mobile.feed.loading')}</SheetNote>
+            ) : online.length === 0 && offline.length === 0 ? (
+                <SheetNote>{search ? t('groups.member.noMatch') : t('groups.member.noneAvailable')}</SheetNote>
+            ) : (
+                <>
+                    {online.length > 0 ? (
+                        <SheetSection title={`${t('misc.online')} · ${online.length}`}>
+                            {online.map((session) => (
+                                <SessionPickRow key={session.id} session={session} disabled={rowDisabled} onPick={() => { void handleAdd(session.id) }} />
+                            ))}
+                        </SheetSection>
+                    ) : null}
+                    {offline.length > 0 ? (
+                        <SheetSection title={`${t('misc.offline')} · ${offline.length}`}>
+                            {visibleOffline.length > 0 ? visibleOffline.map((session) => (
+                                <SessionPickRow key={session.id} session={session} disabled={rowDisabled} onPick={() => { void handleAdd(session.id) }} />
+                            )) : (
+                                <SheetRow label={t('groups.member.showOffline')} chevron onClick={() => setOfflineExpanded(true)} />
+                            )}
+                        </SheetSection>
+                    ) : null}
+                    {visibleOffline.length > 0 && offline.length > visibleOffline.length ? (
+                        <SheetNote>{t('groups.member.offlineLimit', { n: OFFLINE_PICK_LIMIT })}</SheetNote>
+                    ) : null}
+                </>
+            )}
+            <div className="h-2" />
+        </BottomSheet>
     )
 }
 
-// ─── MemberPill ───────────────────────────────────────────────────────────────
+// ─── Group info panel ────────────────────────────────────────────────────────
 
-function MemberPill(props: {
+function MemberRow(props: {
     member: GroupMember
     session?: SessionSummary
-    status: MemberWorkStatus
-    onClick: () => void
-    onOpenActions?: (point: { x: number; y: number }) => void
+    onOpen: () => void
+    onMore: () => void
 }) {
     const { t } = useTranslation()
-    const { member, session, status } = props
+    const { member, session } = props
+    const status = getMemberWorkStatus(session)
     const title = getSessionTitle(session, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 })
-    const idText = member.sessionId ?? `user:${member.userId ?? member.id}`
-    const avatarInitial = getAvatarInitial(title)
-    const avatarTone = getSessionAvatarTone(session)
-    const clickable = Boolean(member.sessionId)
-    const dotClass = getMemberStatusDotClass(status)
-    const statusClass = getMemberStatusBadgeClass(status)
-    const statusLabel = getMemberStatusLabel(status, t)
-    const tooltipLines = buildSessionTooltipLines({
-        session,
-        sessionId: idText,
-        statusLabel
-    })
-    const tooltipText = tooltipLines.join('\n')
+    const hasSession = Boolean(member.sessionId)
     const longPressHandlers = useLongPress({
-        onLongPress: (point) => {
-            if (clickable) {
-                props.onOpenActions?.(point)
-            }
-        },
-        onClick: props.onClick,
+        onLongPress: props.onMore,
+        onClick: props.onOpen,
         threshold: 500,
-        disabled: !clickable
+        disabled: !hasSession
     })
 
     return (
-        <button
-            type="button"
-            {...longPressHandlers}
-            disabled={!clickable}
-            className={`group relative flex items-center gap-1.5 rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-left transition-colors ${clickable ? 'hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-link)]' : 'cursor-default'}`}
-            style={{ WebkitTouchCallout: 'none' }}
-            aria-label={tooltipText}
-        >
-            <div className="pointer-events-none absolute left-1/2 top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] -translate-x-1/2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-visible:block">
-                <div className="space-y-0.5">
-                    <div className="font-medium">{title}</div>
-                    {tooltipLines.map((line) => (
-                        <div key={line} className="text-[var(--app-hint)] break-all">{line}</div>
-                    ))}
-                </div>
-            </div>
-            <span className="relative shrink-0">
-                <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-semibold ${avatarTone}`}>
-                    {avatarInitial}
-                </span>
-                <span className={`absolute -bottom-px -right-px h-1.5 w-1.5 rounded-full ${dotClass}`} />
-            </span>
-            <span className="max-w-[120px] truncate text-[11px] font-medium text-[var(--app-fg)]">{title}</span>
-            <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] ${statusClass}`}>
-                {statusLabel}
-            </span>
-        </button>
-    )
-}
-
-type MemberActionMenuProps = {
-    isOpen: boolean
-    onClose: () => void
-    onRemove: () => void
-    anchorPoint: { x: number; y: number }
-}
-
-type MemberActionMenuPosition = {
-    top: number
-    left: number
-    transformOrigin: string
-}
-
-function MemberActionMenu(props: MemberActionMenuProps) {
-    const { isOpen, onClose, onRemove, anchorPoint } = props
-    const menuRef = useRef<HTMLDivElement | null>(null)
-    const [menuPosition, setMenuPosition] = useState<MemberActionMenuPosition | null>(null)
-
-    const updatePosition = useCallback(() => {
-        const menuEl = menuRef.current
-        if (!menuEl) return
-
-        const menuRect = menuEl.getBoundingClientRect()
-        const viewportWidth = window.innerWidth
-        const viewportHeight = window.innerHeight
-        const padding = 8
-        const gap = 8
-
-        const spaceBelow = viewportHeight - anchorPoint.y
-        const spaceAbove = anchorPoint.y
-        const openAbove = spaceBelow < menuRect.height + gap && spaceAbove > spaceBelow
-
-        let top = openAbove ? anchorPoint.y - menuRect.height - gap : anchorPoint.y + gap
-        let left = anchorPoint.x - menuRect.width / 2
-        const transformOrigin = openAbove ? 'bottom center' : 'top center'
-
-        top = Math.min(Math.max(top, padding), viewportHeight - menuRect.height - padding)
-        left = Math.min(Math.max(left, padding), viewportWidth - menuRect.width - padding)
-
-        setMenuPosition({ top, left, transformOrigin })
-    }, [anchorPoint])
-
-    useLayoutEffect(() => {
-        if (!isOpen) return
-        updatePosition()
-    }, [isOpen, updatePosition])
-
-    useEffect(() => {
-        if (!isOpen) {
-            setMenuPosition(null)
-            return
-        }
-
-        const handlePointerDown = (event: PointerEvent) => {
-            const target = event.target as Node
-            if (menuRef.current?.contains(target)) return
-            onClose()
-        }
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose()
-            }
-        }
-
-        const handleReflow = () => {
-            updatePosition()
-        }
-
-        document.addEventListener('pointerdown', handlePointerDown)
-        document.addEventListener('keydown', handleKeyDown)
-        window.addEventListener('resize', handleReflow)
-        window.addEventListener('scroll', handleReflow, true)
-
-        return () => {
-            document.removeEventListener('pointerdown', handlePointerDown)
-            document.removeEventListener('keydown', handleKeyDown)
-            window.removeEventListener('resize', handleReflow)
-            window.removeEventListener('scroll', handleReflow, true)
-        }
-    }, [isOpen, onClose, updatePosition])
-
-    useEffect(() => {
-        if (!isOpen) return
-        const frame = window.requestAnimationFrame(() => {
-            const firstItem = menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-            firstItem?.focus()
-        })
-        return () => window.cancelAnimationFrame(frame)
-    }, [isOpen])
-
-    if (!isOpen) {
-        return null
-    }
-
-    const menuStyle: CSSProperties | undefined = menuPosition
-        ? {
-            top: menuPosition.top,
-            left: menuPosition.left,
-            transformOrigin: menuPosition.transformOrigin
-        }
-        : undefined
-
-    return (
-        <div
-            ref={menuRef}
-            role="menu"
-            className="fixed z-50 min-w-[180px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] p-1 shadow-lg animate-menu-pop"
-            style={menuStyle}
-        >
+        <div className="flex items-center gap-1 pr-2 [&+&]:border-t [&+&]:border-[var(--social-border)]">
             <button
                 type="button"
-                role="menuitem"
-                onClick={() => {
-                    onClose()
-                    onRemove()
-                }}
-                className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm text-red-600 transition-colors hover:bg-[var(--app-subtle-bg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
+                {...longPressHandlers}
+                disabled={!hasSession}
+                className="social-pressable flex min-w-0 flex-1 select-none items-center gap-3 py-2 pl-4 pr-1 text-left"
+                style={{ WebkitTouchCallout: 'none' }}
             >
-                Remove member
+                <SessionAvatar
+                    session={{ id: member.sessionId ?? `member:${member.id}` }}
+                    size={40}
+                    ring={getMemberRing(status)}
+                    muted={status === 'offline'}
+                    badgeCount={status === 'pending' ? session?.pendingRequestsCount : 0}
+                />
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] text-[var(--social-fg)]">{title}</span>
+                    <MemberStatusLine session={session} status={status} />
+                </span>
             </button>
+            {hasSession ? (
+                <button
+                    type="button"
+                    onClick={props.onMore}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
+                    aria-label={t('groups.member.actions')}
+                    title={t('groups.member.actions')}
+                >
+                    <MoreHorizontalIcon className="h-5 w-5" />
+                </button>
+            ) : null}
         </div>
     )
 }
 
-function PendingRequestsQuickModal(props: {
-    sessionId: string
+type GroupNoteSummary = { content: string; version: number } | null
+
+/** WeChat "聊天信息": who is in the group, the shared note and how the chat is shown. */
+function GroupInfoSheet(props: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    groupId: string
+    name: string
+    description: string | null
+    members: GroupMember[]
+    sessionMap: Map<string, SessionSummary>
+    note: GroupNoteSummary
+    viewMode: ChatViewMode
+    onViewModeChange: (mode: ChatViewMode) => void
+    isPending: boolean
+    onOpenMember: (sessionId: string) => void
+    onMemberMore: (sessionId: string) => void
+    onAddMember: () => void
+    onEditNote: () => void
+    onGenerateNote: () => void
+    onBroadcastNote: () => void
+}) {
+    const { t } = useTranslation()
+    const memberSessions = props.members
+        .map((member) => (member.sessionId ? props.sessionMap.get(member.sessionId) : undefined))
+        .filter((session): session is SessionSummary => Boolean(session))
+    const onlineCount = props.members
+        .filter((member) => getMemberWorkStatus(member.sessionId ? props.sessionMap.get(member.sessionId) : undefined) !== 'offline')
+        .length
+    const closeThen = (action: () => void) => () => {
+        props.onOpenChange(false)
+        action()
+    }
+    const noteContent = props.note?.content.trim() ?? ''
+
+    return (
+        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={t('groups.info.title')} hideTitle>
+            <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
+                <GroupAvatar seed={props.groupId} members={memberSessions} size={60} />
+                <div className="min-w-0 flex-1">
+                    <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
+                    <div className="mt-1 truncate text-[13px] text-[var(--social-fg-muted)]">
+                        {t('groups.info.summary', { n: props.members.length, m: onlineCount })}
+                    </div>
+                    {props.description ? (
+                        <div className="mt-0.5 line-clamp-2 text-[13px] text-[var(--social-fg-muted)]">{props.description}</div>
+                    ) : null}
+                </div>
+            </div>
+
+            <SheetSection title={t('mobile.chat.view')}>
+                <SegmentedControl
+                    framed={false}
+                    label={t('mobile.chat.view')}
+                    value={props.viewMode}
+                    options={[
+                        { value: 'normal', label: t('mobile.chat.view.normal') },
+                        { value: 'brief', label: t('mobile.chat.view.brief') },
+                        { value: 'cli', label: t('mobile.chat.view.cli') }
+                    ]}
+                    onChange={(mode) => {
+                        props.onViewModeChange(mode)
+                        props.onOpenChange(false)
+                    }}
+                />
+            </SheetSection>
+
+            <SheetSection title={`${t('groups.detail.members')} · ${props.members.length}`}>
+                {props.members.map((member) => (
+                    <MemberRow
+                        key={member.id}
+                        member={member}
+                        session={member.sessionId ? props.sessionMap.get(member.sessionId) : undefined}
+                        onOpen={() => {
+                            if (member.sessionId) closeThen(() => props.onOpenMember(member.sessionId as string))()
+                        }}
+                        onMore={() => {
+                            if (member.sessionId) props.onMemberMore(member.sessionId)
+                        }}
+                    />
+                ))}
+                <button
+                    type="button"
+                    onClick={closeThen(props.onAddMember)}
+                    disabled={props.isPending}
+                    className={cn(
+                        'social-pressable flex w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50',
+                        props.members.length > 0 ? 'border-t border-[var(--social-border)]' : ''
+                    )}
+                >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg)]">
+                        <PlusIcon className="h-5 w-5" />
+                    </span>
+                    <span className="text-[15px] text-[var(--social-fg)]">{t('groups.detail.addMember')}</span>
+                </button>
+            </SheetSection>
+
+            <SheetSection title={props.note ? `${t('groups.detail.note')} · v${props.note.version}` : t('groups.detail.note')}>
+                <button
+                    type="button"
+                    onClick={closeThen(props.onEditNote)}
+                    className="social-pressable block w-full border-b border-[var(--social-border)] px-4 py-3 text-left"
+                >
+                    {noteContent ? (
+                        <BriefCardMarkdownPreview content={noteContent} className="max-h-[132px] text-[var(--social-fg-muted)]" />
+                    ) : (
+                        <span className="text-[14px] text-[var(--social-fg-muted)]">{t('groups.note.empty')}</span>
+                    )}
+                </button>
+                <SheetRow icon={<PencilIcon />} label={t('groups.note.edit')} chevron onClick={closeThen(props.onEditNote)} />
+                <SheetRow icon={<SparklesIcon />} label={t('groups.note.generate')} disabled={props.isPending} onClick={closeThen(props.onGenerateNote)} />
+                <SheetRow icon={<MegaphoneIcon />} label={t('groups.note.broadcast')} disabled={props.isPending || !noteContent} onClick={closeThen(props.onBroadcastNote)} />
+            </SheetSection>
+            <div className="h-2" />
+        </BottomSheet>
+    )
+}
+
+/** Opened from a member row: open its chat, handle its approvals, or remove it from the group. */
+function MemberActionsSheet(props: {
+    member: GroupMember | null
+    session?: SessionSummary
+    onOpenChange: (open: boolean) => void
+    onOpenSession: () => void
+    onHandlePending: () => void
+    onRemove: () => void
+}) {
+    const { t } = useTranslation()
+    const { member, session } = props
+    const status = getMemberWorkStatus(session)
+    const title = member ? getSessionTitle(session, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 }) : ''
+
+    return (
+        <BottomSheet open={Boolean(member)} onOpenChange={props.onOpenChange} title={title || t('groups.member.actions')} hideTitle>
+            {member ? (
+                <>
+                    <div className="flex items-center gap-3.5 px-5 pb-4 pt-2">
+                        <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={52} ring={getMemberRing(status)} muted={status === 'offline'} />
+                        <div className="min-w-0 flex-1">
+                            <div className="line-clamp-2 text-[16px] font-semibold leading-snug text-[var(--social-fg)]">{title}</div>
+                            <MemberStatusLine session={session} status={status} />
+                        </div>
+                    </div>
+                    <SheetSection>
+                        <SheetRow icon={<ChatBubbleIcon />} label={t('groups.member.openSession')} chevron onClick={props.onOpenSession} />
+                        {status === 'pending' ? (
+                            <SheetRow icon={<ShieldCheckIcon />} label={t('groups.pending.title')} chevron onClick={props.onHandlePending} />
+                        ) : null}
+                        <SheetRow icon={<TrashIcon />} label={t('groups.member.remove')} destructive onClick={props.onRemove} />
+                    </SheetSection>
+                    <div className="h-2" />
+                </>
+            ) : null}
+        </BottomSheet>
+    )
+}
+
+type NoteDraft = { content: string; prompt: string; executorSessionId: string }
+
+function NoteEditorSheet(props: {
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    loading: boolean
+    initial: NoteDraft
+    executorOptions: Array<{ id: string; label: string }>
+    isPending: boolean
+    onSave: (draft: NoteDraft) => Promise<void>
+}) {
+    const { t } = useTranslation()
+    const [draft, setDraft] = useState<NoteDraft>(props.initial)
+    const [error, setError] = useState<string | null>(null)
+    const contentId = useId()
+    const executorId = useId()
+    const promptId = useId()
+
+    // Start from the saved note each time the editor opens; later server updates do not clobber typing.
+    useEffect(() => {
+        if (props.open) {
+            setDraft(props.initial)
+            setError(null)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.open])
+
+    const handleSave = async () => {
+        setError(null)
+        try {
+            await props.onSave(draft)
+            props.onOpenChange(false)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : t('groups.note.saveFailed'))
+        }
+    }
+
+    return (
+        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={t('groups.note.edit')}>
+            {props.loading ? (
+                <SheetNote>{t('groups.note.loading')}</SheetNote>
+            ) : (
+                <div className="flex flex-col gap-4 px-4 pb-4 pt-1">
+                    <FormField label={t('groups.detail.note')} htmlFor={contentId}>
+                        <textarea
+                            id={contentId}
+                            value={draft.content}
+                            onChange={(event) => setDraft((value) => ({ ...value, content: event.target.value }))}
+                            placeholder={t('groups.detail.notePlaceholder')}
+                            rows={10}
+                            className={cn(DIALOG_INPUT_CLASS, 'min-h-[180px] resize-y text-[14px] leading-relaxed')}
+                        />
+                    </FormField>
+                    <FormField label={t('groups.detail.executor')} htmlFor={executorId} hint={t('groups.note.executorHint')}>
+                        <SelectInput
+                            id={executorId}
+                            value={draft.executorSessionId}
+                            onChange={(event) => setDraft((value) => ({ ...value, executorSessionId: event.target.value }))}
+                        >
+                            <option value="">{t('groups.detail.notConfigured')}</option>
+                            {props.executorOptions.map((option) => (
+                                <option key={option.id} value={option.id}>{option.label}</option>
+                            ))}
+                        </SelectInput>
+                    </FormField>
+                    <FormField label={t('groups.detail.prompt')} htmlFor={promptId} optional>
+                        <textarea
+                            id={promptId}
+                            value={draft.prompt}
+                            onChange={(event) => setDraft((value) => ({ ...value, prompt: event.target.value }))}
+                            placeholder={t('groups.detail.promptPlaceholder')}
+                            rows={3}
+                            className={cn(DIALOG_INPUT_CLASS, 'resize-y')}
+                        />
+                    </FormField>
+                    {error ? <div className="px-1 text-[13px] text-[var(--social-danger)]">{error}</div> : null}
+                    <div className="flex justify-end gap-2 pt-1">
+                        <Button type="button" variant="secondary" onClick={() => props.onOpenChange(false)}>
+                            {t('button.cancel')}
+                        </Button>
+                        <Button type="button" onClick={() => { void handleSave() }} disabled={props.isPending}>
+                            {t('button.save')}
+                        </Button>
+                    </div>
+                </div>
+            )}
+        </BottomSheet>
+    )
+}
+
+/** Approve or deny a member's pending tool requests without leaving the group. */
+function PendingRequestsSheet(props: {
+    sessionId: string | null
     sessionTitle: string
     isLoading: boolean
     requests: PendingPermissionRequest[]
@@ -1031,128 +1005,95 @@ function PendingRequestsQuickModal(props: {
     onOpenSession: () => void
     onClose: () => void
 }) {
+    const { t } = useTranslation()
+    const busy = props.activeRequestId !== null
+
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-            onClick={(event) => {
-                if (event.target === event.currentTarget) {
-                    props.onClose()
-                }
-            }}
-        >
-            <div
-                className="flex w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[var(--app-divider)] bg-[var(--app-bg)] shadow-xl"
-                style={{ maxHeight: '85vh' }}
-                onClick={(event) => event.stopPropagation()}
-            >
-                <div className="flex items-center justify-between border-b border-[var(--app-divider)] px-4 py-3">
-                    <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
-                            Pending Requests
-                        </div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">
-                            {props.sessionTitle} · {props.sessionId}
+        <BottomSheet open={Boolean(props.sessionId)} onOpenChange={(open) => { if (!open) props.onClose() }} title={t('groups.pending.title')}>
+            {props.sessionId ? (
+                <div className="flex items-center gap-3 px-5 pb-4 pt-1">
+                    <SessionAvatar session={{ id: props.sessionId }} size={40} ring={props.requests.length > 0 ? 'pending' : null} />
+                    <div className="min-w-0 flex-1">
+                        <div className="truncate text-[15px] font-medium text-[var(--social-fg)]">{props.sessionTitle}</div>
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">
+                            {props.requests.length > 0 ? t('mobile.feed.pending', { n: props.requests.length }) : t('groups.pending.none')}
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={props.onClose}
-                        className="rounded-full p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                        title="Close"
-                    >
-                        <CloseIcon />
-                    </button>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-2 border-b border-[var(--app-divider)] px-4 py-2">
-                    <button
-                        type="button"
-                        onClick={props.onRefresh}
-                        className="rounded border border-[var(--app-divider)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        Refresh
-                    </button>
-                    <button
-                        type="button"
-                        onClick={props.onOpenSession}
-                        className="rounded border border-[var(--app-divider)] px-2 py-1 text-xs text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        Open Session
-                    </button>
-                </div>
-
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-                    {props.loadError ? (
-                        <div className="rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
-                            {props.loadError}
+            ) : null}
+            {props.loadError ? <SheetNote tone="error">{props.loadError}</SheetNote> : null}
+            {props.actionError ? <SheetNote tone="error">{props.actionError}</SheetNote> : null}
+            {props.isLoading ? (
+                <SheetNote>{t('groups.pending.loading')}</SheetNote>
+            ) : props.requests.map((request) => (
+                <section key={request.id} className="px-4 pb-3">
+                    <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                        <div className="flex items-baseline gap-2 px-4 pt-3">
+                            <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-[var(--social-fg)]">{request.tool}</span>
+                            {request.createdAt ? (
+                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatTime(request.createdAt)}</span>
+                            ) : null}
                         </div>
-                    ) : null}
-                    {props.actionError ? (
-                        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-700">
-                            {props.actionError}
+                        <pre className="mx-4 mb-3 mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-[12px] leading-relaxed text-[var(--social-fg)]">
+                            {formatPermissionArguments(request.arguments)}
+                        </pre>
+                        <div className="flex justify-end gap-2 border-t border-[var(--social-border)] px-3 py-2.5">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="text-[var(--social-danger)]"
+                                disabled={busy}
+                                onClick={() => { void props.onDeny(request.id) }}
+                            >
+                                {t('groups.detail.deny')}
+                            </Button>
+                            <Button
+                                type="button"
+                                size="sm"
+                                disabled={busy}
+                                onClick={() => { void props.onApprove(request.id) }}
+                            >
+                                {props.activeRequestId === request.id ? t('groups.detail.processing') : t('groups.detail.approve')}
+                            </Button>
                         </div>
-                    ) : null}
+                    </div>
+                </section>
+            ))}
+            <SheetSection>
+                <SheetRow label={t('groups.pending.refresh')} disabled={props.isLoading || busy} onClick={props.onRefresh} />
+                <SheetRow label={t('groups.member.openSession')} chevron onClick={props.onOpenSession} />
+            </SheetSection>
+            <div className="h-2" />
+        </BottomSheet>
+    )
+}
 
-                    {props.isLoading ? (
-                        <LoadingState label="Loading pending requests..." className="py-4 text-sm" />
-                    ) : props.requests.length === 0 ? (
-                        <div className="rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm text-[var(--app-hint)]">
-                            No pending requests.
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {props.requests.map((request) => {
-                                const isActing = props.activeRequestId === request.id
-                                return (
-                                    <div key={request.id} className="rounded-lg border border-[var(--app-divider)] bg-[var(--app-secondary-bg)]">
-                                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-[var(--app-divider)] px-3 py-2 text-xs">
-                                            <span className="rounded bg-[var(--app-subtle-bg)] px-1.5 py-0.5 font-semibold text-[var(--app-fg)]">
-                                                {request.tool}
-                                            </span>
-                                            <span className="text-[var(--app-hint)]">
-                                                #{request.id}
-                                            </span>
-                                            {request.createdAt ? (
-                                                <span className="text-[var(--app-hint)]">
-                                                    {new Date(request.createdAt).toLocaleString()}
-                                                </span>
-                                            ) : null}
-                                        </div>
-
-                                        <div className="px-3 py-2">
-                                            <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-[var(--app-hint)]">
-                                                Arguments
-                                            </div>
-                                            <pre className="max-h-52 overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--app-divider)] bg-[var(--app-bg)] p-2 text-[11px] text-[var(--app-fg)]">
-                                                {formatPermissionArguments(request.arguments)}
-                                            </pre>
-                                        </div>
-
-                                        <div className="flex items-center justify-end gap-2 border-t border-[var(--app-divider)] px-3 py-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => { void props.onDeny(request.id) }}
-                                                disabled={props.activeRequestId !== null}
-                                                className="rounded border border-red-400 px-2 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                Deny
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => { void props.onApprove(request.id) }}
-                                                disabled={props.activeRequestId !== null}
-                                                className="rounded border border-green-500 px-2 py-1 text-xs text-green-700 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
-                                            >
-                                                {isActing ? 'Processing...' : 'Approve'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
+/** Shown above the chat only while a member is waiting for an approval. */
+function PendingBanner(props: {
+    items: Array<{ sessionId: string; title: string; count: number }>
+    onOpen: (sessionId: string) => void
+}) {
+    const { t } = useTranslation()
+    return (
+        <div className="shrink-0 border-b border-[var(--social-border)] px-4 py-2">
+            {props.items.map((item) => (
+                <button
+                    key={item.sessionId}
+                    type="button"
+                    onClick={() => props.onOpen(item.sessionId)}
+                    className="mx-auto flex w-full max-w-content items-center gap-3 py-1 text-left [-webkit-tap-highlight-color:transparent]"
+                >
+                    <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-medium text-[var(--social-fg)]">{item.title}</span>
+                        <span className="block text-[12.5px] text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-[var(--social-primary)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--social-primary-fg)]">
+                        {t('groups.pending.handle')}
+                    </span>
+                </button>
+            ))}
         </div>
     )
 }
@@ -1162,39 +1103,44 @@ function PendingRequestsQuickModal(props: {
 
 type LatestTaskStates = Map<string, GroupTimelineMessage>  // taskId → latest msg
 
-function TaskStateList(props: { taskStates: LatestTaskStates }) {
+function TaskStateList(props: { taskStates: LatestTaskStates; sessionMap: Map<string, SessionSummary> }) {
+    const { t } = useTranslation()
     const [open, setOpen] = useState(false)
     const tasks = Array.from(props.taskStates.values())
     if (tasks.length === 0) return null
 
-    const allDone = tasks.every((t) => {
-        const p = t.payload as { status?: unknown } | null
+    const allDone = tasks.every((task) => {
+        const p = task.payload as { status?: unknown } | null
         return isTerminalStatus((p?.status ?? 'pending') as GroupTaskStatus)
     })
-    const summary = `${tasks.length} task${tasks.length > 1 ? 's' : ''}${allDone ? ' ✓' : ''}`
 
     return (
-        <div className="mt-1 max-w-[88%] sm:max-w-[82%] lg:max-w-[75%]">
+        <div className="mt-1 max-w-[88%] px-1 lg:max-w-[75%]">
             <button
                 type="button"
                 onClick={() => setOpen((v) => !v)}
-                className="flex items-center gap-1 text-[10px] text-[var(--app-hint)] hover:text-[var(--app-fg)] transition-colors"
+                aria-expanded={open}
+                className="flex items-center gap-1 text-[12px] text-[var(--social-fg-subtle)] transition-colors hover:text-[var(--social-fg-muted)]"
             >
-                <ChevronRightIcon className={`h-2.5 w-2.5 transition-transform ${open ? 'rotate-90' : ''}`} />
-                {summary}
+                <ChevronRightIcon className={cn('h-3 w-3 transition-transform', open ? 'rotate-90' : '')} />
+                {allDone ? t('groups.task.summaryDone', { n: tasks.length }) : t('groups.task.summary', { n: tasks.length })}
             </button>
             {open ? (
-                <div className="mt-1 space-y-1">
-                    {tasks.map((t) => {
-                        const p = t.payload as { status?: unknown; targetSessionId?: unknown; error?: unknown } | null
+                <div className="mt-1.5 flex flex-col gap-1">
+                    {tasks.map((task) => {
+                        const p = task.payload as { status?: unknown; targetSessionId?: unknown; error?: unknown } | null
                         const status = (p?.status ?? 'pending') as GroupTaskStatus
-                        const target = typeof p?.targetSessionId === 'string' ? p.targetSessionId.slice(0, 14) : ''
+                        const targetId = typeof p?.targetSessionId === 'string' ? p.targetSessionId : ''
+                        const target = targetId
+                            ? getSessionTitle(props.sessionMap.get(targetId), { fallbackSessionId: targetId, fallbackIdLength: 12 })
+                            : ''
                         const error = typeof p?.error === 'string' ? p.error : null
                         return (
-                            <div key={t.taskId ?? t.id} className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1">
-                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${taskStatusClass(status)}`}>{status}</span>
-                                {target ? <span className="text-[10px] text-[var(--app-hint)]">{target}</span> : null}
-                                {error ? <span className="text-[10px] text-red-500">{error}</span> : null}
+                            <div key={task.taskId ?? task.id} className="flex min-w-0 items-center gap-2 text-[12px]">
+                                <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', taskStatusDotClass(status))} />
+                                <span className="shrink-0 text-[var(--social-fg)]">{t(`groups.task.status.${status}`)}</span>
+                                {target ? <span className="min-w-0 truncate text-[var(--social-fg-muted)]">{target}</span> : null}
+                                {error ? <span className="min-w-0 truncate text-[var(--social-danger)]">{error}</span> : null}
                             </div>
                         )
                     })}
@@ -1206,156 +1152,150 @@ function TaskStateList(props: { taskStates: LatestTaskStates }) {
 
 // ─── TimelineBubble ───────────────────────────────────────────────────────────
 
+/**
+ * One group message in the social chat look: others in white cards with a small name line,
+ * mine in dark bubbles; a centered time after quiet gaps; consecutive messages from one
+ * sender share the name line. Phones long-press for reply / copy, desktop hovers a reply button.
+ */
 function TimelineBubble(props: {
     message: GroupTimelineMessage
+    previous?: GroupTimelineMessage
     sessionMap: Map<string, SessionSummary>
     onOpenSession: (sessionId: string) => void
     onQuote?: (message: GroupTimelineMessage) => void
     taskStates?: LatestTaskStates
 }) {
     const { t } = useTranslation()
-    const { message } = props
+    const isMobileLayout = useIsMobileLayout()
+    const { message, previous } = props
+    const [menuPoint, setMenuPoint] = useState<{ x: number; y: number } | null>(null)
     const text = getDisplayText(message)
     const attachments = extractBubbleAttachments(message)
     const isUser = message.source.startsWith('user:')
-    const isSystem = message.type === 'system' || message.type === 'note_state'
+    const isSystem = isSystemMessage(message)
     const isCommand = message.type === 'command'
-
-    // Get quote information either from message.quotedMessage or parse from text
-    const quoteInfo = message.quotedMessage
-        ? { actorName: message.quotedMessage.actorName || 'Unknown', quotedText: message.quotedMessage.text }
-        : parseQuoteFromText(extractBubbleText(message))
+    const canQuote = canQuoteMessage(message) && Boolean(props.onQuote)
+    const longPressHandlers = useLongPress({
+        onLongPress: (point) => setMenuPoint(point),
+        threshold: 450,
+        disabled: !isMobileLayout || isSystem
+    })
+    const showSeparator = !previous || message.createdAt - previous.createdAt >= TIME_SEPARATOR_GAP_MS
+    const grouped = !showSeparator
+        && previous !== undefined
+        && !isSystem
+        && !isSystemMessage(previous)
+        && getMessageActorKey(previous) === getMessageActorKey(message)
+    const separator = showSeparator ? <ChatTimeSeparator at={message.createdAt} /> : null
 
     if (isSystem) {
         return (
-            <div className="flex justify-center py-1">
-                <span className="rounded-full bg-[var(--app-secondary-bg)] px-3 py-1 text-[11px] italic text-[var(--app-hint)]">{text}</span>
+            <div className="mx-auto w-full max-w-content px-4 pt-3">
+                {separator}
+                <div className="flex justify-center">
+                    <span className="max-w-[88%] rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-[12px] leading-[18px] text-[var(--social-fg-muted)]">
+                        {text}
+                    </span>
+                </div>
             </div>
         )
     }
+
+    // Get quote information either from message.quotedMessage or parse from text
+    const quoteInfo = message.quotedMessage
+        ? { actorName: message.quotedMessage.actorName ?? '', quotedText: message.quotedMessage.text }
+        : parseQuoteFromText(extractBubbleText(message))
 
     const actorSessionId = getActorSessionId(message)
     const actorSession = actorSessionId ? props.sessionMap.get(actorSessionId) : undefined
     const actorTitle = actorSessionId
         ? getSessionTitle(actorSession, { fallbackSessionId: actorSessionId, fallbackIdLength: 12 })
         : (message.actorName || message.source)
-    const actorId = actorSessionId ?? null
-    const actorInitial = getAvatarInitial(actorTitle)
-    const actorTone = getSessionAvatarTone(actorSession)
-    const actorStatusLabel = actorSessionId
-        ? getMemberStatusLabel(getMemberWorkStatus(actorSession), t)
-        : 'unknown'
-    const actorTooltipLines = actorSessionId
-        ? buildSessionTooltipLines({
-            session: actorSession,
-            sessionId: actorSessionId,
-            statusLabel: actorStatusLabel
-        })
-        : []
-    const actorTooltipText = actorTooltipLines.join('\n')
 
-    const replyBtn = canQuoteMessage(message) && props.onQuote ? (
-        <button
-            type="button"
-            onClick={() => props.onQuote?.(message)}
-            className="mb-1 shrink-0 self-end rounded-full p-1 text-[var(--app-hint)] opacity-100 transition-opacity hover:bg-[var(--app-subtle-bg)] md:opacity-0 md:group-hover/message:opacity-100"
-            title="Reply"
-        >
-            <QuoteIcon className="h-3.5 w-3.5" />
-        </button>
-    ) : null
+    const closeMenuThen = (action: () => void) => () => {
+        setMenuPoint(null)
+        action()
+    }
 
     return (
-        <div className={`group/message flex items-end gap-1 py-1 ${isUser ? 'justify-end pl-3.5 pr-2' : 'justify-start pl-2 pr-3.5'}`}>
-            {isUser && replyBtn}
-            <div className={`flex max-w-[88%] flex-col ${isUser ? 'items-end' : 'items-start'} sm:max-w-[82%] lg:max-w-[75%]`}>
-                <div className="mb-1 flex items-center gap-2">
-                    {actorSessionId ? (
-                        <div className="group relative shrink-0">
-                            <button
-                                type="button"
-                                onClick={() => props.onOpenSession(actorSessionId)}
-                                className="transition-opacity hover:opacity-80"
-                                aria-label={actorTooltipText}
+        <div className={cn('group/message mx-auto w-full max-w-content px-4', grouped ? 'pt-1' : 'pt-3')}>
+            {separator}
+            <div className={cn('flex min-w-0 flex-col', isUser ? 'items-end' : 'items-start')}>
+                {!isUser && !grouped ? (
+                    actorSessionId ? (
+                        <button
+                            type="button"
+                            onClick={() => props.onOpenSession(actorSessionId)}
+                            className="mb-1 flex max-w-[88%] items-center gap-1.5 px-1 text-left"
+                            title={t('groups.message.openSession', { name: actorTitle })}
+                        >
+                            <SessionAvatar session={{ id: actorSessionId }} size={18} muted={!actorSession?.active} />
+                            <span className="truncate text-[12.5px] font-medium text-[var(--social-fg-muted)]">{actorTitle}</span>
+                        </button>
+                    ) : (
+                        <div className="mb-1 max-w-[88%] truncate px-1 text-[12.5px] font-medium text-[var(--social-fg-muted)]">{actorTitle}</div>
+                    )
+                ) : null}
+                <div className={cn('flex min-w-0 max-w-[88%] items-end gap-1 lg:max-w-[75%]', isUser ? 'flex-row-reverse' : 'flex-row')}>
+                    <div
+                        {...(isMobileLayout ? longPressHandlers : {})}
+                        style={isMobileLayout ? { WebkitTouchCallout: 'none' } : undefined}
+                        className={cn(
+                            'min-w-0 max-w-full rounded-[20px] px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]',
+                            isUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md',
+                            isMobileLayout ? 'select-none' : '',
+                            isCommand ? 'whitespace-pre-wrap font-mono text-[13px]' : ''
+                        )}
+                    >
+                        {quoteInfo ? (
+                            <div
+                                className={cn(
+                                    'mb-2 border-l-2 pl-2.5 font-sans text-[12.5px] leading-snug',
+                                    isUser ? 'border-[var(--social-primary-fg)]/40 opacity-80' : 'border-[var(--social-border)] text-[var(--social-fg-muted)]'
+                                )}
                             >
-                                <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${actorTone}`}>
-                                    {actorInitial}
-                                </span>
-                            </button>
-                            <div className={`pointer-events-none absolute top-full z-30 mt-2 hidden w-80 max-w-[calc(100vw-1rem)] rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2.5 py-2 text-xs text-[var(--app-fg)] shadow-lg group-hover:block group-focus-within:block ${isUser ? 'right-0' : 'left-0'}`}>
-                                <div className="space-y-0.5">
-                                    <div className="font-medium">{actorTitle}</div>
-                                    {actorTooltipLines.map((line) => (
-                                        <div key={line} className="text-[var(--app-hint)] break-all">{line}</div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
-                    <div className={`min-w-0 ${isUser ? 'text-right' : 'text-left'}`}>
-                        <div className="truncate text-[11px] font-medium text-[var(--app-fg)]">{actorTitle}</div>
-                        {actorId ? (
-                            <div className="truncate text-[10px] text-[var(--app-hint)]">
-                                {actorId}
+                                <span className="font-medium">{quoteInfo.actorName || t('groups.message.unknownActor')}</span>
+                                <span className="line-clamp-2 break-words">{truncateText(quoteInfo.quotedText, 120)}</span>
                             </div>
                         ) : null}
+                        {text ? (
+                            isCommand
+                                ? <CommandText content={text} sessionMap={props.sessionMap} onOpenSession={props.onOpenSession} />
+                                : <BubbleMarkdown content={text} />
+                        ) : null}
+                        {attachments.length > 0 ? (
+                            <MessageAttachments attachments={attachments} />
+                        ) : null}
                     </div>
-                </div>
-                <div
-                    className={`rounded-2xl px-3 py-2 text-sm ${
-                        isUser
-                            ? 'bg-[var(--app-button)] text-[var(--app-button-text)] rounded-br-sm'
-                            : 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] rounded-bl-sm'
-                    } ${isCommand
-                        ? 'font-mono text-xs whitespace-pre-wrap break-words'
-                        : isUser
-                            ? '[&_.aui-md]:text-sm [&_.aui-md-a]:text-[var(--app-button-text)] [&_.aui-md-a]:decoration-[var(--app-button-text)] [&_.aui-md-a]:opacity-90 [&_.aui-md-code]:bg-[var(--app-subtle-bg)] [&_.aui-md-blockquote]:border-[var(--app-divider)]'
-                            : '[&_.aui-md]:text-sm'
-                    }`}
-                >
-                    {quoteInfo && (
-                        <div className={`mb-1.5 flex items-start gap-1.5 rounded px-2 py-1.5 ${
-                            isUser ? 'bg-[var(--app-subtle-bg)]' : 'bg-[var(--app-bg)]/60'
-                        }`}>
-                            <QuoteIcon className="mt-0.5 h-2.5 w-2.5 shrink-0 opacity-60" />
-                            <div className="min-w-0 flex-1">
-                                <span className={`text-[10px] font-medium ${
-                                    isUser ? 'text-[var(--app-button-text)] opacity-90' : 'text-[var(--app-link)]'
-                                }`}>
-                                    {quoteInfo.actorName}:
-                                </span>
-                                <span className={`ml-1 break-all text-[10px] leading-4 ${
-                                    isUser ? 'text-[var(--app-button-text)] opacity-70' : 'text-[var(--app-hint)]'
-                                }`}>
-                                    {truncateText(quoteInfo.quotedText, 64)}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                    {text ? (
-                        isCommand
-                            ? (
-                                <CommandText
-                                    content={text}
-                                    sessionMap={props.sessionMap}
-                                    isUser={isUser}
-                                    onOpenSession={props.onOpenSession}
-                                />
-                            )
-                            : <BubbleMarkdown content={text} isUser={isUser} />
-                    ) : null}
-                    {attachments.length > 0 ? (
-                        <MessageAttachments attachments={attachments} />
+                    {canQuote && !isMobileLayout ? (
+                        <button
+                            type="button"
+                            onClick={() => props.onQuote?.(message)}
+                            className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-subtle)] opacity-0 transition-opacity hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] focus-visible:opacity-100 group-hover/message:opacity-100"
+                            title={t('groups.detail.reply')}
+                            aria-label={t('groups.detail.reply')}
+                        >
+                            <ReplyIcon className="h-4 w-4" />
+                        </button>
                     ) : null}
                 </div>
                 {isCommand && props.taskStates && props.taskStates.size > 0 ? (
-                    <TaskStateList taskStates={props.taskStates} />
+                    <TaskStateList taskStates={props.taskStates} sessionMap={props.sessionMap} />
                 ) : null}
-                <div className="mt-0.5 text-[10px] text-[var(--app-hint)]">
-                    {formatTime(message.createdAt)}
-                </div>
             </div>
-            {!isUser && replyBtn}
+            {menuPoint ? (
+                <ContextMenu open anchorPoint={menuPoint} onClose={() => setMenuPoint(null)} label={t('session.more')}>
+                    {canQuote ? (
+                        <ContextMenuItem icon={<ReplyIcon />} label={t('groups.detail.reply')} onSelect={closeMenuThen(() => props.onQuote?.(message))} />
+                    ) : null}
+                    <ContextMenuItem
+                        icon={<DuplicateIcon />}
+                        label={t('button.copy')}
+                        disabled={!text}
+                        onSelect={closeMenuThen(() => { void safeCopyToClipboard(text).catch(() => {}) })}
+                    />
+                </ContextMenu>
+            ) : null}
         </div>
     )
 }
@@ -1411,28 +1351,30 @@ function ComposerAttachmentList(props: {
     attachments: GroupComposerAttachment[]
     disabled: boolean
     onRemove: (id: string) => void
+    className?: string
 }) {
+    const { t } = useTranslation()
     if (props.attachments.length === 0) {
         return null
     }
 
     return (
-        <div className="flex flex-wrap gap-2 border-b border-[var(--app-border)] px-4 pb-2 pt-3">
+        <div className={cn('flex flex-wrap gap-2', props.className)}>
             {props.attachments.map((attachment) => {
                 const isImage = isImageMimeType(attachment.mimeType) && Boolean(attachment.previewUrl)
                 const statusText = attachment.status === 'uploading'
-                    ? 'Uploading...'
+                    ? t('groups.detail.uploading')
                     : attachment.status === 'error'
-                        ? (attachment.error ?? 'Upload failed')
+                        ? (attachment.error ?? t('groups.composer.uploadFailed'))
                         : formatFileSize(attachment.size)
 
                 return (
-                    <div key={attachment.id} className="flex min-w-[180px] max-w-full items-center gap-2 rounded-lg bg-[var(--app-subtle-bg)] px-3 py-2 text-base text-[var(--app-fg)]">
+                    <div key={attachment.id} className="flex min-w-[168px] max-w-full items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-bg)] px-2.5 py-2">
                         {attachment.status === 'uploading' ? (
-                            <Spinner size="sm" label={null} className="text-[var(--app-hint)]" />
+                            <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" />
                         ) : null}
                         {attachment.status === 'error' ? (
-                            <span className="text-red-500">
+                            <span className="text-[var(--social-danger)]">
                                 <AttachmentErrorIcon className="h-4 w-4" />
                             </span>
                         ) : null}
@@ -1440,7 +1382,7 @@ function ComposerAttachmentList(props: {
                             <img
                                 src={attachment.previewUrl}
                                 alt={attachment.filename}
-                                className="h-8 w-8 shrink-0 rounded object-cover"
+                                className="h-8 w-8 shrink-0 rounded-lg object-cover"
                             />
                         ) : (
                             <span className="shrink-0">
@@ -1448,10 +1390,10 @@ function ComposerAttachmentList(props: {
                             </span>
                         )}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] text-[var(--app-fg)]">
+                            <div className="truncate text-[13px] text-[var(--social-fg)]">
                                 {attachment.filename}
                             </div>
-                            <div className={`truncate text-[10px] ${attachment.status === 'error' ? 'text-red-600' : 'text-[var(--app-hint)]'}`}>
+                            <div className={cn('truncate text-[11px]', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
                                 {statusText}
                             </div>
                         </div>
@@ -1459,10 +1401,11 @@ function ComposerAttachmentList(props: {
                             type="button"
                             onClick={() => { void props.onRemove(attachment.id) }}
                             disabled={props.disabled}
-                            className="shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="Remove attachment"
+                            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50"
+                            title={t('groups.detail.removeAttachment')}
+                            aria-label={t('groups.detail.removeAttachment')}
                         >
-                            <CloseIcon className="h-3 w-3" />
+                            <CloseIcon className="h-3.5 w-3.5" />
                         </button>
                     </div>
                 )
@@ -1490,29 +1433,27 @@ function TimelineHistoryControl(props: {
     hasMore: boolean
     onLoadMore: () => void
 }) {
+    const { t } = useTranslation()
     if (!props.isLoading && !props.hasMore) {
         return null
     }
 
-    if (props.isLoading) {
-        return (
-            <div className="py-1.5 text-center">
-                <span className="inline-flex rounded-full bg-[var(--app-button)] px-2.5 py-1 text-xs text-[var(--app-button-text)]">
-                    Loading history...
-                </span>
-            </div>
-        )
-    }
-
     return (
-        <div className="py-1.5 text-center">
-            <button
-                type="button"
-                onClick={props.onLoadMore}
-                className="inline-flex rounded-full border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2.5 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
-            >
-                Load older
-            </button>
+        <div className="flex justify-center pb-1 pt-3">
+            {props.isLoading ? (
+                <span className="inline-flex items-center gap-2 text-[12px] text-[var(--social-fg-subtle)]">
+                    <span className="social-spinner" aria-hidden="true" />
+                    {t('groups.timeline.loadingOlder')}
+                </span>
+            ) : (
+                <button
+                    type="button"
+                    onClick={props.onLoadMore}
+                    className="rounded-full border border-[var(--social-border)] px-3.5 py-1 text-[12px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]"
+                >
+                    {t('groups.timeline.loadOlder')}
+                </button>
+            )}
         </div>
     )
 }
@@ -1531,6 +1472,11 @@ type GroupTurnDetailStateMap = Record<string, GroupTurnDetailState>
 const GROUP_TURN_DETAIL_PAGE_LIMIT = 120
 const MOBILE_BRIEF_BREAKPOINT_QUERY = '(max-width: 767px)'
 const MOBILE_BRIEF_TURN_QUERY_KEY = 'briefTurnId'
+
+/** "12 条消息" / "1 message" / "12 messages". */
+function formatMessageCount(count: number, t: (key: string, params?: Record<string, string | number>) => string): string {
+    return count === 1 ? t('groups.brief.messageOne') : t('groups.brief.messages', { n: count })
+}
 
 function normalizeBriefPreview(value: string | null | undefined, fallback: string): string {
     const text = value?.trim() ?? ''
@@ -1652,10 +1598,11 @@ function GroupBriefTurnDetailList(props: {
                 ),
                 Footer: () => <div className="h-2" />
             }}
-            itemContent={(_index, message) => (
+            itemContent={(index, message) => (
                 <TimelineBubble
                     key={message.id}
                     message={message}
+                    previous={visibleMessages[index - 1]}
                     sessionMap={props.sessionMap}
                     onOpenSession={props.onOpenSession}
                     taskStates={message.type === 'command' && message.traceId
@@ -1680,6 +1627,7 @@ function GroupBriefTurnList(props: {
     sessionMap: Map<string, SessionSummary>
     onOpenSession: (sessionId: string) => void
 }) {
+    const { t } = useTranslation()
     const listRef = useRef<VirtuosoHandle | null>(null)
     const autoScrollToBottomDoneRef = useRef(false)
     const isAtBottomRef = useRef(true)
@@ -1741,7 +1689,7 @@ function GroupBriefTurnList(props: {
                 }
             })
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to load turn details'
+            const message = error instanceof Error ? error.message : t('groups.brief.loadFailed')
             setTurnDetailStateById((prev) => ({
                 ...prev,
                 [turnId]: {
@@ -1752,7 +1700,7 @@ function GroupBriefTurnList(props: {
                 }
             }))
         }
-    }, [props.api, props.groupId])
+    }, [props.api, props.groupId, t])
 
     const openTurnDetails = useCallback((turnId: string) => {
         setActiveTurnId(turnId)
@@ -1887,41 +1835,80 @@ function GroupBriefTurnList(props: {
         }
     }, [latestTurnUpdateToken, props.isLoading, props.turns.length])
 
+    const turnTitle = activeTurn ? t('groups.brief.turnTitle', { n: activeTurn.turnIndex }) : t('groups.brief.turnDetails')
+    const turnSubtitle = activeTurn ? formatMessageCount(activeTurn.messageCount, t) : null
+    const turnDetailBody = (
+        <>
+            {activeTurn && activeDetail?.error ? (
+                <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                    <div className="text-[14px] text-[var(--social-danger)]">{activeDetail.error}</div>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                            void fetchTurnMessages(activeTurn.id, null, false)
+                        }}
+                    >
+                        {t('groups.brief.retry')}
+                    </Button>
+                </div>
+            ) : activeTurn && activeDetail ? (
+                <div className="flex h-full min-h-0 flex-col">
+                    <GroupBriefTurnDetailList
+                        key={activeTurn.id}
+                        messages={activeDetail.messages}
+                        hasMore={activeDetail.hasMore}
+                        isLoadingMore={activeDetail.isLoadingMore}
+                        onLoadMore={loadMoreActiveTurnDetails}
+                        sessionMap={props.sessionMap}
+                        onOpenSession={props.onOpenSession}
+                    />
+                </div>
+            ) : (
+                <div className="flex h-full items-center justify-center text-[14px] text-[var(--social-fg-muted)]">
+                    {activeTurn && activeDetail?.isLoading ? t('groups.brief.loadingTurn') : t('groups.brief.noDetail')}
+                </div>
+            )}
+        </>
+    )
+
     return (
         <>
-            <div className="relative min-h-0 flex-1">
+            <div className="relative flex h-full min-h-0 flex-col">
                 {props.warning ? (
-                    <div className="mx-3 mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700">
+                    <div className="mx-4 mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
                         {props.warning}
                     </div>
                 ) : null}
 
                 {props.isLoading && props.turns.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
-                        Loading turns...
+                    <div className="flex flex-1 items-center justify-center py-8">
+                        <LoadingState label={t('groups.brief.loading')} className="text-[14px]" />
                     </div>
                 ) : props.turns.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
-                        No turns yet.
+                    <div className="flex flex-1 items-center justify-center py-8 text-[14px] text-[var(--social-fg-muted)]">
+                        {t('groups.brief.empty')}
                     </div>
                 ) : (
-                    <Virtuoso
-                        ref={listRef}
-                        data={props.turns}
-                        style={{ height: '100%' }}
-                        increaseViewportBy={{ top: 320, bottom: 320 }}
-                        atBottomStateChange={(isAtBottom) => {
-                            isAtBottomRef.current = isAtBottom
-                        }}
-                        startReached={() => {
-                            if (!props.hasMore || props.isLoadingMore) {
-                                return
-                            }
-                            void props.onLoadMoreTurns()
-                        }}
-                        components={{
-                            Header: () => (
-                                <div className="px-3 pt-2">
+                    <div className="min-h-0 flex-1">
+                        <Virtuoso
+                            ref={listRef}
+                            data={props.turns}
+                            style={{ height: '100%' }}
+                            increaseViewportBy={{ top: 320, bottom: 320 }}
+                            atBottomStateChange={(isAtBottom) => {
+                                isAtBottomRef.current = isAtBottom
+                            }}
+                            startReached={() => {
+                                if (!props.hasMore || props.isLoadingMore) {
+                                    return
+                                }
+                                void props.onLoadMoreTurns()
+                            }}
+                            components={{
+                                Scroller: TimelineScroller,
+                                Header: () => (
                                     <TimelineHistoryControl
                                         isLoading={props.isLoadingMore}
                                         hasMore={props.hasMore}
@@ -1932,147 +1919,81 @@ function GroupBriefTurnList(props: {
                                             void props.onLoadMoreTurns()
                                         }}
                                     />
-                                </div>
-                            ),
-                            Footer: () => <div className="h-2" />
-                        }}
-                        itemContent={(_index, turn) => {
-                            const initiatorPreview = normalizeBriefPreview(turn.initiatorPreview, '(empty)')
-                            const responderPreview = normalizeBriefPreview(
-                                turn.responderPreview,
-                                turn.status === 'open' ? 'Generating…' : '(empty)'
-                            )
-                            const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
+                                ),
+                                Footer: () => <div className="h-3" />
+                            }}
+                            itemContent={(_index, turn) => {
+                                const isOpen = turn.status === 'open'
+                                const initiatorPreview = normalizeBriefPreview(turn.initiatorPreview, t('groups.brief.emptyPreview'))
+                                const responderPreview = normalizeBriefPreview(
+                                    turn.responderPreview,
+                                    isOpen ? t('groups.brief.generating') : t('groups.brief.emptyPreview')
+                                )
+                                const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
+                                const footer = (
+                                    <div className="mt-2 flex items-center gap-1.5 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                        <span>{formatMessageCount(turn.messageCount, t)}</span>
+                                        <span aria-hidden="true">·</span>
+                                        <button
+                                            type="button"
+                                            className="transition-colors hover:text-[var(--social-fg-muted)]"
+                                            onClick={() => openTurnDetails(turn.id)}
+                                        >
+                                            {t('groups.brief.openDetails')}
+                                        </button>
+                                        {isOpen ? (
+                                            <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--social-fg-muted)]">
+                                                <span className="social-spinner" aria-hidden="true" />
+                                                {t('groups.brief.generating')}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                )
 
-                            return (
-                                <div className="px-3 pb-3">
-                                    <div className="space-y-2">
-                                        <div className={`flex ${initiatorIsUser ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[92%] rounded-2xl border px-3 py-2 text-sm ${
-                                                initiatorIsUser
-                                                    ? 'rounded-br-sm bg-[var(--app-button)] text-[var(--app-button-text)]'
-                                                    : 'rounded-bl-sm bg-[var(--app-secondary-bg)] text-[var(--app-fg)] border-[var(--app-border)]'
-                                            }`}>
+                                return (
+                                    <div className="mx-auto w-full max-w-content space-y-2 px-4 pt-3">
+                                        <div className={cn('flex', initiatorIsUser ? 'justify-end' : 'justify-start')}>
+                                            <div
+                                                className={cn(
+                                                    'max-w-[88%] rounded-[20px] px-4 py-2.5 text-[15px] lg:max-w-[75%]',
+                                                    initiatorIsUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md'
+                                                )}
+                                            >
                                                 <BriefCardMarkdownPreview content={initiatorPreview} />
                                             </div>
                                         </div>
 
-                                        <div className="flex justify-start">
-                                            {turn.status === 'open' ? (
-                                                <div className={`relative w-full max-w-[92%] rounded-2xl rounded-bl-sm border bg-[var(--app-bg)] px-3 py-2 ${
-                                                    turn.status === 'open'
-                                                        ? 'border-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.2)]'
-                                                        : 'border-[var(--app-border)]'
-                                                }`}>
-                                                    <button
-                                                        type="button"
-                                                        className="block w-full text-left"
-                                                        onClick={() => openTurnDetails(turn.id)}
-                                                        aria-label="Open turn details"
-                                                    >
-                                                        <BriefCardMarkdownPreview
-                                                            content={responderPreview}
-                                                            className="text-[var(--app-fg)]"
-                                                        />
-                                                        <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
-                                                            <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
-                                                            <span>·</span>
-                                                            <span className="underline decoration-dotted">Click to open details</span>
-                                                            {turn.status === 'open' ? (
-                                                                <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-blue-500/30 bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
-                                                                    <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500" />
-                                                                    Generating
-                                                                </span>
-                                                            ) : null}
-                                                        </div>
-                                                    </button>
-                                                </div>
+                                        <div className="flex flex-col items-start">
+                                            {isOpen ? (
+                                                <button
+                                                    type="button"
+                                                    className="social-card w-full max-w-[88%] rounded-[20px] rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
+                                                    onClick={() => openTurnDetails(turn.id)}
+                                                    aria-label={t('groups.detail.openTurn')}
+                                                >
+                                                    <BriefCardMarkdownPreview content={responderPreview} className="text-[var(--social-fg)]" />
+                                                </button>
                                             ) : (
-                                                <div className="w-full max-w-[92%] px-1 py-1">
+                                                <div className="social-card w-full max-w-[88%] rounded-[20px] rounded-tl-md px-4 py-3 lg:max-w-[75%]">
                                                     <BriefFullMarkdownContent content={responderPreview} />
-                                                    <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--app-hint)]">
-                                                        <span>{turn.messageCount} message{turn.messageCount === 1 ? '' : 's'}</span>
-                                                        <span>·</span>
-                                                        <button
-                                                            type="button"
-                                                            className="underline decoration-dotted hover:text-[var(--app-fg)]"
-                                                            onClick={() => openTurnDetails(turn.id)}
-                                                        >
-                                                            Open details
-                                                        </button>
-                                                    </div>
                                                 </div>
                                             )}
+                                            {footer}
                                         </div>
                                     </div>
-                                </div>
-                            )
-                        }}
-                    />
+                                )
+                            }}
+                        />
+                    </div>
                 )}
             </div>
 
             {isMobileViewport ? (
                 activeTurnId ? (
                     <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
-                        <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={closeTurnDetails}
-                                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                    aria-label="Back"
-                                >
-                                    <ChevronLeftIcon />
-                                </button>
-                                <div className="min-w-0">
-                                    <div className="truncate text-sm font-semibold text-[var(--app-fg)]">
-                                        {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
-                                    </div>
-                                    {activeTurn ? (
-                                        <div className="text-xs text-[var(--app-hint)]">
-                                            {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]">
-                            {activeTurn && activeDetail?.error ? (
-                                <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
-                                    {activeDetail.error}
-                                    <div className="mt-2">
-                                        <button
-                                            type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
-                                            onClick={() => {
-                                                void fetchTurnMessages(activeTurn.id, null, false)
-                                            }}
-                                        >
-                                            Retry
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            {activeTurn && activeDetail && !activeDetail.error ? (
-                                <div className="flex h-full min-h-0 flex-col">
-                                    <GroupBriefTurnDetailList
-                                        key={activeTurn.id}
-                                        messages={activeDetail.messages}
-                                        hasMore={activeDetail.hasMore}
-                                        isLoadingMore={activeDetail.isLoadingMore}
-                                        onLoadMore={loadMoreActiveTurnDetails}
-                                        sessionMap={props.sessionMap}
-                                        onOpenSession={props.onOpenSession}
-                                    />
-                                </div>
-                            ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-                                    {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
-                                </div>
-                            )}
+                        <SubPageHeader title={turnTitle} subtitle={turnSubtitle} onBack={closeTurnDetails} />
+                        <div className="social-chat min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]">
+                            {turnDetailBody}
                         </div>
                     </div>
                 ) : null
@@ -2083,54 +2004,16 @@ function GroupBriefTurnList(props: {
                     }
                 }}>
                     <DialogContent className="flex h-[90vh] max-h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
-                        <div className="border-b border-[var(--app-border)] px-4 py-3">
+                        <div className="border-b border-[var(--social-border)] px-5 py-3.5">
                             <DialogHeader>
-                                <DialogTitle>
-                                    {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
-                                </DialogTitle>
+                                <DialogTitle>{turnTitle}</DialogTitle>
                             </DialogHeader>
-                            {activeTurn ? (
-                                <div className="mt-1 text-xs text-[var(--app-hint)]">
-                                    {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
-                                </div>
+                            {turnSubtitle ? (
+                                <div className="mt-0.5 text-[12px] text-[var(--social-fg-muted)]">{turnSubtitle}</div>
                             ) : null}
                         </div>
-
-                        <div className="min-h-0 flex-1 overflow-hidden">
-                            {activeTurn && activeDetail?.error ? (
-                                <div className="h-full overflow-y-auto p-4 text-sm text-rose-500">
-                                    {activeDetail.error}
-                                    <div className="mt-2">
-                                        <button
-                                            type="button"
-                                            className="rounded border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]"
-                                            onClick={() => {
-                                                void fetchTurnMessages(activeTurn.id, null, false)
-                                            }}
-                                        >
-                                            Retry
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            {activeTurn && activeDetail && !activeDetail.error ? (
-                                <div className="flex h-full min-h-0 flex-col">
-                                    <GroupBriefTurnDetailList
-                                        key={activeTurn.id}
-                                        messages={activeDetail.messages}
-                                        hasMore={activeDetail.hasMore}
-                                        isLoadingMore={activeDetail.isLoadingMore}
-                                        onLoadMore={loadMoreActiveTurnDetails}
-                                        sessionMap={props.sessionMap}
-                                        onOpenSession={props.onOpenSession}
-                                    />
-                                </div>
-                            ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-                                    {activeTurn && activeDetail?.isLoading ? 'Loading turn details…' : 'No detail messages'}
-                                </div>
-                            )}
+                        <div className="social-chat min-h-0 flex-1 overflow-hidden">
+                            {turnDetailBody}
                         </div>
                     </DialogContent>
                 </Dialog>
@@ -2139,14 +2022,18 @@ function GroupBriefTurnList(props: {
     )
 }
 
+
 // ─── GroupDetailPage ──────────────────────────────────────────────────────────
 
 export default function GroupDetailPage() {
+    const { t } = useTranslation()
     const { api } = useAppContext()
     const { groupId } = useParams({ from: '/groups/$groupId' })
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const { viewMode, setViewMode } = useChatViewMode()
+    const isMobileLayout = useIsMobileLayout()
+    const { open: infoOpen, setOpen: setInfoOpen } = useGroupInfoPanel()
 
     const { group, isLoading: groupLoading, error: groupError } = useGroup(api, groupId)
     const {
@@ -2179,23 +2066,12 @@ export default function GroupDetailPage() {
 
     const [composer, setComposer] = useState('')
     const [composerAttachments, setComposerAttachments] = useState<GroupComposerAttachment[]>([])
-    const [noteDraft, setNoteDraft] = useState('')
-    const [notePromptDraft, setNotePromptDraft] = useState('')
-    const [noteOpen, setNoteOpen] = useState(false)
+    const [noteEditorOpen, setNoteEditorOpen] = useState(false)
     const [showAddMember, setShowAddMember] = useState(false)
-    const [memberActionMenuOpen, setMemberActionMenuOpen] = useState(false)
-    const [memberActionAnchorPoint, setMemberActionAnchorPoint] = useState({ x: 0, y: 0 })
     const [memberActionSessionId, setMemberActionSessionId] = useState<string | null>(null)
     const [memberRemoveSessionId, setMemberRemoveSessionId] = useState<string | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
     const [quotedMessage, setQuotedMessage] = useState<GroupTimelineMessage | null>(null)
-    const [membersExpanded, setMembersExpanded] = useState(() => {
-        // 默认在小屏幕上折叠成员列表
-        if (typeof window !== 'undefined') {
-            return window.innerWidth > 768
-        }
-        return true
-    })
     const timelineRef = useRef<VirtuosoHandle | null>(null)
     const composerRef = useRef<HTMLTextAreaElement>(null)
     const composerAttachmentInputRef = useRef<HTMLInputElement>(null)
@@ -2226,14 +2102,6 @@ export default function GroupDetailPage() {
             }
         }
     }, [groupId])
-
-    useEffect(() => {
-        setNoteDraft(note?.content ?? '')
-    }, [note?.content])
-
-    useEffect(() => {
-        setNotePromptDraft(group?.group?.notePrompt ?? '')
-    }, [group?.group?.notePrompt])
 
     useLayoutEffect(() => {
         resizeComposerTextarea(composerRef.current)
@@ -2267,10 +2135,16 @@ export default function GroupDetailPage() {
         }
         const exists = members.some((member) => member.sessionId === memberActionSessionId)
         if (!exists) {
-            setMemberActionMenuOpen(false)
             setMemberActionSessionId(null)
         }
     }, [memberActionSessionId, members])
+
+    // The info panel belongs to one group; close it when switching groups.
+    useEffect(() => {
+        setInfoOpen(false)
+        setNoteEditorOpen(false)
+        setMemberActionSessionId(null)
+    }, [groupId, setInfoOpen])
 
     // Build map: sessionId → session (for status dots)
     const sessionMap = useMemo(() => {
@@ -2278,24 +2152,37 @@ export default function GroupDetailPage() {
         for (const s of sessions) m.set(s.id, s)
         return m
     }, [sessions])
-    const memberActionTarget = useMemo(() => {
-        if (!memberActionSessionId) {
-            return null
-        }
-        const member = members.find((item) => item.sessionId === memberActionSessionId)
-        if (!member) {
-            return null
-        }
+    const memberActionMember = useMemo(
+        () => (memberActionSessionId ? members.find((item) => item.sessionId === memberActionSessionId) ?? null : null),
+        [memberActionSessionId, members]
+    )
+    // Members waiting for an approval, for the banner above the chat.
+    const pendingMembers = useMemo(() => members.flatMap((member) => {
         const session = member.sessionId ? sessionMap.get(member.sessionId) : undefined
-        const title = getSessionTitle(session, {
-            fallbackSessionId: member.sessionId,
-            fallbackIdLength: 12
-        })
-        return {
-            sessionId: member.sessionId as string,
-            title
+        if (!member.sessionId || getMemberWorkStatus(session) !== 'pending') {
+            return []
         }
-    }, [memberActionSessionId, members, sessionMap])
+        return [{
+            sessionId: member.sessionId,
+            title: getSessionTitle(session, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 }),
+            count: session?.pendingRequestsCount ?? 0
+        }]
+    }), [members, sessionMap])
+    const noteExecutorOptions = useMemo(() => {
+        const options = members
+            .filter((member) => typeof member.sessionId === 'string' && member.sessionId.length > 0)
+            .map((member) => {
+                const sessionId = member.sessionId as string
+                return { id: sessionId, title: getSessionTitle(sessionMap.get(sessionId), { fallbackSessionId: sessionId, fallbackIdLength: 12 }) }
+            })
+        // Same-named members get a short id so they can be told apart.
+        return options.map((option) => ({
+            id: option.id,
+            label: options.filter((other) => other.title === option.title).length > 1
+                ? `${option.title} · ${option.id.slice(0, 8)}`
+                : option.title
+        }))
+    }, [members, sessionMap])
     const memberRemoveTarget = useMemo(() => {
         if (!memberRemoveSessionId) {
             return null
@@ -2427,7 +2314,7 @@ export default function GroupDetailPage() {
     const baseMentionCandidates = useMemo<MentionCandidate[]>(() => {
         const candidates: MentionCandidate[] = []
         if (mentionableMemberSessionIds.length > 0) {
-            candidates.push({ id: 'all', label: 'all', sublabel: 'Broadcast to online members' })
+            candidates.push({ id: 'all', label: 'all', sublabel: t('groups.mention.all') })
         }
         for (const member of members) {
             if (!member.sessionId) continue
@@ -2441,7 +2328,7 @@ export default function GroupDetailPage() {
             })
         }
         return candidates
-    }, [members, sessionMap, mentionableMemberSessionIds.length, mentionableMemberSessionIdSet])
+    }, [members, sessionMap, mentionableMemberSessionIds.length, mentionableMemberSessionIdSet, t])
 
     // Filtered mention candidates (only re-filters when query changes)
     const mentionCandidates = useMemo<MentionCandidate[]>(() => {
@@ -2571,11 +2458,11 @@ export default function GroupDetailPage() {
                 }
             } else {
                 nextAttachment.status = 'error'
-                nextAttachment.error = 'Upload failed'
+                nextAttachment.error = t('groups.composer.uploadFailed')
             }
         } else if (pendingStatus === 'incomplete') {
             nextAttachment.status = 'error'
-            nextAttachment.error = 'Upload failed'
+            nextAttachment.error = t('groups.composer.uploadFailed')
         }
 
         setComposerAttachments((current) => {
@@ -2587,7 +2474,7 @@ export default function GroupDetailPage() {
             updated[index] = { ...updated[index], ...nextAttachment }
             return updated
         })
-    }, [])
+    }, [t])
 
     const uploadComposerAttachment = useCallback(async (
         file: File,
@@ -2634,7 +2521,7 @@ export default function GroupDetailPage() {
             return
         }
         if (!uploadSessionId || !uploadAdapter) {
-            setActionError('No online group member available for uploads')
+            setActionError(t('groups.composer.noUploader'))
             return
         }
 
@@ -2642,7 +2529,7 @@ export default function GroupDetailPage() {
         for (const file of files) {
             void uploadComposerAttachment(file, uploadAdapter, uploadSessionId)
         }
-    }, [uploadAdapter, uploadComposerAttachment, uploadSessionId])
+    }, [t, uploadAdapter, uploadComposerAttachment, uploadSessionId])
 
     const handleComposerPaste = useCallback((event: ClipboardEvent<HTMLTextAreaElement>) => {
         const files = Array.from(event.clipboardData?.files ?? [])
@@ -2653,7 +2540,7 @@ export default function GroupDetailPage() {
 
         event.preventDefault()
         if (!uploadSessionId || !uploadAdapter) {
-            setActionError('No online group member available for uploads')
+            setActionError(t('groups.composer.noUploader'))
             return
         }
 
@@ -2661,15 +2548,15 @@ export default function GroupDetailPage() {
         for (const file of imageFiles) {
             void uploadComposerAttachment(file, uploadAdapter, uploadSessionId)
         }
-    }, [uploadAdapter, uploadComposerAttachment, uploadSessionId])
+    }, [t, uploadAdapter, uploadComposerAttachment, uploadSessionId])
 
     const openAttachmentPicker = useCallback(() => {
         if (!uploadSessionId) {
-            setActionError('No online group member available for uploads')
+            setActionError(t('groups.composer.noUploader'))
             return
         }
         composerAttachmentInputRef.current?.click()
-    }, [uploadSessionId])
+    }, [t, uploadSessionId])
 
     const handleQuoteMessage = useCallback((message: GroupTimelineMessage) => {
         setQuotedMessage(message)
@@ -2694,7 +2581,7 @@ export default function GroupDetailPage() {
         const hasAttachments = readyComposerAttachments.length > 0
         if (!rawText && !hasAttachments) return
         if (hasUploadingAttachments) {
-            setActionError('Please wait for uploads to finish')
+            setActionError(t('groups.composer.waitUploads'))
             return
         }
         const type = rawText
@@ -2712,7 +2599,7 @@ export default function GroupDetailPage() {
                 )
             ))
             if (offlineMentions.length > 0) {
-                setActionError(`Offline members cannot be mentioned: ${offlineMentions.join(', ')}`)
+                setActionError(t('groups.composer.offlineMention', { names: offlineMentions.map((id) => getSessionTitle(sessionMap.get(id), { fallbackSessionId: id, fallbackIdLength: 12 })).join(', ') }))
                 return
             }
         }
@@ -2733,7 +2620,7 @@ export default function GroupDetailPage() {
                 timelineRef.current?.scrollToIndex({ index: 'LAST', align: 'end', behavior: 'smooth' })
             })
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to send')
+            setActionError(err instanceof Error ? err.message : t('groups.composer.sendFailed'))
         }
     }, [
         composer,
@@ -2742,7 +2629,9 @@ export default function GroupDetailPage() {
         hasUploadingAttachments,
         mentionableMemberSessionIdSet,
         quotedMessage,
-        readyComposerAttachments
+        readyComposerAttachments,
+        sessionMap,
+        t
     ])
 
     const handleLoadOlderMessages = useCallback(() => {
@@ -2788,16 +2677,21 @@ export default function GroupDetailPage() {
 
     }, [mentionQuery, mentionCandidates, mentionIndex, insertMention, isPending, handleSend])
 
-    const handleSaveNote = async () => {
+    // Saves what changed in the note editor: content, the note prompt and the executor.
+    const handleSaveNote = async (draft: NoteDraft) => {
         setActionError(null)
-        try {
-            await updateNote({ content: noteDraft, updatedBy: 'user:web' })
-            const savedPrompt = group?.group?.notePrompt ?? ''
-            if (notePromptDraft !== savedPrompt) {
-                await updateGroup({ notePrompt: notePromptDraft.trim() || null })
-            }
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to save note')
+        if (draft.content !== (note?.content ?? '')) {
+            await updateNote({ content: draft.content, updatedBy: 'user:web' })
+        }
+        const patch: { notePrompt?: string | null; noteSessionId?: string | null } = {}
+        if (draft.prompt.trim() !== (group?.group?.notePrompt ?? '').trim()) {
+            patch.notePrompt = draft.prompt.trim() || null
+        }
+        if (draft.executorSessionId !== (group?.group?.noteSessionId ?? '')) {
+            patch.noteSessionId = draft.executorSessionId || null
+        }
+        if (Object.keys(patch).length > 0) {
+            await updateGroup(patch)
         }
     }
 
@@ -2807,7 +2701,7 @@ export default function GroupDetailPage() {
             const notePrompt = group?.group?.notePrompt?.trim()
             await refreshNote({ source: 'user:web', ...(notePrompt ? { command: notePrompt } : {}) })
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to refresh note')
+            setActionError(err instanceof Error ? err.message : t('groups.note.generateFailed'))
         }
     }
 
@@ -2818,43 +2712,22 @@ export default function GroupDetailPage() {
         try {
             await broadcastNote()
         } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to broadcast note')
+            setActionError(err instanceof Error ? err.message : t('groups.note.broadcastFailed'))
         }
     }
 
-    const handleUpdateNoteExecutor = async (sessionId: string | null) => {
-        setActionError(null)
-        try {
-            await updateGroup({ noteSessionId: sessionId })
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : 'Failed to update note executor')
-        }
-    }
-
-    const handleOpenMemberActions = (member: GroupMember, point: { x: number; y: number }) => {
-        if (!member.sessionId) {
-            return
-        }
-        setMemberActionSessionId(member.sessionId)
-        setMemberActionAnchorPoint(point)
-        setMemberActionMenuOpen(true)
-    }
-
-    const handleRequestRemoveMember = () => {
-        if (!memberActionTarget?.sessionId) {
-            return
-        }
-        setMemberActionMenuOpen(false)
-        setMemberRemoveSessionId(memberActionTarget.sessionId)
+    const closeMemberSheetsThen = (action: () => void) => {
+        setMemberActionSessionId(null)
+        setInfoOpen(false)
+        action()
     }
 
     const handleConfirmRemoveMember = async () => {
         const targetSessionId = memberRemoveTarget?.sessionId
         if (!targetSessionId) {
-            throw new Error('Member unavailable')
+            throw new Error(t('groups.member.unavailable'))
         }
         await removeMember(targetSessionId)
-        setMemberActionMenuOpen(false)
         setMemberActionSessionId(null)
         setMemberRemoveSessionId(null)
     }
@@ -2890,7 +2763,7 @@ export default function GroupDetailPage() {
             await api.approvePermission(pendingQuickSessionId, requestId)
             await refreshPendingQuickContext(pendingQuickSessionId)
         } catch (err) {
-            setPendingQuickActionError(err instanceof Error ? err.message : 'Failed to approve request')
+            setPendingQuickActionError(err instanceof Error ? err.message : t('groups.pending.approveFailed'))
         } finally {
             setPendingQuickActiveRequestId(null)
         }
@@ -2906,7 +2779,7 @@ export default function GroupDetailPage() {
             await api.denyPermission(pendingQuickSessionId, requestId)
             await refreshPendingQuickContext(pendingQuickSessionId)
         } catch (err) {
-            setPendingQuickActionError(err instanceof Error ? err.message : 'Failed to deny request')
+            setPendingQuickActionError(err instanceof Error ? err.message : t('groups.pending.denyFailed'))
         } finally {
             setPendingQuickActiveRequestId(null)
         }
@@ -2926,433 +2799,303 @@ export default function GroupDetailPage() {
     if (groupLoading) {
         return (
             <div className="flex h-full items-center justify-center">
-                <LoadingState label="Loading group..." className="text-sm" />
+                <LoadingState label={t('groups.loading')} className="text-[14px]" />
             </div>
         )
     }
 
     if (!group || groupError) {
         return (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
-                <div className="text-sm text-red-600">{groupError ?? 'Group not found'}</div>
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-[14px] text-[var(--social-fg-muted)]">
+                {groupError ?? t('groups.notFound')}
             </div>
         )
     }
 
-    return (
-        <div className="flex h-full flex-col bg-[var(--app-bg)]">
-            {/* B. Members (collapsible) */}
-            <div className="border-b border-[var(--app-divider)]">
-                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--app-hint)]">
-                    <button
-                        type="button"
-                        onClick={() => setMembersExpanded(!membersExpanded)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
-                    >
-                        {membersExpanded ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                        <span className="font-medium uppercase tracking-wide">Members</span>
-                        <span className="text-[10px]">{members.length}</span>
-                        {members.some(m => {
-                            const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
-                            return getMemberWorkStatus(s) !== 'offline'
-                        }) && (
-                            <span className="text-[10px]">
-                                {members.filter(m => {
-                                    const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
-                                    return getMemberWorkStatus(s) !== 'offline'
-                                }).length} online
-                            </span>
-                        )}
+    const openSession = (sessionId: string) => {
+        navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+    }
+    const memberActionSession = memberActionMember?.sessionId ? sessionMap.get(memberActionMember.sessionId) : undefined
 
-                        {/* Show preview avatars when collapsed */}
-                        {!membersExpanded && (
-                            <div className="flex items-center gap-1 ml-2">
-                                {members
-                                    .filter(m => {
-                                        const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
-                                        return getMemberWorkStatus(s) !== 'offline'
-                                    })
-                                    .slice(0, 4)
-                                    .map((member) => {
-                                        const s = member.sessionId ? sessionMap.get(member.sessionId) : undefined
-                                        const title = getSessionTitle(s, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 })
-                                        const avatarInitial = getAvatarInitial(title)
-                                        const avatarTone = getSessionAvatarTone(s)
-                                        const status = getMemberWorkStatus(s)
-                                        const dotClass = getMemberStatusDotClass(status)
-                                        return (
-                                            <div key={member.id} className="relative">
-                                                <span className={`flex h-4 w-4 items-center justify-center rounded-full border text-[9px] font-semibold ${avatarTone}`}>
-                                                    {avatarInitial}
-                                                </span>
-                                                <div className={`absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ${dotClass}`} />
-                                            </div>
-                                        )
-                                    })}
-                                {members.filter(m => {
-                                    const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
-                                    return getMemberWorkStatus(s) !== 'offline'
-                                }).length > 4 && (
-                                    <span className="text-[9px] text-[var(--app-hint)]">
-                                        +{members.filter(m => {
-                                            const s = m.sessionId ? sessionMap.get(m.sessionId) : undefined
-                                            return getMemberWorkStatus(s) !== 'offline'
-                                        }).length - 4}
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    </button>
-                    <div className="ml-auto flex gap-1">
-                        <button
-                            type="button"
-                            onClick={() => setShowAddMember(true)}
-                            disabled={isPending}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="Add member"
-                        >
-                            Add
-                        </button>
-                    </div>
-                </div>
-                {membersExpanded ? (
-                    <div className="flex flex-wrap items-center gap-1.5 pl-3.5 pr-3 pb-2">
-                        {members.map((member) => {
-                            const s = member.sessionId ? sessionMap.get(member.sessionId) : undefined
-                            const status = getMemberWorkStatus(s)
-                            const sessionId = member.sessionId
-                            const pendingCount = s?.pendingRequestsCount ?? 0
-                            return (
-                                <div key={member.id} className="flex items-center gap-1.5">
-                                    <MemberPill
-                                        member={member}
-                                        session={s}
-                                        status={status}
-                                        onClick={() => {
-                                            if (sessionId) {
-                                                navigate({ to: '/sessions/$sessionId', params: { sessionId } })
-                                            }
-                                        }}
-                                        onOpenActions={(point) => {
-                                            handleOpenMemberActions(member, point)
-                                        }}
-                                    />
-                                    {sessionId && pendingCount > 0 ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => handleOpenPendingQuickModal(sessionId)}
-                                            className="rounded-md border border-[var(--app-badge-warning-text)] bg-[var(--app-badge-warning-bg)] px-2 py-1 text-[10px] font-medium text-[var(--app-badge-warning-text)] hover:opacity-80"
-                                            title="Handle pending permission requests"
-                                        >
-                                            Pending {pendingCount}
-                                        </button>
-                                    ) : null}
-                                </div>
-                            )
-                        })}
-                    </div>
-                ) : null}
+    const timeline = viewMode === 'brief' ? (
+        api ? (
+            <GroupBriefTurnList
+                api={api}
+                groupId={groupId}
+                turns={groupTurns}
+                warning={groupTurnsWarning}
+                isLoading={turnsLoading}
+                isLoadingMore={turnsLoadingMore}
+                hasMore={turnsHasMore}
+                onLoadMoreTurns={loadMoreTurns}
+                sessionMap={sessionMap}
+                onOpenSession={openSession}
+            />
+        ) : (
+            <div className="flex h-full items-center justify-center text-[14px] text-[var(--social-fg-muted)]">
+                {t('groups.unavailable')}
             </div>
-
-            {/* C. Group Note (collapsible) */}
-            <div className="border-b border-[var(--app-divider)]">
-                <div className="flex items-center gap-2 pl-3.5 pr-3 py-2 text-xs text-[var(--app-hint)]">
-                    <button
-                        type="button"
-                        onClick={() => setNoteOpen((o) => !o)}
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left hover:text-[var(--app-fg)] transition-colors"
-                    >
-                        {noteOpen ? <ChevronDownIcon className="h-3.5 w-3.5 shrink-0" /> : <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" />}
-                        <span className="font-medium uppercase tracking-wide">Note</span>
-                        {note ? <span className="text-[10px]">v{note.version}</span> : null}
-                    </button>
-                    <div className="ml-auto flex gap-1">
-                        <button
-                            type="button"
-                            onClick={() => { void handleSaveNote() }}
-                            disabled={isPending}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="保存Note内容和Prompt"
-                        >
-                            Save
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { void handleRefreshNote() }}
-                            disabled={isPending}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                        >
-                            Generate
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => { void handleBroadcastNote() }}
-                            disabled={isPending || !note?.content}
-                            className="rounded border border-[var(--app-divider)] px-2 py-0.5 text-[10px] text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] disabled:opacity-50"
-                            title="广播当前Note内容到所有群组成员"
-                        >
-                            📢 Broadcast
-                        </button>
-                    </div>
-                </div>
-                {noteOpen ? (
-                    <div className="pl-3.5 pr-3 pb-3 pt-1">
-                        {noteLoading ? (
-                            <LoadingState label="Loading note..." className="text-sm py-2" />
-                        ) : (
-                            <>
-                                <textarea
-                                    value={noteDraft}
-                                    onChange={(e) => setNoteDraft(e.target.value)}
-                                    placeholder="Note content..."
-                                    rows={5}
-                                    className="w-full rounded-md border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--app-link)] resize-y"
-                                />
-                                <div className="mt-2 grid grid-cols-[auto_1fr] items-start gap-x-2 gap-y-1.5">
-                                    <span className="self-center text-[11px] text-[var(--app-hint)]">Executor</span>
-                                    <select
-                                        value={group.group.noteSessionId ?? ''}
-                                        onChange={(e) => {
-                                            const next = e.target.value.trim()
-                                            void handleUpdateNoteExecutor(next.length > 0 ? next : null)
-                                        }}
-                                        disabled={isPending}
-                                        className="w-full rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)] disabled:opacity-60"
-                                    >
-                                        <option value="">Not configured</option>
-                                        {members
-                                            .filter((member) => typeof member.sessionId === 'string' && member.sessionId.length > 0)
-                                            .map((member) => {
-                                                const sessionId = member.sessionId as string
-                                                const session = sessionMap.get(sessionId)
-                                                const title = getSessionTitle(session, { fallbackSessionId: sessionId, fallbackIdLength: 12 })
-                                                return (
-                                                    <option key={sessionId} value={sessionId}>
-                                                        {`${title} (${sessionId.slice(0, 8)})`}
-                                                    </option>
-                                                )
-                                            })}
-                                    </select>
-                                    <span className="pt-1 text-[11px] text-[var(--app-hint)]">Prompt</span>
-                                    <textarea
-                                        value={notePromptDraft}
-                                        onChange={(e) => setNotePromptDraft(e.target.value)}
-                                        placeholder="Optional prompt for each generation..."
-                                        rows={2}
-                                        className="w-full resize-y rounded border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] px-2 py-1 text-[11px] text-[var(--app-fg)] outline-none focus:border-[var(--app-link)]"
-                                    />
-                                </div>
-                            </>
-                        )}
-                    </div>
-                ) : null}
-            </div>
-
-            {/* D. Timeline */}
-            <div className="flex-1 min-h-0 flex flex-col">
-                <div className="px-3 pb-2 pt-1">
-                    <div className="mx-auto flex w-full max-w-content items-center justify-end gap-1 rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40 p-1">
-                        <button
-                            type="button"
-                            className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'normal'
-                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
-                            onClick={() => setViewMode('normal')}
-                        >
-                            Normal
-                        </button>
-                        <button
-                            type="button"
-                            className={`rounded px-2.5 py-1 text-xs transition-colors ${viewMode === 'brief'
-                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
-                            onClick={() => setViewMode('brief')}
-                        >
-                            Brief
-                        </button>
-                        <button
-                            type="button"
-                            className={`rounded px-2.5 py-1 text-xs font-mono transition-colors ${viewMode === 'cli'
-                                ? 'bg-[var(--app-bg)] text-[var(--app-fg)]'
-                                : 'text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]'}`}
-                            onClick={() => setViewMode('cli')}
-                        >
-                            CLI
-                        </button>
-                    </div>
-                </div>
-
-                <div className="min-h-0 flex-1">
-                    {viewMode === 'brief' ? (
-                        api ? (
-                            <GroupBriefTurnList
-                                api={api}
-                                groupId={groupId}
-                                turns={groupTurns}
-                                warning={groupTurnsWarning}
-                                isLoading={turnsLoading}
-                                isLoadingMore={turnsLoadingMore}
-                                hasMore={turnsHasMore}
-                                onLoadMoreTurns={loadMoreTurns}
-                                sessionMap={sessionMap}
-                                onOpenSession={(sessionId) => {
-                                    navigate({ to: '/sessions/$sessionId', params: { sessionId } })
-                                }}
-                            />
-                        ) : (
-                            <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
-                                Group unavailable.
-                            </div>
-                        )
-                    ) : /* CLI mode falls through to Normal rendering below.
-                         The groups page uses GroupTimelineMessage[] (multi-session interleaved
-                         messages) which is incompatible with the ChatBlock[] model that CliThread
-                         expects. A dedicated groups-to-ChatBlock adapter would be needed to
-                         support CliThread here. */ messagesLoading && visibleMessages.length === 0 ? (
-                        <div className="flex items-center justify-center py-8">
-                            <LoadingState label="Loading messages..." className="text-sm" />
-                        </div>
-                    ) : visibleMessages.length === 0 ? (
-                        <div className="flex items-center justify-center py-8 text-sm text-[var(--app-hint)]">
-                            No messages yet. Start the conversation below.
-                        </div>
-                    ) : (
-                        <Virtuoso
-                            ref={timelineRef}
-                            data={visibleMessages}
-                            style={{ height: '100%' }}
-                            firstItemIndex={timelineFirstItemIndex}
-                            increaseViewportBy={{ top: 400, bottom: 400 }}
-                            startReached={() => {
-                                handleLoadOlderMessages()
-                            }}
-                            followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
-                            components={{
-                                Scroller: TimelineScroller,
-                                Header: () => (
-                                    <TimelineHistoryControl
-                                        isLoading={messagesLoadingMore}
-                                        hasMore={messagesHasMore}
-                                        onLoadMore={handleLoadOlderMessages}
-                                    />
-                                ),
-                                Footer: () => <div className="h-2" />
-                            }}
-                            itemContent={(_index, message) => (
-                                <TimelineBubble
-                                    key={message.id}
-                                    message={message}
-                                    sessionMap={sessionMap}
-                                    onOpenSession={(sessionId) => {
-                                        navigate({ to: '/sessions/$sessionId', params: { sessionId } })
-                                    }}
-                                    onQuote={handleQuoteMessage}
-                                    taskStates={message.type === 'command' && message.traceId
-                                        ? taskStateMap.get(message.traceId)
-                                        : undefined
-                                    }
-                                />
-                            )}
-                        />
-                    )}
-                </div>
-            </div>
-
-            {/* E. Composer */}
-            <div className="border-t border-[var(--app-divider)] bg-[var(--app-bg)] pb-[env(safe-area-inset-bottom)]">
-                {actionError ? (
-                    <div className="pl-3.5 pr-3 pt-2 text-xs text-red-600">{actionError}</div>
-                ) : null}
-                <form onSubmit={(e) => { void handleSend(e) }} className="relative px-3 pt-2">
-                    <input
-                        ref={composerAttachmentInputRef}
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={handleAttachmentInputChange}
+        )
+    ) : /* CLI mode falls through to Normal rendering below.
+         The groups page uses GroupTimelineMessage[] (multi-session interleaved
+         messages) which is incompatible with the ChatBlock[] model that CliThread
+         expects. A dedicated groups-to-ChatBlock adapter would be needed to
+         support CliThread here. */ messagesLoading && visibleMessages.length === 0 ? (
+        <div className="flex h-full items-center justify-center">
+            <LoadingState label={t('groups.timeline.loading')} className="text-[14px]" />
+        </div>
+    ) : visibleMessages.length === 0 ? (
+        <div className="flex h-full flex-col items-center justify-center gap-1 px-8 text-center">
+            <div className="text-[15px] font-medium text-[var(--social-fg)]">{t('groups.timeline.emptyTitle')}</div>
+            <div className="text-[13px] text-[var(--social-fg-muted)]">{t('groups.timeline.emptyHint')}</div>
+        </div>
+    ) : (
+        <Virtuoso
+            ref={timelineRef}
+            data={visibleMessages}
+            style={{ height: '100%' }}
+            firstItemIndex={timelineFirstItemIndex}
+            increaseViewportBy={{ top: 400, bottom: 400 }}
+            startReached={() => {
+                handleLoadOlderMessages()
+            }}
+            followOutput={(isAtBottom) => (isAtBottom ? 'auto' : false)}
+            components={{
+                Scroller: TimelineScroller,
+                Header: () => (
+                    <TimelineHistoryControl
+                        isLoading={messagesLoadingMore}
+                        hasMore={messagesHasMore}
+                        onLoadMore={handleLoadOlderMessages}
                     />
-                    {/* @ mention popup */}
-                    {mentionQuery !== null && mentionCandidates.length > 0 ? (
-                        <MentionPopup
-                            candidates={mentionCandidates}
-                            activeIndex={mentionIndex}
-                            onSelect={insertMention}
-                            position={mentionPosition}
-                        />
-                    ) : null}
-                    <div className={`overflow-hidden rounded-[20px] bg-[var(--app-secondary-bg)] transition-colors ${quotedMessage ? 'ring-1 ring-[var(--app-link)]/40' : ''}`}>
-                        <ComposerAttachmentList
-                            attachments={composerAttachments}
-                            disabled={isPending}
-                            onRemove={removeComposerAttachment}
-                        />
-                        {quotedMessage && (
-                            <div className="flex items-start gap-1.5 border-b border-[var(--app-border)] px-4 py-2">
-                                <div className="h-3 w-0.5 shrink-0 rounded-full bg-[var(--app-link)]" />
-                                <QuoteIcon className="mt-0.5 h-3 w-3 shrink-0 text-[var(--app-link)]" />
-                                <span className="min-w-0 flex-1 text-[11px] leading-4 text-[var(--app-hint)]">
-                                    <span className="font-medium text-[var(--app-link)]">
-                                        {quotedMessage.actorName || getActorSessionId(quotedMessage) || 'Unknown'}
-                                    </span>
-                                    {' · '}
-                                    <span className="break-all">
-                                        {truncateText(extractBubbleText(quotedMessage), 96)}
-                                    </span>
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => setQuotedMessage(null)}
-                                    className="mt-0.5 shrink-0 rounded p-0.5 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)]"
-                                    title="Cancel reply"
-                                >
-                                    <CloseIcon className="h-3 w-3" />
-                                </button>
-                            </div>
-                        )}
-                        <div className="px-4 py-3">
-                            <textarea
-                                ref={composerRef}
-                                value={composer}
-                                onChange={handleComposerChange}
-                                onPaste={handleComposerPaste}
-                                onKeyDown={handleComposerKeyDown}
-                                placeholder="Send chat, /command, @sessionId, or @all"
-                                rows={1}
-                                className="app-scrollbar w-full resize-none bg-transparent text-sm outline-none"
-                                style={{ minHeight: '38px', maxHeight: '120px' }}
-                            />
-                        </div>
-                        <div className="flex items-center justify-between px-2 pb-2">
-                            <button
-                                type="button"
-                                onClick={openAttachmentPicker}
-                                disabled={isPending || !uploadSessionId}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-fg)]/60 transition-colors hover:bg-[var(--app-bg)] hover:text-[var(--app-fg)] disabled:cursor-not-allowed disabled:opacity-50"
-                                title={uploadSessionId ? 'Attach files' : 'No online member available for uploads'}
-                            >
-                                <AttachmentIcon className="h-[18px] w-[18px]" />
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={!canSendComposer}
-                                className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${canSendComposer ? 'bg-black' : 'bg-[#C0C0C0]'}`}
-                                title="Send"
-                            >
-                                <SendIcon className="h-4 w-4" />
-                            </button>
+                ),
+                Footer: () => <div className="h-3" />
+            }}
+            itemContent={(index, message) => (
+                <TimelineBubble
+                    key={message.id}
+                    message={message}
+                    previous={visibleMessages[index - timelineFirstItemIndex - 1]}
+                    sessionMap={sessionMap}
+                    onOpenSession={openSession}
+                    onQuote={handleQuoteMessage}
+                    taskStates={message.type === 'command' && message.traceId
+                        ? taskStateMap.get(message.traceId)
+                        : undefined
+                    }
+                />
+            )}
+        />
+    )
+
+    const quotedPreview = quotedMessage ? (
+        <div className="flex items-start gap-2 border-l-2 border-[var(--social-fg-subtle)] pl-2.5">
+            <span className="min-w-0 flex-1 text-[12.5px] leading-snug text-[var(--social-fg-muted)]">
+                <span className="font-medium text-[var(--social-fg)]">
+                    {t('groups.composer.replyingTo', {
+                        name: quotedMessage.actorName
+                            || getSessionTitle(sessionMap.get(getActorSessionId(quotedMessage) ?? ''), {
+                                fallbackSessionId: getActorSessionId(quotedMessage) ?? undefined,
+                                fallbackIdLength: 12
+                            })
+                            || t('groups.message.unknownActor')
+                    })}
+                </span>
+                <span className="line-clamp-2 break-all">{truncateText(extractBubbleText(quotedMessage), 96)}</span>
+            </span>
+            <button
+                type="button"
+                onClick={() => setQuotedMessage(null)}
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
+                title={t('groups.detail.cancelReply')}
+                aria-label={t('groups.detail.cancelReply')}
+            >
+                <CloseIcon className="h-3.5 w-3.5" />
+            </button>
+        </div>
+    ) : null
+
+    const attachButton = (className: string) => (
+        <button
+            type="button"
+            onClick={openAttachmentPicker}
+            disabled={isPending || !uploadSessionId}
+            className={className}
+            title={uploadSessionId ? t('mobile.composer.attach') : t('groups.composer.noUploader')}
+            aria-label={t('mobile.composer.attach')}
+        >
+            <PaperclipIcon className="h-[18px] w-[18px]" />
+        </button>
+    )
+
+    const sendButton = (
+        <button
+            type="submit"
+            disabled={!canSendComposer}
+            className="mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] transition-[transform,opacity] [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)]"
+            title={t('composer.send')}
+            aria-label={t('composer.send')}
+        >
+            {isPending ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+            ) : (
+                <SendArrowIcon className="h-[18px] w-[18px]" />
+            )}
+        </button>
+    )
+
+    const composerTextarea = (className: string) => (
+        <textarea
+            ref={composerRef}
+            value={composer}
+            onChange={handleComposerChange}
+            onPaste={handleComposerPaste}
+            onKeyDown={handleComposerKeyDown}
+            placeholder={t('groups.detail.composerPlaceholder')}
+            aria-label={t('groups.detail.composerPlaceholder')}
+            rows={1}
+            className={cn('app-scrollbar block w-full resize-none bg-transparent text-[15px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
+        />
+    )
+
+    const composerOverlays = (
+        <>
+            <input
+                ref={composerAttachmentInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleAttachmentInputChange}
+            />
+            {/* @ mention popup */}
+            {mentionQuery !== null && mentionCandidates.length > 0 ? (
+                <MentionPopup
+                    candidates={mentionCandidates}
+                    activeIndex={mentionIndex}
+                    onSelect={insertMention}
+                    position={mentionPosition}
+                />
+            ) : null}
+            {actionError ? (
+                <div className="px-4 pb-1.5 pt-2 text-[12.5px] text-[var(--social-danger)]">{actionError}</div>
+            ) : null}
+        </>
+    )
+
+    // Same composer as one-to-one chats: a pill with attach / send on phones, a card on desktop.
+    const composerArea = isMobileLayout ? (
+        <div
+            className="social-bar relative z-10 shrink-0 border-t border-[var(--social-border)]"
+            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
+        >
+            <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
+                {composerOverlays}
+                <ComposerAttachmentList
+                    attachments={composerAttachments}
+                    disabled={isPending}
+                    onRemove={removeComposerAttachment}
+                    className="px-3 pt-2"
+                />
+                {quotedPreview ? <div className="px-4 pt-2">{quotedPreview}</div> : null}
+                <div className="flex items-end gap-2 px-3 pt-2">
+                    {attachButton('mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg)] transition-transform [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:opacity-40')}
+                    <div className="flex min-h-[40px] min-w-0 flex-1 items-center rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[8px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                        {composerTextarea('max-h-[132px] min-h-[22px]')}
+                    </div>
+                    {sendButton}
+                </div>
+            </form>
+        </div>
+    ) : (
+        <div className="shrink-0 bg-[var(--app-bg)] px-6 pb-5 pt-1">
+            <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
+                {composerOverlays}
+                <div className="relative overflow-hidden rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                    <ComposerAttachmentList
+                        attachments={composerAttachments}
+                        disabled={isPending}
+                        onRemove={removeComposerAttachment}
+                        className="px-4 pt-3"
+                    />
+                    {quotedPreview ? <div className="px-4 pt-3">{quotedPreview}</div> : null}
+                    <div className="px-4 pt-3">
+                        {composerTextarea('max-h-[220px] min-h-[44px]')}
+                    </div>
+                    <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
+                        {attachButton('relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40')}
+                        <div className="ml-auto flex shrink-0 items-center pl-2">
+                            {sendButton}
                         </div>
                     </div>
-                </form>
+                </div>
+            </form>
+        </div>
+    )
+
+    return (
+        <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
+            {pendingMembers.length > 0 ? (
+                <PendingBanner items={pendingMembers} onOpen={handleOpenPendingQuickModal} />
+            ) : null}
+
+            <div className="social-chat min-h-0 flex-1">
+                {timeline}
             </div>
 
-            <MemberActionMenu
-                isOpen={memberActionMenuOpen && Boolean(memberActionTarget)}
-                onClose={() => {
-                    setMemberActionMenuOpen(false)
-                    setMemberActionSessionId(null)
+            {composerArea}
+
+            <GroupInfoSheet
+                open={infoOpen}
+                onOpenChange={setInfoOpen}
+                groupId={groupId}
+                name={group.group.name}
+                description={group.group.description?.trim() || null}
+                members={members}
+                sessionMap={sessionMap}
+                note={note ? { content: note.content ?? '', version: note.version } : null}
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                isPending={isPending}
+                onOpenMember={openSession}
+                onMemberMore={setMemberActionSessionId}
+                onAddMember={() => setShowAddMember(true)}
+                onEditNote={() => setNoteEditorOpen(true)}
+                onGenerateNote={() => { void handleRefreshNote() }}
+                onBroadcastNote={() => { void handleBroadcastNote() }}
+            />
+
+            <MemberActionsSheet
+                member={memberActionMember}
+                session={memberActionSession}
+                onOpenChange={(open) => {
+                    if (!open) setMemberActionSessionId(null)
                 }}
-                onRemove={handleRequestRemoveMember}
-                anchorPoint={memberActionAnchorPoint}
+                onOpenSession={() => {
+                    const sessionId = memberActionMember?.sessionId
+                    if (sessionId) closeMemberSheetsThen(() => openSession(sessionId))
+                }}
+                onHandlePending={() => {
+                    const sessionId = memberActionMember?.sessionId
+                    if (sessionId) closeMemberSheetsThen(() => handleOpenPendingQuickModal(sessionId))
+                }}
+                onRemove={() => {
+                    const sessionId = memberActionMember?.sessionId
+                    if (sessionId) closeMemberSheetsThen(() => setMemberRemoveSessionId(sessionId))
+                }}
+            />
+
+            <NoteEditorSheet
+                open={noteEditorOpen}
+                onOpenChange={setNoteEditorOpen}
+                loading={noteLoading}
+                initial={{
+                    content: note?.content ?? '',
+                    prompt: group.group.notePrompt ?? '',
+                    executorSessionId: group.group.noteSessionId ?? ''
+                }}
+                executorOptions={noteExecutorOptions}
+                isPending={isPending}
+                onSave={handleSaveNote}
             />
 
             <ConfirmDialog
@@ -3361,49 +3104,41 @@ export default function GroupDetailPage() {
                     setMemberRemoveSessionId(null)
                     setMemberActionSessionId(null)
                 }}
-                title="Remove member"
-                description={memberRemoveTarget
-                    ? `Remove ${memberRemoveTarget.title} from this group?`
-                    : 'Remove this member from the group?'
-                }
-                confirmLabel="Remove"
-                confirmingLabel="Removing..."
+                title={t('groups.member.remove')}
+                description={t('groups.member.removeConfirm', { name: memberRemoveTarget?.title ?? '' })}
+                confirmLabel={t('groups.member.removeShort')}
+                confirmingLabel={t('groups.member.removing')}
                 onConfirm={handleConfirmRemoveMember}
                 isPending={isPending}
                 destructive
             />
 
-            {/* F. Pending quick modal */}
-            {pendingQuickSessionId ? (
-                <PendingRequestsQuickModal
-                    sessionId={pendingQuickSessionId}
-                    sessionTitle={pendingQuickSessionTitle}
-                    isLoading={pendingQuickSessionLoading}
-                    requests={pendingQuickRequests}
-                    loadError={pendingQuickSessionError}
-                    actionError={pendingQuickActionError}
-                    activeRequestId={pendingQuickActiveRequestId}
-                    onApprove={handleApprovePendingQuickRequest}
-                    onDeny={handleDenyPendingQuickRequest}
-                    onRefresh={() => {
-                        void refreshPendingQuickContext(pendingQuickSessionId)
-                    }}
-                    onOpenSession={() => {
-                        navigate({ to: '/sessions/$sessionId', params: { sessionId: pendingQuickSessionId } })
-                    }}
-                    onClose={handleClosePendingQuickModal}
-                />
-            ) : null}
+            <PendingRequestsSheet
+                sessionId={pendingQuickSessionId}
+                sessionTitle={pendingQuickSessionTitle}
+                isLoading={pendingQuickSessionLoading}
+                requests={pendingQuickRequests}
+                loadError={pendingQuickSessionError}
+                actionError={pendingQuickActionError}
+                activeRequestId={pendingQuickActiveRequestId}
+                onApprove={handleApprovePendingQuickRequest}
+                onDeny={handleDenyPendingQuickRequest}
+                onRefresh={() => {
+                    if (pendingQuickSessionId) void refreshPendingQuickContext(pendingQuickSessionId)
+                }}
+                onOpenSession={() => {
+                    if (pendingQuickSessionId) openSession(pendingQuickSessionId)
+                }}
+                onClose={handleClosePendingQuickModal}
+            />
 
-            {/* G. AddMemberModal */}
-            {showAddMember ? (
-                <AddMemberModal
-                    existingMemberSessionIds={existingMemberSessionIds}
-                    onAdd={addMember}
-                    onClose={() => setShowAddMember(false)}
-                    isPending={isPending}
-                />
-            ) : null}
+            <AddMemberSheet
+                open={showAddMember}
+                existingMemberSessionIds={existingMemberSessionIds}
+                onAdd={addMember}
+                onClose={() => setShowAddMember(false)}
+                isPending={isPending}
+            />
         </div>
     )
 }

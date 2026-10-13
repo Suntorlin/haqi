@@ -1,4 +1,7 @@
-export function normalizePreviewUrlInput(raw: string): { value: string | null; error?: string } {
+/** Error codes map to `preview.error.<code>` translations. */
+export type PreviewUrlError = 'protocol' | 'invalid'
+
+export function normalizePreviewUrlInput(raw: string): { value: string | null; error?: PreviewUrlError } {
     const trimmed = raw.trim()
     if (!trimmed) {
         return { value: null }
@@ -12,12 +15,12 @@ export function normalizePreviewUrlInput(raw: string): { value: string | null; e
         try {
             const url = new URL(candidate)
             if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-                return { value: null, error: 'Preview URL must use http:// or https://' }
+                return { value: null, error: 'protocol' }
             }
             return { value: url.toString() }
         } catch {
         }
     }
 
-    return { value: null, error: 'Invalid preview URL' }
+    return { value: null, error: 'invalid' }
 }

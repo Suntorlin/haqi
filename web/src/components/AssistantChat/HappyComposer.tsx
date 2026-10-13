@@ -37,10 +37,17 @@ import { markSkillUsed } from '@/lib/recent-skills'
 import { preserveUploadPathsForQueue } from '@/lib/attachmentAdapter'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
-import { StatusBar } from '@/components/AssistantChat/StatusBar'
-import { ComposerButtons } from '@/components/AssistantChat/ComposerButtons'
 import { AttachmentItem } from '@/components/AssistantChat/AttachmentItem'
+import {
+    DesktopComposerToolbar,
+    MobileComposerAction,
+    MobileComposerSettingsSheet,
+    MobileComposerToggle,
+    MobileComposerToolPanel
+} from '@/components/AssistantChat/MobileComposerParts'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
+import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 
 export interface TextInputState {
     text: string
@@ -437,21 +444,23 @@ export function HappyComposer(props: {
     const currentModelValue = model ?? (modelMode === 'default' ? 'auto' : modelMode)
     const modelOptions = useMemo(
         () => agentFlavor === 'claude'
-            ? buildClaudeModelOptions(model)
+            ? buildClaudeModelOptions(model).map((option) => ({ ...option, label: modelOptionText(option.value, option.label, t) }))
             : [],
-        [agentFlavor, model]
+        [agentFlavor, model, t]
     )
     const modelValues = useMemo(
         () => modelOptions.map((option) => option.value),
         [modelOptions]
     )
     const thinkEffortOptions = useMemo(
-        () => getThinkEffortOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getThinkEffortOptionsForFlavor(agentFlavor)
+            .map((option) => ({ ...option, label: thinkEffortText(option.value, option.label, t) })),
+        [agentFlavor, t]
     )
     const serviceTierOptions = useMemo(
-        () => getServiceTierOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getServiceTierOptionsForFlavor(agentFlavor)
+            .map((option) => ({ ...option, label: serviceTierText(option.value, option.label, t) })),
+        [agentFlavor, t]
     )
     const currentThinkEffortValue: SessionThinkEffort = useMemo(() => {
         if (normalizedThinkEffort === 'auto'
@@ -555,6 +564,9 @@ export function HappyComposer(props: {
         selection: { start: 0, end: 0 }
     })
     const [showSettings, setShowSettings] = useState(false)
+    const isMobileLayout = useIsMobileLayout()
+    const [showToolPanel, setShowToolPanel] = useState(false)
+    const mobileComposerRef = useRef<HTMLDivElement | null>(null)
     const [isAborting, setIsAborting] = useState(false)
     const [isSwitching, setIsSwitching] = useState(false)
     const [showContinueHint, setShowContinueHint] = useState(false)
@@ -669,7 +681,6 @@ export function HappyComposer(props: {
     const { enterBehavior } = useEnterBehavior()
     const { isStandalone, isIOS } = usePWAInstall()
     const isIOSPWA = isIOS && isStandalone
-    const bottomPaddingClass = isIOSPWA ? 'pb-0' : 'pb-3'
     const activeWord = useActiveWord(inputState.text, inputState.selection, autocompletePrefixes)
     const [suggestions, selectedIndex, moveUp, moveDown, clearSuggestions] = useActiveSuggestions(
         activeWord,
@@ -900,8 +911,9 @@ export function HappyComposer(props: {
     }, [onRemoveDraftAttachment])
 
     const permissionModeOptions = useMemo(
-        () => getPermissionModeOptionsForFlavor(agentFlavor),
-        [agentFlavor]
+        () => getPermissionModeOptionsForFlavor(agentFlavor)
+            .map((option) => ({ ...option, label: permissionModeText(option.mode, t) })),
+        [agentFlavor, t]
     )
     const permissionModes = useMemo(
         () => permissionModeOptions.map((option) => option.mode),
@@ -1049,10 +1061,24 @@ export function HappyComposer(props: {
         }
     }, [api])
 
-    const handleSettingsToggle = useCallback(() => {
-        haptic('light')
-        setShowSettings(prev => !prev)
-    }, [haptic])
+    // Mobile: the inline "+" panel closes on outside tap or Escape (the settings sheet dismisses itself).
+    useEffect(() => {
+        if (!isMobileLayout || !showToolPanel) return
+        const close = () => setShowToolPanel(false)
+        const handlePointerDown = (event: PointerEvent) => {
+            if (mobileComposerRef.current?.contains(event.target as Node)) return
+            close()
+        }
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') close()
+        }
+        document.addEventListener('pointerdown', handlePointerDown)
+        document.addEventListener('keydown', handleKeyDown)
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown)
+            document.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [isMobileLayout, showToolPanel])
 
     const handleSubmit = useCallback((event?: ReactFormEvent<HTMLFormElement>) => {
         if (event) {
@@ -1064,34 +1090,6 @@ export function HappyComposer(props: {
         setShowContinueHint(false)
     }, [canSend, sendComposerNow])
 
-    const handlePermissionChange = useCallback((mode: PermissionMode) => {
-        if (!onPermissionModeChange || controlsDisabled) return
-        onPermissionModeChange(mode)
-        setShowSettings(false)
-        haptic('light')
-    }, [onPermissionModeChange, controlsDisabled, haptic])
-
-    const handleModelChange = useCallback((modelValue: string) => {
-        if (!onModelChange || controlsDisabled) return
-        onModelChange(modelValue)
-        setShowSettings(false)
-        haptic('light')
-    }, [onModelChange, controlsDisabled, haptic])
-
-    const handleThinkEffortChange = useCallback((thinkEffortValue: SessionThinkEffort) => {
-        if (!onThinkEffortChange || controlsDisabled) return
-        onThinkEffortChange(thinkEffortValue)
-        setShowSettings(false)
-        haptic('light')
-    }, [onThinkEffortChange, controlsDisabled, haptic])
-
-    const handleServiceTierChange = useCallback((serviceTierValue: SessionServiceTier) => {
-        if (!onServiceTierChange || controlsDisabled) return
-        onServiceTierChange(serviceTierValue)
-        setShowSettings(false)
-        haptic('light')
-    }, [onServiceTierChange, controlsDisabled, haptic])
-
     const showPermissionSettings = Boolean(onPermissionModeChange && permissionModeOptions.length > 0)
     const showModelSettings = Boolean(onModelChange && isClaudeFlavor(agentFlavor) && modelOptions.length > 0)
     const showThinkEffortSettings = Boolean(onThinkEffortChange && thinkEffortOptions.length > 0)
@@ -1100,425 +1098,391 @@ export function HappyComposer(props: {
     const showAbortButton = true
     const voiceEnabled = Boolean(onVoiceToggle)
 
-    const overlays = useMemo(() => {
-        if (showSettings && (showPermissionSettings || showModelSettings || showThinkEffortSettings || showServiceTierSettings)) {
-            const showPermissionDivider = showPermissionSettings && (showModelSettings || showThinkEffortSettings || showServiceTierSettings)
-            const showModelDivider = showModelSettings && (showThinkEffortSettings || showServiceTierSettings)
-            const showThinkEffortDivider = showThinkEffortSettings && showServiceTierSettings
-            return (
-                <div className="absolute bottom-[100%] mb-2 w-full">
-                    <FloatingOverlay maxHeight={320}>
-                        {showPermissionSettings ? (
-                            <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
-                                    {t('misc.permissionMode')}
-                                </div>
-                                {permissionModeOptions.map((option) => (
-                                    <button
-                                        key={option.mode}
-                                        type="button"
-                                        disabled={controlsDisabled}
-                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                                            controlsDisabled
-                                                ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
-                                        }`}
-                                        onClick={() => handlePermissionChange(option.mode)}
-                                        onMouseDown={(e) => e.preventDefault()}
+    const overlays = suggestions.length > 0 ? (
+        <div className="absolute bottom-[100%] mb-2 w-full">
+            <FloatingOverlay>
+                <Autocomplete
+                    suggestions={suggestions}
+                    selectedIndex={selectedIndex}
+                    onSelect={(index) => handleSuggestionSelect(index)}
+                />
+            </FloatingOverlay>
+        </div>
+    ) : null
+
+    const inlineQueuePanel = showInlineQueuePanel ? (
+        <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                    {t('queue.dialog.title')}
+                </span>
+                <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
+                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                </span>
+                <span
+                    className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
+                    title={inlineQueueHeadline}
+                >
+                    {inlineQueueHeadline}
+                </span>
+                <button
+                    type="button"
+                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleCodexQueueOpen}
+                    disabled={controlsDisabled || !onCodexQueueOpen}
+                >
+                    {t('queue.inline.open')}
+                </button>
+            </div>
+
+            {codexQueueInlinePanelMode === 'full' ? (
+                <div className="mt-2 space-y-1">
+                    {codexQueueEntries.length > 0 ? (
+                        <>
+                            {codexQueueEntries.slice(0, 5).map((entry, index) => {
+                                const previewText = entry.preview || t('queue.dialog.emptyMessage')
+
+                                return (
+                                    <div
+                                        key={entry.id}
+                                        className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
                                     >
-                                        <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                                                permissionMode === option.mode
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
-                                            }`}
-                                        >
-                                            {permissionMode === option.mode && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
-                                            )}
-                                        </div>
-                                        <span className={permissionMode === option.mode ? 'text-[var(--app-link)]' : ''}>
-                                            {option.label}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-
-                        {showPermissionDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
-                        ) : null}
-
-                        {showModelSettings ? (
-                            <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
-                                    {t('misc.model')}
-                                </div>
-                                {modelOptions.map((option) => (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        disabled={controlsDisabled}
-                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                                            controlsDisabled
-                                                ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
-                                        }`}
-                                        onClick={() => handleModelChange(option.value)}
-                                        onMouseDown={(e) => e.preventDefault()}
-                                    >
-                                        <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                                                currentModelValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
-                                            }`}
-                                        >
-                                            {currentModelValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
-                                            )}
-                                        </div>
-                                        <span className={currentModelValue === option.value ? 'text-[var(--app-link)]' : ''}>
-                                            {option.label}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-
-                        {showModelDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
-                        ) : null}
-
-                        {showThinkEffortSettings ? (
-                            <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
-                                    {t('newSession.think')}
-                                </div>
-                                {thinkEffortOptions.map((option) => (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        disabled={controlsDisabled}
-                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                                            controlsDisabled
-                                                ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
-                                        }`}
-                                        onClick={() => handleThinkEffortChange(option.value)}
-                                        onMouseDown={(e) => e.preventDefault()}
-                                    >
-                                        <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                                                currentThinkEffortValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
-                                            }`}
-                                        >
-                                            {currentThinkEffortValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
-                                            )}
-                                        </div>
-                                        <span className={currentThinkEffortValue === option.value ? 'text-[var(--app-link)]' : ''}>
-                                            {option.label}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-
-                        {showThinkEffortDivider ? (
-                            <div className="mx-3 h-px bg-[var(--app-divider)]" />
-                        ) : null}
-
-                        {showServiceTierSettings ? (
-                            <div className="py-2">
-                                <div className="px-3 pb-1 text-xs font-semibold text-[var(--app-hint)]">
-                                    {t('newSession.serviceTier')}
-                                </div>
-                                {serviceTierOptions.map((option) => (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        disabled={controlsDisabled}
-                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${
-                                            controlsDisabled
-                                                ? 'cursor-not-allowed opacity-50'
-                                                : 'cursor-pointer hover:bg-[var(--app-secondary-bg)]'
-                                        }`}
-                                        onClick={() => handleServiceTierChange(option.value)}
-                                        onMouseDown={(e) => e.preventDefault()}
-                                    >
-                                        <div
-                                            className={`flex h-4 w-4 items-center justify-center rounded-full border-2 ${
-                                                currentServiceTierValue === option.value
-                                                    ? 'border-[var(--app-link)]'
-                                                    : 'border-[var(--app-hint)]'
-                                            }`}
-                                        >
-                                            {currentServiceTierValue === option.value && (
-                                                <div className="h-2 w-2 rounded-full bg-[var(--app-link)]" />
-                                            )}
-                                        </div>
-                                        <span className={currentServiceTierValue === option.value ? 'text-[var(--app-link)]' : ''}>
-                                            {option.label}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-                    </FloatingOverlay>
-                </div>
-            )
-        }
-
-        if (suggestions.length > 0) {
-            return (
-                <div className="absolute bottom-[100%] mb-2 w-full">
-                    <FloatingOverlay>
-                        <Autocomplete
-                            suggestions={suggestions}
-                            selectedIndex={selectedIndex}
-                            onSelect={(index) => handleSuggestionSelect(index)}
-                        />
-                    </FloatingOverlay>
-                </div>
-            )
-        }
-
-        return null
-    }, [
-        showSettings,
-        showPermissionSettings,
-        showModelSettings,
-        showThinkEffortSettings,
-        showServiceTierSettings,
-        suggestions,
-        selectedIndex,
-        controlsDisabled,
-        permissionMode,
-        currentModelValue,
-        currentThinkEffortValue,
-        currentServiceTierValue,
-        modelOptions,
-        thinkEffortOptions,
-        serviceTierOptions,
-        permissionModeOptions,
-        handlePermissionChange,
-        handleModelChange,
-        handleThinkEffortChange,
-        handleServiceTierChange,
-        handleSuggestionSelect
-    ])
-
-    return (
-        <div className={`px-3 ${bottomPaddingClass} pt-2 bg-[var(--app-bg)] ${cliMode ? 'cli-composer' : ''}`}>
-            <div className="mx-auto w-full max-w-content">
-                <ComposerPrimitive.Root className="relative" onSubmit={handleSubmit}>
-                    {overlays}
-
-                    <StatusBar
-                        active={active}
-                        thinking={thinking}
-                        agentState={agentState}
-                        contextSize={contextSize}
-                        contextWindowTokens={contextWindowTokens}
-                        rateLimitSnapshot={rateLimitSnapshot}
-                        modelMode={modelMode}
-                        permissionMode={permissionMode}
-                        agentFlavor={agentFlavor}
-                        collaborationMode={codexCollaborationMode}
-                        voiceStatus={voiceStatus}
-                    />
-
-                    <ComposerPrimitive.AttachmentDropzone
-                        asChild
-                        disabled={controlsDisabled}
-                    >
-                        <div className={`relative overflow-hidden transition-[box-shadow] data-[dragging=true]:ring-2 data-[dragging=true]:ring-inset data-[dragging=true]:ring-[var(--app-link)] ${cliMode ? 'rounded border border-[var(--app-border)] bg-transparent' : 'rounded-[20px] bg-[var(--app-secondary-bg)]'}`}>
-                            {!active ? (
-                                <div className="absolute inset-0 z-20 flex items-center justify-center bg-[var(--app-secondary-bg)]/95 px-4 py-3 backdrop-blur-[1px]">
-                                    <div className="flex w-full flex-wrap items-center justify-between gap-3 rounded-2xl bg-[var(--app-bg)]/80 px-3 py-2 text-sm text-[var(--app-hint)] shadow-sm ring-1 ring-[var(--app-border)]">
-                                        <span>{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
-                                        <button
-                                            type="button"
-                                            onClick={onOfflineWake}
-                                            disabled={!onOfflineWake || offlineWakePending}
-                                            className="rounded-full bg-[var(--app-button)] px-3 py-1.5 text-xs font-semibold text-[var(--app-button-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            {offlineWakePending
-                                                ? (offlineWakingLabel ?? t('session.waking'))
-                                                : (offlineWakeLabel ?? t('session.wake'))}
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : null}
-
-                            {showInlineQueuePanel ? (
-                                <div className={`border-b border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-3 py-2 ${hideEmptyInlineQueuePanelOnMobile ? 'hidden sm:block' : ''}`}>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                            {t('queue.dialog.title')}
-                                        </span>
-                                        <span className="inline-flex rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-xs text-[var(--app-fg)]">
-                                            {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                                        <span className="text-[10px] text-[var(--app-hint)]">
+                                            #{index + 1}
                                         </span>
                                         <span
-                                            className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-[var(--app-hint)]"
-                                            title={inlineQueueHeadline}
+                                            className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
                                         >
-                                            {inlineQueueHeadline}
+                                            {previewText}
                                         </span>
-                                        <button
-                                            type="button"
-                                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:cursor-not-allowed disabled:opacity-50"
-                                            onClick={handleCodexQueueOpen}
-                                            disabled={controlsDisabled || !onCodexQueueOpen}
-                                        >
-                                            {t('queue.inline.open')}
-                                        </button>
+                                        <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
+                                            {new Date(entry.enqueuedAt).toLocaleTimeString([], {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </span>
                                     </div>
+                                )
+                            })}
+                            {codexQueueEntries.length > 5 ? (
+                                <div className="px-1 text-[11px] text-[var(--app-hint)]">
+                                    +{codexQueueEntries.length - 5}
+                                </div>
+                            ) : null}
+                        </>
+                    ) : inlineQueuePendingCount > 0 ? (
+                        <div className="px-1 text-xs text-[var(--app-hint)]">
+                            {t('queue.inline.pending', { count: inlineQueuePendingCount })}
+                        </div>
+                    ) : (
+                        <div className="px-1 text-xs text-[var(--app-hint)]">
+                            {t('queue.dialog.empty')}
+                        </div>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    ) : null
 
-                                    {codexQueueInlinePanelMode === 'full' ? (
-                                        <div className="mt-2 space-y-1">
-                                            {codexQueueEntries.length > 0 ? (
-                                                <>
-                                                    {codexQueueEntries.slice(0, 5).map((entry, index) => {
-                                                        const previewText = entry.preview || t('queue.dialog.emptyMessage')
+    const attachmentsRow = attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
+        <div className="flex flex-wrap gap-2 px-4 pt-3">
+            {restoredDraftAttachments.map((attachment) => (
+                <div
+                    key={`draft:${attachment.path}`}
+                    className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
+                    title={attachment.path}
+                >
+                    <span className="max-w-[180px] truncate">
+                        {attachment.filename}
+                    </span>
+                    <button
+                        type="button"
+                        className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                        onClick={() => {
+                            handleRemoveDraftAttachment(attachment)
+                        }}
+                        aria-label={`Remove ${attachment.filename}`}
+                    >
+                        ×
+                    </button>
+                </div>
+            ))}
+            <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
+        </div>
+    ) : null
 
-                                                        return (
-                                                            <div
-                                                                key={entry.id}
-                                                                className="flex items-center gap-2 rounded-md bg-[var(--app-secondary-bg)] px-2 py-1.5"
-                                                            >
-                                                                <span className="text-[10px] text-[var(--app-hint)]">
-                                                                    #{index + 1}
-                                                                </span>
-                                                                <span
-                                                                    className="block min-w-0 flex-1 truncate text-xs text-[var(--app-fg)]"
-                                                                >
-                                                                    {previewText}
-                                                                </span>
-                                                                <span className="shrink-0 text-[10px] text-[var(--app-hint)]">
-                                                                    {new Date(entry.enqueuedAt).toLocaleTimeString([], {
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit'
-                                                                    })}
-                                                                </span>
-                                                            </div>
-                                                        )
-                                                    })}
-                                                    {codexQueueEntries.length > 5 ? (
-                                                        <div className="px-1 text-[11px] text-[var(--app-hint)]">
-                                                            +{codexQueueEntries.length - 5}
-                                                        </div>
-                                                    ) : null}
-                                                </>
-                                            ) : inlineQueuePendingCount > 0 ? (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                    {t('queue.inline.pending', { count: inlineQueuePendingCount })}
-                                                </div>
-                                            ) : (
-                                                <div className="px-1 text-xs text-[var(--app-hint)]">
-                                                    {t('queue.dialog.empty')}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : null}
+    const hasChatSettings = showSettingsButton || supportsQueueControls || showSwitchButton
+    const applyChatSetting = (apply: () => void) => {
+        if (controlsDisabled) return
+        apply()
+        haptic('light')
+    }
+
+    const hasDraft = hasText || hasAnyAttachments
+    const showStop = threadIsRunning && !(hasDraft && canSend)
+
+    // One panel for every conversation setting: bottom sheet on phones, right-hand panel on desktop.
+    const settingsSheet = (
+        <MobileComposerSettingsSheet
+            open={showSettings}
+            onOpenChange={setShowSettings}
+            disabled={controlsDisabled}
+            permission={showPermissionSettings ? {
+                options: permissionModeOptions.map((option) => ({ value: option.mode, label: option.label })),
+                value: permissionMode,
+                onChange: (mode) => applyChatSetting(() => onPermissionModeChange?.(mode as PermissionMode))
+            } : null}
+            model={showModelSettings ? {
+                options: modelOptions,
+                value: currentModelValue,
+                onChange: (value) => applyChatSetting(() => onModelChange?.(value))
+            } : null}
+            thinkEffort={showThinkEffortSettings ? {
+                options: thinkEffortOptions,
+                value: currentThinkEffortValue,
+                onChange: (value) => applyChatSetting(() => onThinkEffortChange?.(value as SessionThinkEffort))
+            } : null}
+            serviceTier={showServiceTierSettings ? {
+                options: serviceTierOptions,
+                value: currentServiceTierValue,
+                onChange: (value) => applyChatSetting(() => onServiceTierChange?.(value as SessionServiceTier))
+            } : null}
+            sendMode={supportsQueueControls && onCodexSendModeChange ? {
+                options: [
+                    { value: 'direct', label: t('queue.mode.direct'), description: t('queue.mode.directHint') },
+                    { value: 'queue', label: t('queue.mode.queue'), description: t('queue.mode.queueHint') }
+                ],
+                value: codexSendMode,
+                onChange: (mode) => handleCodexSendModeChange(mode)
+            } : null}
+            planMode={supportsQueueControls && onCodexPlanModeChange ? {
+                enabled: isCodexPlanMode,
+                onChange: () => handleCodexPlanModeToggle()
+            } : null}
+            queue={showQueueButton ? {
+                pendingCount: Math.max(0, codexQueuePendingCount),
+                onOpen: () => {
+                    setShowSettings(false)
+                    handleCodexQueueOpen()
+                }
+            } : null}
+            status={showStatusButton ? {
+                disabled: controlsDisabled || threadIsRunning,
+                onOpen: () => {
+                    setShowSettings(false)
+                    handleCodexStatus()
+                }
+            } : null}
+            switchRemote={showSwitchButton ? {
+                disabled: switchDisabled,
+                onSwitch: () => {
+                    setShowSettings(false)
+                    void handleSwitch()
+                }
+            } : null}
+        />
+    )
+
+    if (isMobileLayout) {
+        const toggleToolPanel = () => {
+            haptic('light')
+            if (!showToolPanel) {
+                textareaRef.current?.blur()
+                setShowSettings(false)
+            }
+            setShowToolPanel(!showToolPanel)
+        }
+        const closePanelThen = (action: () => void) => () => {
+            setShowToolPanel(false)
+            action()
+        }
+
+        return (
+            <div
+                ref={mobileComposerRef}
+                className={`social-bar relative z-10 shrink-0 border-t border-[var(--social-border)] ${cliMode ? 'cli-composer' : ''}`}
+                style={{ paddingBottom: isIOSPWA ? 'max(env(safe-area-inset-bottom), 0.5rem)' : '0.5rem' }}
+            >
+                <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
+                    {showSettings ? null : overlays}
+
+                    {inlineQueuePanel}
+
+                    {attachmentsRow}
+
+                    <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
+                        <div className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
+                            {!active ? (
+                                <div className="absolute inset-x-3 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] pl-4 pr-1 text-[14px] text-[var(--social-fg-muted)]">
+                                    <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
+                                    <button
+                                        type="button"
+                                        onClick={onOfflineWake}
+                                        disabled={!onOfflineWake || offlineWakePending}
+                                        className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[13px] font-medium text-[var(--social-primary-fg)] disabled:opacity-50"
+                                    >
+                                        {offlineWakePending
+                                            ? (offlineWakingLabel ?? t('session.waking'))
+                                            : (offlineWakeLabel ?? t('session.wake'))}
+                                    </button>
                                 </div>
                             ) : null}
 
-                            {attachments.length > 0 || restoredDraftAttachments.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 px-4 pt-3">
-                                    {restoredDraftAttachments.map((attachment) => (
-                                        <div
-                                            key={`draft:${attachment.path}`}
-                                            className="flex max-w-full items-center gap-2 rounded-md border border-[var(--app-divider)] bg-[var(--app-bg)] px-2 py-1 text-xs text-[var(--app-fg)]"
-                                            title={attachment.path}
-                                        >
-                                            <span className="max-w-[180px] truncate">
-                                                {attachment.filename}
-                                            </span>
-                                            <button
-                                                type="button"
-                                                className="rounded px-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                                onClick={() => {
-                                                    handleRemoveDraftAttachment(attachment)
-                                                }}
-                                                aria-label={`Remove ${attachment.filename}`}
-                                            >
-                                                ×
-                                            </button>
-                                        </div>
-                                    ))}
-                                    <ComposerPrimitive.Attachments components={{ Attachment: AttachmentItem }} />
-                                </div>
-                            ) : null}
+                            <MobileComposerToggle open={showToolPanel} onClick={toggleToolPanel} />
 
-                            <div className={`flex items-center ${cliMode ? 'px-2 py-1.5' : 'px-4 py-3'}`}>
-                                {cliMode && (
-                                    <span className="mr-1.5 shrink-0 select-none text-[var(--cli-prompt-color,#3b82f6)] font-semibold text-sm">{'❯'}</span>
-                                )}
+                            <div className="flex min-h-[40px] min-w-0 flex-1 items-center rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[8px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                                {cliMode ? (
+                                    <span className="mr-1.5 shrink-0 select-none text-sm font-semibold text-[var(--cli-prompt-color,#3b82f6)]">{'❯'}</span>
+                                ) : null}
                                 <ComposerPrimitive.Input
                                     ref={textareaRef}
-                                    autoFocus={!controlsDisabled && !isTouch}
-                                    placeholder={showContinueHint ? t('misc.typeMessage') : t('misc.typeAMessage')}
+                                    autoFocus={false}
+                                    placeholder={showContinueHint ? t('misc.typeMessage') : t('mobile.composer.placeholder')}
                                     disabled={controlsDisabled || isSendButtonLoading}
-                                    maxRows={5}
+                                    maxRows={6}
                                     submitOnEnter={!isTouch && enterBehavior === 'send'}
                                     cancelOnEscape={false}
                                     onChange={handleChange}
                                     onSelect={handleSelect}
                                     onKeyDown={handleKeyDown}
                                     onPaste={handlePaste}
-                                    className={`flex-1 resize-none bg-transparent leading-snug text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[0.8125rem]' : 'text-base'}`}
+                                    onFocus={() => {
+                                        setShowToolPanel(false)
+                                        setShowSettings(false)
+                                    }}
+                                    className={`w-full flex-1 resize-none bg-transparent text-[16px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono' : ''}`}
                                 />
                             </div>
 
-                            <ComposerButtons
+                            <MobileComposerAction
+                                hasDraft={hasDraft}
                                 canSend={canSend}
                                 isSending={isSendButtonLoading}
-                                controlsDisabled={controlsDisabled}
-                                showSettingsButton={showSettingsButton}
-                                onSettingsToggle={handleSettingsToggle}
-                                showTerminalButton={showTerminalButton}
-                                terminalDisabled={controlsDisabled}
-                                onTerminal={onTerminal ?? (() => {})}
-                                showStatusButton={showStatusButton}
-                                statusDisabled={controlsDisabled || threadIsRunning}
-                                onStatus={handleCodexStatus}
-                                showQueueButton={showQueueButton}
-                                queueActive={codexQueueDialogOpen}
-                                queueDisabled={controlsDisabled}
-                                queuePendingCount={Math.max(0, codexQueuePendingCount)}
-                                onQueue={handleCodexQueueOpen}
-                                showPlanModeToggle={supportsQueueControls && Boolean(onCodexPlanModeChange)}
-                                planModeEnabled={isCodexPlanMode}
-                                planModeDisabled={controlsDisabled || !onCodexPlanModeChange}
-                                onPlanModeToggle={handleCodexPlanModeToggle}
-                                showSendModeToggle={supportsQueueControls}
-                                sendMode={codexSendMode}
-                                sendModeDisabled={controlsDisabled || !onCodexSendModeChange}
-                                onSendModeChange={handleCodexSendModeChange}
-                                showAbortButton={showAbortButton}
+                                showStop={showStop}
                                 abortDisabled={abortDisabled}
                                 isAborting={isAborting}
-                                onAbort={handleAbort}
-                                showSwitchButton={showSwitchButton}
-                                switchDisabled={switchDisabled}
-                                isSwitching={isSwitching}
-                                onSwitch={handleSwitch}
                                 voiceEnabled={voiceEnabled}
                                 voiceStatus={voiceStatus}
-                                voiceMicMuted={voiceMicMuted}
+                                controlsDisabled={controlsDisabled}
+                                onSend={() => {
+                                    setShowToolPanel(false)
+                                    void sendComposerNow()
+                                }}
+                                onAbort={handleAbort}
                                 onVoiceToggle={onVoiceToggle ?? (() => {})}
-                                onVoiceMicToggle={onVoiceMicToggle}
-                                onSend={() => { void sendComposerNow() }}
                             />
                         </div>
                     </ComposerPrimitive.AttachmentDropzone>
+
+                    {showToolPanel ? (
+                        <MobileComposerToolPanel
+                            controlsDisabled={controlsDisabled}
+                            voiceEnabled={voiceEnabled}
+                            voiceActive={voiceStatus === 'connected' || voiceStatus === 'connecting'}
+                            onVoiceToggle={closePanelThen(onVoiceToggle ?? (() => {}))}
+                            showTerminalButton={showTerminalButton}
+                            onTerminal={closePanelThen(onTerminal ?? (() => {}))}
+                            showSettingsButton={hasChatSettings}
+                            settingsBadge={showQueueButton ? Math.max(0, codexQueuePendingCount) : 0}
+                            onSettings={closePanelThen(() => setShowSettings(true))}
+                        />
+                    ) : null}
                 </ComposerPrimitive.Root>
+
+                {settingsSheet}
             </div>
+        )
+    }
+
+    const voiceActive = voiceStatus === 'connected' || voiceStatus === 'connecting'
+    const settingsLabel = [
+        showModelSettings ? modelOptions.find((option) => option.value === currentModelValue)?.label : null,
+        showPermissionSettings ? permissionModeOptions.find((option) => option.mode === permissionMode)?.label : null
+    ].filter(Boolean).join(' · ') || t('mobile.composer.chatSettings')
+
+    return (
+        <div className={`shrink-0 bg-[var(--app-bg)] px-6 pb-5 pt-1 ${cliMode ? 'cli-composer' : ''}`}>
+            <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
+                {overlays}
+
+                <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
+                    <div className="relative overflow-hidden rounded-[22px] border border-[var(--social-border)] bg-[var(--app-bg)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
+                        {!active ? (
+                            <div className="absolute inset-0 z-20 flex items-center justify-between gap-3 bg-[var(--app-bg)] pl-5 pr-2.5 text-[14px] text-[var(--social-fg-muted)]">
+                                <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
+                                <button
+                                    type="button"
+                                    onClick={onOfflineWake}
+                                    disabled={!onOfflineWake || offlineWakePending}
+                                    className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[13px] font-medium text-[var(--social-primary-fg)] transition-opacity hover:opacity-90 disabled:opacity-50"
+                                >
+                                    {offlineWakePending
+                                        ? (offlineWakingLabel ?? t('session.waking'))
+                                        : (offlineWakeLabel ?? t('session.wake'))}
+                                </button>
+                            </div>
+                        ) : null}
+
+                        {inlineQueuePanel}
+
+                        {attachmentsRow}
+
+                        <div className="flex items-start px-4 pt-3">
+                            {cliMode ? (
+                                <span className="mr-1.5 shrink-0 select-none text-sm font-semibold leading-[22px] text-[var(--cli-prompt-color,#3b82f6)]">{'❯'}</span>
+                            ) : null}
+                            <ComposerPrimitive.Input
+                                ref={textareaRef}
+                                autoFocus={!controlsDisabled && !isTouch}
+                                placeholder={showContinueHint ? t('misc.typeMessage') : t('mobile.composer.placeholder')}
+                                disabled={controlsDisabled || isSendButtonLoading}
+                                maxRows={10}
+                                submitOnEnter={!isTouch && enterBehavior === 'send'}
+                                cancelOnEscape={false}
+                                onChange={handleChange}
+                                onSelect={handleSelect}
+                                onKeyDown={handleKeyDown}
+                                onPaste={handlePaste}
+                                className={`min-h-[44px] w-full flex-1 resize-none bg-transparent text-[15px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono text-[13px]' : ''}`}
+                            />
+                        </div>
+
+                        <DesktopComposerToolbar
+                            controlsDisabled={controlsDisabled}
+                            voiceEnabled={voiceEnabled}
+                            voiceActive={voiceActive}
+                            voiceConnected={voiceStatus === 'connected'}
+                            voiceMicMuted={voiceMicMuted}
+                            onVoiceToggle={onVoiceToggle ?? (() => {})}
+                            onVoiceMicToggle={onVoiceMicToggle}
+                            showTerminalButton={showTerminalButton}
+                            onTerminal={onTerminal ?? (() => {})}
+                            showSettingsButton={hasChatSettings}
+                            settingsLabel={settingsLabel}
+                            settingsBadge={showQueueButton ? Math.max(0, codexQueuePendingCount) : 0}
+                            onSettings={() => setShowSettings(true)}
+                            action={(
+                                <MobileComposerAction
+                                    hasDraft={hasDraft}
+                                    canSend={canSend}
+                                    isSending={isSendButtonLoading}
+                                    showStop={showStop}
+                                    abortDisabled={abortDisabled}
+                                    isAborting={isAborting}
+                                    voiceEnabled={false}
+                                    voiceStatus="disconnected"
+                                    controlsDisabled={controlsDisabled}
+                                    onSend={() => { void sendComposerNow() }}
+                                    onAbort={handleAbort}
+                                    onVoiceToggle={() => {}}
+                                />
+                            )}
+                        />
+                    </div>
+                </ComposerPrimitive.AttachmentDropzone>
+            </ComposerPrimitive.Root>
+
+            {settingsSheet}
         </div>
     )
 }

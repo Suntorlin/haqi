@@ -9,6 +9,7 @@ import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { parseUnifiedDiff } from '@/lib/gitDiff'
 import { ChecklistList, extractTodoChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
+import { useTranslation } from '@/lib/use-translation'
 
 const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
@@ -148,10 +149,23 @@ function renderText(text: string, opts: { mode: 'markdown' | 'code' | 'auto'; la
     return <MarkdownRenderer content={text} />
 }
 
-function placeholderForState(state: ToolViewProps['block']['tool']['state']): string {
-    if (state === 'pending') return 'Waiting for permission…'
-    if (state === 'running') return 'Running…'
-    return '(no output)'
+type ResultNoteKind = 'done' | 'empty' | 'waiting' | 'running'
+
+function placeholderForState(state: ToolViewProps['block']['tool']['state']): ResultNoteKind {
+    if (state === 'pending') return 'waiting'
+    if (state === 'running') return 'running'
+    return 'empty'
+}
+
+function ResultNoteText(props: { kind: ResultNoteKind }) {
+    const { t } = useTranslation()
+    return <>{t(`tool.result.${props.kind}`)}</>
+}
+
+/** Muted one-liner shown instead of a result body (done / no output / waiting / running). */
+function ResultNote(props: { kind: ResultNoteKind }) {
+    const { t } = useTranslation()
+    return <div className="text-sm text-[var(--app-hint)]">{t(`tool.result.${props.kind}`)}</div>
 }
 
 function RawJsonDevOnly(props: { value: unknown }) {
@@ -308,7 +322,7 @@ const BashResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
     if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     if (typeof result === 'string') {
@@ -347,7 +361,7 @@ const BashResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+            <ResultNote kind="empty" />
             <RawJsonDevOnly value={result} />
         </>
     )
@@ -357,7 +371,7 @@ const MarkdownResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
     if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     const text = extractTextFromResult(result)
@@ -372,7 +386,7 @@ const MarkdownResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+            <ResultNote kind="empty" />
             <RawJsonDevOnly value={result} />
         </>
     )
@@ -382,14 +396,14 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
     if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     const text = extractTextFromResult(result)
     if (!text) {
         return (
             <>
-                <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+                <ResultNote kind="empty" />
                 <RawJsonDevOnly value={result} />
             </>
         )
@@ -408,7 +422,7 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
     if (lines.length === 0) {
         return (
             <>
-                <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+                <ResultNote kind="empty" />
                 <RawJsonDevOnly value={result} />
             </>
         )
@@ -432,7 +446,7 @@ const ReadResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
     if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     const file = extractReadFileContent(result)
@@ -463,7 +477,7 @@ const ReadResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+            <ResultNote kind="empty" />
             <RawJsonDevOnly value={result} />
         </>
     )
@@ -474,9 +488,9 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     if (result === undefined || result === null) {
         if (state === 'completed') {
-            return <div className="text-sm text-[var(--app-hint)]">Done</div>
+            return <ResultNote kind="done" />
         }
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(state)}</div>
+        return <ResultNote kind={placeholderForState(state)} />
     }
 
     const text = extractTextFromResult(result)
@@ -495,7 +509,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
     return (
         <>
             <div className="text-sm text-[var(--app-hint)]">
-                {state === 'completed' ? 'Done' : '(no output)'}
+                <ResultNoteText kind={state === 'completed' ? 'done' : 'empty'} />
             </div>
             <RawJsonDevOnly value={result} />
         </>
@@ -516,13 +530,13 @@ const CodexPatchResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     if (result === undefined || result === null) {
         return props.block.tool.state === 'completed'
-            ? <div className="text-sm text-[var(--app-hint)]">Done</div>
-            : <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+            ? <ResultNote kind="done" />
+            : <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+            <ResultNote kind="empty" />
             <RawJsonDevOnly value={result} />
         </>
     )
@@ -531,7 +545,7 @@ const CodexPatchResultView: ToolViewComponent = (props: ToolViewProps) => {
 const CodexReasoningResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
     if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     const text = extractTextFromResult(result)
@@ -546,7 +560,7 @@ const CodexReasoningResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">(no output)</div>
+            <ResultNote kind="empty" />
             <RawJsonDevOnly value={result} />
         </>
     )
@@ -556,8 +570,8 @@ const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
     if (result === undefined || result === null) {
         return props.block.tool.state === 'completed'
-            ? <div className="text-sm text-[var(--app-hint)]">Done</div>
-            : <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+            ? <ResultNote kind="done" />
+            : <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     const text = extractTextFromResult(result)
@@ -578,7 +592,7 @@ const CodexDiffResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-sm text-[var(--app-hint)]">Done</div>
+            <ResultNote kind="done" />
             <RawJsonDevOnly value={result} />
         </>
     )
@@ -764,7 +778,7 @@ function todoIcon(todo: TodoItem): string {
 const TodoWriteResultView: ToolViewComponent = (props: ToolViewProps) => {
     const todos = extractTodoChecklist(props.block.tool.input, props.block.tool.result)
     if (todos.length === 0) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     return <ChecklistList items={todos} />
@@ -957,7 +971,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
             ) : errorMessage ? (
                 <div className="text-sm text-red-500">{errorMessage}</div>
             ) : (
-                <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+                <ResultNote kind={placeholderForState(props.block.tool.state)} />
             )}
         </div>
     )
@@ -967,7 +981,7 @@ const GenericResultView: ToolViewComponent = (props: ToolViewProps) => {
     const result = props.block.tool.result
 
     if (result === undefined || result === null) {
-        return <div className="text-sm text-[var(--app-hint)]">{placeholderForState(props.block.tool.state)}</div>
+        return <ResultNote kind={placeholderForState(props.block.tool.state)} />
     }
 
     // Detect codex bash output format and render accordingly

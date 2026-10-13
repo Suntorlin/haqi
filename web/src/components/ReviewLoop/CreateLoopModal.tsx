@@ -1,15 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from '@/components/ui/dialog'
-import { cn } from '@/lib/utils'
+import { useEffect, useMemo, useState } from 'react'
 import type { ReviewLoopUserPreference, SessionSummary } from '@/types/api'
+import { BottomSheet, SheetSection } from '@/components/mobile/BottomSheet'
+import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
+import { ChevronRightIcon, SearchIcon } from '@/components/mobile/icons'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/FormControls'
 import { matchesSessionSearch } from '@/lib/session-search'
 import { getSessionTitle } from '@/lib/session-title'
+import { useTranslation } from '@/lib/use-translation'
+import { cn } from '@/lib/utils'
 
 export type CreateLoopData = {
     workerSessionId: string
@@ -27,145 +27,87 @@ type CreateLoopModalProps = {
     sessions: SessionSummary[]
 }
 
-const PREFERENCE_OPTIONS: Array<{ value: ReviewLoopUserPreference; label: string }> = [
-    { value: 'auto', label: 'auto' },
-    { value: 'verbose', label: 'verbose' },
-    { value: 'silent', label: 'silent' },
-]
+const PREFERENCES: ReviewLoopUserPreference[] = ['auto', 'verbose', 'silent']
 
-const inputClass =
-    'w-full rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] px-2 py-1.5 font-mono text-xs text-[var(--app-fg)] focus:outline-none focus:border-[var(--app-link)]'
-
-const labelClass = 'font-mono text-xs text-[var(--app-hint)]'
-
-/* ── CLI-style session picker with search ── */
+/** Session row: tap to expand a searchable list (online first), pick one to collapse again. */
 function SessionPicker(props: {
     label: string
     sessions: SessionSummary[]
-    excludeIds?: Set<string>
+    excludeId?: string
     selectedId: string
     onSelect: (id: string) => void
 }) {
+    const { t } = useTranslation()
     const [open, setOpen] = useState(false)
     const [search, setSearch] = useState('')
-    const inputRef = useRef<HTMLInputElement>(null)
-
-    const selected = props.sessions.find(s => s.id === props.selectedId)
-    const selectedTitle = selected ? getSessionTitle(selected, { fallbackIdLength: 12 }) : null
-
-    const filtered = useMemo(() => {
-        return props.sessions.filter(s => {
-            if (props.excludeIds?.has(s.id)) return false
-            return matchesSessionSearch(s, search)
-        })
-    }, [props.sessions, props.excludeIds, search])
-
-    const online = useMemo(() => filtered.filter(s => s.active), [filtered])
-    const offline = useMemo(() => filtered.filter(s => !s.active), [filtered])
-
-    useEffect(() => {
-        if (open) {
-            setSearch('')
-            setTimeout(() => inputRef.current?.focus(), 0)
-        }
-    }, [open])
-
-    const handleSelect = (id: string) => {
-        props.onSelect(id)
-        setOpen(false)
-    }
-
-    const renderRow = (s: SessionSummary) => {
-        const title = getSessionTitle(s, { fallbackIdLength: 12 })
-        const path = s.metadata?.path ?? ''
-        const isSelected = s.id === props.selectedId
-        return (
-            <button
-                key={s.id}
-                type="button"
-                onClick={() => handleSelect(s.id)}
-                className={cn(
-                    'flex w-full items-center gap-2 px-2 py-1 text-left transition-colors rounded-sm',
-                    isSelected
-                        ? 'bg-[var(--app-link)]/10 text-[var(--app-link)]'
-                        : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
-                )}
-            >
-                <span className={cn(
-                    'h-1.5 w-1.5 shrink-0 rounded-full',
-                    s.active ? 'bg-emerald-400' : 'bg-[var(--app-hint)]/40'
-                )} />
-                <span className="min-w-0 flex-1 truncate font-mono text-xs">{title}</span>
-                {path && <span className="shrink-0 truncate max-w-[120px] text-[10px] text-[var(--app-hint)]">{path.split('/').pop()}</span>}
-            </button>
-        )
-    }
+    const selected = props.sessions.find((session) => session.id === props.selectedId) ?? null
+    const candidates = useMemo(() => props.sessions
+        .filter((session) => session.id !== props.excludeId && matchesSessionSearch(session, search))
+        .sort((a, b) => Number(b.active) - Number(a.active) || b.updatedAt - a.updatedAt)
+        .slice(0, 60), [props.sessions, props.excludeId, search])
 
     return (
-        <div className="flex flex-col gap-1">
-            <label className={labelClass}>{props.label}:</label>
-            <div className="flex items-center gap-1.5">
-                <span className="text-[var(--app-hint)]">{'>'}</span>
-                <button
-                    type="button"
-                    onClick={() => setOpen(!open)}
-                    className={cn(
-                        inputClass,
-                        'text-left truncate',
-                        !selectedTitle && 'text-[var(--app-hint)]'
-                    )}
-                >
-                    {selectedTitle ?? 'Select a session...'}
-                </button>
-            </div>
-
-            {open && (
-                <div className="ml-4 mt-0.5 rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] overflow-hidden">
-                    {/* Search */}
-                    <div className="border-b border-[var(--app-border)] px-2 py-1">
+        <SheetSection title={props.label}>
+            <button
+                type="button"
+                onClick={() => {
+                    setSearch('')
+                    setOpen((value) => !value)
+                }}
+                className="social-pressable flex min-h-[52px] w-full items-center gap-3 px-4 py-2 text-left"
+                aria-expanded={open}
+            >
+                {selected ? <SessionAvatar session={selected} size={30} muted={!selected.active} /> : null}
+                <span className={cn('min-w-0 flex-1 truncate text-[15px]', selected ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)]')}>
+                    {selected ? getSessionTitle(selected, { fallbackIdLength: 12 }) : t('loops.create.pickSession')}
+                </span>
+                <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', open ? 'rotate-90' : '')} />
+            </button>
+            {open ? (
+                <div className="border-t border-[var(--social-border)]">
+                    <label className="flex items-center gap-2 px-4 py-2 text-[var(--social-fg-subtle)]">
+                        <SearchIcon className="h-4 w-4 shrink-0" />
                         <input
-                            ref={inputRef}
+                            autoFocus
                             value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder="search..."
-                            className="w-full bg-transparent font-mono text-xs text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder={t('sessions.search.placeholder')}
+                            className="min-w-0 flex-1 bg-transparent text-[15px] text-[var(--social-fg)] outline-none placeholder:text-[var(--social-fg-subtle)]"
                         />
-                    </div>
-
-                    {/* Results */}
-                    <div className="max-h-[160px] overflow-y-auto py-0.5">
-                        {online.length === 0 && offline.length === 0 ? (
-                            <div className="px-2 py-1.5 font-mono text-xs text-[var(--app-hint)]">
-                                {search ? 'no match' : 'no sessions'}
-                            </div>
-                        ) : (
-                            <>
-                                {online.length > 0 && (
-                                    <>
-                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--app-hint)] uppercase tracking-wide">
-                                            online ({online.length})
-                                        </div>
-                                        {online.map(renderRow)}
-                                    </>
-                                )}
-                                {offline.length > 0 && (
-                                    <>
-                                        <div className="px-2 py-0.5 font-mono text-[10px] text-[var(--app-hint)] uppercase tracking-wide">
-                                            offline ({offline.length})
-                                        </div>
-                                        {offline.map(renderRow)}
-                                    </>
-                                )}
-                            </>
-                        )}
+                    </label>
+                    <div className="max-h-64 overflow-y-auto border-t border-[var(--social-border)]">
+                        {candidates.length === 0 ? (
+                            <div className="px-4 py-3 text-[14px] text-[var(--social-fg-muted)]">{t('loops.create.noMatch')}</div>
+                        ) : candidates.map((session) => (
+                            <button
+                                key={session.id}
+                                type="button"
+                                onClick={() => {
+                                    props.onSelect(session.id)
+                                    setOpen(false)
+                                }}
+                                aria-current={session.id === props.selectedId ? 'true' : undefined}
+                                className="social-pressable flex w-full items-center gap-3 px-4 py-2 text-left aria-[current=true]:bg-[var(--social-muted)]"
+                            >
+                                <SessionAvatar session={session} size={28} muted={!session.active} />
+                                <span className="min-w-0 flex-1">
+                                    <span className="block truncate text-[14px] text-[var(--social-fg)]">{getSessionTitle(session, { fallbackIdLength: 12 })}</span>
+                                    <span className="block truncate text-[12px] text-[var(--social-fg-muted)]">
+                                        {getProjectName(getSessionProjectPath(session))}
+                                        {session.active ? '' : ` · ${t('misc.offline')}`}
+                                    </span>
+                                </span>
+                            </button>
+                        ))}
                     </div>
                 </div>
-            )}
-        </div>
+            ) : null}
+        </SheetSection>
     )
 }
 
 export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoopModalProps) {
+    const { t } = useTranslation()
     const [workerSessionId, setWorkerSessionId] = useState('')
     const [reviewerSessionId, setReviewerSessionId] = useState('')
     const [requirement, setRequirement] = useState('')
@@ -184,16 +126,12 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
         }
     }, [open])
 
-    const workerExclude = useMemo(() => new Set<string>(), [])
-    const reviewerExclude = useMemo(() => workerSessionId ? new Set([workerSessionId]) : new Set<string>(), [workerSessionId])
-
-    const isValid =
-        workerSessionId !== '' &&
-        reviewerSessionId !== '' &&
-        workerSessionId !== reviewerSessionId &&
-        requirement.trim() !== '' &&
-        acceptanceCriteria.trim() !== '' &&
-        maxRounds >= 1
+    const isValid = workerSessionId !== ''
+        && reviewerSessionId !== ''
+        && workerSessionId !== reviewerSessionId
+        && requirement.trim() !== ''
+        && acceptanceCriteria.trim() !== ''
+        && maxRounds >= 1
 
     const handleSubmit = () => {
         if (!isValid) return
@@ -203,143 +141,86 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
             requirement: requirement.trim(),
             acceptanceCriteria: acceptanceCriteria.trim(),
             maxRounds,
-            userPreference,
+            userPreference
         })
     }
 
-    const handleWorkerChange = (id: string) => {
-        setWorkerSessionId(id)
-        if (id === reviewerSessionId) {
-            setReviewerSessionId('')
-        }
-    }
-
     return (
-        <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-            <DialogContent className="max-w-md font-mono !rounded-sm overflow-hidden">
-                <DialogHeader>
-                    <DialogTitle className="font-mono text-xs font-normal text-[var(--app-hint)]">
-                        <div className="flex items-center gap-2">
-                            <div className="border-t border-[var(--app-border)] w-4" />
-                            <span>New Review Loop</span>
-                            <div className="flex-1 border-t border-[var(--app-border)]" />
-                        </div>
-                    </DialogTitle>
-                    <DialogDescription className="sr-only">
-                        Set up a worker-reviewer loop with acceptance criteria.
-                    </DialogDescription>
-                </DialogHeader>
+        <BottomSheet open={open} onOpenChange={(value) => !value && onClose()} title={t('mobile.loops.new')}>
+            <div className="pt-1">
+                <SessionPicker
+                    label={t('loops.create.worker')}
+                    sessions={sessions}
+                    selectedId={workerSessionId}
+                    onSelect={(id) => {
+                        setWorkerSessionId(id)
+                        if (id === reviewerSessionId) setReviewerSessionId('')
+                    }}
+                />
+                <SessionPicker
+                    label={t('loops.create.reviewer')}
+                    sessions={sessions}
+                    excludeId={workerSessionId}
+                    selectedId={reviewerSessionId}
+                    onSelect={setReviewerSessionId}
+                />
 
-                <div className="mt-2 flex flex-col gap-3 text-xs min-w-0">
-                    {/* Worker Session */}
-                    <SessionPicker
-                        label="Worker Session"
-                        sessions={sessions}
-                        excludeIds={workerExclude}
-                        selectedId={workerSessionId}
-                        onSelect={handleWorkerChange}
-                    />
-
-                    {/* Reviewer Session */}
-                    <SessionPicker
-                        label="Reviewer Session"
-                        sessions={sessions}
-                        excludeIds={reviewerExclude}
-                        selectedId={reviewerSessionId}
-                        onSelect={setReviewerSessionId}
-                    />
-
-                    {workerSessionId && workerSessionId === reviewerSessionId && (
-                        <p className="font-mono text-xs text-[var(--app-badge-warning-text)] ml-4">
-                            ! Worker and reviewer must be different sessions.
-                        </p>
-                    )}
-
-                    {/* Requirement */}
-                    <div className="flex flex-col gap-1">
-                        <label className={labelClass}>Requirement:</label>
-                        <div className="flex items-start gap-1.5">
-                            <span className="text-[var(--app-hint)] mt-1.5">{'>'}</span>
-                            <textarea
-                                value={requirement}
-                                onChange={(e) => setRequirement(e.target.value)}
-                                placeholder="Describe the task for the worker..."
-                                className={cn(inputClass, 'resize-none placeholder:text-[var(--app-hint)]')}
-                                rows={3}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Acceptance Criteria */}
-                    <div className="flex flex-col gap-1">
-                        <label className={labelClass}>Acceptance Criteria:</label>
-                        <div className="flex items-start gap-1.5">
-                            <span className="text-[var(--app-hint)] mt-1.5">{'>'}</span>
-                            <textarea
-                                value={acceptanceCriteria}
-                                onChange={(e) => setAcceptanceCriteria(e.target.value)}
-                                placeholder="Define what the reviewer should check..."
-                                className={cn(inputClass, 'resize-none placeholder:text-[var(--app-hint)]')}
-                                rows={3}
-                            />
-                        </div>
-                    </div>
-
-                    {/* Max Rounds & Notify inline */}
-                    <div className="flex items-center gap-4 ml-2 mt-1 flex-wrap">
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[var(--app-hint)]">max-rounds:</span>
-                            <input
-                                type="number"
-                                min={1}
-                                max={100}
-                                value={maxRounds}
-                                onChange={(e) => setMaxRounds(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="w-14 rounded-sm border border-[var(--app-border)] bg-[var(--app-code-bg)] px-2 py-0.5 font-mono text-xs text-[var(--app-fg)] text-center focus:outline-none focus:border-[var(--app-link)]"
-                            />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-[var(--app-hint)]">notify:</span>
-                            <div className="flex items-center gap-0.5">
-                                {PREFERENCE_OPTIONS.map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={() => setUserPreference(opt.value)}
-                                        className={cn(
-                                            'rounded-sm px-2 py-0.5 font-mono text-xs transition-colors',
-                                            userPreference === opt.value
-                                                ? 'border border-[var(--app-link)] text-[var(--app-fg)]'
-                                                : 'border border-transparent text-[var(--app-hint)] hover:text-[var(--app-fg)]'
-                                        )}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                <div className="flex flex-col gap-3 px-4 pb-3">
+                    <label className="flex flex-col gap-1.5">
+                        <span className="px-1 text-[12px] font-medium text-[var(--social-fg-muted)]">{t('loops.create.requirement')}</span>
+                        <textarea
+                            value={requirement}
+                            onChange={(event) => setRequirement(event.target.value)}
+                            placeholder={t('loops.create.requirementPlaceholder')}
+                            rows={3}
+                            className={cn(DIALOG_INPUT_CLASS, 'resize-none')}
+                        />
+                    </label>
+                    <label className="flex flex-col gap-1.5">
+                        <span className="px-1 text-[12px] font-medium text-[var(--social-fg-muted)]">{t('loops.create.criteria')}</span>
+                        <textarea
+                            value={acceptanceCriteria}
+                            onChange={(event) => setAcceptanceCriteria(event.target.value)}
+                            placeholder={t('loops.create.criteriaPlaceholder')}
+                            rows={3}
+                            className={cn(DIALOG_INPUT_CLASS, 'resize-none')}
+                        />
+                    </label>
                 </div>
 
-                {/* Actions */}
-                <div className="mt-3 flex gap-2 ml-2">
-                    <button
-                        type="button"
-                        onClick={handleSubmit}
-                        disabled={!isValid}
-                        className="rounded-sm border border-[var(--app-link)] bg-[var(--app-subtle-bg)] px-3 py-1 font-mono text-xs text-[var(--app-fg)] hover:bg-[var(--app-link)] hover:text-[var(--app-button-text)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                        Create &#x25B8;
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="rounded-sm border border-[var(--app-border)] bg-transparent px-3 py-1 font-mono text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:border-[var(--app-fg)] transition-colors"
-                    >
-                        Cancel
-                    </button>
+                <SheetSection>
+                    <div className="flex min-h-[48px] items-center gap-3 px-4 py-2">
+                        <span className="flex-1 text-[15px] text-[var(--social-fg)]">{t('loops.create.maxRounds')}</span>
+                        <input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={maxRounds}
+                            onChange={(event) => setMaxRounds(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
+                            className="w-20 rounded-lg border border-[var(--social-border)] bg-[var(--app-bg)] px-2 py-1.5 text-center text-[15px] tabular-nums text-[var(--social-fg)] outline-none focus:border-[var(--social-fg-subtle)]"
+                        />
+                    </div>
+                </SheetSection>
+
+                <SheetSection title={t('loops.create.notify')}>
+                    <SegmentedControl
+                        framed={false}
+                        label={t('loops.create.notify')}
+                        value={userPreference}
+                        options={PREFERENCES.map((preference) => ({ value: preference, label: t(`loops.create.notify.${preference}`) }))}
+                        onChange={setUserPreference}
+                    />
+                </SheetSection>
+
+                <div className="flex justify-end gap-2 px-4 pb-4 pt-1">
+                    <Button type="button" variant="secondary" onClick={onClose}>
+                        {t('button.cancel')}
+                    </Button>
+                    <Button type="button" onClick={handleSubmit} disabled={!isValid}>
+                        {t('newSession.create')}
+                    </Button>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </div>
+        </BottomSheet>
     )
 }

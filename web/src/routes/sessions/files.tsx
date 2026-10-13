@@ -11,25 +11,8 @@ import { useSessionFileSearch } from '@/hooks/queries/useSessionFileSearch'
 import { encodeBase64 } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
-
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
+import { useTranslation } from '@/lib/use-translation'
+import { SubPageHeader, SubPageHeaderButton } from '@/components/mobile/SubPageHeader'
 
 function RefreshIcon(props: { className?: string }) {
     return (
@@ -278,6 +261,7 @@ export default function FilesPage() {
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const goBack = useAppGoBack()
+    const { t } = useTranslation()
     const { sessionId } = useParams({ from: '/sessions/$sessionId/files' })
     const search = useSearch({ from: '/sessions/$sessionId/files' })
     const { session } = useSession(api, sessionId)
@@ -370,29 +354,16 @@ export default function FilesPage() {
 
     return (
         <div className="flex h-full flex-col">
-            <div className="bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto w-full max-w-content flex items-center gap-2 p-3 border-b border-[var(--app-border)]">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                    >
-                        <BackIcon />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">Files</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{subtitle}</div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={handleRefresh}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        title="Refresh"
-                    >
+            <SubPageHeader
+                title={t('files.title')}
+                subtitle={subtitle}
+                onBack={goBack}
+                actions={(
+                    <SubPageHeaderButton label={t('files.refresh')} onClick={handleRefresh}>
                         <RefreshIcon />
-                    </button>
-                </div>
-            </div>
+                    </SubPageHeaderButton>
+                )}
+            />
 
             <div className="bg-[var(--app-bg)]">
                 <div className="mx-auto w-full max-w-content p-3 border-b border-[var(--app-border)]">
@@ -401,7 +372,7 @@ export default function FilesPage() {
                         <input
                             value={searchQuery}
                             onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Search files"
+                            placeholder={t('files.search')}
                             className="w-full bg-transparent text-sm text-[var(--app-fg)] placeholder:text-[var(--app-hint)] focus:outline-none"
                             autoCapitalize="none"
                             autoCorrect="off"
@@ -419,7 +390,7 @@ export default function FilesPage() {
                         onClick={() => handleTabChange('changes')}
                         className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'changes' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
                     >
-                        Changes
+                        {t('files.tab.changes')}
                         <span
                             className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'changes' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
                         />
@@ -431,7 +402,7 @@ export default function FilesPage() {
                         onClick={() => handleTabChange('directories')}
                         className={`relative py-3 text-center text-sm font-semibold transition-colors hover:bg-[var(--app-subtle-bg)] ${activeTab === 'directories' ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}
                     >
-                        Directories
+                        {t('files.tab.directories')}
                         <span
                             className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'directories' ? 'bg-[var(--app-link)]' : 'bg-transparent'}`}
                         />
@@ -474,12 +445,12 @@ export default function FilesPage() {
                     ) : null}
                     {shouldSearch ? (
                         searchResults.isLoading ? (
-                            <FileListSkeleton label="Loading files…" />
+                            <FileListSkeleton label={t('files.loading')} />
                         ) : searchResults.error ? (
                             <div className="p-6 text-sm text-[var(--app-hint)]">{searchResults.error}</div>
                         ) : searchResults.files.length === 0 ? (
                             <div className="p-6 text-sm text-[var(--app-hint)]">
-                                {searchQuery ? 'No files match your search.' : 'No files found in this project.'}
+                                {searchQuery ? t('files.empty.search') : t('files.empty.project')}
                             </div>
                         ) : (
                             <div className="border-t border-[var(--app-divider)]">
@@ -501,13 +472,13 @@ export default function FilesPage() {
                             onOpenFile={(path) => handleOpenFile(path)}
                         />
                     ) : gitLoading ? (
-                        <FileListSkeleton label="Loading Git status…" />
+                        <FileListSkeleton label={t('files.loadingGit')} />
                     ) : (
                         <div>
                             {gitStatus?.stagedFiles.length ? (
                                 <div>
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-staged-color)]">
-                                        Staged Changes ({gitStatus.stagedFiles.length})
+                                        {t('files.staged', { n: gitStatus.stagedFiles.length })}
                                     </div>
                                     {stagedGroups.map((group, groupIndex) => (
                                         <div key={`staged-group-${group.repo ?? 'root'}-${groupIndex}`}>
@@ -536,7 +507,7 @@ export default function FilesPage() {
                             {gitStatus?.unstagedFiles.length ? (
                                 <div>
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-unstaged-color)]">
-                                        Unstaged Changes ({gitStatus.unstagedFiles.length})
+                                        {t('files.unstaged', { n: gitStatus.unstagedFiles.length })}
                                     </div>
                                     {unstagedGroups.map((group, groupIndex) => (
                                         <div key={`unstaged-group-${group.repo ?? 'root'}-${groupIndex}`}>
@@ -564,13 +535,13 @@ export default function FilesPage() {
 
                             {!gitStatus ? (
                                 <div className="p-6 text-sm text-[var(--app-hint)]">
-                                    Git status unavailable. Use Directories to browse all files, or search.
+                                    {t('files.gitUnavailable')}
                                 </div>
                             ) : null}
 
                             {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
                                 <div className="p-6 text-sm text-[var(--app-hint)]">
-                                    No changes detected. Use Directories to browse all files, or search.
+                                    {t('files.noChanges')}
                                 </div>
                             ) : null}
                         </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation, useMatchRoute, useRouter } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { getTelegramWebApp, isTelegramApp } from '@/hooks/useTelegram'
@@ -10,6 +10,7 @@ import { useSSE } from '@/hooks/useSSE'
 import { useSyncingState } from '@/hooks/useSyncingState'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { useVisibilityReporter } from '@/hooks/useVisibilityReporter'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { queryKeys } from '@/lib/query-keys'
 import { AppContextProvider } from '@/lib/app-context'
 import { fetchLatestMessages } from '@/lib/message-window-store'
@@ -24,6 +25,7 @@ import { SyncingBanner } from '@/components/SyncingBanner'
 import { ReconnectingBanner } from '@/components/ReconnectingBanner'
 import { VoiceErrorBanner } from '@/components/VoiceErrorBanner'
 import { LoadingState } from '@/components/LoadingState'
+import { DesktopNavRail } from '@/components/mobile/MobileTabBar'
 import { ToastContainer } from '@/components/ToastContainer'
 import { ToastProvider, useToast } from '@/lib/toast-context'
 import type { SyncEvent } from '@/types/api'
@@ -50,6 +52,12 @@ function AppInner() {
     const matchRoute = useMatchRoute()
     const router = useRouter()
     const { addToast } = useToast()
+    const isMobileLayout = useIsMobileLayout()
+
+    // Minimal monochrome palette for every layout (see index.css); set on <html> so portals match.
+    useLayoutEffect(() => {
+        document.documentElement.classList.add('social-app')
+    }, [])
 
     useEffect(() => {
         const tg = getTelegramWebApp()
@@ -376,9 +384,18 @@ function AppInner() {
                 />
                 <VoiceErrorBanner />
                 <OfflineBanner />
-                <div className="h-full flex flex-col">
-                    <Outlet />
-                </div>
+                {isMobileLayout ? (
+                    <div className="h-full flex flex-col">
+                        <Outlet />
+                    </div>
+                ) : (
+                    <div className="flex h-full">
+                        <DesktopNavRail />
+                        <div className="flex h-full min-w-0 flex-1 flex-col">
+                            <Outlet />
+                        </div>
+                    </div>
+                )}
                 <ToastContainer />
                 <InstallPrompt />
             </VoiceProvider>

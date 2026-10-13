@@ -8,29 +8,17 @@ import { useSession } from '@/hooks/queries/useSession'
 import { LoadingState } from '@/components/LoadingState'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizePreviewUrlInput } from '@/lib/preview-url'
-
-function BackIcon() {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
+import { useTranslation } from '@/lib/use-translation'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { Button } from '@/components/ui/button'
+import { FieldHint, SuggestionChip } from '@/components/ui/FormControls'
 
 export default function PreviewPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/preview' })
     const { api } = useAppContext()
     const goBack = useAppGoBack()
+    const { t } = useTranslation()
     const queryClient = useQueryClient()
     const { settings: experimentalSettings, isLoading: experimentalSettingsLoading } = useExperimentalSettings(api, true)
     const { session, isLoading, error } = useSession(api, sessionId)
@@ -44,7 +32,7 @@ export default function PreviewPage() {
         queryKey: queryKeys.previewUrlHistory,
         queryFn: async () => {
             if (!api) {
-                throw new Error('API unavailable')
+                throw new Error(t('preview.error.api'))
             }
             return await api.getPreviewUrlHistory(20)
         },
@@ -53,35 +41,6 @@ export default function PreviewPage() {
     })
 
     const historyUrls = historyQuery.data?.urls ?? []
-
-    if (experimentalSettingsLoading) {
-        return (
-            <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
-                <LoadingState label="Loading preview…" className="text-sm" />
-            </div>
-        )
-    }
-
-    if (!experimentalSettings.previewEnabled) {
-        return (
-            <div className="flex h-full flex-col bg-[var(--app-bg)]">
-                <div className="flex items-center gap-2 border-b border-[var(--app-border)] px-3 py-2">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
-                        aria-label="Back"
-                    >
-                        <BackIcon />
-                    </button>
-                    <div className="text-sm font-semibold">Preview</div>
-                </div>
-                <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-[var(--app-hint)]">
-                    Preview is disabled in settings.
-                </div>
-            </div>
-        )
-    }
 
     useEffect(() => {
         const next = session?.previewUrl ?? ''
@@ -93,10 +52,10 @@ export default function PreviewPage() {
         if (session?.metadata?.name) return session.metadata.name
         if (session?.metadata?.path) {
             const parts = session.metadata.path.split('/').filter(Boolean)
-            return parts[parts.length - 1] || 'Preview'
+            return parts[parts.length - 1] || t('preview.title')
         }
-        return 'Preview'
-    }, [session])
+        return t('preview.title')
+    }, [session, t])
 
     const invalidatePreviewData = useCallback(async () => {
         await queryClient.invalidateQueries({ queryKey: queryKeys.session(sessionId) })
@@ -106,13 +65,13 @@ export default function PreviewPage() {
 
     const openPreview = useCallback(async (raw: string) => {
         if (!api) {
-            setFormError('API unavailable')
+            setFormError(t('preview.error.api'))
             return
         }
 
         const normalized = normalizePreviewUrlInput(raw)
         if (normalized.error) {
-            setFormError(normalized.error)
+            setFormError(t(`preview.error.${normalized.error}`))
             return
         }
 
@@ -125,15 +84,15 @@ export default function PreviewPage() {
             setFrameKey((key) => key + 1)
             await invalidatePreviewData()
         } catch (e) {
-            setFormError(e instanceof Error ? e.message : 'Failed to update preview URL')
+            setFormError(e instanceof Error ? e.message : t('preview.error.save'))
         } finally {
             setIsSaving(false)
         }
-    }, [api, invalidatePreviewData, sessionId])
+    }, [api, invalidatePreviewData, sessionId, t])
 
     const clearPreview = useCallback(async () => {
         if (!api) {
-            setFormError('API unavailable')
+            setFormError(t('preview.error.api'))
             return
         }
 
@@ -146,51 +105,60 @@ export default function PreviewPage() {
             setFrameKey((key) => key + 1)
             await invalidatePreviewData()
         } catch (e) {
-            setFormError(e instanceof Error ? e.message : 'Failed to clear preview URL')
+            setFormError(e instanceof Error ? e.message : t('preview.error.clear'))
         } finally {
             setIsSaving(false)
         }
-    }, [api, invalidatePreviewData, sessionId])
+    }, [api, invalidatePreviewData, sessionId, t])
+
+    // Early returns stay below every hook: settings load after the first render.
+    if (experimentalSettingsLoading) {
+        return (
+            <div className="flex h-full items-center justify-center text-sm text-[var(--app-hint)]">
+                <LoadingState label={t('preview.loading')} className="text-sm" />
+            </div>
+        )
+    }
+
+    if (!experimentalSettings.previewEnabled) {
+        return (
+            <div className="flex h-full flex-col bg-[var(--app-bg)]">
+                <SubPageHeader title={t('preview.title')} onBack={goBack} />
+                <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-[var(--app-hint)]">
+                    {t('preview.disabled')}
+                </div>
+            </div>
+        )
+    }
 
     if (isLoading && !session) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <LoadingState label="Loading preview…" className="text-sm" />
+                <LoadingState label={t('preview.loading')} className="text-sm" />
             </div>
         )
     }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-            <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] pt-[env(safe-area-inset-top)]">
-                <div className="mx-auto flex w-full max-w-content items-center gap-2 p-3">
-                    <button
-                        type="button"
-                        onClick={goBack}
-                        className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                        aria-label="Back"
+            <SubPageHeader
+                title={t('preview.title')}
+                subtitle={sessionTitle}
+                onBack={goBack}
+                actions={frameUrl ? (
+                    <a
+                        href={frameUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full border border-[var(--social-border)] px-3 py-1.5 text-[13px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)]"
                     >
-                        <BackIcon />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">Preview</div>
-                        <div className="truncate text-xs text-[var(--app-hint)]">{sessionTitle}</div>
-                    </div>
-                    {frameUrl ? (
-                        <a
-                            href={frameUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)]"
-                        >
-                            Open
-                        </a>
-                    ) : null}
-                </div>
-            </div>
+                        {t('preview.open')}
+                    </a>
+                ) : undefined}
+            />
 
-            <div className="mx-auto flex w-full max-w-content flex-1 min-h-0 flex-col gap-3 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3">
+            <div className="mx-auto flex w-full max-w-content flex-1 min-h-0 flex-col gap-3 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3">
+                <div className="flex flex-col gap-2">
                     <div className="flex flex-col gap-2 sm:flex-row">
                         <input
                             type="text"
@@ -203,77 +171,53 @@ export default function PreviewPage() {
                                 }
                             }}
                             placeholder="http://localhost:3000"
-                            className="min-w-0 flex-1 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)]"
+                            aria-label={t('newSession.previewUrl')}
+                            className={`${DIALOG_INPUT_CLASS} min-w-0 flex-1`}
                         />
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={() => void openPreview(inputUrl)}
-                                disabled={isSaving}
-                                className="rounded-md bg-[var(--app-link)] px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isSaving ? 'Saving…' : 'Load'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setFrameKey((key) => key + 1)}
-                                disabled={!frameUrl}
-                                className="rounded-md border border-[var(--app-border)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                Reload
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => void clearPreview()}
-                                disabled={isSaving}
-                                className="rounded-md border border-[var(--app-border)] px-3 py-2 text-sm text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
-                            >
-                                Clear
-                            </button>
+                            <Button type="button" className="h-10" onClick={() => void openPreview(inputUrl)} disabled={isSaving}>
+                                {isSaving ? t('preview.saving') : t('preview.load')}
+                            </Button>
+                            <Button type="button" variant="secondary" className="h-10" onClick={() => setFrameKey((key) => key + 1)} disabled={!frameUrl}>
+                                {t('preview.reload')}
+                            </Button>
+                            <Button type="button" variant="secondary" className="h-10" onClick={() => void clearPreview()} disabled={isSaving}>
+                                {t('preview.clear')}
+                            </Button>
                         </div>
                     </div>
 
                     {historyUrls.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1.5">
                             {historyUrls.slice(0, 10).map((url) => (
-                                <button
+                                <SuggestionChip
                                     key={url}
-                                    type="button"
+                                    label={url}
                                     onClick={() => {
                                         setInputUrl(url)
                                         void openPreview(url)
                                     }}
-                                    className="max-w-full truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-left text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-bg)]"
-                                    title={url}
-                                >
-                                    {url}
-                                </button>
+                                />
                             ))}
                         </div>
                     ) : null}
 
-                    {formError ? (
-                        <div className="mt-2 text-sm text-red-600">{formError}</div>
-                    ) : null}
-                    {error ? (
-                        <div className="mt-2 text-sm text-red-600">{error}</div>
-                    ) : null}
-                    <div className="mt-2 text-xs text-[var(--app-hint)]">
-                        Some sites block embedding with iframe headers (X-Frame-Options/CSP).
-                    </div>
+                    {formError ? <div className="px-1 text-[13px] text-[var(--social-danger)]">{formError}</div> : null}
+                    {error ? <div className="px-1 text-[13px] text-[var(--social-danger)]">{error}</div> : null}
+                    <FieldHint>{t('preview.embedHint')}</FieldHint>
                 </div>
 
-                <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-[var(--app-border)] bg-white">
+                <div className={`min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--social-border)] ${frameUrl ? 'bg-white' : 'bg-[var(--app-bg)]'}`}>
                     {frameUrl ? (
                         <iframe
                             key={`${frameKey}:${frameUrl}`}
                             src={frameUrl}
-                            title={`Session preview ${sessionId}`}
+                            title={t('preview.title')}
                             className="h-full w-full border-0"
                         />
                     ) : (
-                        <div className="flex h-full items-center justify-center p-4 text-sm text-[var(--app-hint)]">
-                            Enter a URL and click Load to open the preview.
+                        <div className="flex h-full items-center justify-center p-6 text-center text-[14px] text-[var(--social-fg-muted)]">
+                            {t('preview.empty')}
                         </div>
                     )}
                 </div>

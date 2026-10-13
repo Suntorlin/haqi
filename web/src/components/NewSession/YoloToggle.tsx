@@ -1,5 +1,6 @@
+import { SheetSwitchRow } from '@/components/mobile/BottomSheet'
+import { FormField } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
-import { Switch } from '@/components/ui/Switch'
 
 export function YoloToggle(props: {
     yoloMode: boolean
@@ -9,26 +10,16 @@ export function YoloToggle(props: {
     const { t } = useTranslation()
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
-                {t('newSession.yolo')}
-            </label>
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex flex-col">
-                    <span className="text-sm text-[var(--app-fg)]">
-                        {t('newSession.yolo.title')}
-                    </span>
-                    <span className="text-xs text-[var(--app-hint)]">
-                        {t('newSession.yolo.desc')}
-                    </span>
-                </div>
-                <Switch
+        <FormField label={t('newSession.yolo')}>
+            <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                <SheetSwitchRow
+                    label={t('newSession.yolo.title')}
+                    description={t('newSession.yolo.desc')}
                     checked={props.yoloMode}
-                    onCheckedChange={props.onToggle}
                     disabled={props.isDisabled}
-                    ariaLabel={t('newSession.yolo.title')}
+                    onCheckedChange={props.onToggle}
                 />
             </div>
-        </div>
+        </FormField>
     )
 }

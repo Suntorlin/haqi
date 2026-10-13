@@ -1,4 +1,7 @@
+import { useId } from 'react'
+import { FormField, SelectInput } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
+import { serviceTierText } from '@/lib/option-labels'
 import { CODEX_SERVICE_TIER_OPTIONS, type AgentType, type ServiceTier } from './types'
 
 export function ServiceTierSelector(props: {
@@ -8,28 +11,25 @@ export function ServiceTierSelector(props: {
     onServiceTierChange: (value: ServiceTier) => void
 }) {
     const { t } = useTranslation()
+    const id = useId()
     if (props.agent !== 'codex') {
         return null
     }
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
-                {t('newSession.serviceTier')}{' '}
-                <span className="font-normal">({t('newSession.model.optional')})</span>
-            </label>
-            <select
+        <FormField label={t('newSession.serviceTier')} htmlFor={id} optional>
+            <SelectInput
+                id={id}
                 value={props.serviceTier}
                 onChange={(e) => props.onServiceTierChange(e.target.value as ServiceTier)}
                 disabled={props.isDisabled}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-text)] focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
             >
                 {CODEX_SERVICE_TIER_OPTIONS.map((option) => (
                     <option key={option.value} value={option.value}>
-                        {option.label}
+                        {serviceTierText(option.value, option.label, t)}
                     </option>
                 ))}
-            </select>
-        </div>
+            </SelectInput>
+        </FormField>
     )
 }

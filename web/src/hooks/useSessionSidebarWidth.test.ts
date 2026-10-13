@@ -7,11 +7,11 @@ import {
 
 describe('useSessionSidebarWidth helpers', () => {
     it('uses xl default width for wide screens', () => {
-        expect(getDefaultSessionSidebarWidth(1400)).toBe(480)
+        expect(getDefaultSessionSidebarWidth(1400)).toBe(400)
     })
 
     it('uses normal default width for regular screens', () => {
-        expect(getDefaultSessionSidebarWidth(1100)).toBe(420)
+        expect(getDefaultSessionSidebarWidth(1100)).toBe(380)
     })
 
     it('clamps below min width', () => {

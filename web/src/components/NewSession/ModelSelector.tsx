@@ -1,6 +1,10 @@
+import { useId } from 'react'
 import type { AgentType, ModelOption } from './types'
 import { getModelOptionsForAgent } from './types'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { FormField, SelectInput } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
+import { modelOptionText } from '@/lib/option-labels'
 
 export function ModelSelector(props: {
     agent: AgentType
@@ -11,40 +15,35 @@ export function ModelSelector(props: {
     onCustomModelChange: (value: string) => void
 }) {
     const { t } = useTranslation()
+    const id = useId()
     const options: ModelOption[] = getModelOptionsForAgent(props.agent)
     if (options.length === 0) {
         return null
     }
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
-                {t('newSession.model')}{' '}
-                <span className="font-normal">({t('newSession.model.optional')})</span>
-            </label>
-            <select
+        <FormField label={t('newSession.model')} htmlFor={id} optional hint={t('newSession.model.customHint')}>
+            <SelectInput
+                id={id}
                 value={props.model}
                 onChange={(e) => props.onModelChange(e.target.value)}
                 disabled={props.isDisabled}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-text)] focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
             >
                 {options.map((option) => (
                     <option key={option.value} value={option.value}>
-                        {option.label}
+                        {modelOptionText(option.value, option.label, t)}
                     </option>
                 ))}
-            </select>
+            </SelectInput>
             <input
                 type="text"
                 value={props.customModel}
                 onChange={(e) => props.onCustomModelChange(e.target.value)}
                 disabled={props.isDisabled}
                 placeholder={t('newSession.model.customPlaceholder')}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-[var(--app-divider)] bg-[var(--app-bg)] text-[var(--app-text)] focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                aria-label={t('newSession.model.customPlaceholder')}
+                className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
             />
-            <span className="text-[11px] text-[var(--app-hint)]">
-                {t('newSession.model.customHint')}
-            </span>
-        </div>
+        </FormField>
     )
 }

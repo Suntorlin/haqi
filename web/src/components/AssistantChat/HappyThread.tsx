@@ -1,18 +1,62 @@
-import { useEffect, useRef } from 'react'
-import { ThreadPrimitive } from '@assistant-ui/react'
+import { useCallback, useEffect, useRef } from 'react'
+import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
 import { HappyChatProvider } from '@/components/AssistantChat/context'
 import { HappyAssistantMessage } from '@/components/AssistantChat/messages/AssistantMessage'
 import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessage'
 import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMessage'
+import { SocialAssistantMessage, SocialUserMessage } from '@/components/AssistantChat/messages/SocialMessages'
+import { cn } from '@/lib/utils'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
+import type { RunStats } from '@/components/mobile/chatTimeline'
 import { useTranslation } from '@/lib/use-translation'
 
-function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void }) {
+const STICK_TO_BOTTOM_THRESHOLD_PX = 32
+
+/**
+ * Social layout replaces assistant-ui's auto-scroll: stay pinned to the bottom while content grows,
+ * except during a short hold requested by a message that is expanding or collapsing itself.
+ */
+function useStickToBottom(
+    enabled: boolean,
+    viewportRef: React.RefObject<HTMLDivElement | null>,
+    contentRef: React.RefObject<HTMLDivElement | null>
+): (durationMs?: number) => void {
+    const holdUntilRef = useRef(0)
+    useEffect(() => {
+        const viewport = viewportRef.current
+        const content = contentRef.current
+        if (!enabled || !viewport || !content) return
+        let nearBottom = true
+        const onScroll = () => {
+            nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= STICK_TO_BOTTOM_THRESHOLD_PX
+        }
+        onScroll()
+        viewport.addEventListener('scroll', onScroll, { passive: true })
+        const observer = new ResizeObserver(() => {
+            if (!nearBottom || performance.now() < holdUntilRef.current) return
+            viewport.scrollTop = viewport.scrollHeight
+        })
+        observer.observe(content)
+        return () => {
+            viewport.removeEventListener('scroll', onScroll)
+            observer.disconnect()
+        }
+    }, [enabled, viewportRef, contentRef])
+    return useCallback((durationMs = 700) => {
+        holdUntilRef.current = performance.now() + durationMs
+    }, [])
+}
+
+// Social layout collapses each agent turn, so a long turn can fill the latest page entirely.
+// Pull a few older pages so the user's own last message is on screen too.
+const MAX_SOCIAL_AUTO_LOAD_PAGES = 4
+
+function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void; social?: boolean }) {
     const { t } = useTranslation()
     if (!props.show) {
         return null
@@ -21,7 +65,12 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     return (
         <button
             onClick={props.onClick}
-            className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[var(--app-button)] text-[var(--app-button-text)] px-3 py-1.5 rounded-full text-sm font-medium shadow-lg animate-bounce-in z-10"
+            className={cn(
+                'absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-sm font-medium shadow-lg animate-bounce-in z-10',
+                props.social
+                    ? 'bottom-3 bg-[var(--social-primary)] text-[13px] text-[var(--social-primary-fg)]'
+                    : 'bottom-20 bg-[var(--app-button)] text-[var(--app-button-text)]'
+            )}
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
         </button>
@@ -88,13 +137,23 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
     )
 }
 
-function ThreadMessagesList() {
-    return <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />
+function ThreadMessagesList(props: { social: boolean }) {
+    return (
+        <ThreadPrimitive.Messages
+            components={props.social ? SOCIAL_THREAD_MESSAGE_COMPONENTS : THREAD_MESSAGE_COMPONENTS}
+        />
+    )
 }
 
 const THREAD_MESSAGE_COMPONENTS = {
     UserMessage: HappyUserMessage,
     AssistantMessage: HappyAssistantMessage,
+    SystemMessage: HappySystemMessage
+} as const
+
+const SOCIAL_THREAD_MESSAGE_COMPONENTS = {
+    UserMessage: SocialUserMessage,
+    AssistantMessage: SocialAssistantMessage,
     SystemMessage: HappySystemMessage
 } as const
 
@@ -120,8 +179,14 @@ export function HappyThread(props: {
     forceScrollToken: number
     density: SessionListDensity
     toolProgress?: ReadonlyMap<string, ToolProgressSignal> | null
+    layout?: 'classic' | 'social'
+    timeSeparators?: ReadonlyMap<string, number> | null
+    runStats?: ReadonlyMap<string, RunStats> | null
 }) {
     const viewportRef = useRef<HTMLDivElement | null>(null)
+    const contentRef = useRef<HTMLDivElement | null>(null)
+    const isSocial = props.layout === 'social'
+    const holdAutoScroll = useStickToBottom(isSocial, viewportRef, contentRef)
     const {
         isNearBottom,
         showJumpToLatest,
@@ -145,8 +210,23 @@ export function HappyThread(props: {
         props.onAtBottomChange(isNearBottom)
     }, [isNearBottom, props.onAtBottomChange])
 
+    const hasUserMessage = useAssistantState(({ thread }) => thread.messages.some((message) => message.role === 'user'))
+    const autoLoadPagesRef = useRef(0)
+    useEffect(() => {
+        autoLoadPagesRef.current = 0
+    }, [props.sessionId])
+    useEffect(() => {
+        if (!isSocial || hasUserMessage || !props.hasMoreMessages) return
+        if (props.isLoadingMessages || props.isLoadingMoreMessages) return
+        if (autoLoadPagesRef.current >= MAX_SOCIAL_AUTO_LOAD_PAGES) return
+        autoLoadPagesRef.current += 1
+        void props.onLoadMore()
+    }, [isSocial, hasUserMessage, props.hasMoreMessages, props.isLoadingMessages, props.isLoadingMoreMessages, props.onLoadMore])
+
     const showSkeleton = props.isLoadingMessages && props.messagesVersion === 0 && props.pendingCount === 0
-    const isCompact = props.density === 'compact'
+    // Social layout always uses one-line tool rows so bubbles stay readable on phones.
+    const effectiveDensity: SessionListDensity = isSocial ? 'compact' : props.density
+    const isCompact = effectiveDensity === 'compact'
 
     return (
         <HappyChatProvider value={{
@@ -156,17 +236,25 @@ export function HappyThread(props: {
             agentState: props.agentState,
             permissionMode: props.permissionMode,
             disabled: props.disabled,
-            density: props.density,
+            density: effectiveDensity,
             onRefresh: props.onRefresh,
             onRetryMessage: props.onRetryMessage,
-            toolProgress: props.toolProgress
+            toolProgress: props.toolProgress,
+            layout: props.layout ?? 'classic',
+            timeSeparators: props.timeSeparators ?? null,
+            runStats: props.runStats ?? null,
+            holdAutoScroll
         }}>
             <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
-                    className="app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden"
+                    autoScroll={isSocial ? false : undefined}
+                    className={cn(
+                        'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
+                        isSocial ? 'social-chat' : ''
+                    )}
                 >
-                    <div className={`mx-auto w-full max-w-content min-w-0 ${isCompact ? 'p-2' : 'p-3'}`}>
+                    <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-4 pb-5 pt-4' : isCompact ? 'p-2' : 'p-3'}`}>
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (
@@ -184,8 +272,8 @@ export function HappyThread(props: {
                                 ) : null}
                             </>
                         )}
-                        <div className={`flex flex-col ${isCompact ? 'gap-2' : 'gap-3'}`}>
-                            <ThreadMessagesList />
+                        <div className={`flex flex-col ${isSocial ? 'gap-5' : isCompact ? 'gap-2' : 'gap-3'}`}>
+                            <ThreadMessagesList social={isSocial} />
                         </div>
                     </div>
                 </ThreadPrimitive.Viewport>
@@ -193,6 +281,7 @@ export function HappyThread(props: {
                     count={props.pendingCount}
                     show={showJumpToLatest}
                     onClick={scrollToBottom}
+                    social={isSocial}
                 />
             </ThreadPrimitive.Root>
         </HappyChatProvider>

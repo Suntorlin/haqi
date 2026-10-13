@@ -373,13 +373,14 @@ function statusColorClass(state: ToolCallBlock['tool']['state']): string {
 
 function getToolStatusLabel(
     state: ToolCallBlock['tool']['state'],
-    permissionStatus?: string
+    permissionStatus: string | undefined,
+    t: (key: string) => string
 ): string {
-    if (permissionStatus === 'pending') return 'Needs approval'
-    if (state === 'completed') return 'Done'
-    if (state === 'error') return 'Failed'
-    if (state === 'pending') return 'Pending'
-    return 'Running'
+    if (permissionStatus === 'pending') return t('tool.status.needsApproval')
+    if (state === 'completed') return t('tool.status.done')
+    if (state === 'error') return t('tool.status.failed')
+    if (state === 'pending') return t('tool.status.pending')
+    return t('tool.status.running')
 }
 
 function statusBadgeClass(
@@ -491,7 +492,7 @@ function ToolCardInner(props: ToolCardProps) {
     const compactRowOpensDetail = isCompact && props.disabled && !isTurnChangesTool && !isDiffTool
     const requiresInteraction = permission?.status === 'pending'
     const hideResultSection = toolName === 'CodexTurnChanges'
-    const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status)
+    const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status, t)
     const statusBadgeToneClass = statusBadgeClass(props.block.tool.state, permission?.status)
     const [isExpanded, setIsExpanded] = useState(() => (isCompact ? requiresInteraction : true))
     const [hasUserToggledExpand, setHasUserToggledExpand] = useState(false)
@@ -805,7 +806,12 @@ function ToolCardInner(props: ToolCardProps) {
     })()
 
     return (
-        <Card className="overflow-hidden shadow-sm">
+        <Card
+            className={cn(
+                'overflow-hidden shadow-sm',
+                chatContext.layout === 'social' && 'border border-[var(--social-border)] bg-transparent shadow-none'
+            )}
+        >
             <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
                 {isCompact ? (
                     isTurnChangesTool ? (

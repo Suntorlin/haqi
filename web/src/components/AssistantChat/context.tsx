@@ -4,6 +4,7 @@ import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
+import type { RunStats } from '@/components/mobile/chatTimeline'
 
 export type HappyChatContextValue = {
     api: ApiClient
@@ -16,6 +17,14 @@ export type HappyChatContextValue = {
     onRefresh: () => void
     onRetryMessage?: (localId: string) => void
     toolProgress?: ReadonlyMap<string, ToolProgressSignal> | null
+    /** 'social' = mobile WeChat-style bubbles; 'classic' = desktop document-style thread. */
+    layout?: 'classic' | 'social'
+    /** Thread message id -> timestamp of the time separator rendered before it (social layout). */
+    timeSeparators?: ReadonlyMap<string, number> | null
+    /** Thread message id of each agent turn -> start/end time (social layout). */
+    runStats?: ReadonlyMap<string, RunStats> | null
+    /** Pause stick-to-bottom while a message changes its own height on purpose (social layout). */
+    holdAutoScroll?: (durationMs?: number) => void
 }
 
 const HappyChatContext = createContext<HappyChatContextValue | null>(null)

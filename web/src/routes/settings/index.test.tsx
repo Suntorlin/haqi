@@ -326,7 +326,7 @@ describe('SettingsPage', () => {
     it('keeps collapsed-by-default groups hidden initially', () => {
         renderWithProviders(<SettingsPage />)
         expect(screen.queryByRole('button', { name: 'Refresh usage' })).not.toBeInTheDocument()
-        expect(screen.queryByText('App Version')).not.toBeInTheDocument()
+        expect(screen.queryByText('App version')).not.toBeInTheDocument()
     })
 
     it('restores persisted section expanded state', () => {
@@ -341,7 +341,7 @@ describe('SettingsPage', () => {
 
         expect(screen.queryByText('Theme')).not.toBeInTheDocument()
         expect(screen.getByText('Usage')).toBeInTheDocument()
-        expect(screen.getAllByText('App Version').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('App version').length).toBeGreaterThanOrEqual(1)
     })
 
     it('persists section expanded state changes', () => {
@@ -386,14 +386,14 @@ describe('SettingsPage', () => {
     it('displays the App Version with correct value', () => {
         renderWithProviders(<SettingsPage />)
         expandGroup(/About/)
-        expect(screen.getAllByText('App Version').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('App version').length).toBeGreaterThanOrEqual(1)
         expect(screen.getAllByText(__APP_VERSION__).length).toBeGreaterThanOrEqual(1)
     })
 
     it('displays the Protocol Version with correct value', () => {
         renderWithProviders(<SettingsPage />)
         expandGroup(/About/)
-        expect(screen.getAllByText('Protocol Version').length).toBeGreaterThanOrEqual(1)
+        expect(screen.getAllByText('Protocol version').length).toBeGreaterThanOrEqual(1)
         expect(screen.getAllByText(String(PROTOCOL_VERSION)).length).toBeGreaterThanOrEqual(1)
     })
 
@@ -416,7 +416,7 @@ describe('SettingsPage', () => {
 
     it('uses correct i18n keys for About section', () => {
         const spyT = renderWithSpyT(<SettingsPage />)
-        expandGroup(/Data & Diagnostics/)
+        expandGroup(/Data & diagnostics/)
         expandGroup(/About/)
         const calledKeys = spyT.mock.calls.map((call) => call[0])
         expect(calledKeys).toContain('settings.group.general.title')
