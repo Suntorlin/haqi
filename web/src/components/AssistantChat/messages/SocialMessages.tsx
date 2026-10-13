@@ -267,10 +267,9 @@ export function SocialAssistantMessage() {
     const [expanded, setExpanded] = useState(false)
     const [processLimit, setProcessLimit] = useState(PROCESS_PAGE_SIZE)
     const rootRef = useRef<HTMLDivElement | null>(null)
-    const answerRef = useRef<HTMLDivElement | null>(null)
     const footerRef = useRef<HTMLButtonElement | null>(null)
-    const spacerRef = useRef<HTMLDivElement | null>(null)
     const processRef = useRef<HTMLDivElement | null>(null)
+    const collapsingRef = useRef(false)
 
     const expandProcess = () => {
         ctx.holdAutoScroll?.()
@@ -286,43 +285,51 @@ export function SocialAssistantMessage() {
         }
     }
 
-    // Collapse so the footer lands where the user tapped; nothing else on screen jumps.
-    const collapseProcess = (anchor: HTMLElement | null) => {
-        ctx.holdAutoScroll?.()
+    // Fold the process away in place: the spot the user tapped stays put, content above slides down
+    // into view and the shrinking process keeps the space filled (no jump, no blank area).
+    const collapseProcess = (anchor: 'footer' | 'end') => {
         const viewport = getChatViewport(rootRef.current)
+        const process = processRef.current
         const footer = footerRef.current
-        if (!viewport || !footer) {
-            setExpanded(false)
+        if (!viewport || !process || !footer || collapsingRef.current) {
+            if (!collapsingRef.current) setExpanded(false)
             return
         }
-        const box = viewport.getBoundingClientRect()
-        const anchorTop = (anchor ?? footer).getBoundingClientRect().top
-        const targetTop = Math.min(Math.max(anchorTop, box.top + 16), box.bottom - footer.offsetHeight - 16)
-        flushSync(() => {
-            setExpanded(false)
-            setProcessLimit(PROCESS_PAGE_SIZE)
-        })
-        const desiredScrollTop = viewport.scrollTop + footer.getBoundingClientRect().top - targetTop
-        const maxScrollTop = viewport.scrollHeight - viewport.clientHeight
-        const spacer = spacerRef.current
-        if (spacer && desiredScrollTop > maxScrollTop + 1) {
-            // Not enough content below to hold the anchor: borrow space, then let it ease away.
-            spacer.style.transition = 'none'
-            spacer.style.height = `${Math.ceil(desiredScrollTop - maxScrollTop)}px`
-            viewport.scrollTop = desiredScrollTop
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                spacer.style.transition = 'height 340ms cubic-bezier(0.22, 1, 0.36, 1)'
-                spacer.style.height = '0px'
-            }))
-        } else {
-            viewport.scrollTop = Math.max(0, desiredScrollTop)
+        collapsingRef.current = true
+        const startHeight = process.offsetHeight
+        const duration = Math.min(420, Math.max(240, startHeight * 0.28))
+        ctx.holdAutoScroll?.(duration + 300)
+        const anchorY = () => anchor === 'footer'
+            ? footer.getBoundingClientRect().top
+            : process.getBoundingClientRect().bottom
+        const startAnchorY = anchorY()
+        process.style.animation = 'none'
+        process.style.overflow = 'hidden'
+        process.style.height = `${startHeight}px`
+        const startedAt = performance.now()
+        const step = (now: number) => {
+            const progress = Math.min(1, (now - startedAt) / duration)
+            const eased = progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2
+            process.style.height = `${startHeight * (1 - eased)}px`
+            viewport.scrollTop += anchorY() - startAnchorY
+            if (progress < 1) {
+                requestAnimationFrame(step)
+                return
+            }
+            const footerTop = footer.getBoundingClientRect().top
+            flushSync(() => {
+                setExpanded(false)
+                setProcessLimit(PROCESS_PAGE_SIZE)
+            })
+            viewport.scrollTop += footer.getBoundingClientRect().top - footerTop
+            collapsingRef.current = false
         }
-        answerRef.current?.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' })
+        requestAnimationFrame(step)
     }
 
-    const toggleProcess = (anchor: HTMLElement | null) => {
+    const toggleProcess = () => {
         if (expanded) {
-            collapseProcess(anchor)
+            collapseProcess('footer')
         } else {
             expandProcess()
         }
@@ -343,7 +350,7 @@ export function SocialAssistantMessage() {
     const longPressHandlers = useLongPress({
         onLongPress: () => {
             haptic.impact('medium')
-            toggleProcess(footerRef.current)
+            toggleProcess()
         },
         threshold: 450
     })
@@ -377,7 +384,6 @@ export function SocialAssistantMessage() {
                         <>
                             {layout.answerIndices.length > 0 ? (
                                 <div
-                                    ref={answerRef}
                                     {...longPressHandlers}
                                     className="social-card w-fit min-w-0 max-w-full select-none rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3"
                                     style={{ WebkitTouchCallout: 'none' }}
@@ -388,7 +394,6 @@ export function SocialAssistantMessage() {
                                 </div>
                             ) : (
                                 <div
-                                    ref={answerRef}
                                     {...longPressHandlers}
                                     className="social-card w-fit select-none rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]"
                                     style={{ WebkitTouchCallout: 'none' }}
@@ -401,7 +406,7 @@ export function SocialAssistantMessage() {
                                 <button
                                     ref={footerRef}
                                     type="button"
-                                    onClick={(event) => toggleProcess(event.currentTarget)}
+                                    onClick={toggleProcess}
                                     aria-expanded={expanded}
                                     className="flex w-fit items-center gap-1 px-1 text-[12px] text-[var(--social-fg-subtle)] [-webkit-tap-highlight-color:transparent]"
                                 >
@@ -432,7 +437,7 @@ export function SocialAssistantMessage() {
                                                 {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
                                             </button>
                                         ) : null}
-                                        <button type="button" onClick={(event) => collapseProcess(event.currentTarget)}>
+                                        <button type="button" onClick={() => collapseProcess('end')}>
                                             {t('mobile.turn.hideProcess')}
                                         </button>
                                     </div>
@@ -446,8 +451,6 @@ export function SocialAssistantMessage() {
                     ))}
                 </div>
             </div>
-            {/* Collapse anchor helper; -mt-2 cancels the root's gap so it costs no space at rest. */}
-            <div ref={spacerRef} aria-hidden="true" className="-mt-2" style={{ height: 0 }} />
         </MessagePrimitive.Root>
     )
 }
