@@ -5,6 +5,7 @@ import { BottomSheet, SheetNote, SheetRow, SheetSection } from '@/components/mob
 import { permissionModeText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { IconButton } from '@/components/ui/IconButton'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -58,7 +59,7 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
 
     const rateLimit = field.startsWith('rate limit') ? parseRateLimit(raw) : null
     if (rateLimit) {
-        const tone = rateLimit.usedPercent >= 85 ? 'bg-[var(--social-danger)]' : rateLimit.usedPercent >= 60 ? 'bg-amber-500' : 'bg-[var(--social-fg)]'
+        const tone = rateLimit.usedPercent >= 85 ? 'bg-[var(--social-danger)]' : rateLimit.usedPercent >= 60 ? 'bg-[var(--social-warning)]' : 'bg-[var(--social-fg)]'
         return {
             label,
             value: (
@@ -166,12 +167,11 @@ function QueueEntryRow(props: {
 }) {
     const { t } = useTranslation()
     const { entry, index } = props
-    const buttonClass = 'flex h-8 w-8 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-30'
     return (
-        <div className="flex items-start gap-3 px-4 py-3 [&+&]:border-t [&+&]:border-[var(--social-border)]">
-            <span className="mt-0.5 w-5 shrink-0 text-[13px] tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
-            <div className="min-w-0 flex-1">
-                <div className="line-clamp-3 break-words text-[14px] leading-snug text-[var(--social-fg)]">
+        <div className="flex items-center gap-3 px-4 py-1 [&+&]:border-t [&+&]:border-[var(--social-border)]">
+            <span className="w-5 shrink-0 text-[13px] tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
+            <div className="min-w-0 flex-1 py-2">
+                <div className="line-clamp-3 break-words text-[15px] leading-snug text-[var(--social-fg)]">
                     {entry.preview || t('queue.dialog.emptyMessage')}
                 </div>
                 <div className="mt-1 text-[12px] text-[var(--social-fg-subtle)]">
@@ -180,9 +180,9 @@ function QueueEntryRow(props: {
                 </div>
             </div>
             <div className="flex shrink-0 items-center">
-                <button type="button" className={buttonClass} aria-label={t('queue.entry.moveUp')} title={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}>↑</button>
-                <button type="button" className={buttonClass} aria-label={t('queue.entry.moveDown')} title={t('queue.entry.moveDown')} disabled={props.disabled || index >= props.count - 1} onClick={() => props.onMove(entry.id, index + 1)}>↓</button>
-                <button type="button" className={cn(buttonClass, 'hover:text-[var(--social-danger)]')} aria-label={t('queue.entry.remove')} title={t('queue.entry.remove')} disabled={props.disabled} onClick={() => props.onRemove(entry.id)}>✕</button>
+                <IconButton label={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}>↑</IconButton>
+                <IconButton label={t('queue.entry.moveDown')} disabled={props.disabled || index >= props.count - 1} onClick={() => props.onMove(entry.id, index + 1)}>↓</IconButton>
+                <IconButton label={t('queue.entry.remove')} className="hover:text-[var(--social-danger)]" disabled={props.disabled} onClick={() => props.onRemove(entry.id)}>✕</IconButton>
             </div>
         </div>
     )
@@ -225,7 +225,7 @@ export function QueueSheet(props: {
                         onRemove={props.onRemove}
                     />
                 )) : (
-                    <div className="px-4 py-3 text-[14px] text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
+                    <div className="px-4 py-3 text-[15px] text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
                 )}
             </SheetSection>
             <SheetSection>

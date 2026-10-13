@@ -21,6 +21,9 @@ import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
 import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtils'
 import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { IconButton } from '@/components/ui/IconButton'
+import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { formatRunningAgentNames, formatTaskChildStateSummary, getRunningAgentsForTaskBlock, getTaskChildStateSummary } from '@/components/ToolCard/taskSummary'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -108,12 +111,12 @@ function ElapsedView(props: { from: number; active: boolean; signal?: ToolProgre
             {elapsed.toFixed(1)}s
             {signalAgeMs !== null && !stale && (
                 <span
-                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
+                    className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--social-success)]"
                     title={`Backend heartbeat ${Math.max(0, Math.round(signalAgeMs / 1000))}s ago`}
                 />
             )}
             {stale && (
-                <span className="text-amber-500" title="The backend stopped sending tool heartbeats">
+                <span className="text-[var(--app-badge-warning-text)]" title="The backend stopped sending tool heartbeats">
                     no signal {Math.round(signalAgeMs! / 1000)}s
                 </span>
             )}
@@ -140,15 +143,15 @@ function formatTaskChildLabel(child: ToolCallBlock, metadata: SessionMetadataSum
 
 function TaskStateIcon(props: { state: ToolCallBlock['tool']['state'] }) {
     if (props.state === 'completed') {
-        return <span className="text-emerald-600">✓</span>
+        return <span className="text-[var(--app-badge-success-text)]">✓</span>
     }
     if (props.state === 'error') {
-        return <span className="text-red-600">✕</span>
+        return <span className="text-[var(--social-danger)]">✕</span>
     }
     if (props.state === 'pending') {
-        return <span className="text-amber-600">🔐</span>
+        return <span className="text-[var(--app-badge-warning-text)]">🔐</span>
     }
-    return <span className="text-amber-600 animate-pulse">●</span>
+    return <span className="text-[var(--app-badge-warning-text)] animate-pulse">●</span>
 }
 
 function getTaskSummaryChildren(block: ToolCallBlock): { visible: ToolCallBlock[]; remaining: number } | null {
@@ -204,12 +207,12 @@ function renderTaskStateBadge(taskStateSummaryText: string | null, runningAgentN
     return (
         <div className="flex flex-wrap gap-1">
             {taskStateSummaryText ? (
-                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[12px] text-[var(--app-hint)]">
                     {taskStateSummaryText}
                 </span>
             ) : null}
             {runningAgentNames ? (
-                <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] text-blue-600">
+                <span className="rounded-full bg-[var(--app-badge-info-bg)] px-2 py-0.5 text-[12px] text-[var(--app-badge-info-text)]">
                     {runningAgentNames}
                 </span>
             ) : null}
@@ -365,9 +368,9 @@ function StatusIcon(props: { state: ToolCallBlock['tool']['state'] }) {
 }
 
 function statusColorClass(state: ToolCallBlock['tool']['state']): string {
-    if (state === 'completed') return 'text-emerald-600'
-    if (state === 'error') return 'text-red-600'
-    if (state === 'pending') return 'text-amber-600'
+    if (state === 'completed') return 'text-[var(--app-badge-success-text)]'
+    if (state === 'error') return 'text-[var(--social-danger)]'
+    if (state === 'pending') return 'text-[var(--app-badge-warning-text)]'
     return 'text-[var(--app-hint)]'
 }
 
@@ -383,17 +386,15 @@ function getToolStatusLabel(
     return t('tool.status.running')
 }
 
-function statusBadgeClass(
+function statusBadgeVariant(
     state: ToolCallBlock['tool']['state'],
     permissionStatus?: string
-): string {
-    if (permissionStatus === 'pending') {
-        return 'bg-amber-500/10 text-amber-600'
-    }
-    if (state === 'completed') return 'bg-emerald-500/10 text-emerald-600'
-    if (state === 'error') return 'bg-red-500/10 text-red-600'
-    if (state === 'pending') return 'bg-amber-500/10 text-amber-600'
-    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
+): 'warning' | 'success' | 'destructive' | 'default' {
+    if (permissionStatus === 'pending') return 'warning'
+    if (state === 'completed') return 'success'
+    if (state === 'error') return 'destructive'
+    if (state === 'pending') return 'warning'
+    return 'default'
 }
 
 function DetailsIcon(props: { className?: string }) {
@@ -493,7 +494,7 @@ function ToolCardInner(props: ToolCardProps) {
     const requiresInteraction = permission?.status === 'pending'
     const hideResultSection = toolName === 'CodexTurnChanges'
     const statusLabel = getToolStatusLabel(props.block.tool.state, permission?.status, t)
-    const statusBadgeToneClass = statusBadgeClass(props.block.tool.state, permission?.status)
+    const statusBadgeTone = statusBadgeVariant(props.block.tool.state, permission?.status)
     const [isExpanded, setIsExpanded] = useState(() => (isCompact ? requiresInteraction : true))
     const [hasUserToggledExpand, setHasUserToggledExpand] = useState(false)
     const showCardBody = hasBody && (!isCompact || isExpanded) && !compactRowOpensDetail
@@ -635,7 +636,7 @@ function ToolCardInner(props: ToolCardProps) {
         return (
             <div
                 className={cn(
-                    'rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
+                    'rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/40',
                     isCompact ? 'px-2 py-1' : 'px-2.5 py-1.5'
                 )}
             >
@@ -649,7 +650,7 @@ function ToolCardInner(props: ToolCardProps) {
                     <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                 </div>
                 {compactDetail ? (
-                    <div className="mt-1 pl-4 text-[11px] text-[var(--app-hint)]">
+                    <div className="mt-1 pl-4 text-[12px] text-[var(--app-hint)]">
                         {compactDetail}
                     </div>
                 ) : null}
@@ -673,7 +674,7 @@ function ToolCardInner(props: ToolCardProps) {
                         : 'mt-3 max-h-[75vh]'
             )}>
                 <div>
-                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">
+                    <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">
                         {isQuestionToolWithAnswers ? t('tool.questionsAnswers') : t('tool.input')}
                     </div>
                     {FullToolView ? (
@@ -684,7 +685,7 @@ function ToolCardInner(props: ToolCardProps) {
                 </div>
                 {!isQuestionToolWithAnswers && !hideResultSection && (
                     <div>
-                        <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
+                        <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">{t('tool.result')}</div>
                         <ResultToolView block={props.block} metadata={props.metadata} />
                     </div>
                 )}
@@ -715,15 +716,10 @@ function ToolCardInner(props: ToolCardProps) {
                 <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
                     <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={closeTurnChangesDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                aria-label="Back"
-                            >
+                            <IconButton label="Back" onClick={closeTurnChangesDetail}>
                                 <BackIcon />
-                            </button>
-                            <div className="min-w-0 truncate text-sm font-semibold text-[var(--app-fg)]">
+                            </IconButton>
+                            <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--app-fg)]">
                                 {toolTitle}
                             </div>
                         </div>
@@ -757,15 +753,10 @@ function ToolCardInner(props: ToolCardProps) {
                 <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--app-bg)]">
                     <div className="border-b border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
                         <div className="flex items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={closeDiffDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--app-border)] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
-                                aria-label="Back"
-                            >
+                            <IconButton label="Back" onClick={closeDiffDetail}>
                                 <BackIcon />
-                            </button>
-                            <div className="min-w-0 truncate text-sm font-semibold text-[var(--app-fg)]">
+                            </IconButton>
+                            <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--app-fg)]">
                                 {toolTitle}
                             </div>
                         </div>
@@ -820,6 +811,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 type="button"
                                 className={cn(
                                     'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                     suppressFocusRing && 'focus-visible:ring-0'
                                 )}
                                 onClick={openTurnChangesDetail}
@@ -828,26 +820,23 @@ function ToolCardInner(props: ToolCardProps) {
                                 onBlur={onTriggerBlur}
                             >
                                 <div className="flex items-center gap-2">
-                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                    <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-xs font-medium leading-tight">
+                                        <div className="truncate text-xs font-semibold leading-tight">
                                             {toolTitle}
                                             {compactSummary ? (
-                                                <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                <span className="ml-1 font-mono text-[12px] text-[var(--app-hint)]">
                                                     - {compactSummary}
                                                 </span>
                                             ) : null}
                                         </div>
                                     </div>
-                                    <span className={cn(
-                                        'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                                        statusBadgeToneClass
-                                    )}>
+                                    <Badge variant={statusBadgeTone}>
                                         <StatusIcon state={props.block.tool.state} />
                                         {statusLabel}
-                                    </span>
+                                    </Badge>
                                     <span className="shrink-0 text-[var(--app-hint)]">
                                         <DetailsIcon className="h-3.5 w-3.5" />
                                     </span>
@@ -863,6 +852,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         type="button"
                                         className={cn(
                                             'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                             suppressFocusRing && 'focus-visible:ring-0'
                                         )}
                                         onPointerDown={onTriggerPointerDown}
@@ -870,26 +860,23 @@ function ToolCardInner(props: ToolCardProps) {
                                         onBlur={onTriggerBlur}
                                     >
                                         <div className="flex items-center gap-2">
-                                            <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                            <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                                 {presentation.icon}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="truncate text-xs font-medium leading-tight">
+                                                <div className="truncate text-xs font-semibold leading-tight">
                                                     {toolTitle}
                                                     {compactSummary ? (
-                                                        <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                        <span className="ml-1 font-mono text-[12px] text-[var(--app-hint)]">
                                                             - {compactSummary}
                                                         </span>
                                                     ) : null}
                                                 </div>
                                             </div>
-                                            <span className={cn(
-                                                'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                                                statusBadgeToneClass
-                                            )}>
+                                            <Badge variant={statusBadgeTone}>
                                                 <StatusIcon state={props.block.tool.state} />
                                                 {statusLabel}
-                                            </span>
+                                            </Badge>
                                             <span className="shrink-0 text-[var(--app-hint)]">
                                                 <DetailsIcon className="h-3.5 w-3.5" />
                                             </span>
@@ -904,6 +891,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     type="button"
                                     className={cn(
                                         'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                         suppressFocusRing && 'focus-visible:ring-0'
                                     )}
                                     onClick={() => {
@@ -916,26 +904,23 @@ function ToolCardInner(props: ToolCardProps) {
                                     onBlur={onTriggerBlur}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
+                                        <div className="shrink-0 flex h-5 w-5 items-center justify-center rounded-md bg-[var(--app-subtle-bg)] text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate text-xs font-medium leading-tight">
+                                            <div className="truncate text-xs font-semibold leading-tight">
                                                 {toolTitle}
                                                 {compactSummary ? (
-                                                    <span className="ml-1 font-mono text-[10px] text-[var(--app-hint)]">
+                                                    <span className="ml-1 font-mono text-[12px] text-[var(--app-hint)]">
                                                         - {compactSummary}
                                                     </span>
                                                 ) : null}
                                             </div>
                                         </div>
-                                        <span className={cn(
-                                            'inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium',
-                                            statusBadgeToneClass
-                                        )}>
+                                        <Badge variant={statusBadgeTone}>
                                             <StatusIcon state={props.block.tool.state} />
                                             {statusLabel}
-                                        </span>
+                                        </Badge>
                                         {hasBody ? (
                                             <span className={cn(
                                                 'shrink-0 text-[var(--app-hint)] transition-transform',
@@ -948,28 +933,26 @@ function ToolCardInner(props: ToolCardProps) {
                                 </button>
                                 {isDiffTool ? (
                                     <>
-                                        <button
-                                            type="button"
-                                            className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
-                                            title={t('session.more')}
-                                            aria-label={t('session.more')}
+                                        <IconButton
+                                            size="sm"
+                                            label={t('session.more')}
                                             onClick={openDiffDetail}
+                                            className={cn('h-7 w-7', HIT_AREA_CLASS)}
                                         >
                                             <DetailsIcon className="h-4 w-4" />
-                                        </button>
+                                        </IconButton>
                                         {renderDiffDetailLayer()}
                                     </>
                                 ) : (
                                     <Dialog>
                                         <DialogTrigger asChild>
-                                            <button
-                                                type="button"
-                                                className="shrink-0 rounded p-1 text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]"
-                                                title={t('session.more')}
-                                                aria-label={t('session.more')}
+                                            <IconButton
+                                                size="sm"
+                                                label={t('session.more')}
+                                                className={cn('h-7 w-7', HIT_AREA_CLASS)}
                                             >
                                                 <DetailsIcon className="h-4 w-4" />
-                                            </button>
+                                            </IconButton>
                                         </DialogTrigger>
                                         {renderDialogContent()}
                                     </Dialog>
@@ -983,6 +966,7 @@ function ToolCardInner(props: ToolCardProps) {
                             type="button"
                             className={cn(
                                 'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                 suppressFocusRing && 'focus-visible:ring-0'
                             )}
                             onClick={openTurnChangesDetail}
@@ -996,7 +980,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1028,6 +1012,7 @@ function ToolCardInner(props: ToolCardProps) {
                             type="button"
                             className={cn(
                                 'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                 suppressFocusRing && 'focus-visible:ring-0'
                             )}
                             onClick={openDiffDetail}
@@ -1041,7 +1026,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1074,6 +1059,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 type="button"
                                 className={cn(
                                     'w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)]',
+                                    TEXT_HIT_AREA_CLASS,
                                     suppressFocusRing && 'focus-visible:ring-0'
                                 )}
                                 onPointerDown={onTriggerPointerDown}
@@ -1086,7 +1072,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--app-hint)] leading-none">
                                                 {presentation.icon}
                                             </div>
-                                            <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
+                                            <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
                                                 {toolTitle}
                                             </CardTitle>
                                         </div>
@@ -1109,7 +1095,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     ) : null}
                                     {toolName === 'Task' && taskStateSummaryText ? (
                                         <div className="flex flex-wrap gap-1">
-                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]">
+                                            <span className="rounded-full bg-[var(--app-subtle-bg)] px-2 py-0.5 text-[12px] text-[var(--app-hint)]">
                                                 {taskStateSummaryText}
                                             </span>
                                         </div>
@@ -1138,11 +1124,11 @@ function ToolCardInner(props: ToolCardProps) {
                         ) : (
                             <div className={cn('flex flex-col', isCompact ? 'mt-2 gap-2' : 'mt-3 gap-3')}>
                                 <div>
-                                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.input')}</div>
+                                    <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">{t('tool.input')}</div>
                                     {renderToolInput(props.block)}
                                 </div>
                                 <div>
-                                    <div className="mb-1 text-xs font-medium text-[var(--app-hint)]">{t('tool.result')}</div>
+                                    <div className="mb-1 text-xs font-semibold text-[var(--app-hint)]">{t('tool.result')}</div>
                                     <ResultToolView block={props.block} metadata={props.metadata} />
                                 </div>
                             </div>
@@ -1150,11 +1136,11 @@ function ToolCardInner(props: ToolCardProps) {
                     ) : null}
 
                     {isQuestionTool && permission?.status === 'pending' ? (
-                        <div className="mt-3 rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
-                            <div className="text-xs font-medium text-[var(--app-hint)]">
+                        <div className="mt-3 rounded-2xl border border-[var(--app-border)] bg-[var(--app-bg)] px-3 py-3">
+                            <div className="text-xs font-semibold text-[var(--app-hint)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>
-                            <div className="mt-1 text-sm text-[var(--app-fg)]">
+                            <div className="mt-1 text-[13px] text-[var(--app-fg)]">
                                 {t('tool.questionOverlay.inlineDescription')}
                             </div>
                         </div>

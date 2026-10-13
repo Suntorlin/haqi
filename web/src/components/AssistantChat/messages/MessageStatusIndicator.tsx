@@ -1,3 +1,5 @@
+import { cn } from '@/lib/utils'
+import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import type { MessageStatus } from '@/types/api'
 
 function ErrorIcon() {
@@ -20,14 +22,14 @@ export function MessageStatusIndicator(props: {
 
     return (
         <span className="inline-flex items-center gap-1">
-            <span className="text-red-500">
+            <span className="text-[var(--social-danger)]">
                 <ErrorIcon />
             </span>
             {props.onRetry ? (
                 <button
                     type="button"
                     onClick={props.onRetry}
-                    className="text-xs text-blue-500 hover:underline"
+                    className={cn('text-xs text-[var(--app-link)] underline', TEXT_HIT_AREA_CLASS)}
                 >
                     Retry
                 </button>

@@ -8,6 +8,8 @@ import { HappyUserMessage } from '@/components/AssistantChat/messages/UserMessag
 import { HappySystemMessage } from '@/components/AssistantChat/messages/SystemMessage'
 import { SocialAssistantMessage, SocialUserMessage } from '@/components/AssistantChat/messages/SocialMessages'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -63,17 +65,16 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
     }
 
     return (
-        <button
+        <Button
+            size={props.social ? 'sm' : 'default'}
             onClick={props.onClick}
             className={cn(
-                'absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-sm font-medium shadow-lg animate-bounce-in z-10',
-                props.social
-                    ? 'bottom-3 bg-[var(--social-primary)] text-[13px] text-[var(--social-primary-fg)]'
-                    : 'bottom-20 bg-[var(--app-button)] text-[var(--app-button-text)]'
+                'absolute left-1/2 -translate-x-1/2 shadow-lg animate-bounce-in z-10',
+                props.social ? cn('bottom-3', HIT_AREA_CLASS) : 'bottom-20'
             )}
         >
             {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
-        </button>
+        </Button>
     )
 }
 
@@ -107,7 +108,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
         return null
     }
 
-    const controlClass = 'mx-auto inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs shadow-sm'
+    const controlClass = 'mx-auto inline-flex h-7 items-center justify-center gap-1.5 rounded-full px-2.5 text-xs'
 
     if (props.loading) {
         return (
@@ -115,7 +116,7 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
                 <div
                     role="status"
                     aria-live="polite"
-                    className={`${controlClass} border border-transparent bg-[var(--app-button)] text-[var(--app-button-text)]`}
+                    className={`${controlClass} bg-[var(--social-primary)] text-[var(--social-primary-fg)]`}
                 >
                     <Spinner size="sm" label={null} className="text-current" />
                     {t('misc.loadingHistory')}
@@ -126,13 +127,9 @@ function HistoryLoadMoreControl(props: { loading: boolean; hasMore: boolean; onL
 
     return (
         <div className="mb-2 py-1">
-            <button
-                type="button"
-                onClick={props.onLoadMore}
-                className={`${controlClass} border border-[var(--app-divider)] bg-[var(--app-secondary-bg)] text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]`}
-            >
+            <Button variant="secondary" size="sm" onClick={props.onLoadMore} className={cn('mx-auto flex', HIT_AREA_CLASS)}>
                 {t('misc.loadOlder')}
-            </button>
+            </Button>
         </div>
     )
 }
@@ -266,7 +263,7 @@ export function HappyThread(props: {
                                 />
 
                                 {props.messagesWarning ? (
-                                    <div className="mb-3 rounded-md bg-amber-500/10 p-2 text-xs">
+                                    <div className="mb-3 rounded-xl bg-[var(--app-badge-warning-bg)] p-2 text-xs">
                                         {props.messagesWarning}
                                     </div>
                                 ) : null}
