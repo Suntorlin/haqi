@@ -48,7 +48,7 @@ import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, vo
 import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-import { computeTimeSeparators } from '@/components/mobile/chatTimeline'
+import { computeRunStats, computeTimeSeparators } from '@/components/mobile/chatTimeline'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
 
 type CodexStatusRow = {
@@ -727,6 +727,10 @@ export function SessionChat(props: {
     const isMobileLayout = useIsMobileLayout()
     const timeSeparators = useMemo(
         () => (isMobileLayout ? computeTimeSeparators(reconciled.blocks) : null),
+        [isMobileLayout, reconciled.blocks]
+    )
+    const runStats = useMemo(
+        () => (isMobileLayout ? computeRunStats(reconciled.blocks) : null),
         [isMobileLayout, reconciled.blocks]
     )
     const latestContextSize = reduced.latestUsage?.contextSize
@@ -1602,10 +1606,11 @@ export function SessionChat(props: {
                             toolProgress={toolProgress}
                             layout={isMobileLayout ? 'social' : 'classic'}
                             timeSeparators={timeSeparators}
+                            runStats={runStats}
                         />
                     )}
 
-                    {props.viewMode === 'normal' && (
+                    {props.viewMode === 'normal' && !isMobileLayout && (
                         <LiveActivityBar
                             messages={props.messages}
                             visible={props.session.thinking === true}

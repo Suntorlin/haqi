@@ -1459,7 +1459,7 @@ export function HappyComposer(props: {
         return (
             <div
                 ref={mobileComposerRef}
-                className={`social-bar relative z-10 shrink-0 border-t border-[var(--social-bar-border)] ${cliMode ? 'cli-composer' : ''}`}
+                className={`social-bar relative z-10 shrink-0 border-t border-[var(--social-border)] ${cliMode ? 'cli-composer' : ''}`}
                 style={{ paddingBottom: isIOSPWA ? 'max(env(safe-area-inset-bottom), 0.5rem)' : '0.5rem' }}
             >
                 <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
@@ -1470,15 +1470,15 @@ export function HappyComposer(props: {
                     {attachmentsRow}
 
                     <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
-                        <div className="relative flex items-end gap-2 px-2.5 pt-2 data-[dragging=true]:bg-[var(--app-subtle-bg)]">
+                        <div className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
                             {!active ? (
-                                <div className="absolute inset-x-2.5 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-[19px] bg-[var(--social-cell-bg)] pl-4 pr-1.5 text-[14px] text-[var(--app-hint)]">
+                                <div className="absolute inset-x-3 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] pl-4 pr-1 text-[14px] text-[var(--social-fg-muted)]">
                                     <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
                                     <button
                                         type="button"
                                         onClick={onOfflineWake}
                                         disabled={!onOfflineWake || offlineWakePending}
-                                        className="shrink-0 rounded-full bg-[var(--social-accent)] px-3.5 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
+                                        className="shrink-0 rounded-full bg-[var(--social-primary)] px-4 py-1.5 text-[13px] font-medium text-[var(--social-primary-fg)] disabled:opacity-50"
                                     >
                                         {offlineWakePending
                                             ? (offlineWakingLabel ?? t('session.waking'))
@@ -1489,7 +1489,7 @@ export function HappyComposer(props: {
 
                             <MobileComposerToggle open={showToolPanel} onClick={toggleToolPanel} />
 
-                            <div className="flex min-h-[38px] min-w-0 flex-1 items-center rounded-[19px] bg-[var(--social-cell-bg)] px-3.5 py-[7px]">
+                            <div className="flex min-h-[40px] min-w-0 flex-1 items-center rounded-[20px] border border-[var(--social-border)] bg-[var(--app-bg)] px-4 py-[8px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                                 {cliMode ? (
                                     <span className="mr-1.5 shrink-0 select-none text-sm font-semibold text-[var(--cli-prompt-color,#3b82f6)]">{'❯'}</span>
                                 ) : null}
@@ -1509,7 +1509,7 @@ export function HappyComposer(props: {
                                         setShowToolPanel(false)
                                         setShowSettings(false)
                                     }}
-                                    className={`w-full flex-1 resize-none bg-transparent text-[16px] leading-[22px] text-[var(--app-fg)] placeholder-[var(--app-hint)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono' : ''}`}
+                                    className={`w-full flex-1 resize-none bg-transparent text-[16px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono' : ''}`}
                                 />
                             </div>
 

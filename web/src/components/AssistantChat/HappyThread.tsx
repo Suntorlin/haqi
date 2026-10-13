@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { ThreadPrimitive } from '@assistant-ui/react'
+import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
 import { HappyChatProvider } from '@/components/AssistantChat/context'
@@ -12,7 +12,12 @@ import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionV
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
+import type { RunStats } from '@/components/mobile/chatTimeline'
 import { useTranslation } from '@/lib/use-translation'
+
+// Social layout collapses each agent turn, so a long turn can fill the latest page entirely.
+// Pull a few older pages so the user's own last message is on screen too.
+const MAX_SOCIAL_AUTO_LOAD_PAGES = 4
 
 function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void; social?: boolean }) {
     const { t } = useTranslation()
@@ -26,7 +31,7 @@ function NewMessagesIndicator(props: { count: number; show: boolean; onClick: ()
             className={cn(
                 'absolute left-1/2 -translate-x-1/2 rounded-full px-3 py-1.5 text-sm font-medium shadow-lg animate-bounce-in z-10',
                 props.social
-                    ? 'bottom-3 bg-[var(--social-cell-bg)] text-[var(--social-accent)] ring-1 ring-[var(--app-border)]'
+                    ? 'bottom-3 bg-[var(--social-primary)] text-[13px] text-[var(--social-primary-fg)]'
                     : 'bottom-20 bg-[var(--app-button)] text-[var(--app-button-text)]'
             )}
         >
@@ -139,6 +144,7 @@ export function HappyThread(props: {
     toolProgress?: ReadonlyMap<string, ToolProgressSignal> | null
     layout?: 'classic' | 'social'
     timeSeparators?: ReadonlyMap<string, number> | null
+    runStats?: ReadonlyMap<string, RunStats> | null
 }) {
     const viewportRef = useRef<HTMLDivElement | null>(null)
     const isSocial = props.layout === 'social'
@@ -165,6 +171,19 @@ export function HappyThread(props: {
         props.onAtBottomChange(isNearBottom)
     }, [isNearBottom, props.onAtBottomChange])
 
+    const hasUserMessage = useAssistantState(({ thread }) => thread.messages.some((message) => message.role === 'user'))
+    const autoLoadPagesRef = useRef(0)
+    useEffect(() => {
+        autoLoadPagesRef.current = 0
+    }, [props.sessionId])
+    useEffect(() => {
+        if (!isSocial || hasUserMessage || !props.hasMoreMessages) return
+        if (props.isLoadingMessages || props.isLoadingMoreMessages) return
+        if (autoLoadPagesRef.current >= MAX_SOCIAL_AUTO_LOAD_PAGES) return
+        autoLoadPagesRef.current += 1
+        void props.onLoadMore()
+    }, [isSocial, hasUserMessage, props.hasMoreMessages, props.isLoadingMessages, props.isLoadingMoreMessages, props.onLoadMore])
+
     const showSkeleton = props.isLoadingMessages && props.messagesVersion === 0 && props.pendingCount === 0
     // Social layout always uses one-line tool rows so bubbles stay readable on phones.
     const effectiveDensity: SessionListDensity = isSocial ? 'compact' : props.density
@@ -183,7 +202,8 @@ export function HappyThread(props: {
             onRetryMessage: props.onRetryMessage,
             toolProgress: props.toolProgress,
             layout: props.layout ?? 'classic',
-            timeSeparators: props.timeSeparators ?? null
+            timeSeparators: props.timeSeparators ?? null,
+            runStats: props.runStats ?? null
         }}>
             <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
@@ -193,7 +213,7 @@ export function HappyThread(props: {
                         isSocial ? 'social-chat' : ''
                     )}
                 >
-                    <div className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-3 pb-4 pt-3' : isCompact ? 'p-2' : 'p-3'}`}>
+                    <div className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-4 pb-5 pt-4' : isCompact ? 'p-2' : 'p-3'}`}>
                         {showSkeleton ? (
                             <MessageSkeleton />
                         ) : (
@@ -211,7 +231,7 @@ export function HappyThread(props: {
                                 ) : null}
                             </>
                         )}
-                        <div className={`flex flex-col ${isSocial ? 'gap-3.5' : isCompact ? 'gap-2' : 'gap-3'}`}>
+                        <div className={`flex flex-col ${isSocial ? 'gap-5' : isCompact ? 'gap-2' : 'gap-3'}`}>
                             <ThreadMessagesList social={isSocial} />
                         </div>
                     </div>

@@ -10,20 +10,26 @@ type SessionLike = {
     } | null
 }
 
+// Soft "orb" gradients (ElevenLabs-style): [base, highlight]. Bases stay dark enough for white initials.
 const PROJECT_GRADIENTS: ReadonlyArray<readonly [string, string]> = [
-    ['#ff7a59', '#ff4d79'],
-    ['#ffb547', '#ff7a45'],
-    ['#34d399', '#0ea371'],
-    ['#38bdf8', '#3b82f6'],
-    ['#818cf8', '#6366f1'],
-    ['#c084fc', '#9333ea'],
-    ['#f472b6', '#db2777'],
-    ['#2dd4bf', '#0891b2'],
-    ['#fb7185', '#e11d48'],
-    ['#a3e635', '#16a34a'],
-    ['#fbbf24', '#ea580c'],
-    ['#94a3b8', '#475569']
+    ['#7c3aed', '#c4b5fd'],
+    ['#2563eb', '#93c5fd'],
+    ['#e11d48', '#fda4af'],
+    ['#059669', '#6ee7b7'],
+    ['#d97706', '#fcd34d'],
+    ['#4f46e5', '#a5b4fc'],
+    ['#0d9488', '#5eead4'],
+    ['#db2777', '#f9a8d4'],
+    ['#475569', '#cbd5e1'],
+    ['#4d7c0f', '#bef264'],
+    ['#0284c7', '#7dd3fc'],
+    ['#ea580c', '#fdba74']
 ]
+
+export function getProjectOrbBackground(path: string): string {
+    const [base, highlight] = getProjectGradient(path)
+    return `radial-gradient(circle at 28% 20%, ${highlight} 0%, ${base} 78%)`
+}
 
 function hashString(value: string): number {
     let hash = 0
@@ -70,12 +76,6 @@ function getAgentKind(flavor: string | null | undefined): AgentKind {
     return 'other'
 }
 
-const AGENT_BACKGROUNDS: Record<AgentKind, string> = {
-    claude: '#d97757',
-    codex: '#111111',
-    gemini: 'linear-gradient(135deg, #4f8cff, #9b6cff)',
-    other: '#8e8e93'
-}
 
 export function AgentGlyph(props: { flavor?: string | null; className?: string }) {
     const kind = getAgentKind(props.flavor)
@@ -118,29 +118,24 @@ export function AgentGlyph(props: { flavor?: string | null; className?: string }
     )
 }
 
-/** Round agent avatar (Claude / Codex / Gemini) used next to chat bubbles. */
+/** Monochrome round agent avatar (Claude / Codex / Gemini glyph) shown next to replies. */
 export function AgentAvatar(props: { flavor?: string | null; size?: number; className?: string }) {
-    const size = props.size ?? 32
-    const kind = getAgentKind(props.flavor)
-    const style: CSSProperties = {
-        width: size,
-        height: size,
-        background: AGENT_BACKGROUNDS[kind]
-    }
+    const size = props.size ?? 28
+    const style: CSSProperties = { width: size, height: size }
     return (
         <span
-            className={cn('inline-flex shrink-0 items-center justify-center rounded-full text-white shadow-sm', props.className)}
+            className={cn('inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)]', props.className)}
             style={style}
             aria-hidden="true"
         >
-            <AgentGlyph flavor={props.flavor} className="h-[55%] w-[55%]" />
+            <AgentGlyph flavor={props.flavor} className="h-[52%] w-[52%]" />
         </span>
     )
 }
 
 /**
- * WeChat-style rounded-square avatar: project gradient + initials, with an agent badge
- * and an optional red counter (pending approvals) like an unread badge.
+ * Project avatar: soft gradient orb + initials, a monochrome agent badge and an optional
+ * red counter (pending approvals) like an unread badge. Offline sessions render in grayscale.
  */
 export function SessionAvatar(props: {
     session: SessionLike
@@ -153,9 +148,8 @@ export function SessionAvatar(props: {
 }) {
     const size = props.size ?? 48
     const path = getSessionProjectPath(props.session)
-    const [from, to] = getProjectGradient(path)
     const initials = getProjectInitials(path)
-    const badgeSize = Math.max(16, Math.round(size * 0.38))
+    const badgeSize = Math.max(14, Math.round(size * 0.36))
     const showAgentBadge = props.showAgentBadge ?? true
     const badgeCount = props.badgeCount ?? 0
 
@@ -167,26 +161,22 @@ export function SessionAvatar(props: {
             <span
                 className={cn(
                     'flex h-full w-full items-center justify-center font-semibold text-white transition-[filter,opacity]',
-                    props.shape === 'circle' ? 'rounded-full' : 'rounded-[28%]',
-                    props.dimmed ? 'opacity-55 grayscale-[70%]' : ''
+                    props.shape === 'rounded' ? 'rounded-[30%]' : 'rounded-full',
+                    props.dimmed ? 'opacity-70 grayscale' : ''
                 )}
                 style={{
-                    background: `linear-gradient(135deg, ${from}, ${to})`,
-                    fontSize: Math.round(size * 0.36),
+                    background: getProjectOrbBackground(path),
+                    fontSize: Math.round(size * 0.34),
                     letterSpacing: '-0.02em',
-                    textShadow: '0 1px 2px rgba(0,0,0,0.18)'
+                    textShadow: '0 1px 2px rgba(0,0,0,0.16)'
                 }}
             >
                 {initials}
             </span>
             {showAgentBadge ? (
                 <span
-                    className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full text-white ring-2 ring-[var(--app-bg)]"
-                    style={{
-                        width: badgeSize,
-                        height: badgeSize,
-                        background: AGENT_BACKGROUNDS[getAgentKind(props.session.metadata?.flavor)]
-                    }}
+                    className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] ring-2 ring-[var(--app-bg)]"
+                    style={{ width: badgeSize, height: badgeSize }}
                     aria-hidden="true"
                 >
                     <AgentGlyph flavor={props.session.metadata?.flavor} className="h-[60%] w-[60%]" />
@@ -194,7 +184,7 @@ export function SessionAvatar(props: {
             ) : null}
             {badgeCount > 0 ? (
                 <span
-                    className="absolute -right-1.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]"
+                    className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]"
                 >
                     {badgeCount > 99 ? '99+' : badgeCount}
                 </span>
@@ -204,11 +194,10 @@ export function SessionAvatar(props: {
 }
 
 function MiniTile(props: { path: string; fontSize: number }) {
-    const [from, to] = getProjectGradient(props.path)
     return (
         <span
-            className="flex min-h-0 min-w-0 items-center justify-center rounded-[5px] font-semibold text-white"
-            style={{ background: `linear-gradient(135deg, ${from}, ${to})`, fontSize: props.fontSize }}
+            className="flex aspect-square min-h-0 min-w-0 items-center justify-center self-center rounded-full font-semibold text-white"
+            style={{ background: getProjectOrbBackground(props.path), fontSize: props.fontSize }}
         >
             {getProjectInitials(props.path)}
         </span>
@@ -221,11 +210,10 @@ export function GroupAvatar(props: { name: string; members: SessionLike[]; size?
     const tiles = props.members.slice(0, 4)
 
     if (tiles.length === 0) {
-        const [from, to] = getProjectGradient(props.name)
         return (
             <span
-                className="flex shrink-0 items-center justify-center rounded-[28%] font-semibold text-white"
-                style={{ width: size, height: size, background: `linear-gradient(135deg, ${from}, ${to})`, fontSize: Math.round(size * 0.36) }}
+                className="flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
+                style={{ width: size, height: size, background: getProjectOrbBackground(props.name), fontSize: Math.round(size * 0.34) }}
             >
                 {getProjectInitials(props.name)}
             </span>
@@ -236,7 +224,7 @@ export function GroupAvatar(props: { name: string; members: SessionLike[]; size?
     const rows = tiles.length <= 2 ? 1 : 2
     return (
         <span
-            className="grid shrink-0 gap-[2px] rounded-[28%] bg-[var(--social-search-bg)] p-[3px]"
+            className="grid shrink-0 gap-[2px] rounded-full border border-[var(--social-border)] bg-[var(--social-muted)] p-[5px]"
             style={{
                 width: size,
                 height: size,
@@ -266,14 +254,14 @@ export function PairAvatar(props: { first: SessionLike | null; second: SessionLi
                 {props.first ? (
                     <SessionAvatar session={props.first} size={inner} shape="circle" showAgentBadge={false} />
                 ) : (
-                    <span className="block rounded-full bg-[var(--social-search-bg)]" style={{ width: inner, height: inner }} />
+                    <span className="block rounded-full bg-[var(--social-muted)]" style={{ width: inner, height: inner }} />
                 )}
             </span>
             <span className="absolute bottom-0 right-0 rounded-full ring-2 ring-[var(--app-bg)]">
                 {props.second ? (
                     <SessionAvatar session={props.second} size={inner} shape="circle" showAgentBadge={false} />
                 ) : (
-                    <span className="block rounded-full bg-[var(--social-search-bg)]" style={{ width: inner, height: inner }} />
+                    <span className="block rounded-full bg-[var(--social-muted)]" style={{ width: inner, height: inner }} />
                 )}
             </span>
         </span>

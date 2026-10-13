@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation, useMatchRoute, useRouter } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { getTelegramWebApp, isTelegramApp } from '@/hooks/useTelegram'
@@ -10,6 +10,7 @@ import { useSSE } from '@/hooks/useSSE'
 import { useSyncingState } from '@/hooks/useSyncingState'
 import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { useVisibilityReporter } from '@/hooks/useVisibilityReporter'
+import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { queryKeys } from '@/lib/query-keys'
 import { AppContextProvider } from '@/lib/app-context'
 import { fetchLatestMessages } from '@/lib/message-window-store'
@@ -50,6 +51,12 @@ function AppInner() {
     const matchRoute = useMatchRoute()
     const router = useRouter()
     const { addToast } = useToast()
+    const isMobileLayout = useIsMobileLayout()
+
+    // The mobile layout swaps the app palette for the minimal monochrome one (see index.css).
+    useLayoutEffect(() => {
+        document.documentElement.classList.toggle('social-app', isMobileLayout)
+    }, [isMobileLayout])
 
     useEffect(() => {
         const tg = getTelegramWebApp()

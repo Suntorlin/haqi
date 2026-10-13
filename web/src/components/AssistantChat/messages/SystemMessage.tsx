@@ -76,7 +76,7 @@ export function HappySystemMessage() {
             <div className="flex flex-col gap-2" data-happy-message-id={messageId}>
                 {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
                 <div className="flex justify-center">
-                    <span className="inline-flex max-w-[85%] items-center gap-1 rounded-md bg-[var(--social-pill-bg)] px-2.5 py-1 text-center text-[12px] leading-snug text-[var(--app-hint)]">
+                    <span className="inline-flex max-w-[85%] items-center gap-1 rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-[12px] leading-snug text-[var(--social-fg-muted)]">
                         {icon ? <span aria-hidden="true">{icon}</span> : null}
                         <span>{text}</span>
                     </span>

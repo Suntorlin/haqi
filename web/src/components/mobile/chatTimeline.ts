@@ -81,3 +81,79 @@ export function formatChatTimestamp(
     }
     return `${date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })} ${time}`
 }
+
+export type RunStats = {
+    /** When the turn started: the user's message if the run answers one, else the first agent block. */
+    startAt: number
+    /** Latest activity inside the run (block creation or tool completion). */
+    endAt: number
+}
+
+function getBlockEndAt(block: ChatBlock): number {
+    if (block.kind === 'tool-call') {
+        return Math.max(block.createdAt, block.tool.startedAt ?? 0, block.tool.completedAt ?? 0)
+    }
+    return block.createdAt
+}
+
+/** Thread message id of each merged assistant run -> its start/end time (for "用时" and live timers). */
+export function computeRunStats(blocks: readonly ChatBlock[]): Map<string, RunStats> {
+    const stats = new Map<string, RunStats>()
+    let previousRole: ThreadRole | null = null
+    let lastUserAt: number | null = null
+    let current: RunStats | null = null
+
+    for (const block of blocks) {
+        const role = getThreadRole(block)
+        if (role === 'assistant') {
+            const endAt = getBlockEndAt(block)
+            if (previousRole === 'assistant' && current) {
+                current.endAt = Math.max(current.endAt, endAt)
+            } else {
+                const startAt = previousRole === 'user' && lastUserAt !== null ? lastUserAt : block.createdAt
+                current = { startAt, endAt: Math.max(startAt, endAt) }
+                stats.set(getThreadMessageId(block), current)
+            }
+        } else {
+            current = null
+            if (role === 'user') {
+                lastUserAt = block.createdAt
+            }
+        }
+        previousRole = role
+    }
+
+    return stats
+}
+
+export function formatElapsed(
+    ms: number,
+    t: (key: string, params?: Record<string, string | number>) => string
+): string {
+    const totalSeconds = Math.max(0, Math.round(ms / 1000))
+    if (totalSeconds < 60) return t('mobile.duration.seconds', { s: totalSeconds })
+    const minutes = Math.floor(totalSeconds / 60)
+    if (minutes < 60) return t('mobile.duration.minutes', { m: minutes, s: totalSeconds % 60 })
+    return t('mobile.duration.hours', { h: Math.floor(minutes / 60), m: minutes % 60 })
+}
+
+/**
+ * Last readable paragraph of agent text as plain text, used as the "latest progress" line
+ * while a turn is still running.
+ */
+export function getLatestProgressText(text: string, maxLength = 160): string | null {
+    const paragraphs = text.split(/\n{2,}/)
+    for (let index = paragraphs.length - 1; index >= 0; index -= 1) {
+        const plain = paragraphs[index]
+            .replace(/```[\s\S]*?(```|$)/g, ' ')
+            .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+            .replace(/[`*_>#|]/g, '')
+            .replace(/^\s*[-+]\s+/gm, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+        if (plain) {
+            return plain.length > maxLength ? `…${plain.slice(-maxLength)}` : plain
+        }
+    }
+    return null
+}

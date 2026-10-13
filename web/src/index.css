@@ -50,20 +50,19 @@
     --app-scrollbar-thumb: rgba(17, 24, 39, 0.22);
     --app-scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
 
-    /* Social (mobile) layout (light) */
-    --social-accent: #07c160;
-    --social-badge: #fa5151;
-    --social-chat-bg: #ededed;
-    --social-bubble-self-bg: #95ec69;
-    --social-bubble-self-fg: #111111;
-    --social-bubble-peer-bg: #ffffff;
-    --social-bubble-peer-fg: #191919;
-    --social-bar-bg: rgba(247, 247, 247, 0.94);
-    --social-bar-border: rgba(0, 0, 0, 0.08);
-    --social-sheet-bg: #f7f7f7;
-    --social-cell-bg: #ffffff;
-    --social-search-bg: rgba(118, 118, 128, 0.12);
-    --social-pill-bg: rgba(0, 0, 0, 0.06);
+    /* Social (mobile) layout tokens: zinc monochrome (light) */
+    --social-fg: #09090b;
+    --social-fg-muted: #71717a;
+    --social-fg-subtle: #a1a1aa;
+    --social-surface: #ffffff;
+    --social-muted: #f4f4f5;
+    --social-border: #e4e4e7;
+    --social-primary: #18181b;
+    --social-primary-fg: #fafafa;
+    --social-success: #10b981;
+    --social-warning: #f59e0b;
+    --social-badge: #ff3040;
+    --social-bar-bg: rgba(255, 255, 255, 0.86);
 
     --app-font-scale: 1;
 }
@@ -117,20 +116,19 @@
     --app-scrollbar-thumb: rgba(255, 255, 255, 0.24);
     --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
 
-    /* Social (mobile) layout (dark) */
-    --social-accent: #3eb575;
-    --social-badge: #fa5151;
-    --social-chat-bg: #111111;
-    --social-bubble-self-bg: #3eb575;
-    --social-bubble-self-fg: #0b0b0b;
-    --social-bubble-peer-bg: #2c2c2c;
-    --social-bubble-peer-fg: #e8e8e8;
-    --social-bar-bg: rgba(28, 28, 30, 0.94);
-    --social-bar-border: rgba(255, 255, 255, 0.08);
-    --social-sheet-bg: #1c1c1e;
-    --social-cell-bg: #2c2c2e;
-    --social-search-bg: rgba(118, 118, 128, 0.24);
-    --social-pill-bg: rgba(255, 255, 255, 0.08);
+    /* Social (mobile) layout tokens: zinc monochrome (dark) */
+    --social-fg: #fafafa;
+    --social-fg-muted: #a1a1aa;
+    --social-fg-subtle: #71717a;
+    --social-surface: #09090b;
+    --social-muted: #1c1c1f;
+    --social-border: #27272a;
+    --social-primary: #fafafa;
+    --social-primary-fg: #09090b;
+    --social-success: #34d399;
+    --social-warning: #fbbf24;
+    --social-badge: #ff3040;
+    --social-bar-bg: rgba(9, 9, 11, 0.86);
 }
 
 html {
@@ -470,8 +468,44 @@ html[data-theme="dark"] .shiki span {
 }
 
 /* ------------------------------------------------------------------ */
-/* Social (mobile) layout: WeChat-style chat, Instagram-style list     */
+/* Social (mobile) layout: minimal monochrome (shadcn / ElevenLabs / IG) */
 /* ------------------------------------------------------------------ */
+
+/* Applied on <html> while the mobile layout is active, so portals (sheets, menus, dialogs) match too. */
+html.social-app {
+    --app-bg: var(--tg-theme-bg-color, #ffffff);
+    --app-fg: var(--tg-theme-text-color, #09090b);
+    --app-hint: var(--tg-theme-hint-color, #71717a);
+    --app-link: var(--tg-theme-link-color, #09090b);
+    --app-button: var(--tg-theme-button-color, #18181b);
+    --app-button-text: var(--tg-theme-button-text-color, #fafafa);
+    --app-banner-bg: var(--tg-theme-button-color, #18181b);
+    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+    --app-border: #e4e4e7;
+    --app-divider: #f0f0f2;
+    --app-subtle-bg: #fafafa;
+    --app-code-bg: #fafafa;
+    --app-inline-code-bg: #f4f4f5;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html.social-app[data-theme="dark"] {
+    --app-bg: var(--tg-theme-bg-color, #09090b);
+    --app-fg: var(--tg-theme-text-color, #fafafa);
+    --app-hint: var(--tg-theme-hint-color, #a1a1aa);
+    --app-link: var(--tg-theme-link-color, #fafafa);
+    --app-button: var(--tg-theme-button-color, #fafafa);
+    --app-button-text: var(--tg-theme-button-text-color, #09090b);
+    --app-banner-bg: var(--tg-theme-button-color, #27272a);
+    --app-secondary-bg: var(--tg-theme-secondary-bg-color, #18181b);
+    --app-border: #27272a;
+    --app-divider: #1c1c1f;
+    --app-subtle-bg: #111113;
+    --app-code-bg: #111113;
+    --app-inline-code-bg: #1f1f23;
+}
 
 .social-bar {
     background: var(--social-bar-bg);
@@ -480,23 +514,33 @@ html[data-theme="dark"] .shiki span {
 }
 
 .social-chat {
-    background: var(--social-chat-bg);
+    background: var(--app-bg);
+}
+
+.social-card {
+    background: var(--social-surface);
+    border: 1px solid var(--social-border);
 }
 
 .social-bubble-self {
-    background: var(--social-bubble-self-bg);
-    color: var(--social-bubble-self-fg);
+    background: var(--social-primary);
+    color: var(--social-primary-fg);
 }
 
-.social-bubble-peer {
-    background: var(--social-bubble-peer-bg);
-    color: var(--social-bubble-peer-fg);
+.social-bubble-self a {
+    color: inherit;
+}
+
+.social-bubble-self code,
+.social-bubble-self .markdown-content code {
+    background: rgba(127, 127, 127, 0.22);
+    color: inherit;
 }
 
 /* Chat text sized for phones: 15px body, roomy line height, compact headings. */
 .social-chat .aui-md {
     font-size: calc(0.9375rem * var(--app-font-scale, 1));
-    line-height: 1.6;
+    line-height: 1.65;
 }
 
 .social-chat .aui-md > :first-child {
@@ -508,7 +552,7 @@ html[data-theme="dark"] .shiki span {
 }
 
 .social-chat .aui-md-p + .aui-md-p {
-    margin-top: 0.5em;
+    margin-top: 0.55em;
 }
 
 .social-chat .aui-md-h1,
@@ -516,7 +560,7 @@ html[data-theme="dark"] .shiki span {
 .social-chat .aui-md-h3,
 .social-chat .aui-md-h4 {
     font-size: 1em;
-    margin-top: 0.75em;
+    margin-top: 0.8em;
     margin-bottom: 0.25em;
 }
 
@@ -530,13 +574,34 @@ html[data-theme="dark"] .shiki span {
     font-size: 0.85em;
 }
 
-.social-chat .social-bubble-peer .aui-md-pre-wrapper,
-.social-chat .social-bubble-peer .aui-md-table-wrapper {
-    margin: 0.5em 0;
+.social-chat .social-card .aui-md-pre-wrapper,
+.social-chat .social-card .aui-md-table-wrapper {
+    margin: 0.55em 0;
 }
 
-.social-chat .social-bubble-peer .aui-md-codeheader {
+.social-chat .social-card .aui-md-codeheader {
     border-radius: 10px 10px 0 0;
+}
+
+/* Expanded process: quieter, smaller text on a hairline timeline. */
+.social-process {
+    border-left: 1px solid var(--social-border);
+}
+
+.social-process .aui-md {
+    font-size: calc(0.875rem * var(--app-font-scale, 1));
+    line-height: 1.6;
+    color: var(--social-fg-muted);
+}
+
+.social-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    border: 2px solid var(--social-border);
+    border-top-color: var(--social-fg);
+    animation: spin 0.8s linear infinite;
 }
 
 /* Instagram-style story ring. */
@@ -549,21 +614,17 @@ html[data-theme="dark"] .shiki span {
 }
 
 .story-ring-idle {
-    background: var(--app-divider);
+    background: var(--social-border);
 }
 
 .story-ring-alert {
-    background: conic-gradient(from 0deg, #ff9500, #fa5151, #ff9500);
+    background: var(--social-warning);
 }
 
 @keyframes story-spin {
     to {
         transform: rotate(360deg);
     }
-}
-
-.story-live-badge {
-    background: linear-gradient(90deg, #d62976, #fa5151);
 }
 
 /* "Typing…" dots shown while an agent is thinking. */
@@ -629,7 +690,7 @@ html[data-theme="dark"] .shiki span {
 }
 
 .social-pressable:active {
-    background-color: var(--app-subtle-bg);
+    background-color: var(--social-muted);
 }
 
 .social-scroll-x {

@@ -805,7 +805,12 @@ function ToolCardInner(props: ToolCardProps) {
     })()
 
     return (
-        <Card className="overflow-hidden shadow-sm">
+        <Card
+            className={cn(
+                'overflow-hidden shadow-sm',
+                chatContext.layout === 'social' && 'border border-[var(--social-border)] bg-transparent shadow-none'
+            )}
+        >
             <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
                 {isCompact ? (
                     isTurnChangesTool ? (

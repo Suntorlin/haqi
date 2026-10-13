@@ -17,8 +17,8 @@ import {
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--app-hint)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
-const tileIconClass = 'relative flex h-[58px] w-[58px] items-center justify-center rounded-2xl bg-[var(--social-cell-bg)] text-[var(--app-fg)] transition-transform active:scale-95'
+const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
+const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] text-[var(--social-fg)] transition-transform active:scale-95'
 
 function PanelTile(props: {
     icon: ReactNode
@@ -30,7 +30,7 @@ function PanelTile(props: {
 }) {
     return (
         <button type="button" onClick={props.onClick} disabled={props.disabled} className={tileClass}>
-            <span className={cn(tileIconClass, props.active ? 'bg-[var(--social-accent)] text-white' : '')}>
+            <span className={cn(tileIconClass, props.active ? 'border-transparent bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : '')}>
                 {props.icon}
                 {props.badge && props.badge > 0 ? (
                     <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold text-white">
@@ -71,7 +71,7 @@ export function MobileComposerToolPanel(props: {
 }) {
     const { t } = useTranslation()
     return (
-        <div className="grid grid-cols-4 gap-x-2 gap-y-4 px-5 pb-3 pt-4">
+        <div className="grid grid-cols-4 gap-x-2 gap-y-4 px-5 pb-3 pt-4 [&_svg]:stroke-[1.6]">
             <ComposerPrimitive.AddAttachment disabled={props.controlsDisabled} className={tileClass}>
                 <span className={tileIconClass}>
                     <PaperclipIcon className="h-6 w-6" />
@@ -127,9 +127,9 @@ export function MobileComposerToggle(props: { open: boolean; onClick: () => void
             disabled={props.disabled}
             aria-label={t('mobile.composer.more')}
             aria-expanded={props.open}
-            className="mb-[3px] flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border-[1.6px] border-[var(--app-fg)] text-[var(--app-fg)] transition-transform [-webkit-tap-highlight-color:transparent] disabled:opacity-40"
+            className="mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg)] transition-transform [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:opacity-40"
         >
-            <PlusIcon className={cn('h-[20px] w-[20px] transition-transform duration-200', props.open ? 'rotate-45' : '')} />
+            <PlusIcon className={cn('h-5 w-5 transition-transform duration-200', props.open ? 'rotate-45' : '')} />
         </button>
     )
 }
@@ -153,7 +153,7 @@ export function MobileComposerAction(props: {
     onVoiceToggle: () => void
 }) {
     const { t } = useTranslation()
-    const base = 'mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-[transform,opacity] [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:opacity-40'
+    const base = 'mb-[2px] flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] transition-[transform,opacity] [-webkit-tap-highlight-color:transparent] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)]'
     const voiceActive = props.voiceStatus === 'connected' || props.voiceStatus === 'connecting'
 
     if (props.showStop) {
@@ -164,10 +164,10 @@ export function MobileComposerAction(props: {
                 disabled={props.abortDisabled}
                 aria-label={t('mobile.composer.stop')}
                 title={t('mobile.composer.stop')}
-                className={cn(base, 'bg-[var(--social-badge)] text-white')}
+                className={base}
             >
                 {props.isAborting ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
                 ) : (
                     <StopSquareIcon className="h-3.5 w-3.5" />
                 )}
@@ -183,10 +183,10 @@ export function MobileComposerAction(props: {
                 disabled={!props.canSend || props.isSending}
                 aria-label={t('composer.send')}
                 title={t('composer.send')}
-                className={cn(base, 'bg-[var(--social-accent)] text-white')}
+                className={base}
             >
                 {props.isSending ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
                 ) : (
                     <SendArrowIcon className="h-[18px] w-[18px]" />
                 )}
@@ -202,7 +202,7 @@ export function MobileComposerAction(props: {
                 disabled={props.controlsDisabled && !voiceActive}
                 aria-label={t('composer.voice')}
                 title={t('composer.voice')}
-                className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-white' : 'bg-[var(--app-fg)] text-[var(--app-bg)]')}
+                className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-white' : '')}
             >
                 {voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
             </button>
@@ -214,7 +214,7 @@ export function MobileComposerAction(props: {
             type="button"
             disabled
             aria-label={t('composer.send')}
-            className={cn(base, 'bg-[var(--social-accent)] text-white')}
+            className={base}
         >
             <SendArrowIcon className="h-[18px] w-[18px]" />
         </button>

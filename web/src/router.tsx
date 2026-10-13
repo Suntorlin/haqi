@@ -295,13 +295,13 @@ function persistMobileSessionListMode(mode: MobileSessionListMode): void {
 
 function MobileSearchField(props: { value: string; onChange: (value: string) => void; placeholder: string }) {
     return (
-        <label className="flex h-9 items-center gap-2 rounded-[10px] bg-[var(--social-search-bg)] px-3 text-[var(--app-hint)]">
-            <SearchIcon className="h-4 w-4 shrink-0" />
+        <label className="flex h-10 items-center gap-2.5 rounded-xl bg-[var(--social-muted)] px-3.5 text-[var(--social-fg-subtle)]">
+            <SearchIcon className="h-[17px] w-[17px] shrink-0" />
             <input
                 value={props.value}
                 onChange={(event) => props.onChange(event.target.value)}
                 placeholder={props.placeholder}
-                className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--app-fg)] outline-none placeholder:text-[var(--app-hint)]"
+                className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--social-fg)] outline-none placeholder:text-[var(--social-fg-subtle)]"
                 type="search"
                 enterKeyHint="search"
             />
@@ -722,8 +722,8 @@ function SessionsPage() {
             persistMobileSessionListMode(next)
         }
         const mobileListHeader = (
-            <div className="pb-1">
-                <div className="px-4 pb-2.5 pt-2">
+            <div className="pb-2">
+                <div className="px-5 pb-3 pt-1">
                     <MobileSearchField
                         value={sessionSearchQuery}
                         onChange={setSessionSearchQuery}
@@ -738,11 +738,11 @@ function SessionsPage() {
                     />
                 )}
                 {sessionTags.length ? (
-                    <div className="session-tag-scroll flex gap-1.5 overflow-x-auto px-4 pb-2">
+                    <div className="session-tag-scroll flex gap-2 overflow-x-auto px-5 pb-1 pt-1">
                         <button
                             type="button"
                             onClick={() => setSelectedSessionTag(null)}
-                            className={`shrink-0 rounded-full px-3 py-1 text-[13px] transition-colors ${selectedSessionTag === null ? 'bg-[var(--app-fg)] text-[var(--app-bg)]' : 'bg-[var(--social-pill-bg)] text-[var(--app-fg)]'}`}
+                            className={`h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${selectedSessionTag === null ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : 'border-[var(--social-border)] text-[var(--social-fg)]'}`}
                         >
                             {t('sessions.tags.all')}
                         </button>
@@ -751,14 +751,13 @@ function SessionsPage() {
                                 key={tag}
                                 type="button"
                                 onClick={() => setSelectedSessionTag(tag)}
-                                className={`shrink-0 rounded-full px-3 py-1 text-[13px] transition-colors ${selectedSessionTag === tag ? 'bg-[var(--app-fg)] text-[var(--app-bg)]' : 'bg-[var(--social-pill-bg)] text-[var(--app-fg)]'}`}
+                                className={`h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${selectedSessionTag === tag ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : 'border-[var(--social-border)] text-[var(--social-fg)]'}`}
                             >
                                 #{tag}
                             </button>
                         ))}
                     </div>
                 ) : null}
-                <div className="h-px bg-[var(--app-divider)]" />
             </div>
         )
 
@@ -1261,18 +1260,18 @@ function MobileGroupRow(props: {
         <button
             type="button"
             {...longPressHandlers}
-            className="social-pressable flex w-full items-center gap-3 pl-4 text-left select-none"
+            className="social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none"
             style={{ WebkitTouchCallout: 'none' }}
         >
-            <GroupAvatar name={item.group.name} members={members} size={50} />
-            <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch border-b border-[var(--app-divider)] py-3 pr-4">
+            <GroupAvatar name={item.group.name} members={members} size={48} />
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-snug">{item.group.name}</span>
-                    <span className="shrink-0 text-[11px] text-[var(--app-hint)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">{item.group.name}</span>
+                    <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--app-hint)]">
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13.5px] leading-snug text-[var(--social-fg-muted)]">
                     {hasLiveMember ? (
-                        <span className="shrink-0 text-[var(--social-accent)]">{t('mobile.feed.thinking')}</span>
+                        <span className="shrink-0 font-medium text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
                     ) : null}
                     <span className="min-w-0 truncate">
                         {t('mobile.groups.members', { n: item.members.length })}
@@ -1773,14 +1772,13 @@ function GroupsLayout() {
                         )}
                     />
                     <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
-                        <div className="px-4 pb-2.5 pt-2">
+                        <div className="px-5 pb-3 pt-1">
                             <MobileSearchField
                                 value={groupSearchQuery}
                                 onChange={setGroupSearchQuery}
                                 placeholder={t('groups.search.placeholder')}
                             />
                         </div>
-                        <div className="h-px bg-[var(--app-divider)]" />
                         {isLoading ? (
                             <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
                         ) : visibleGroups.length === 0 ? (
@@ -1805,7 +1803,7 @@ function GroupsLayout() {
 
         return (
             <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-bar-border)] pt-[env(safe-area-inset-top)]">
+                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                     <div className="flex h-[52px] items-center gap-2 pl-1 pr-4">
                         <button
                             type="button"
@@ -2246,14 +2244,13 @@ function ReviewLoopsLayout() {
                         )}
                     />
                     <div className="session-list-scroll min-h-0 flex-1 overflow-y-auto">
-                        <div className="px-4 pb-2.5 pt-2">
+                        <div className="px-5 pb-3 pt-1">
                             <MobileSearchField
                                 value={loopSearchQuery}
                                 onChange={setLoopSearchQuery}
                                 placeholder={t('mobile.loops.search')}
                             />
                         </div>
-                        <div className="h-px bg-[var(--app-divider)]" />
                         {isLoading ? (
                             <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">{t('mobile.feed.loading')}</div>
                         ) : visibleLoops.length === 0 ? (
@@ -2264,23 +2261,23 @@ function ReviewLoopsLayout() {
                                     key={item.id}
                                     type="button"
                                     onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
-                                    className="social-pressable flex w-full items-center gap-3 pl-4 text-left"
+                                    className="social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left"
                                 >
                                     <PairAvatar
                                         first={sessionById.get(item.workerSessionId) ?? null}
                                         second={sessionById.get(item.reviewerSessionId) ?? null}
-                                        size={50}
+                                        size={48}
                                     />
-                                    <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch border-b border-[var(--app-divider)] py-3 pr-4">
+                                    <div className="flex min-w-0 flex-1 flex-col justify-center">
                                         <div className="flex items-baseline gap-2">
-                                            <span className="min-w-0 flex-1 truncate text-[16px] font-medium leading-snug">
+                                            <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug tracking-[-0.01em]">
                                                 {item.requirement}
                                             </span>
-                                            <span className="shrink-0 text-[11px] text-[var(--app-hint)]">
+                                            <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
                                                 {formatRelativeTime(item.updatedAt, t)}
                                             </span>
                                         </div>
-                                        <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--app-hint)]">
+                                        <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--social-fg-muted)]">
                                             <ReviewLoopStatusBadge status={item.status} />
                                             <span>{t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}</span>
                                         </div>
@@ -2302,7 +2299,7 @@ function ReviewLoopsLayout() {
 
         return (
             <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
-                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-bar-border)] pt-[env(safe-area-inset-top)]">
+                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
                     <div className="flex h-[52px] items-center gap-2 pl-1 pr-4">
                         <button
                             type="button"

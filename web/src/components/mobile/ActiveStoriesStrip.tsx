@@ -35,19 +35,19 @@ export function ActiveStoriesStrip(props: {
     )
 
     return (
-        <div className="social-scroll-x flex gap-3.5 overflow-x-auto px-4 pb-3 pt-1">
+        <div className="social-scroll-x flex gap-4 overflow-x-auto px-5 pb-3 pt-1">
             <button
                 type="button"
                 onClick={props.onNewSession}
-                className="flex w-[66px] shrink-0 flex-col items-center gap-1 [-webkit-tap-highlight-color:transparent]"
+                className="flex w-16 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
             >
-                <span className="relative flex h-[66px] w-[66px] items-center justify-center rounded-full border-[1.5px] border-dashed border-[var(--app-hint)]/60">
-                    <svg viewBox="0 0 24 24" className="h-7 w-7 text-[var(--app-hint)]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)]">
+                    <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
                 </span>
-                <span className="w-full truncate text-center text-[11px] text-[var(--app-hint)]">
+                <span className="w-full truncate text-center text-[11.5px] text-[var(--social-fg-muted)]">
                     {t('mobile.stories.new')}
                 </span>
             </button>
@@ -55,37 +55,40 @@ export function ActiveStoriesStrip(props: {
             {stories.map((session) => {
                 const isPending = session.pendingRequestsCount > 0
                 const isLive = session.thinking
-                const ringClass = isPending
-                    ? 'story-ring-alert'
-                    : isLive
-                        ? 'story-ring story-ring-live'
-                        : 'story-ring-idle'
                 const title = getSessionTitle(session)
                 return (
                     <button
                         key={session.id}
                         type="button"
                         onClick={() => props.onSelect(session.id)}
-                        className="flex w-[66px] shrink-0 flex-col items-center gap-1 [-webkit-tap-highlight-color:transparent]"
+                        className="flex w-16 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
                         title={title}
                     >
-                        <span className="relative flex h-[66px] w-[66px] items-center justify-center">
-                            <span className={cn('absolute inset-0 rounded-full', ringClass)} aria-hidden="true" />
-                            <span className="relative rounded-full bg-[var(--app-bg)] p-[2.5px]">
-                                <SessionAvatar session={session} size={56} shape="circle" showAgentBadge={false} />
+                        <span className="relative flex h-16 w-16 items-center justify-center">
+                            {isPending ? (
+                                <span className="story-ring-alert absolute inset-0 rounded-full" aria-hidden="true" />
+                            ) : isLive ? (
+                                <span className="story-ring story-ring-live absolute inset-0 rounded-full" aria-hidden="true" />
+                            ) : (
+                                <span className="absolute inset-0 rounded-full border border-[var(--social-border)]" aria-hidden="true" />
+                            )}
+                            <span className="relative rounded-full bg-[var(--app-bg)] p-[3px]">
+                                <SessionAvatar session={session} size={54} showAgentBadge={false} />
                             </span>
                             {isPending || isLive ? (
                                 <span
                                     className={cn(
-                                        'absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-[5px] px-1.5 py-[1px] text-[9px] font-bold uppercase leading-[13px] tracking-wide text-white ring-2 ring-[var(--app-bg)]',
-                                        isPending ? 'bg-[#ff9500]' : 'story-live-badge'
+                                        'absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full px-1.5 text-[9.5px] font-semibold leading-[15px] ring-2 ring-[var(--app-bg)]',
+                                        isPending
+                                            ? 'bg-[var(--social-warning)] text-white'
+                                            : 'bg-[var(--social-fg)] text-[var(--app-bg)]'
                                     )}
                                 >
                                     {isPending ? t('mobile.stories.pending') : t('mobile.stories.live')}
                                 </span>
                             ) : null}
                         </span>
-                        <span className={cn('w-full truncate text-center text-[11px]', isPending || isLive ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]')}>
+                        <span className={cn('w-full truncate text-center text-[11.5px]', isPending || isLive ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
                             {title}
                         </span>
                     </button>

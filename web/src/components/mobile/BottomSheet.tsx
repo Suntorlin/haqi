@@ -18,12 +18,12 @@ export function BottomSheet(props: {
                 <DialogPrimitive.Content
                     aria-describedby={undefined}
                     className={cn(
-                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[20px] bg-[var(--social-sheet-bg)] pb-[env(safe-area-inset-bottom)] text-[var(--app-fg)] shadow-2xl outline-none',
+                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[24px] border-t border-[var(--social-border)] bg-[var(--app-bg)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] outline-none',
                         props.className
                     )}
                 >
                     <div className="flex shrink-0 justify-center pb-1 pt-2">
-                        <span className="h-1 w-9 rounded-full bg-[var(--app-hint)] opacity-40" aria-hidden="true" />
+                        <span className="h-1 w-9 rounded-full bg-[var(--social-border)]" aria-hidden="true" />
                     </div>
                     <DialogPrimitive.Title
                         className={props.hideTitle ? 'sr-only' : 'px-4 pb-2 text-center text-[15px] font-semibold'}
@@ -44,11 +44,11 @@ export function SheetSection(props: { title?: string; children: ReactNode; class
     return (
         <section className={cn('px-4 pb-3', props.className)}>
             {props.title ? (
-                <div className="px-3 pb-1.5 text-[12px] font-medium text-[var(--app-hint)]">
+                <div className="px-1 pb-2 text-[12px] font-medium text-[var(--social-fg-muted)]">
                     {props.title}
                 </div>
             ) : null}
-            <div className="overflow-hidden rounded-xl bg-[var(--social-cell-bg)]">
+            <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
                 {props.children}
             </div>
         </section>
@@ -67,25 +67,25 @@ export function SheetRow(props: {
     const content = (
         <>
             {props.icon ? (
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--app-subtle-bg)] text-[var(--app-fg)]">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[var(--social-fg-muted)]">
                     {props.icon}
                 </span>
             ) : null}
-            <span className={cn('min-w-0 shrink-0 text-[15px]', props.destructive ? 'text-[var(--social-badge)]' : '')}>
+            <span className={cn('min-w-0 shrink-0 text-[15px]', props.destructive ? 'text-[var(--social-badge)]' : 'text-[var(--social-fg)]')}>
                 {props.label}
             </span>
-            <span className="min-w-0 flex-1 truncate text-right text-[14px] text-[var(--app-hint)]">
+            <span className="min-w-0 flex-1 truncate text-right text-[14px] text-[var(--social-fg-muted)]">
                 {props.value}
             </span>
             {props.chevron ? (
-                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-[var(--app-hint)] opacity-60" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <polyline points="9 18 15 12 9 6" />
                 </svg>
             ) : null}
         </>
     )
 
-    const className = 'flex min-h-[48px] w-full items-center gap-3 px-3 py-2 text-left [&+&]:border-t [&+&]:border-[var(--app-divider)]'
+    const className = 'flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left [&+&]:border-t [&+&]:border-[var(--social-border)]'
 
     if (props.onClick) {
         return (

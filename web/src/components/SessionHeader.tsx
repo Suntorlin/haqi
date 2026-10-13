@@ -61,16 +61,16 @@ function getMobileStatus(
     t: (key: string) => string
 ): { text: string; dotClass: string; textClass: string; pulse: boolean } {
     if (!session.active) {
-        return { text: t('misc.offline'), dotClass: 'bg-[#a0a0a5]', textClass: 'text-[var(--app-hint)]', pulse: false }
+        return { text: t('misc.offline'), dotClass: 'bg-[var(--social-fg-subtle)]', textClass: 'text-[var(--social-fg-muted)]', pulse: false }
     }
     const pendingRequests = session.agentState?.requests ? Object.keys(session.agentState.requests).length : 0
     if (pendingRequests > 0) {
-        return { text: t('misc.permissionRequired'), dotClass: 'bg-[#ff9500]', textClass: 'text-[#ff9500]', pulse: true }
+        return { text: t('misc.permissionRequired'), dotClass: 'bg-[var(--social-warning)]', textClass: 'text-[var(--social-warning)]', pulse: true }
     }
     if (session.thinking) {
-        return { text: t('mobile.chat.thinking'), dotClass: 'bg-[var(--social-accent)]', textClass: 'text-[var(--social-accent)]', pulse: true }
+        return { text: t('mobile.chat.thinking'), dotClass: 'bg-[var(--social-fg)]', textClass: 'font-medium text-[var(--social-fg)]', pulse: true }
     }
-    return { text: t('misc.online'), dotClass: 'bg-[#34c759]', textClass: 'text-[var(--app-hint)]', pulse: false }
+    return { text: t('misc.online'), dotClass: 'bg-[var(--social-success)]', textClass: 'text-[var(--social-fg-muted)]', pulse: false }
 }
 
 function FilesIcon(props: { className?: string }) {
@@ -378,8 +378,8 @@ export function SessionHeader(props: {
 
         return (
             <>
-                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-bar-border)] pt-[env(safe-area-inset-top)]">
-                    <div className="flex h-[52px] items-center gap-0.5 pl-1 pr-1.5">
+                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
+                    <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
                         <button
                             type="button"
                             onClick={props.onBack}
@@ -393,16 +393,16 @@ export function SessionHeader(props: {
                             onClick={() => setInfoOpen(true)}
                             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pr-1 text-left [-webkit-tap-highlight-color:transparent]"
                         >
-                            <SessionAvatar session={session} size={36} shape="circle" dimmed={!session.active} />
+                            <SessionAvatar session={session} size={34} dimmed={!session.active} showAgentBadge={false} />
                             <div className="min-w-0 flex-1">
-                                <div className="truncate text-[16px] font-semibold leading-tight">
+                                <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                     {title}
                                 </div>
-                                <div className="mt-0.5 flex min-w-0 items-center gap-1 text-[12px] leading-tight text-[var(--app-hint)]">
+                                <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-[12px] leading-tight text-[var(--social-fg-muted)]">
                                     <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
                                     <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
                                     <span className="min-w-0 truncate">
-                                        {shortModel ? ` · ${shortModel}` : ''}
+                                        {shortModel ? `· ${shortModel}` : ''}
                                         {permissionLabel ? (
                                             <span className={permissionToneClass}>{` · ${permissionLabel}`}</span>
                                         ) : null}
@@ -428,11 +428,11 @@ export function SessionHeader(props: {
                 </div>
 
                 <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle>
-                    <div className="flex items-center gap-3 px-5 pb-4 pt-2">
-                        <SessionAvatar session={session} size={56} dimmed={!session.active} />
+                    <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
+                        <SessionAvatar session={session} size={52} dimmed={!session.active} />
                         <div className="min-w-0 flex-1">
-                            <div className="line-clamp-2 text-[17px] font-semibold leading-snug">{title}</div>
-                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--app-hint)]">
+                            <div className="line-clamp-2 text-[17px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
+                            <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--social-fg-muted)]">
                                 <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass)} />
                                 <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
                                 <span className="truncate">· {flavor ?? 'unknown'} · {getProjectName(getSessionProjectPath(session))}</span>
@@ -440,14 +440,14 @@ export function SessionHeader(props: {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2 px-4 pb-4">
+                    <div className="grid grid-cols-4 gap-2 px-4 pb-5">
                         {quickActions.map((action) => (
                             <button
                                 key={action.key}
                                 type="button"
                                 disabled={!action.onClick}
                                 onClick={closeInfoThen(action.onClick)}
-                                className="flex flex-col items-center gap-1.5 rounded-2xl bg-[var(--social-cell-bg)] py-3 text-[12px] text-[var(--app-fg)] transition-opacity active:opacity-70 disabled:opacity-35"
+                                className="flex flex-col items-center gap-1.5 rounded-2xl border border-[var(--social-border)] py-3 text-[12px] text-[var(--social-fg)] transition-colors active:bg-[var(--social-muted)] disabled:opacity-35"
                             >
                                 {action.icon}
                                 {action.label}
@@ -457,7 +457,7 @@ export function SessionHeader(props: {
 
                     {props.onViewModeChange ? (
                         <SheetSection title={t('mobile.chat.view')}>
-                            <div className="flex gap-1 p-1">
+                            <div className="flex gap-1 bg-[var(--social-muted)] p-1">
                                 {viewModes.map((item) => (
                                     <button
                                         key={item.mode}
@@ -467,10 +467,10 @@ export function SessionHeader(props: {
                                             setInfoOpen(false)
                                         }}
                                         className={cn(
-                                            'flex-1 rounded-[9px] py-2 text-[14px] transition-colors',
+                                            'flex-1 rounded-[10px] py-2 text-[14px] transition-colors',
                                             props.viewMode === item.mode
-                                                ? 'bg-[var(--app-fg)] font-medium text-[var(--app-bg)]'
-                                                : 'text-[var(--app-fg)]'
+                                                ? 'bg-[var(--app-bg)] font-medium text-[var(--social-fg)] shadow-sm'
+                                                : 'text-[var(--social-fg-muted)]'
                                         )}
                                     >
                                         {item.label}

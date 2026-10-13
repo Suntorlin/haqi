@@ -1,22 +1,29 @@
+import { useEffect, useMemo, useState } from 'react'
 import { MessagePrimitive, useAssistantState } from '@assistant-ui/react'
 import { LazyRainbowText } from '@/components/LazyRainbowText'
 import { MarkdownText } from '@/components/assistant-ui/markdown-text'
-import { Reasoning, ReasoningGroup } from '@/components/assistant-ui/reasoning'
+import { Reasoning } from '@/components/assistant-ui/reasoning'
 import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { HappyToolMessage } from '@/components/AssistantChat/messages/ToolMessage'
 import { MessageStatusIndicator } from '@/components/AssistantChat/messages/MessageStatusIndicator'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { CliOutputBlock } from '@/components/CliOutputBlock'
+import { getToolPresentation } from '@/components/ToolCard/knownTools'
 import { AgentAvatar } from '@/components/mobile/SessionAvatar'
-import { formatChatTimestamp } from '@/components/mobile/chatTimeline'
+import { formatChatTimestamp, formatElapsed, getLatestProgressText } from '@/components/mobile/chatTimeline'
+import type { ChatBlock, ToolCallBlock } from '@/chat/types'
+import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { useLongPress } from '@/hooks/useLongPress'
+import { usePlatform } from '@/hooks/usePlatform'
 import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { useTranslation } from '@/lib/use-translation'
+import { cn } from '@/lib/utils'
 
 export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
     return (
         <div className="flex justify-center py-1" role="separator">
-            <span className="rounded-md bg-[var(--social-pill-bg)] px-2 py-0.5 text-[11.5px] leading-[18px] text-[var(--app-hint)]">
+            <span className="text-[11.5px] leading-[18px] text-[var(--social-fg-subtle)]">
                 {formatChatTimestamp(props.at, locale, t('mobile.time.yesterday'))}
             </span>
         </div>
@@ -28,56 +35,313 @@ function useTimeSeparatorAt(messageId: string): number | undefined {
     return ctx.timeSeparators?.get(messageId)
 }
 
-function SocialBubbleText() {
-    const isEmpty = useAssistantState(({ part }) => part.type === 'text' && part.text.trim().length === 0)
-    if (isEmpty) return null
+function useNow(intervalMs: number): number {
+    const [now, setNow] = useState(() => Date.now())
+    useEffect(() => {
+        const timer = window.setInterval(() => setNow(Date.now()), intervalMs)
+        return () => window.clearInterval(timer)
+    }, [intervalMs])
+    return now
+}
+
+type MessagePartLike = {
+    type: string
+    text?: string
+    result?: unknown
+    artifact?: unknown
+}
+
+function asToolCallBlock(value: unknown): ToolCallBlock | null {
+    if (!value || typeof value !== 'object') return null
+    const block = value as Partial<ToolCallBlock>
+    if (block.kind !== 'tool-call' || !block.tool || !Array.isArray(block.children)) return null
+    return block as ToolCallBlock
+}
+
+function hasPendingPermission(block: ChatBlock): boolean {
+    if (block.kind !== 'tool-call') return false
+    if (block.tool.permission?.status === 'pending') return true
+    return block.children.some(hasPendingPermission)
+}
+
+type TurnLayout = {
+    /** Final reply: trailing text after the last tool call (falls back to the last text). */
+    answerIndices: number[]
+    /** Everything else, in order: earlier text, reasoning and tool calls. */
+    processIndices: number[]
+    /** Tool calls waiting for the user's approval; always visible. */
+    pendingIndices: number[]
+    steps: number
+    /** Latest agent text, only while it is still recent (at most one tool call after it). */
+    latestText: string | null
+    current: { kind: 'tool'; block: ToolCallBlock } | { kind: 'reasoning' } | { kind: 'text' } | null
+}
+
+function hasText(part: MessagePartLike): boolean {
+    return part.type === 'text' && typeof part.text === 'string' && part.text.trim().length > 0
+}
+
+/** Splits one merged agent turn into "final reply" vs "process" (WeChat-simple, details on demand). */
+function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
+    let lastToolIndex = -1
+    let previousToolIndex = -1
+    let lastTextIndex = -1
+    let steps = 0
+    parts.forEach((part, index) => {
+        if (part.type === 'tool-call') {
+            previousToolIndex = lastToolIndex
+            lastToolIndex = index
+            steps += 1
+        }
+        if (hasText(part)) lastTextIndex = index
+    })
+
+    let answerIndices = parts
+        .map((part, index) => (index > lastToolIndex && hasText(part) ? index : -1))
+        .filter((index) => index >= 0)
+    if (answerIndices.length === 0 && lastTextIndex >= 0) {
+        answerIndices = [lastTextIndex]
+    }
+
+    const pendingIndices: number[] = []
+    parts.forEach((part, index) => {
+        if (part.type !== 'tool-call') return
+        const block = asToolCallBlock(part.artifact)
+        if (block && hasPendingPermission(block)) pendingIndices.push(index)
+    })
+
+    const hidden = new Set([...answerIndices, ...pendingIndices])
+    const processIndices = parts
+        .map((part, index) => (!hidden.has(index) && (part.type !== 'text' || hasText(part)) ? index : -1))
+        .filter((index) => index >= 0)
+
+    const lastPart = parts[parts.length - 1]
+    let current: TurnLayout['current'] = null
+    if (lastPart?.type === 'tool-call' && lastPart.result === undefined) {
+        const block = asToolCallBlock(lastPart.artifact)
+        current = block ? { kind: 'tool', block } : null
+    } else if (lastPart?.type === 'reasoning') {
+        current = { kind: 'reasoning' }
+    } else if (lastPart?.type === 'text') {
+        current = { kind: 'text' }
+    }
+
+    const latestText = lastTextIndex >= 0 && lastTextIndex > previousToolIndex
+        ? parts[lastTextIndex].text ?? null
+        : null
+
+    return { answerIndices, processIndices, pendingIndices, steps, latestText, current }
+}
+
+function ProcessReasoning() {
+    const { t } = useTranslation()
+    const [open, setOpen] = useState(false)
     return (
-        <div className="social-bubble-peer w-fit min-w-0 max-w-full rounded-[18px] rounded-tl-[6px] px-3.5 py-2.5 shadow-[0_1px_0.5px_rgba(0,0,0,0.06)]">
+        <div className="min-w-0">
+            <button
+                type="button"
+                onClick={() => setOpen((value) => !value)}
+                className="flex items-center gap-1.5 py-0.5 text-[12.5px] text-[var(--social-fg-muted)]"
+            >
+                <ChevronIcon className={cn('h-3 w-3 transition-transform', open ? 'rotate-90' : '')} />
+                {t('mobile.turn.reasoning')}
+            </button>
+            {open ? (
+                <div className="mt-1 pl-4">
+                    <Reasoning />
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+function ProcessText() {
+    return (
+        <div className="min-w-0 max-w-full">
             <MarkdownText />
         </div>
     )
 }
 
-const SOCIAL_PART_COMPONENTS = {
-    Text: SocialBubbleText,
-    Reasoning: Reasoning,
-    ReasoningGroup: ReasoningGroup,
+const ANSWER_COMPONENTS = { Text: MarkdownText } as const
+
+const PROCESS_COMPONENTS = {
+    Text: ProcessText,
+    Reasoning: ProcessReasoning,
     tools: { Fallback: HappyToolMessage }
 } as const
 
-/** Agent turn: round avatar on the left, every text part in its own white bubble (WeChat). */
-export function SocialAssistantMessage() {
+function ChevronIcon(props: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={props.className} aria-hidden="true">
+            <polyline points="9 6 15 12 9 18" />
+        </svg>
+    )
+}
+
+/** While the agent works: one quiet card with the current step and its latest words. */
+function LiveStatusCard(props: { layout: TurnLayout; startAt: number }) {
+    const { t } = useTranslation()
     const ctx = useHappyChatContext()
+    const now = useNow(1000)
+    const { layout } = props
+
+    const runningTool = layout.current?.kind === 'tool'
+        ? getToolPresentation({
+            toolName: layout.current.block.tool.name,
+            input: layout.current.block.tool.input,
+            result: layout.current.block.tool.result,
+            childrenCount: layout.current.block.children.length,
+            description: layout.current.block.tool.description,
+            metadata: ctx.metadata
+        })
+        : null
+    let title: string
+    if (layout.pendingIndices.length > 0) {
+        title = t('mobile.turn.waitingApproval')
+    } else if (runningTool) {
+        title = runningTool.title
+    } else if (layout.current?.kind === 'reasoning') {
+        title = t('mobile.turn.thinking')
+    } else if (layout.current?.kind === 'text') {
+        title = t('mobile.turn.replying')
+    } else {
+        title = t('mobile.turn.working')
+    }
+    const toolDetail = runningTool?.subtitle ?? null
+
+    const progress = layout.latestText ? getLatestProgressText(layout.latestText) : null
+    const meta = [
+        layout.steps > 0 ? t('mobile.turn.step', { n: layout.steps }) : null,
+        formatElapsed(now - props.startAt, t)
+    ].filter(Boolean).join(' · ')
+
+    return (
+        <div className="social-card w-full min-w-0 rounded-[20px] rounded-tl-md px-4 py-3" role="status" aria-live="polite">
+            <div className="flex min-w-0 items-center gap-2.5">
+                <span className="social-spinner shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-[var(--social-fg)]">{title}</span>
+            </div>
+            {progress ? (
+                <p className="mt-1.5 line-clamp-3 pl-[24px] text-[14px] leading-relaxed text-[var(--social-fg-muted)]">{progress}</p>
+            ) : toolDetail ? (
+                <p className="mt-1.5 truncate pl-[24px] font-mono text-[12.5px] text-[var(--social-fg-muted)]">{toolDetail}</p>
+            ) : null}
+            <div className="mt-1.5 pl-[24px] text-[12px] tabular-nums text-[var(--social-fg-subtle)]">{meta}</div>
+        </div>
+    )
+}
+
+/** After the agent finishes: only the conclusion; long-press (or the footer) reveals the process. */
+export function SocialAssistantMessage() {
+    const { t } = useTranslation()
+    const ctx = useHappyChatContext()
+    const { haptic } = usePlatform()
+    const { copied, copy } = useCopyToClipboard()
     const messageId = useAssistantState(({ message }) => message.id)
+    const createdAt = useAssistantState(({ message }) => message.createdAt)
+    const content = useAssistantState(({ message }) => message.content) as readonly MessagePartLike[]
+    const isRunning = useAssistantState(({ message }) => message.status?.type === 'running')
     const isCliOutput = useAssistantState(({ message }) => {
         const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
         return custom?.kind === 'cli-output'
     })
-    const cliText = useAssistantState(({ message }) => {
-        const custom = message.metadata.custom as Partial<HappyChatMessageMetadata> | undefined
-        if (custom?.kind !== 'cli-output') return ''
-        return message.content.find((part) => part.type === 'text')?.text ?? ''
-    })
     const separatorAt = useTimeSeparatorAt(messageId)
+    const layout = useMemo(() => computeTurnLayout(content), [content])
+    const [expanded, setExpanded] = useState(false)
+    const toggleProcess = () => setExpanded((value) => !value)
+    const longPressHandlers = useLongPress({
+        onLongPress: () => {
+            haptic.impact('medium')
+            toggleProcess()
+        },
+        threshold: 450
+    })
+
+    const stats = ctx.runStats?.get(messageId)
+    const startAt = stats?.startAt ?? createdAt?.getTime() ?? Date.now()
+    const hasProcess = layout.processIndices.length > 0
+    const answerText = layout.answerIndices
+        .map((index) => content[index]?.text ?? '')
+        .join('\n\n')
+        .trim()
+    const footer = [
+        layout.steps > 0 ? t('mobile.turn.steps', { n: layout.steps }) : t('mobile.turn.reasoning'),
+        stats ? t('mobile.turn.took', { d: formatElapsed(stats.endAt - stats.startAt, t) }) : null
+    ].filter(Boolean).join(' · ')
 
     return (
         <MessagePrimitive.Root className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
-            <div className="flex min-w-0 items-start gap-2">
-                <AgentAvatar flavor={ctx.metadata?.flavor} size={32} className="mt-0.5" />
+            <div className="flex min-w-0 items-start gap-2.5">
+                <AgentAvatar flavor={ctx.metadata?.flavor} size={28} className="mt-1" />
                 <div className="flex min-w-0 flex-1 flex-col gap-1.5 overflow-x-hidden pr-1">
                     {isCliOutput ? (
-                        <CliOutputBlock text={cliText} />
+                        <CliOutputBlock text={content.find((part) => part.type === 'text')?.text ?? ''} />
+                    ) : isRunning ? (
+                        <LiveStatusCard layout={layout} startAt={startAt} />
                     ) : (
-                        <MessagePrimitive.Content components={SOCIAL_PART_COMPONENTS} />
+                        <>
+                            {layout.answerIndices.length > 0 ? (
+                                <div
+                                    {...longPressHandlers}
+                                    className="social-card w-fit min-w-0 max-w-full select-none rounded-[20px] rounded-tl-md px-4 py-3 [&>*+*]:mt-3"
+                                    style={{ WebkitTouchCallout: 'none' }}
+                                >
+                                    {layout.answerIndices.map((index) => (
+                                        <MessagePrimitive.PartByIndex key={index} index={index} components={ANSWER_COMPONENTS} />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div
+                                    {...longPressHandlers}
+                                    className="social-card w-fit select-none rounded-[20px] rounded-tl-md px-4 py-2.5 text-[14px] text-[var(--social-fg-muted)]"
+                                    style={{ WebkitTouchCallout: 'none' }}
+                                >
+                                    {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
+                                </div>
+                            )}
+
+                            {hasProcess ? (
+                                <button
+                                    type="button"
+                                    onClick={toggleProcess}
+                                    aria-expanded={expanded}
+                                    className="flex w-fit items-center gap-1 px-1 text-[12px] text-[var(--social-fg-subtle)] [-webkit-tap-highlight-color:transparent]"
+                                >
+                                    {footer}
+                                    <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
+                                </button>
+                            ) : null}
+
+                            {expanded ? (
+                                <div className="social-process ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
+                                    {layout.processIndices.map((index) => (
+                                        <MessagePrimitive.PartByIndex key={index} index={index} components={PROCESS_COMPONENTS} />
+                                    ))}
+                                    <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
+                                        {answerText ? (
+                                            <button type="button" onClick={() => void copy(answerText)}>
+                                                {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
+                                            </button>
+                                        ) : null}
+                                        <button type="button" onClick={toggleProcess}>{t('mobile.turn.hideProcess')}</button>
+                                    </div>
+                                </div>
+                            ) : null}
+                        </>
                     )}
+
+                    {layout.pendingIndices.map((index) => (
+                        <MessagePrimitive.PartByIndex key={index} index={index} components={PROCESS_COMPONENTS} />
+                    ))}
                 </div>
             </div>
         </MessagePrimitive.Root>
     )
 }
 
-/** Own message: green bubble on the right; failed sends show the retry mark on the left like WeChat. */
+/** Own message: dark pill on the right; failed sends show the retry mark on the left. */
 export function SocialUserMessage() {
     const ctx = useHappyChatContext()
     const messageId = useAssistantState(({ message }) => message.id)
@@ -120,13 +384,13 @@ export function SocialUserMessage() {
                     <CliOutputBlock text={text} />
                 </div>
             ) : (
-                <div className="flex min-w-0 items-end justify-end gap-1.5 pl-10">
+                <div className="flex min-w-0 items-end justify-end gap-1.5 pl-12">
                     {status ? (
                         <div className="shrink-0 pb-1.5">
                             <MessageStatusIndicator status={status} onRetry={onRetry} />
                         </div>
                     ) : null}
-                    <div className="social-bubble-self min-w-0 max-w-full rounded-[18px] rounded-br-[6px] px-3.5 py-2 text-[15px] leading-[1.55] shadow-[0_1px_0.5px_rgba(0,0,0,0.08)] break-words [overflow-wrap:anywhere]">
+                    <div className="social-bubble-self min-w-0 max-w-full rounded-[20px] rounded-br-md px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]">
                         {text.length > 0 ? <LazyRainbowText text={text} /> : null}
                         {hasAttachments && attachments ? <MessageAttachments attachments={attachments} /> : null}
                     </div>

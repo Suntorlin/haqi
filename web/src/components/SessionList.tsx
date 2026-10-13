@@ -368,13 +368,13 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--app-hint)]">
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13.5px] leading-snug text-[var(--social-fg-muted)]">
             {props.active && s.pendingRequestsCount > 0 ? (
-                <span className="shrink-0 text-[var(--social-badge)]">
-                    [{t('mobile.feed.pending', { n: s.pendingRequestsCount })}]
+                <span className="shrink-0 font-medium text-[var(--social-badge)]">
+                    {t('mobile.feed.pending', { n: s.pendingRequestsCount })} ·
                 </span>
             ) : props.thinking ? (
-                <span className="inline-flex shrink-0 items-center text-[var(--social-accent)]">
+                <span className="inline-flex shrink-0 items-center font-medium text-[var(--social-fg)]">
                     {t('mobile.feed.thinking')}
                     <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
                         <span /><span /><span />
@@ -383,8 +383,8 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
             ) : null}
             <span className="min-w-0 truncate">{meta}</span>
             {progress ? (
-                <span className="ml-auto shrink-0 pl-1 text-[12px]">
-                    ✓ {progress.completed}/{progress.total}
+                <span className="ml-auto shrink-0 pl-1 text-[12px] tabular-nums text-[var(--social-fg-subtle)]">
+                    {progress.completed}/{progress.total}
                 </span>
             ) : null}
         </div>
@@ -513,21 +513,21 @@ function SessionItem(props: {
                     <button
                         type="button"
                         {...longPressHandlers}
-                        className={`session-list-item social-pressable flex w-full items-center gap-3 pl-4 text-left select-none focus-visible:outline-none ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--app-subtle-bg)]' : ''}`}
+                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none focus-visible:outline-none ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
                         style={{ WebkitTouchCallout: 'none' }}
                     >
                         <SessionAvatar
                             session={s}
-                            size={50}
+                            size={48}
                             dimmed={!effectiveActive}
                             badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
                         />
-                        <div className="flex min-w-0 flex-1 flex-col justify-center self-stretch border-b border-[var(--app-divider)] py-3 pr-4">
+                        <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className={`min-w-0 flex-1 truncate text-[16px] leading-snug ${effectiveActive ? 'font-medium text-[var(--app-fg)]' : 'text-[var(--app-fg)]/80'}`}>
+                                <span className={`min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
                                     {sessionName}
                                 </span>
-                                <span className="shrink-0 text-[11px] text-[var(--app-hint)]">
+                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
                                     {formatRelativeTime(s.updatedAt, t)}
                                 </span>
                             </div>
@@ -707,6 +707,8 @@ function SessionGroupRow(props: {
     isProjectOffline: boolean
     isCollapsed: boolean
     density: SessionListDensity
+    /** Mobile section-header look (small caption) instead of the desktop row. */
+    minimal?: boolean
     onToggleGroup: (directory: string, isCollapsed: boolean) => void
     onToggleProjectOffline: (directory: string, isOffline: boolean) => void
     onCreateInGroup: (preset?: NewSessionPreset) => void
@@ -736,6 +738,7 @@ function SessionGroupRow(props: {
         transition
     }
     const isDropTarget = isOver && !isDragging
+    const minimal = props.minimal === true
     const canQuickCreate = quickCreateInProjectEnabled && Boolean(onQuickCreateInGroup)
     const createPreset: NewSessionPreset = {
         directory: group.directory,
@@ -816,7 +819,7 @@ function SessionGroupRow(props: {
         <div
             ref={setNodeRef}
             style={dragStyle}
-            className={`z-10 flex w-full items-center gap-1 border-b border-[var(--app-divider)] cursor-grab active:cursor-grabbing select-none ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''} ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
+            className={`z-10 flex w-full items-center gap-1 cursor-grab active:cursor-grabbing select-none ${minimal ? 'px-4 pb-1 pt-4' : `border-b border-[var(--app-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`} ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''}`}
             onContextMenu={(event) => {
                 event.preventDefault()
                 event.stopPropagation()
@@ -831,11 +834,16 @@ function SessionGroupRow(props: {
                 className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)]"
             >
                 <ChevronIcon
-                    className="h-4 w-4 text-[var(--app-hint)]"
+                    className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--app-hint)]'}
                     collapsed={isCollapsed}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className={`font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`} title={group.directory}>
+                    <span
+                        className={minimal
+                            ? 'truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
+                            : `font-medium break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`}
+                        title={group.directory}
+                    >
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
@@ -852,7 +860,9 @@ function SessionGroupRow(props: {
                 <button
                     type="button"
                     {...plusButtonHandlers}
-                    className="shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]"
+                    className={minimal
+                        ? 'shrink-0 rounded-full p-1.5 text-[var(--social-fg-muted)] transition-colors active:bg-[var(--social-muted)]'
+                        : 'shrink-0 rounded p-1.5 text-[var(--app-link)] transition-colors hover:bg-[var(--app-secondary-bg)]'}
                     title={t('sessions.newInProject')}
                     aria-label={t('sessions.newInProject')}
                 >
@@ -881,6 +891,7 @@ function OfflineSectionRow(props: {
     isCollapsed: boolean
     density: SessionListDensity
     label?: string
+    minimal?: boolean
     onToggleGroup: (directory: string, isCollapsed: boolean) => void
 }) {
     const { t } = useTranslation()
@@ -891,7 +902,7 @@ function OfflineSectionRow(props: {
             type="button"
             onClick={() => onToggleGroup(directory, isCollapsed)}
             aria-expanded={!isCollapsed}
-            className={`flex w-full items-center gap-2 border-b border-[var(--app-divider)] text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}
+            className={`flex w-full items-center gap-2 text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${props.minimal ? 'px-5 py-2' : `border-b border-[var(--app-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
         >
             <ChevronIcon
                 className="h-3.5 w-3.5 text-[var(--app-hint)]"
@@ -1138,6 +1149,7 @@ export function SessionList(props: {
                                             isProjectOffline={row.isProjectOffline}
                                             isCollapsed={row.isCollapsed}
                                             density={density}
+                                            minimal={props.itemVariant === 'feed'}
                                             quickCreateInProjectEnabled={projectQuickCreateEnabled}
                                             onToggleGroup={toggleGroup}
                                             onToggleProjectOffline={toggleProjectOffline}
@@ -1165,6 +1177,7 @@ export function SessionList(props: {
                                             count={row.count}
                                             isCollapsed={row.isCollapsed}
                                             density={density}
+                                            minimal={props.itemVariant === 'feed'}
                                             label={t('sessions.projectOffline.section')}
                                             onToggleGroup={toggleOfflineProjectsSection}
                                         />
@@ -1178,6 +1191,7 @@ export function SessionList(props: {
                                             count={row.offlineCount}
                                             isCollapsed={row.isCollapsed}
                                             density={density}
+                                            minimal={props.itemVariant === 'feed'}
                                             onToggleGroup={toggleOfflineGroup}
                                         />
                                     )
@@ -1235,7 +1249,7 @@ export function SessionFeed(props: {
             <Virtuoso
                 data={sortedSessions}
                 style={{ height: '100%' }}
-                defaultItemHeight={74}
+                defaultItemHeight={68}
                 increaseViewportBy={480}
                 initialItemCount={Math.min(sortedSessions.length, 20)}
                 context={listHeaderContext}
