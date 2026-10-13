@@ -169,7 +169,7 @@ export function LoginPrompt(props: LoginPromptProps) {
 
                 {/* Help links */}
                 {!isBindMode && (
-                    <div className="flex items-center justify-between text-[12px] text-[var(--social-fg-muted)]">
+                    <div className="flex items-center justify-between text-[13px] text-[var(--social-fg-muted)]">
                         <a href="https://hapi.run/docs" target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center underline hover:text-[var(--social-fg)]">
                             {t('login.help')}
                         </a>
