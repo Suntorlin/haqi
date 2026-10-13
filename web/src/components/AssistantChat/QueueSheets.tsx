@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { PermissionMode } from '@hapi/protocol'
 import type { QueueEntry, QueueSummary, SessionUsageOverview } from '@/types/api'
-import { BottomSheet, SheetRow, SheetSection } from '@/components/mobile/BottomSheet'
+import { BottomSheet, SheetNote, SheetRow, SheetSection } from '@/components/mobile/BottomSheet'
 import { permissionModeText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -79,14 +79,6 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
     }
     const valueKey = STATUS_VALUE_KEYS[raw.toLowerCase()]
     return { label, value: valueKey ? t(valueKey) : raw || '—' }
-}
-
-function SheetNote(props: { children: ReactNode; tone?: 'error' }) {
-    return (
-        <div className={cn('px-5 pb-3 text-[13px] leading-relaxed', props.tone === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-muted)]')}>
-            {props.children}
-        </div>
-    )
 }
 
 function QueueSummaryRows(props: { status: QueueSummary }) {
@@ -237,7 +229,7 @@ export function QueueSheet(props: {
                 )}
             </SheetSection>
             <SheetSection>
-                <SheetRow label={t('queue.dialog.refresh')} chevron disabled={props.loading || props.mutating} onClick={props.onRefresh} />
+                <SheetRow label={t('queue.dialog.refresh')} disabled={props.loading || props.mutating} onClick={props.onRefresh} />
                 <SheetRow label={t('queue.dialog.clear')} destructive disabled={props.mutating || props.entries.length === 0} onClick={props.onClear} />
             </SheetSection>
             <div className="h-2" />

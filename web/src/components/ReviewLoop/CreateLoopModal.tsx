@@ -5,6 +5,7 @@ import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/componen
 import { ChevronRightIcon, SearchIcon } from '@/components/mobile/icons'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/FormControls'
 import { matchesSessionSearch } from '@/lib/session-search'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
@@ -202,23 +203,13 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
                 </SheetSection>
 
                 <SheetSection title={t('loops.create.notify')}>
-                    <div className="flex gap-1 bg-[var(--social-muted)] p-1">
-                        {PREFERENCES.map((preference) => (
-                            <button
-                                key={preference}
-                                type="button"
-                                onClick={() => setUserPreference(preference)}
-                                className={cn(
-                                    'flex-1 rounded-[10px] py-2 text-[14px] transition-colors',
-                                    userPreference === preference
-                                        ? 'bg-[var(--app-bg)] font-medium text-[var(--social-fg)] shadow-sm'
-                                        : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
-                                )}
-                            >
-                                {t(`loops.create.notify.${preference}`)}
-                            </button>
-                        ))}
-                    </div>
+                    <SegmentedControl
+                        framed={false}
+                        label={t('loops.create.notify')}
+                        value={userPreference}
+                        options={PREFERENCES.map((preference) => ({ value: preference, label: t(`loops.create.notify.${preference}`) }))}
+                        onChange={setUserPreference}
+                    />
                 </SheetSection>
 
                 <div className="flex justify-end gap-2 px-4 pb-4 pt-1">

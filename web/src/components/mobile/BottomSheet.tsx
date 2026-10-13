@@ -83,6 +83,15 @@ export function BottomSheet(props: {
     )
 }
 
+/** Muted (or error) line of text between sheet sections: loading, empty and error states. */
+export function SheetNote(props: { children: ReactNode; tone?: 'error' }) {
+    return (
+        <div className={cn('px-5 pb-3 text-[13px] leading-relaxed', props.tone === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-muted)]')}>
+            {props.children}
+        </div>
+    )
+}
+
 /** Inset grouped list section (iOS Settings / WeChat 聊天信息 style). */
 export function SheetSection(props: { title?: string; children: ReactNode; className?: string }) {
     return (

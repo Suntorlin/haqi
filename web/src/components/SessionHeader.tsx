@@ -8,6 +8,7 @@ import type { Session } from '@/types/api'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { BottomSheet, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
+import { SegmentedControl } from '@/components/ui/FormControls'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import {
@@ -273,10 +274,10 @@ export function SessionHeader(props: {
         { key: 'preview', label: t('mobile.chat.preview'), icon: <GlobeIcon className="h-[22px] w-[22px]" />, onClick: props.onViewPreview },
         { key: 'mcp', label: t('mobile.chat.mcp'), icon: <PlugOutlineIcon className="h-[22px] w-[22px]" />, onClick: props.onViewMcpStatus }
     ]
-    const viewModes: Array<{ mode: ChatViewMode; label: string }> = [
-        { mode: 'normal', label: t('mobile.chat.view.normal') },
-        { mode: 'brief', label: t('mobile.chat.view.brief') },
-        { mode: 'cli', label: t('mobile.chat.view.cli') }
+    const viewModes: Array<{ value: ChatViewMode; label: string }> = [
+        { value: 'normal', label: t('mobile.chat.view.normal') },
+        { value: 'brief', label: t('mobile.chat.view.brief') },
+        { value: 'cli', label: t('mobile.chat.view.cli') }
     ]
     const modelValue = [
         shortModel,
@@ -335,26 +336,16 @@ export function SessionHeader(props: {
 
             {props.onViewModeChange ? (
                 <SheetSection title={t('mobile.chat.view')}>
-                    <div className="flex gap-1 bg-[var(--social-muted)] p-1">
-                        {viewModes.map((item) => (
-                            <button
-                                key={item.mode}
-                                type="button"
-                                onClick={() => {
-                                    props.onViewModeChange?.(item.mode)
-                                    setInfoOpen(false)
-                                }}
-                                className={cn(
-                                    'flex-1 rounded-[10px] py-2 text-[14px] transition-colors',
-                                    props.viewMode === item.mode
-                                        ? 'bg-[var(--app-bg)] font-medium text-[var(--social-fg)] shadow-sm'
-                                        : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
-                                )}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
-                    </div>
+                    <SegmentedControl
+                        framed={false}
+                        label={t('mobile.chat.view')}
+                        value={props.viewMode ?? 'normal'}
+                        options={viewModes}
+                        onChange={(mode) => {
+                            props.onViewModeChange?.(mode)
+                            setInfoOpen(false)
+                        }}
+                    />
                 </SheetSection>
             ) : null}
 
@@ -472,7 +463,7 @@ export function SessionHeader(props: {
                         type="button"
                         onClick={props.onBack}
                         className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
-                        aria-label="Back"
+                        aria-label={t('button.back')}
                     >
                         <ChevronLeftIcon className="h-[26px] w-[26px]" />
                     </button>

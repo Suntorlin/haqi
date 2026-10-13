@@ -20,9 +20,10 @@ import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, ClearIcon, FolderStackIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon } from '@/components/mobile/icons'
+import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
-import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
@@ -77,6 +78,7 @@ import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
 import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
+import { GroupInfoPanelContext } from '@/routes/groups/group-info'
 import ReviewLoopsIndexPage from '@/routes/review-loops/index'
 import ReviewLoopDetailPage from '@/routes/review-loops/detail'
 import { useGroups } from '@/hooks/queries/useGroups'
@@ -216,27 +218,6 @@ function persistMobileSessionListMode(mode: MobileSessionListMode): void {
         window.localStorage.setItem(MOBILE_SESSION_LIST_MODE_KEY, mode)
     } catch {
     }
-}
-
-function MobileSearchField(props: { value: string; onChange: (value: string) => void; placeholder: string }) {
-    return (
-        <label className="flex h-10 items-center gap-2.5 rounded-xl bg-[var(--social-muted)] px-3.5 text-[var(--social-fg-subtle)]">
-            <SearchIcon className="h-[17px] w-[17px] shrink-0" />
-            <input
-                value={props.value}
-                onChange={(event) => props.onChange(event.target.value)}
-                placeholder={props.placeholder}
-                className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--social-fg)] outline-none placeholder:text-[var(--social-fg-subtle)]"
-                type="search"
-                enterKeyHint="search"
-            />
-            {props.value ? (
-                <button type="button" onClick={() => props.onChange('')} className="shrink-0 opacity-70" aria-label="Clear">
-                    <ClearIcon className="h-4 w-4" />
-                </button>
-            ) : null}
-        </label>
-    )
 }
 
 function SessionsPage() {
@@ -988,6 +969,8 @@ function GroupsLayout() {
     const [actionGroupId, setActionGroupId] = useState<string | null>(null)
     const [renameModalOpen, setRenameModalOpen] = useState(false)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+    const [groupInfoOpen, setGroupInfoOpen] = useState(false)
+    const groupInfoPanel = useMemo(() => ({ open: groupInfoOpen, setOpen: setGroupInfoOpen }), [groupInfoOpen])
     const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
     const isMobileLayout = useIsMobileLayout()
@@ -1234,8 +1217,12 @@ function GroupsLayout() {
         </div>
     )
     const groupSubtitle = selectedGroup
-        ? `${t('mobile.groups.members', { n: selectedGroup.members.length })}${selectedGroup.group.description?.trim() ? ` · ${selectedGroup.group.description}` : ''}`
+        ? t('groups.info.summary', {
+            n: selectedGroup.members.length,
+            m: membersOf(selectedGroup).filter((session) => session.active).length
+        })
         : null
+    const groupInfoLabel = t('groups.info.title')
 
     if (isMobileLayout) {
         if (isGroupsIndex) {
@@ -1252,30 +1239,47 @@ function GroupsLayout() {
         return (
             <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
                 <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
-                    <div className="flex h-[52px] items-center gap-2 pl-1 pr-4">
+                    <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
                         <button
                             type="button"
                             onClick={() => navigate({ to: '/groups' })}
                             className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
-                            aria-label="Back"
+                            aria-label={t('button.back')}
                         >
                             <ChevronLeftIcon className="h-[26px] w-[26px]" />
                         </button>
-                        {selectedGroup ? (
-                            <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} />
-                        ) : null}
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-[16px] font-semibold leading-tight">
-                                {selectedGroup?.group.name ?? 'Group'}
+                        <button
+                            type="button"
+                            onClick={() => setGroupInfoOpen(true)}
+                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pr-1 text-left [-webkit-tap-highlight-color:transparent]"
+                        >
+                            {selectedGroup ? (
+                                <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                                    {selectedGroup?.group.name ?? ''}
+                                </div>
+                                <div className="mt-[3px] truncate text-[12px] leading-tight text-[var(--social-fg-muted)]">
+                                    {groupSubtitle}
+                                </div>
                             </div>
-                            <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--app-hint)]">
-                                {groupSubtitle}
-                            </div>
-                        </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setGroupInfoOpen(true)}
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent] active:bg-[var(--app-subtle-bg)]"
+                            aria-label={groupInfoLabel}
+                            title={groupInfoLabel}
+                        >
+                            <MoreHorizontalIcon className="h-6 w-6" />
+                        </button>
                     </div>
                 </div>
                 <div className="min-h-0 flex-1">
-                    <Outlet />
+                    <GroupInfoPanelContext.Provider value={groupInfoPanel}>
+                        <Outlet />
+                    </GroupInfoPanelContext.Provider>
                 </div>
                 {groupModals}
             </div>
@@ -1301,13 +1305,22 @@ function GroupsLayout() {
                             avatar={selectedGroup ? (
                                 <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={36} />
                             ) : null}
-                            title={selectedGroup?.group.name ?? 'Group'}
+                            title={selectedGroup?.group.name ?? ''}
                             subtitle={groupSubtitle}
                             listVisible={showDesktopSidebar}
                             onToggleList={toggleDesktopSidebar}
+                            onTitleClick={() => setGroupInfoOpen(true)}
+                            titleLabel={groupInfoLabel}
+                            actions={(
+                                <DesktopIconButton label={groupInfoLabel} onClick={() => setGroupInfoOpen(true)}>
+                                    <MoreHorizontalIcon className="h-[21px] w-[21px]" />
+                                </DesktopIconButton>
+                            )}
                         />
                         <div className="min-h-0 flex-1">
-                            <Outlet />
+                            <GroupInfoPanelContext.Provider value={groupInfoPanel}>
+                                <Outlet />
+                            </GroupInfoPanelContext.Provider>
                         </div>
                     </div>
                 )}
@@ -1502,22 +1515,22 @@ function ReviewLoopsLayout() {
         return (
             <div className="flex h-full min-h-0 flex-col bg-[var(--app-bg)]">
                 <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
-                    <div className="flex h-[52px] items-center gap-2 pl-1 pr-4">
+                    <div className="flex h-[54px] items-center gap-2.5 pl-1 pr-4">
                         <button
                             type="button"
                             onClick={() => navigate({ to: '/review-loops' })}
                             className="flex h-11 w-9 shrink-0 items-center justify-center text-[var(--app-fg)] [-webkit-tap-highlight-color:transparent]"
-                            aria-label="Back"
+                            aria-label={t('button.back')}
                         >
                             <ChevronLeftIcon className="h-[26px] w-[26px]" />
                         </button>
                         {selectedLoop ? loopAvatar(selectedLoop, 38) : null}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[16px] font-semibold leading-tight">
-                                {selectedLoop?.requirement ?? 'review-loop'}
+                            <div className="truncate text-[15.5px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                                {selectedLoop?.requirement ?? ''}
                             </div>
                             {loopSubtitle ? (
-                                <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--app-hint)]">
+                                <div className="mt-[3px] truncate text-[12px] leading-tight text-[var(--social-fg-muted)]">
                                     {loopSubtitle}
                                 </div>
                             ) : null}
@@ -1551,7 +1564,7 @@ function ReviewLoopsLayout() {
                     <div className="flex h-full min-h-0 flex-col">
                         <DesktopPaneHeader
                             avatar={selectedLoop ? loopAvatar(selectedLoop, 36) : null}
-                            title={selectedLoop?.requirement ?? 'review-loop'}
+                            title={selectedLoop?.requirement ?? ''}
                             subtitle={loopSubtitle}
                             listVisible={showDesktopSidebar}
                             onToggleList={toggleDesktopSidebar}

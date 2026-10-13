@@ -340,3 +340,54 @@ export function BulbIcon(props: IconProps) {
         </Svg>
     )
 }
+
+/** Reply / quote a message. */
+export function ReplyIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 0 0-4-4H4" />
+        </Svg>
+    )
+}
+
+/** Ask the note executor to regenerate the group note. */
+export function SparklesIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />
+            <path d="M19 3v4" />
+            <path d="M21 5h-4" />
+        </Svg>
+    )
+}
+
+/** Broadcast to every group member. */
+export function MegaphoneIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" />
+            <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+            <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+        </Svg>
+    )
+}
+
+/** Open a member's own chat. */
+export function ChatBubbleIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.4 9.4 0 0 1-3.9-.8L3 20.5l1.4-4.3A8 8 0 0 1 3 11.5a8.4 8.4 0 0 1 9-8.4 8.4 8.4 0 0 1 9 8.4z" />
+        </Svg>
+    )
+}
+
+/** Permission requests waiting for approval. */
+export function ShieldCheckIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <polyline points="9 12 11 14 15 10" />
+        </Svg>
+    )
+}

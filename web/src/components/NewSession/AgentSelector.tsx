@@ -1,5 +1,9 @@
 import type { AgentType } from './types'
+import { ChoiceChips, FormField } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
+
+const AGENTS: ReadonlyArray<{ value: AgentType; label: string }> = (['claude', 'codex', 'cursor', 'gemini', 'opencode'] as const)
+    .map((agent) => ({ value: agent, label: agent }))
 
 export function AgentSelector(props: {
     agent: AgentType
@@ -9,29 +13,15 @@ export function AgentSelector(props: {
     const { t } = useTranslation()
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
-                {t('newSession.agent')}
-            </label>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-                {(['claude', 'codex', 'cursor', 'gemini', 'opencode'] as const).map((agentType) => (
-                    <label
-                        key={agentType}
-                        className="flex items-center gap-1.5 cursor-pointer"
-                    >
-                        <input
-                            type="radio"
-                            name="agent"
-                            value={agentType}
-                            checked={props.agent === agentType}
-                            onChange={() => props.onAgentChange(agentType)}
-                            disabled={props.isDisabled}
-                            className="accent-[var(--app-link)]"
-                        />
-                        <span className="text-sm capitalize">{agentType}</span>
-                    </label>
-                ))}
-            </div>
-        </div>
+        <FormField label={t('newSession.agent')}>
+            <ChoiceChips
+                label={t('newSession.agent')}
+                value={props.agent}
+                options={AGENTS}
+                disabled={props.isDisabled}
+                optionClassName="capitalize"
+                onChange={props.onAgentChange}
+            />
+        </FormField>
     )
 }

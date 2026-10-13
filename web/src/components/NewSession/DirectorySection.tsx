@@ -1,8 +1,15 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useId, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { FormField, SuggestionChip } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
+
+/** "/Users/me/projects/app" → "~/projects/app", so chips show the part that differs. */
+function shortenHomePath(path: string): string {
+    return path.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, '~')
+}
 
 export function DirectorySection(props: {
     directory: string
@@ -18,14 +25,13 @@ export function DirectorySection(props: {
     onPathClick: (path: string) => void
 }) {
     const { t } = useTranslation()
+    const id = useId()
 
     return (
-        <div className="flex flex-col gap-1.5 px-3 py-3">
-            <label className="text-xs font-medium text-[var(--app-hint)]">
-                {t('newSession.directory')}
-            </label>
+        <FormField label={t('newSession.directory')} htmlFor={id}>
             <div className="relative">
                 <input
+                    id={id}
                     type="text"
                     placeholder={t('newSession.placeholder')}
                     value={props.directory}
@@ -34,7 +40,7 @@ export function DirectorySection(props: {
                     onFocus={props.onDirectoryFocus}
                     onBlur={props.onDirectoryBlur}
                     disabled={props.isDisabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                 />
                 {props.suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">
@@ -50,24 +56,21 @@ export function DirectorySection(props: {
             </div>
 
             {props.recentPaths.length > 0 && (
-                <div className="flex flex-col gap-1 mt-1">
-                    <span className="text-xs text-[var(--app-hint)]">{t('newSession.recent')}:</span>
-                    <div className="flex flex-wrap gap-1">
+                <div className="flex flex-col gap-1.5 pt-1">
+                    <span className="px-1 text-[12px] text-[var(--social-fg-subtle)]">{t('newSession.recent')}</span>
+                    <div className="flex flex-wrap gap-1.5">
                         {props.recentPaths.map((path) => (
-                            <button
+                            <SuggestionChip
                                 key={path}
-                                type="button"
-                                onClick={() => props.onPathClick(path)}
-                                disabled={props.isDisabled}
-                                className="rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] hover:bg-[var(--app-secondary-bg)] transition-colors truncate max-w-[200px] disabled:opacity-50"
+                                label={shortenHomePath(path)}
                                 title={path}
-                            >
-                                {path}
-                            </button>
+                                disabled={props.isDisabled}
+                                onClick={() => props.onPathClick(path)}
+                            />
                         ))}
                     </div>
                 </div>
             )}
-        </div>
+        </FormField>
     )
 }

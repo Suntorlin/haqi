@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { ClaudeAccountSelector } from '@/components/ClaudeAccounts/Selector'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useQuery } from '@tanstack/react-query'
@@ -53,6 +53,8 @@ import { YoloToggle } from './YoloToggle'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
+import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { FormField, SuggestionChip } from '@/components/ui/FormControls'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -94,6 +96,7 @@ export function NewSession(props: {
     )
 
     const { t } = useTranslation()
+    const previewUrlId = useId()
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
     const [claudeAccount, setClaudeAccount] = useState<ClaudeAccountSelection | undefined>()
     useEffect(() => { setClaudeAccount(undefined) }, [machineId])
@@ -330,7 +333,7 @@ export function NewSession(props: {
                 experimentalSettings.previewEnabled ? previewUrlInput : ''
             )
             if (normalizedPreviewUrl.error) {
-                setError(normalizedPreviewUrl.error)
+                setError(t(`preview.error.${normalizedPreviewUrl.error}`))
                 return
             }
 
@@ -387,7 +390,7 @@ export function NewSession(props: {
             setError(result.message)
         } catch (e) {
             haptic.notification('error')
-            setError(e instanceof Error ? e.message : 'Failed to create session')
+            setError(e instanceof Error ? e.message : t('newSession.createFailed'))
         }
     }
 
@@ -412,7 +415,7 @@ export function NewSession(props: {
     return (
         <form
             id={props.formId}
-            className="flex flex-col divide-y divide-[var(--app-divider)]"
+            className="mx-auto flex w-full max-w-[640px] flex-col gap-5 px-4 pb-6 pt-4"
             onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit}
         >
@@ -424,8 +427,8 @@ export function NewSession(props: {
                 onChange={handleMachineChange}
             />
             {runnerSpawnError ? (
-                <div className="px-3 py-2 text-xs text-red-600">
-                    Runner last spawn error: {runnerSpawnError}
+                <div className="px-1 text-[13px] text-[var(--social-danger)]">
+                    {t('newSession.runnerError', { error: runnerSpawnError })}
                 </div>
             ) : null}
             <DirectorySection
@@ -442,35 +445,29 @@ export function NewSession(props: {
                 onPathClick={handlePathClick}
             />
             {experimentalSettings.previewEnabled ? (
-                <div className="flex flex-col gap-1.5 px-3 py-3">
-                    <label className="text-xs font-medium text-[var(--app-hint)]">
-                        {t('newSession.previewUrl')}
-                    </label>
+                <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
                     <input
+                        id={previewUrlId}
                         type="text"
                         placeholder="http://localhost:3000"
                         value={previewUrlInput}
                         onChange={(event) => setPreviewUrlInput(event.target.value)}
                         disabled={isFormDisabled}
-                        className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                        className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                     />
                     {previewUrlHistory.length > 0 ? (
-                        <div className="flex flex-wrap gap-1 pt-1">
+                        <div className="flex flex-wrap gap-1.5 pt-1">
                             {previewUrlHistory.slice(0, 8).map((url) => (
-                                <button
+                                <SuggestionChip
                                     key={url}
-                                    type="button"
-                                    onClick={() => setPreviewUrlInput(url)}
+                                    label={url}
                                     disabled={isFormDisabled}
-                                    className="max-w-[240px] truncate rounded bg-[var(--app-subtle-bg)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-secondary-bg)] disabled:opacity-50"
-                                    title={url}
-                                >
-                                    {url}
-                                </button>
+                                    onClick={() => setPreviewUrlInput(url)}
+                                />
                             ))}
                         </div>
                     ) : null}
-                </div>
+                </FormField>
             ) : null}
             <SessionTypeSelector
                 sessionType={sessionType}
@@ -513,7 +510,7 @@ export function NewSession(props: {
             />
 
             {(error ?? spawnError) ? (
-                <div className="px-3 py-2 text-sm text-red-600">
+                <div className="px-1 text-[13px] text-[var(--social-danger)]">
                     {error ?? spawnError}
                 </div>
             ) : null}
