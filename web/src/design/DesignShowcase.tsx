@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import { Chip } from '@/components/ui/Chip'
-import { Badge } from '@/components/ui/badge'
+import { Badge, CountBadge, DotBadge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/Switch'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { SegmentedControl } from '@/components/ui/FormControls'
@@ -14,6 +14,8 @@ import {
     ExternalLinkIcon,
     FileIcon,
     GlobeIcon,
+    InfoCircleIcon,
+    LockIcon,
     PlusIcon,
     RefreshIcon,
     SendArrowIcon,
@@ -80,7 +82,7 @@ export function DesignShowcase() {
     const [url, setUrl] = useState('http://localhost:3000/')
 
     return (
-        <div className="mx-auto flex max-w-[960px] flex-col gap-10 px-5 py-10 text-[var(--social-fg)]">
+        <div className="mx-auto flex max-w-[1120px] flex-col gap-10 px-5 py-10 text-[var(--social-fg)]">
             <header>
                 <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">HAQI Design System · v1 草案</div>
                 <h1 className="mt-1 text-[32px] font-semibold tracking-[-0.02em]">视觉取 Instagram，交互守 Apple HIG</h1>
@@ -220,12 +222,28 @@ export function DesignShowcase() {
                             options={[{ value: 'a', label: '本地' }, { value: 'b', label: '远程' }, { value: 'c', label: '混合' }]}
                         />
                     </Spec>
-                    <Spec label="Badge">
-                        <div className="flex flex-wrap gap-2">
+                    <Spec label="Badge · 状态胶囊（柔和底色、无描边，可带状态点）">
+                        <div className="flex flex-wrap items-center gap-2">
                             <Badge>默认</Badge>
-                            <Badge variant="success">运行中</Badge>
-                            <Badge variant="warning">待确认</Badge>
-                            <Badge variant="destructive">失败</Badge>
+                            <Badge variant="solid">新</Badge>
+                            <Badge variant="info" dot>同步中</Badge>
+                            <Badge variant="success" dot live>运行中</Badge>
+                            <Badge variant="warning" dot>待确认</Badge>
+                            <Badge variant="destructive" dot>失败</Badge>
+                        </div>
+                    </Spec>
+                    <Spec label="CountBadge / DotBadge · 未读（Instagram 红，贴在头像或图标右上角）">
+                        <div className="flex items-center gap-6">
+                            {[3, 28, 120].map((n) => (
+                                <div key={n} className="relative">
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--social-muted)] text-[15px] font-semibold">AI</div>
+                                    <CountBadge count={n} className="absolute -right-1 -top-1" />
+                                </div>
+                            ))}
+                            <div className="relative">
+                                <IconButton label="消息" variant="muted"><TerminalIcon className="h-[18px] w-[18px]" /></IconButton>
+                                <DotBadge className="absolute right-0.5 top-0.5" />
+                            </div>
                         </div>
                     </Spec>
                     <Spec label="Switch">
@@ -249,48 +267,132 @@ export function DesignShowcase() {
                 </div>
             </Section>
 
-            <Section title="7 · 组合示例 · 预览面板" note="用以上基础件重做的预览面板：头部 + 地址栏 + 历史 Chip，对应你截图里的页面。">
+            <Section title="7 · 组合示例 · 预览面板" note="同一套基础件，覆盖预览面板的三种状态：空、已加载、被网站拒绝嵌入（原来这时只会看到一块空白）。地址栏平时只显示域名（Safari 式），点开才是完整地址。">
                 <div className="flex flex-wrap items-start gap-6">
-                    {[360, 520].map((width) => (
-                        <div key={width} className="flex h-[520px] shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)]" style={{ width }}>
-                            <SubPageHeader
-                                title="预览"
-                                subtitle="品牌"
-                                actions={(
-                                    <>
-                                        <SubPageHeaderButton label="新窗口打开" onClick={() => undefined}><ExternalLinkIcon className="h-[18px] w-[18px]" /></SubPageHeaderButton>
-                                        <SubPageHeaderButton label="换边" onClick={() => undefined}><SwapIcon className="h-[18px] w-[18px]" /></SubPageHeaderButton>
-                                        <SubPageHeaderButton label="关闭" onClick={() => undefined}><CloseIcon className="h-[18px] w-[18px]" /></SubPageHeaderButton>
-                                    </>
-                                )}
-                            />
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-                                <TextField
-                                    variant="pill"
-                                    defaultValue="https://haqi.example.com/share/r/fH4…"
-                                    leading={<GlobeIcon className="h-4 w-4" />}
-                                    trailing={(
-                                        <>
-                                            <IconButton label="清除" size="sm"><ClearIcon className="h-4 w-4" /></IconButton>
-                                            <IconButton label="前往" size="sm" variant="filled"><SendArrowIcon className="h-4 w-4" /></IconButton>
-                                        </>
-                                    )}
-                                />
-                                <div className="-mx-3 flex gap-2 overflow-x-auto px-3 [scrollbar-width:none]">
-                                    {['web.example.com', 'localhost:3000', 'haqi.example.com/share/r/fH4'].map((label) => (
-                                        <Chip key={label} className="shrink-0">{label}</Chip>
-                                    ))}
-                                </div>
-                                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-[var(--social-border)] p-8 text-center">
-                                    <GlobeIcon className="h-8 w-8 text-[var(--social-fg-subtle)]" />
-                                    <div className="text-[14px] text-[var(--social-fg-muted)]">输入地址，回车或点右侧箭头打开预览</div>
-                                </div>
-                                <p className="px-1 text-[12px] text-[var(--social-fg-subtle)]">部分网站禁止被嵌入，可点右上角图标在新窗口打开。</p>
-                            </div>
-                        </div>
-                    ))}
+                    <PreviewMock state="empty" />
+                    <PreviewMock state="loaded" />
+                    <PreviewMock state="blocked" />
                 </div>
             </Section>
+        </div>
+    )
+}
+
+const RECENT: Array<[string, string]> = [
+    ['web.example.com', 'http://web.example.com/'],
+    ['localhost:3000', 'http://localhost:3000/'],
+    ['haqi.example.com', '/share/r/fH4NqW…']
+]
+
+/** Safari-style address bar: host + muted path when idle, editable full URL otherwise. */
+function AddressBar(props: { state: 'empty' | 'idle' }) {
+    if (props.state === 'empty') {
+        return (
+            <TextField
+                variant="pill"
+                placeholder="搜索或输入网址"
+                leading={<GlobeIcon className="h-4 w-4" />}
+            />
+        )
+    }
+    return (
+        <div className="flex h-11 items-center gap-1 rounded-full bg-[var(--social-muted)] pl-4 pr-1.5">
+            <LockIcon className="h-3.5 w-3.5 shrink-0 text-[var(--social-fg-subtle)]" />
+            <div className="min-w-0 flex-1 truncate text-center text-[15px]">
+                <span className="font-semibold">haqi.example.com</span>
+                <span className="text-[var(--social-fg-subtle)]">/share/r/fH4NqW…</span>
+            </div>
+            <IconButton label="刷新" size="sm"><RefreshIcon className="h-4 w-4" /></IconButton>
+        </div>
+    )
+}
+
+function FakePage() {
+    return (
+        <div className="flex h-full flex-col gap-3 bg-white p-5 text-[#09090b]">
+            <div className="h-3 w-16 rounded-full bg-zinc-200" />
+            <div className="text-[20px] font-semibold leading-tight tracking-[-0.01em]">HAQI 报告：设计系统 v1</div>
+            <div className="flex flex-col gap-2">
+                <div className="h-2.5 w-full rounded-full bg-zinc-100" />
+                <div className="h-2.5 w-11/12 rounded-full bg-zinc-100" />
+                <div className="h-2.5 w-4/5 rounded-full bg-zinc-100" />
+            </div>
+            <div className="mt-1 h-36 rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-200" />
+            <div className="flex flex-col gap-2">
+                <div className="h-2.5 w-full rounded-full bg-zinc-100" />
+                <div className="h-2.5 w-3/4 rounded-full bg-zinc-100" />
+            </div>
+        </div>
+    )
+}
+
+function PreviewMock(props: { state: 'empty' | 'loaded' | 'blocked' }) {
+    const { state } = props
+    const caption = { empty: '空状态 · 最近打开', loaded: '已加载 · 顶部细进度条', blocked: '被拒绝嵌入 · 引导到新窗口' }[state]
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{caption}</div>
+            <div className="relative flex h-[560px] w-[340px] shrink-0 flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)]">
+                <SubPageHeader
+                    title="预览"
+                    subtitle={(
+                        <span className="inline-flex items-center gap-1.5">
+                            品牌
+                            {state === 'loaded' ? <Badge variant="success" dot className="-my-0.5 h-[18px] px-2 text-[11px]">已加载</Badge> : null}
+                            {state === 'blocked' ? <Badge variant="warning" dot className="-my-0.5 h-[18px] px-2 text-[11px]">无法嵌入</Badge> : null}
+                        </span>
+                    )}
+                    actions={(
+                        <>
+                            {state !== 'empty' ? (
+                                <SubPageHeaderButton label="新窗口打开" onClick={() => undefined}><ExternalLinkIcon className="h-[18px] w-[18px]" /></SubPageHeaderButton>
+                            ) : null}
+                            <SubPageHeaderButton label="换边" onClick={() => undefined}><SwapIcon className="h-[18px] w-[18px]" /></SubPageHeaderButton>
+                            <SubPageHeaderButton label="关闭" onClick={() => undefined}><CloseIcon className="h-[18px] w-[18px]" /></SubPageHeaderButton>
+                        </>
+                    )}
+                />
+                {state === 'loaded' ? <div className="absolute inset-x-0 top-[55px] z-30 h-0.5 bg-[var(--social-muted)]"><div className="h-full w-2/3 rounded-r-full bg-[var(--social-primary)]" /></div> : null}
+                <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
+                    <AddressBar state={state === 'empty' ? 'empty' : 'idle'} />
+                    {state === 'empty' ? (
+                        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-hidden pt-4">
+                            <div className="flex flex-col items-center gap-2 text-center">
+                                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--social-muted)] text-[var(--social-fg-muted)]">
+                                    <GlobeIcon className="h-6 w-6" />
+                                </div>
+                                <div className="text-[16px] font-semibold">打开一个页面</div>
+                                <div className="max-w-[240px] text-[13px] text-[var(--social-fg-muted)]">输入地址后回车，页面会显示在这里，和对话并排。</div>
+                            </div>
+                            <ListGroup title="最近打开">
+                                {RECENT.map(([host, sub]) => (
+                                    <ListRow key={host} icon={<GlobeIcon className="h-[18px] w-[18px]" />} title={host} subtitle={sub} onClick={() => undefined} />
+                                ))}
+                            </ListGroup>
+                        </div>
+                    ) : null}
+                    {state === 'loaded' ? (
+                        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                            <FakePage />
+                        </div>
+                    ) : null}
+                    {state === 'blocked' ? (
+                        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-6 text-center">
+                            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]">
+                                <InfoCircleIcon className="h-6 w-6" />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <div className="text-[16px] font-semibold">这个网站不允许被嵌入</div>
+                                <div className="text-[13px] text-[var(--social-fg-muted)]">对方的安全策略（X-Frame-Options / CSP）禁止在其他页面里显示。</div>
+                            </div>
+                            <div className="flex flex-col items-center gap-2">
+                                <Button><ExternalLinkIcon className="h-4 w-4" />在新窗口打开</Button>
+                                <Button variant="ghost" size="sm">重新加载</Button>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            </div>
         </div>
     )
 }
