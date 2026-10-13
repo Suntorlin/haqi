@@ -16,8 +16,39 @@ export function BottomSheet(props: {
     hideTitle?: boolean
     children: ReactNode
     className?: string
+    /** Desktop only: open as a frosted card hanging under this point instead of the side panel. */
+    popoverAnchor?: { right: number; bottom: number } | null
 }) {
     const isMobileLayout = useIsMobileLayout()
+
+    if (!isMobileLayout && props.popoverAnchor) {
+        const { right, bottom } = props.popoverAnchor
+        return (
+            <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
+                <DialogPrimitive.Portal>
+                    <DialogPrimitive.Overlay className="fixed inset-0 z-[70]" />
+                    <DialogPrimitive.Content
+                        aria-describedby={undefined}
+                        className={cn(
+                            'social-glass animate-menu-pop fixed z-[70] flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-3xl text-[var(--social-fg)] outline-none',
+                            props.className
+                        )}
+                        style={{
+                            top: bottom + 8,
+                            right: Math.max(8, window.innerWidth - right),
+                            maxHeight: `min(560px, calc(100dvh - ${bottom + 8 + 12}px))`,
+                            transformOrigin: 'top right'
+                        }}
+                    >
+                        <DialogPrimitive.Title className="sr-only">{props.title}</DialogPrimitive.Title>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-1 pt-4">
+                            {props.children}
+                        </div>
+                    </DialogPrimitive.Content>
+                </DialogPrimitive.Portal>
+            </DialogPrimitive.Root>
+        )
+    }
 
     if (!isMobileLayout) {
         return (

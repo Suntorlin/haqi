@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
@@ -31,6 +32,10 @@ import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { SessionHeader } from '@/components/SessionHeader'
 import { TeamPanel } from '@/components/TeamPanel'
 import { usePlatform } from '@/hooks/usePlatform'
+import { useSessionDock } from '@/hooks/useSessionDock'
+import { PreviewLinkContext, type OpenInPreview } from '@/lib/preview-link'
+import { normalizePreviewUrlInput } from '@/lib/preview-url'
+import { queryKeys } from '@/lib/query-keys'
 import { useQueueInlinePanel } from '@/hooks/useQueueInlinePanel'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useExperimentalSettings } from '@/hooks/queries/useExperimentalSettings'
@@ -39,9 +44,6 @@ import { PlanApprovalOverlay } from '@/components/ToolCard/PlanApprovalOverlay'
 import { findLatestPendingQuestionTool } from '@/components/ToolCard/questionTools'
 import { findLatestPendingPlanApprovalTool } from '@/components/ToolCard/exitPlanMode'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { TextField } from '@/components/ui/TextField'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
@@ -327,10 +329,10 @@ function extractLatestCodexPlan(messages: NormalizedMessage[]): CodexPlanSnapsho
     return null
 }
 
-function getCodexPlanStatusBadgeVariant(status: CodexPlanStatus): 'success' | 'info' | 'default' {
-    if (status === 'completed') return 'success'
-    if (status === 'in_progress') return 'info'
-    return 'default'
+function getCodexPlanStatusBadgeClass(status: CodexPlanStatus): string {
+    if (status === 'completed') return 'bg-emerald-500/10 text-emerald-600'
+    if (status === 'in_progress') return 'bg-blue-500/10 text-blue-600'
+    return 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'
 }
 
 const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
@@ -405,6 +407,8 @@ export function SessionChat(props: {
     const { haptic } = usePlatform()
     const { queueInlinePanelMode } = useQueueInlinePanel()
     const navigate = useNavigate()
+    const dock = useSessionDock()
+    const queryClient = useQueryClient()
     const { settings: experimentalSettings } = useExperimentalSettings(props.api, true)
     const sessionInactive = !props.session.active
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
@@ -790,18 +794,49 @@ export function SessionChat(props: {
     }, [navigate, props.session.id])
 
     const handleViewPreview = useCallback(() => {
+        if (dock) {
+            dock.toggle('preview')
+            return
+        }
         navigate({
             to: '/sessions/$sessionId/preview',
             params: { sessionId: props.session.id }
         })
-    }, [navigate, props.session.id])
+    }, [dock, navigate, props.session.id])
 
     const handleViewTerminal = useCallback(() => {
+        if (dock) {
+            dock.toggle('terminal')
+            return
+        }
         navigate({
             to: '/sessions/$sessionId/terminal',
             params: { sessionId: props.session.id }
         })
-    }, [navigate, props.session.id])
+    }, [dock, navigate, props.session.id])
+
+    // Chat links open in this session's built-in preview (side panel on desktop, preview page on phones).
+    const openLinkInPreview = useCallback<OpenInPreview>(async (url) => {
+        const normalized = normalizePreviewUrlInput(url)
+        if (!normalized.value) return false
+        try {
+            await props.api.setSessionPreviewUrl(props.session.id, normalized.value)
+            await Promise.all([
+                queryClient.invalidateQueries({ queryKey: queryKeys.session(props.session.id) }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.previewUrlHistory })
+            ])
+        } catch (error) {
+            console.error('Failed to open link in preview', error)
+            return false
+        }
+        if (dock) {
+            dock.open('preview')
+        } else {
+            navigate({ to: '/sessions/$sessionId/preview', params: { sessionId: props.session.id } })
+        }
+        return true
+    }, [dock, navigate, props.api, props.session.id, queryClient])
 
     const handleSend = useCallback(async (text: string, attachments?: AttachmentMetadata[]): Promise<boolean> => {
         const sent = await Promise.resolve(props.onSend(text, attachments))
@@ -1376,454 +1411,479 @@ export function SessionChat(props: {
     })
 
     return (
-        <div className="flex h-full flex-col">
-            <SessionHeader
-                session={props.session}
-                onBack={props.onBack}
-                onOpenSession={(sessionId) => {
-                    navigate({
-                        to: '/sessions/$sessionId',
-                        params: { sessionId }
-                    })
-                }}
-                onToggleSidebar={props.onToggleSidebar}
-                sidebarVisible={props.sidebarVisible}
-                onViewPreview={experimentalSettings.previewEnabled ? handleViewPreview : undefined}
-                onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
-                onViewMcpStatus={handleMcpStatus}
-                onViewTerminal={props.session.active ? handleViewTerminal : undefined}
-                viewMode={props.viewMode}
-                onViewModeChange={props.onViewModeChange}
-                usage={{
-                    contextSize: latestContextSize,
-                    contextWindowTokens: latestContextWindowTokens,
-                    rateLimitSnapshot: props.session.metadata?.rateLimitSnapshot,
-                    contextPercentLeft
-                }}
-                api={props.api}
-                onSessionDeleted={props.onBack}
-            />
-
-
-            {(props.session.teamState || (props.session.agentState?.runningAgents?.length ?? 0) > 0 || props.session.agentState?.runningAgent) && (
-                <TeamPanel
-                    teamState={props.session.teamState}
-                    agentState={props.session.agentState}
-                    canControl={props.session.active && props.session.metadata?.flavor === 'claude' && Boolean(props.session.teamState)}
-                    onControl={handleTeamControl}
+        <PreviewLinkContext.Provider value={experimentalSettings.previewEnabled ? openLinkInPreview : null}>
+            <div className="flex h-full flex-col">
+                <SessionHeader
+                    session={props.session}
+                    onBack={props.onBack}
+                    onOpenSession={(sessionId) => {
+                        navigate({
+                            to: '/sessions/$sessionId',
+                            params: { sessionId }
+                        })
+                    }}
+                    onToggleSidebar={props.onToggleSidebar}
+                    sidebarVisible={props.sidebarVisible}
+                    onViewPreview={experimentalSettings.previewEnabled ? handleViewPreview : undefined}
+                    onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
+                    onViewMcpStatus={handleMcpStatus}
+                    onViewTerminal={props.session.active ? handleViewTerminal : undefined}
+                    viewMode={props.viewMode}
+                    onViewModeChange={props.onViewModeChange}
+                    usage={{
+                        contextSize: latestContextSize,
+                        contextWindowTokens: latestContextWindowTokens,
+                        rateLimitSnapshot: props.session.metadata?.rateLimitSnapshot,
+                        contextPercentLeft
+                    }}
+                    api={props.api}
+                    onSessionDeleted={props.onBack}
                 />
-            )}
 
-            <AssistantRuntimeProvider runtime={runtime}>
-                <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
-                    {showCodexPlanNotebook && latestCodexPlan ? (
-                        <div className="px-3 pt-2">
-                            <div className="mx-auto w-full max-w-content rounded-2xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/50 p-2.5">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
-                                        {t('queuePlan.title')}
-                                    </span>
-                                    <span className="text-[12px] text-[var(--app-hint)]">
-                                        {t('queuePlan.updated', {
-                                            time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })
-                                        })}
-                                    </span>
-                                    <div className="ml-auto flex items-center gap-1">
-                                        <Button variant="ghost" size="sm" onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}>
-                                            {isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
-                                        </Button>
-                                        <Button variant="ghost" size="sm" onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}>
-                                            {t('queuePlan.close')}
-                                        </Button>
+
+                {(props.session.teamState || (props.session.agentState?.runningAgents?.length ?? 0) > 0 || props.session.agentState?.runningAgent) && (
+                    <TeamPanel
+                        teamState={props.session.teamState}
+                        agentState={props.session.agentState}
+                        canControl={props.session.active && props.session.metadata?.flavor === 'claude' && Boolean(props.session.teamState)}
+                        onControl={handleTeamControl}
+                    />
+                )}
+
+                <AssistantRuntimeProvider runtime={runtime}>
+                    <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
+                        {showCodexPlanNotebook && latestCodexPlan ? (
+                            <div className="px-3 pt-2">
+                                <div className="mx-auto w-full max-w-content rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)]/50 p-2.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--app-hint)]">
+                                            {t('queuePlan.title')}
+                                        </span>
+                                        <span className="text-[10px] text-[var(--app-hint)]">
+                                            {t('queuePlan.updated', {
+                                                time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })
+                                            })}
+                                        </span>
+                                        <div className="ml-auto flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                onClick={() => setIsCodexPlanCollapsed((prev) => !prev)}
+                                            >
+                                                {isCodexPlanCollapsed ? t('queuePlan.expand') : t('queuePlan.collapse')}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="rounded px-1.5 py-1 text-[11px] text-[var(--app-hint)] transition-colors hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)]"
+                                                onClick={() => setDismissedCodexPlanSignature(latestCodexPlan.signature)}
+                                            >
+                                                {t('queuePlan.close')}
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
 
-                                {!isCodexPlanCollapsed ? (
-                                    <div className="mt-2 space-y-1.5">
-                                        {latestCodexPlan.explanation ? (
-                                            <div className="text-xs text-[var(--app-hint)]">
-                                                {latestCodexPlan.explanation}
-                                            </div>
-                                        ) : null}
-                                        <div className="space-y-1">
-                                            {latestCodexPlan.entries.map((entry, index) => (
-                                                <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-xs">
-                                                    <Badge variant={getCodexPlanStatusBadgeVariant(entry.status)} className="mt-0.5">
-                                                        {entry.status === 'completed'
-                                                            ? t('queuePlan.status.completed')
-                                                            : entry.status === 'in_progress'
-                                                                ? t('queuePlan.status.inProgress')
-                                                                : t('queuePlan.status.pending')}
-                                                    </Badge>
-                                                    <span className="min-w-0 flex-1 break-words text-[var(--app-fg)]">
-                                                        {entry.step}
-                                                    </span>
+                                    {!isCodexPlanCollapsed ? (
+                                        <div className="mt-2 space-y-1.5">
+                                            {latestCodexPlan.explanation ? (
+                                                <div className="text-xs text-[var(--app-hint)]">
+                                                    {latestCodexPlan.explanation}
                                                 </div>
-                                            ))}
+                                            ) : null}
+                                            <div className="space-y-1">
+                                                {latestCodexPlan.entries.map((entry, index) => (
+                                                    <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-xs">
+                                                        <span
+                                                            className={`mt-0.5 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${getCodexPlanStatusBadgeClass(entry.status)}`}
+                                                        >
+                                                            {entry.status === 'completed'
+                                                                ? t('queuePlan.status.completed')
+                                                                : entry.status === 'in_progress'
+                                                                    ? t('queuePlan.status.inProgress')
+                                                                    : t('queuePlan.status.pending')}
+                                                        </span>
+                                                        <span className="min-w-0 flex-1 break-words text-[var(--app-fg)]">
+                                                            {entry.step}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+                        ) : null}
+
+                        {props.viewMode === 'brief' ? (
+                            <BriefTurnList
+                                api={props.api}
+                                session={props.session}
+                                turns={props.turns}
+                                warning={props.turnsWarning}
+                                isLoading={props.isLoadingTurns}
+                                isLoadingMore={props.isLoadingMoreTurns}
+                                hasMore={props.hasMoreTurns}
+                                thinking={props.session.thinking}
+                                density={props.density ?? 'comfortable'}
+                                onLoadMoreTurns={props.onLoadMoreTurns}
+                            />
+                        ) : props.viewMode === 'cli' ? (
+                            <CliThread
+                                api={props.api}
+                                sessionId={props.session.id}
+                                metadata={props.session.metadata}
+                                agentState={props.session.agentState}
+                                permissionMode={props.session.permissionMode}
+                                disabled={sessionInactive}
+                                blocks={reconciled.blocks}
+                                isLoadingMessages={props.isLoadingMessages}
+                                messagesWarning={props.messagesWarning}
+                                hasMoreMessages={props.hasMoreMessages}
+                                isLoadingMoreMessages={props.isLoadingMoreMessages}
+                                onLoadMore={props.onLoadMore}
+                                onRefresh={props.onRefresh}
+                                onFlushPending={props.onFlushPending}
+                                onRetryMessage={props.onRetryMessage}
+                                onAtBottomChange={props.onAtBottomChange}
+                                pendingCount={props.pendingCount}
+                                newestMessageSeq={props.newestMessageSeq}
+                                messagesVersion={props.messagesVersion}
+                                density={props.density ?? 'comfortable'}
+                            />
+                        ) : (
+                            <HappyThread
+                                api={props.api}
+                                sessionId={props.session.id}
+                                metadata={props.session.metadata}
+                                agentState={props.session.agentState}
+                                permissionMode={props.session.permissionMode}
+                                disabled={sessionInactive}
+                                onRefresh={props.onRefresh}
+                                onRetryMessage={props.onRetryMessage}
+                                onFlushPending={props.onFlushPending}
+                                onAtBottomChange={props.onAtBottomChange}
+                                isLoadingMessages={props.isLoadingMessages}
+                                messagesWarning={props.messagesWarning}
+                                hasMoreMessages={props.hasMoreMessages}
+                                isLoadingMoreMessages={props.isLoadingMoreMessages}
+                                onLoadMore={props.onLoadMore}
+                                pendingCount={props.pendingCount}
+                                newestMessageSeq={props.newestMessageSeq}
+                                messagesVersion={props.messagesVersion}
+                                forceScrollToken={forceScrollToken}
+                                density={props.density ?? 'comfortable'}
+                                toolProgress={toolProgress}
+                                layout="social"
+                                timeSeparators={timeSeparators}
+                                runStats={runStats}
+                            />
+                        )}
+
+                        <HappyComposer
+                            sessionId={props.session.id}
+                            disabled={composerDisabled}
+                            cliMode={props.viewMode === 'cli'}
+                            permissionMode={props.session.permissionMode}
+                            modelMode={props.session.modelMode}
+                            model={props.session.metadata?.model}
+                            thinkEffort={props.session.metadata?.thinkEffort}
+                            serviceTier={props.session.metadata?.serviceTier}
+                            codexCollaborationMode={codexCollaborationMode}
+                            agentFlavor={agentFlavor}
+                            active={props.session.active}
+                            thinking={props.session.thinking}
+                            agentState={props.session.agentState}
+                            contextSize={reduced.latestUsage?.contextSize}
+                            contextWindowTokens={reduced.latestUsage?.contextWindowTokens}
+                            rateLimitSnapshot={props.session.metadata?.rateLimitSnapshot}
+                            controlledByUser={props.session.agentState?.controlledByUser === true}
+                            onPermissionModeChange={handlePermissionModeChange}
+                            onModelChange={handleModelChange}
+                            onThinkEffortChange={handleThinkEffortChange}
+                            onServiceTierChange={handleServiceTierChange}
+                            onSwitchToRemote={handleSwitchToRemote}
+                            onTerminal={props.session.active ? handleViewTerminal : undefined}
+                            onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}
+                            codexSendMode={codexSendMode}
+                            onCodexPlanModeChange={agentFlavor === 'codex' ? handleCodexPlanModeChange : undefined}
+                            onCodexSendModeChange={supportsQueueControls ? handleCodexQueueModeChange : undefined}
+                            codexQueuePendingCount={codexQueuePendingCount}
+                            codexQueueSummary={codexQueueSummary}
+                            codexQueueEntries={codexQueueEntries}
+                            codexQueueDialogOpen={isCodexQueueDialogOpen}
+                            codexQueueInlinePanelMode={isCodexQueueDialogOpen ? 'off' : queueInlinePanelMode}
+                            onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
+                            onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
+                            onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
+                            isSendingMessage={props.isSending}
+                            onSendMessage={handleSend}
+                            onRemoveDraftAttachment={async (path) => {
+                                await props.api.deleteUploadFile(props.session.id, path)
+                            }}
+                            autocompleteSuggestions={props.autocompleteSuggestions}
+                            injectedPrompt={composerInjectedPrompt}
+                            voiceStatus={voice?.status}
+                            voiceMicMuted={voice?.micMuted}
+                            onVoiceToggle={voice ? handleVoiceToggle : undefined}
+                            onVoiceMicToggle={voice ? handleVoiceMicToggle : undefined}
+                            offlineWakeMessage={t('session.inactiveMessage')}
+                            offlineWakeLabel={t('session.wake')}
+                            offlineWakingLabel={t('session.waking')}
+                            offlineWakePending={isPending}
+                            onOfflineWake={props.api ? () => void handleResumeSession() : undefined}
+                        />
+
+                        <QuestionToolOverlay
+                            api={props.api}
+                            sessionId={props.session.id}
+                            tool={activeQuestionTool}
+                            disabled={props.isSending}
+                            onDone={props.onRefresh}
+                        />
+
+                        <PlanApprovalOverlay
+                            api={props.api}
+                            sessionId={props.session.id}
+                            metadata={props.session.metadata ?? null}
+                            tool={activePlanApprovalTool}
+                            disabled={props.isSending}
+                            onDone={props.onRefresh}
+                        />
+                    </div>
+                </AssistantRuntimeProvider>
+
+                <Dialog open={isMcpDialogOpen} onOpenChange={setIsMcpDialogOpen}>
+                    <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">
+                        <DialogHeader>
+                            <DialogTitle>{t('mcp.dialog.title')}</DialogTitle>
+                            <DialogDescription>{t('mcp.dialog.description')}</DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-3 max-h-[calc(85vh-7rem)] space-y-3 overflow-y-auto pr-1">
+                            <div
+                                className={`rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
+                                onClick={() => {
+                                    if (!isMcpGuideExpanded) {
+                                        setIsMcpGuideExpanded(true)
+                                    }
+                                }}
+                                onKeyDown={(event) => {
+                                    if (isMcpGuideExpanded) {
+                                        return
+                                    }
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault()
+                                        setIsMcpGuideExpanded(true)
+                                    }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                                aria-expanded={isMcpGuideExpanded}
+                            >
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="text-[11px] uppercase tracking-wide text-[var(--app-hint)]">
+                                        {t('mcp.guide.title')}
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                        onClick={() => setIsMcpGuideExpanded((prev) => !prev)}
+                                    >
+                                        {isMcpGuideExpanded ? t('mcp.guide.collapse') : t('mcp.guide.expand')}
+                                    </button>
+                                </div>
+                                {isMcpGuideExpanded ? (
+                                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                        {MCP_GUIDES.map((guide) => (
+                                            <div
+                                                key={guide.id}
+                                                className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5"
+                                            >
+                                                <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                    {guide.label}
+                                                </div>
+                                                <div className="mt-1 text-xs text-[var(--app-hint)]">
+                                                    {t(guide.descriptionKey)}
+                                                </div>
+                                                <div className="mt-2 flex items-center gap-2">
+                                                    <a
+                                                        href={guide.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                                    >
+                                                        {t('mcp.guide.open')}
+                                                    </a>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleInsertMcpGuidePrompt(guide)}
+                                                        className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)]"
+                                                    >
+                                                        {t('mcp.guide.insertPrompt')}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5">
+                                            <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                {t('mcp.guide.custom.title')}
+                                            </div>
+                                            <div className="mt-2 space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={customMcpGuideInput}
+                                                    onChange={(event) => setCustomMcpGuideInput(event.target.value)}
+                                                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] px-2 py-1.5 text-xs text-[var(--app-fg)] outline-none transition-colors focus:border-[var(--app-link)]"
+                                                    placeholder={t('mcp.guide.custom.placeholder')}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={handleInsertCustomMcpGuidePrompt}
+                                                    disabled={customMcpGuideInput.trim().length === 0}
+                                                    className="w-full rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    {t('mcp.guide.insertPrompt')}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ) : null}
                             </div>
-                        </div>
-                    ) : null}
 
-                    {props.viewMode === 'brief' ? (
-                        <BriefTurnList
-                            api={props.api}
-                            session={props.session}
-                            turns={props.turns}
-                            warning={props.turnsWarning}
-                            isLoading={props.isLoadingTurns}
-                            isLoadingMore={props.isLoadingMoreTurns}
-                            hasMore={props.hasMoreTurns}
-                            thinking={props.session.thinking}
-                            density={props.density ?? 'comfortable'}
-                            onLoadMoreTurns={props.onLoadMoreTurns}
-                        />
-                    ) : props.viewMode === 'cli' ? (
-                        <CliThread
-                            api={props.api}
-                            sessionId={props.session.id}
-                            metadata={props.session.metadata}
-                            agentState={props.session.agentState}
-                            permissionMode={props.session.permissionMode}
-                            disabled={sessionInactive}
-                            blocks={reconciled.blocks}
-                            isLoadingMessages={props.isLoadingMessages}
-                            messagesWarning={props.messagesWarning}
-                            hasMoreMessages={props.hasMoreMessages}
-                            isLoadingMoreMessages={props.isLoadingMoreMessages}
-                            onLoadMore={props.onLoadMore}
-                            onRefresh={props.onRefresh}
-                            onFlushPending={props.onFlushPending}
-                            onRetryMessage={props.onRetryMessage}
-                            onAtBottomChange={props.onAtBottomChange}
-                            pendingCount={props.pendingCount}
-                            newestMessageSeq={props.newestMessageSeq}
-                            messagesVersion={props.messagesVersion}
-                            density={props.density ?? 'comfortable'}
-                        />
-                    ) : (
-                        <HappyThread
-                            api={props.api}
-                            sessionId={props.session.id}
-                            metadata={props.session.metadata}
-                            agentState={props.session.agentState}
-                            permissionMode={props.session.permissionMode}
-                            disabled={sessionInactive}
-                            onRefresh={props.onRefresh}
-                            onRetryMessage={props.onRetryMessage}
-                            onFlushPending={props.onFlushPending}
-                            onAtBottomChange={props.onAtBottomChange}
-                            isLoadingMessages={props.isLoadingMessages}
-                            messagesWarning={props.messagesWarning}
-                            hasMoreMessages={props.hasMoreMessages}
-                            isLoadingMoreMessages={props.isLoadingMoreMessages}
-                            onLoadMore={props.onLoadMore}
-                            pendingCount={props.pendingCount}
-                            newestMessageSeq={props.newestMessageSeq}
-                            messagesVersion={props.messagesVersion}
-                            forceScrollToken={forceScrollToken}
-                            density={props.density ?? 'comfortable'}
-                            toolProgress={toolProgress}
-                            layout="social"
-                            timeSeparators={timeSeparators}
-                            runStats={runStats}
-                        />
-                    )}
-
-                    <HappyComposer
-                        sessionId={props.session.id}
-                        disabled={composerDisabled}
-                        cliMode={props.viewMode === 'cli'}
-                        permissionMode={props.session.permissionMode}
-                        modelMode={props.session.modelMode}
-                        model={props.session.metadata?.model}
-                        thinkEffort={props.session.metadata?.thinkEffort}
-                        serviceTier={props.session.metadata?.serviceTier}
-                        codexCollaborationMode={codexCollaborationMode}
-                        agentFlavor={agentFlavor}
-                        active={props.session.active}
-                        thinking={props.session.thinking}
-                        agentState={props.session.agentState}
-                        contextSize={reduced.latestUsage?.contextSize}
-                        contextWindowTokens={reduced.latestUsage?.contextWindowTokens}
-                        rateLimitSnapshot={props.session.metadata?.rateLimitSnapshot}
-                        controlledByUser={props.session.agentState?.controlledByUser === true}
-                        onPermissionModeChange={handlePermissionModeChange}
-                        onModelChange={handleModelChange}
-                        onThinkEffortChange={handleThinkEffortChange}
-                        onServiceTierChange={handleServiceTierChange}
-                        onSwitchToRemote={handleSwitchToRemote}
-                        onTerminal={props.session.active ? handleViewTerminal : undefined}
-                        onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}
-                        codexSendMode={codexSendMode}
-                        onCodexPlanModeChange={agentFlavor === 'codex' ? handleCodexPlanModeChange : undefined}
-                        onCodexSendModeChange={supportsQueueControls ? handleCodexQueueModeChange : undefined}
-                        codexQueuePendingCount={codexQueuePendingCount}
-                        codexQueueSummary={codexQueueSummary}
-                        codexQueueEntries={codexQueueEntries}
-                        codexQueueDialogOpen={isCodexQueueDialogOpen}
-                        codexQueueInlinePanelMode={isCodexQueueDialogOpen ? 'off' : queueInlinePanelMode}
-                        onCodexQueueOpen={supportsQueueControls ? handleCodexQueueOpen : undefined}
-                        onCodexQueueUpdated={supportsQueueControls ? handleCodexQueueRefreshAfterSend : undefined}
-                        onCodexQueueEnqueue={supportsQueueControls ? handleCodexQueueEnqueue : undefined}
-                        isSendingMessage={props.isSending}
-                        onSendMessage={handleSend}
-                        onRemoveDraftAttachment={async (path) => {
-                            await props.api.deleteUploadFile(props.session.id, path)
-                        }}
-                        autocompleteSuggestions={props.autocompleteSuggestions}
-                        injectedPrompt={composerInjectedPrompt}
-                        voiceStatus={voice?.status}
-                        voiceMicMuted={voice?.micMuted}
-                        onVoiceToggle={voice ? handleVoiceToggle : undefined}
-                        onVoiceMicToggle={voice ? handleVoiceMicToggle : undefined}
-                        offlineWakeMessage={t('session.inactiveMessage')}
-                        offlineWakeLabel={t('session.wake')}
-                        offlineWakingLabel={t('session.waking')}
-                        offlineWakePending={isPending}
-                        onOfflineWake={props.api ? () => void handleResumeSession() : undefined}
-                    />
-
-                    <QuestionToolOverlay
-                        api={props.api}
-                        sessionId={props.session.id}
-                        tool={activeQuestionTool}
-                        disabled={props.isSending}
-                        onDone={props.onRefresh}
-                    />
-
-                    <PlanApprovalOverlay
-                        api={props.api}
-                        sessionId={props.session.id}
-                        metadata={props.session.metadata ?? null}
-                        tool={activePlanApprovalTool}
-                        disabled={props.isSending}
-                        onDone={props.onRefresh}
-                    />
-                </div>
-            </AssistantRuntimeProvider>
-
-            <Dialog open={isMcpDialogOpen} onOpenChange={setIsMcpDialogOpen}>
-                <DialogContent className="max-h-[85vh] max-w-2xl overflow-hidden">
-                    <DialogHeader>
-                        <DialogTitle>{t('mcp.dialog.title')}</DialogTitle>
-                        <DialogDescription>{t('mcp.dialog.description')}</DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-3 max-h-[calc(85vh-7rem)] space-y-3 overflow-y-auto pr-1">
-                        <div
-                            className={`rounded-xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 ${!isMcpGuideExpanded ? 'cursor-pointer' : ''}`}
-                            onClick={() => {
-                                if (!isMcpGuideExpanded) {
-                                    setIsMcpGuideExpanded(true)
-                                }
-                            }}
-                            onKeyDown={(event) => {
-                                if (isMcpGuideExpanded) {
-                                    return
-                                }
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault()
-                                    setIsMcpGuideExpanded(true)
-                                }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                            aria-expanded={isMcpGuideExpanded}
-                        >
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="text-[12px] uppercase tracking-wide text-[var(--app-hint)]">
-                                    {t('mcp.guide.title')}
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="text-xs text-[var(--app-hint)]">
+                                    {mcpFlavor ? `${t('mcp.dialog.flavor')}: ${mcpFlavor}` : null}
+                                    {mcpCheckedAt ? ` · ${new Date(mcpCheckedAt).toLocaleString()}` : null}
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setIsMcpGuideExpanded((prev) => !prev)}
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-[var(--app-border)] px-2 py-1 text-xs text-[var(--app-fg)] transition-colors hover:bg-[var(--app-subtle-bg)] disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={() => void refreshMcpStatus()}
+                                    disabled={isMcpLoading}
                                 >
-                                    {isMcpGuideExpanded ? t('mcp.guide.collapse') : t('mcp.guide.expand')}
-                                </Button>
+                                    {t('mcp.dialog.refresh')}
+                                </button>
                             </div>
-                            {isMcpGuideExpanded ? (
-                                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                                    {MCP_GUIDES.map((guide) => (
+
+                            {isMcpLoading ? (
+                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                    {t('mcp.dialog.loading')}
+                                </div>
+                            ) : null}
+
+                            {mcpError ? (
+                                <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-500">
+                                    {mcpError}
+                                </div>
+                            ) : null}
+
+                            {mcpWarning ? (
+                                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">
+                                    {mcpWarning}
+                                </div>
+                            ) : null}
+
+                            {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
+                                <div className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
+                                    {t('mcp.dialog.empty')}
+                                </div>
+                            ) : null}
+
+                            {mcpServers.length > 0 ? (
+                                <div className="space-y-2">
+                                    {mcpServers.map((server) => (
                                         <div
-                                            key={guide.id}
-                                            className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5"
+                                            key={`${server.name}:${server.source ?? 'unknown'}`}
+                                            className="rounded-md border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
                                         >
-                                            <div className="text-sm font-semibold text-[var(--app-fg)]">
-                                                {guide.label}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="text-sm font-semibold text-[var(--app-fg)]">
+                                                    {server.name}
+                                                </div>
+                                                <span
+                                                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                                        server.available
+                                                            ? 'bg-emerald-500/10 text-emerald-600'
+                                                            : 'bg-red-500/10 text-red-500'
+                                                    }`}
+                                                >
+                                                    {server.available ? t('mcp.server.available') : t('mcp.server.unavailable')}
+                                                </span>
                                             </div>
-                                            <div className="mt-1 text-xs text-[var(--app-hint)]">
-                                                {t(guide.descriptionKey)}
-                                            </div>
-                                            <div className="mt-2 flex items-center gap-2">
-                                                <Button variant="outline" size="sm" asChild>
-                                                    <a href={guide.url} target="_blank" rel="noreferrer">
-                                                        {t('mcp.guide.open')}
-                                                    </a>
-                                                </Button>
-                                                <Button variant="outline" size="sm" onClick={() => handleInsertMcpGuidePrompt(guide)}>
-                                                    {t('mcp.guide.insertPrompt')}
-                                                </Button>
+                                            <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--app-hint)] sm:grid-cols-2">
+                                                <div>
+                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.status')}</span>
+                                                    <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.status}</div>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
+                                                    <div className="mt-1 text-sm text-[var(--app-fg)]">{server.transport ?? 'unknown'}</div>
+                                                </div>
+                                                {server.source ? (
+                                                    <div>
+                                                        <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.source')}</span>
+                                                        <div className="mt-1 text-sm text-[var(--app-fg)]">{server.source}</div>
+                                                    </div>
+                                                ) : null}
+                                                {server.target ? (
+                                                    <div>
+                                                        <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.target')}</span>
+                                                        <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">{server.target}</div>
+                                                    </div>
+                                                ) : null}
+                                                {server.auth ? (
+                                                    <div className="sm:col-span-2">
+                                                        <span className="text-[10px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
+                                                        <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.auth}</div>
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
                                     ))}
-                                    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-2.5">
-                                        <div className="text-sm font-semibold text-[var(--app-fg)]">
-                                            {t('mcp.guide.custom.title')}
-                                        </div>
-                                        <div className="mt-2 space-y-2">
-                                            <TextField
-                                                type="text"
-                                                value={customMcpGuideInput}
-                                                onChange={(event) => setCustomMcpGuideInput(event.target.value)}
-                                                placeholder={t('mcp.guide.custom.placeholder')}
-                                            />
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="w-full"
-                                                onClick={handleInsertCustomMcpGuidePrompt}
-                                                disabled={customMcpGuideInput.trim().length === 0}
-                                            >
-                                                {t('mcp.guide.insertPrompt')}
-                                            </Button>
-                                        </div>
-                                    </div>
                                 </div>
                             ) : null}
                         </div>
+                    </DialogContent>
+                </Dialog>
 
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div className="text-xs text-[var(--app-hint)]">
-                                {mcpFlavor ? `${t('mcp.dialog.flavor')}: ${mcpFlavor}` : null}
-                                {mcpCheckedAt ? ` · ${new Date(mcpCheckedAt).toLocaleString()}` : null}
-                            </div>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => void refreshMcpStatus()}
-                                disabled={isMcpLoading}
-                            >
-                                {t('mcp.dialog.refresh')}
-                            </Button>
-                        </div>
-
-                        {isMcpLoading ? (
-                            <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
-                                {t('mcp.dialog.loading')}
-                            </div>
-                        ) : null}
-
-                        {mcpError ? (
-                            <div className="rounded-xl bg-[var(--app-badge-error-bg)] p-3 text-sm text-[var(--app-badge-error-text)]">
-                                {mcpError}
-                            </div>
-                        ) : null}
-
-                        {mcpWarning ? (
-                            <div className="rounded-xl bg-[var(--app-badge-warning-bg)] p-3 text-sm text-[var(--app-badge-warning-text)]">
-                                {mcpWarning}
-                            </div>
-                        ) : null}
-
-                        {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
-                            <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3 text-sm text-[var(--app-hint)]">
-                                {t('mcp.dialog.empty')}
-                            </div>
-                        ) : null}
-
-                        {mcpServers.length > 0 ? (
-                            <div className="space-y-2">
-                                {mcpServers.map((server) => (
-                                    <div
-                                        key={`${server.name}:${server.source ?? 'unknown'}`}
-                                        className="rounded-xl border border-[var(--app-border)] bg-[var(--app-secondary-bg)] p-3"
-                                    >
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="text-sm font-semibold text-[var(--app-fg)]">
-                                                {server.name}
-                                            </div>
-                                            <Badge variant={server.available ? 'success' : 'destructive'}>
-                                                {server.available ? t('mcp.server.available') : t('mcp.server.unavailable')}
-                                            </Badge>
-                                        </div>
-                                        <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-[var(--app-hint)] sm:grid-cols-2">
-                                            <div>
-                                                <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.status')}</span>
-                                                <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.status}</div>
-                                            </div>
-                                            <div>
-                                                <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
-                                                <div className="mt-1 text-sm text-[var(--app-fg)]">{server.transport ?? 'unknown'}</div>
-                                            </div>
-                                            {server.source ? (
-                                                <div>
-                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.source')}</span>
-                                                    <div className="mt-1 text-sm text-[var(--app-fg)]">{server.source}</div>
-                                                </div>
-                                            ) : null}
-                                            {server.target ? (
-                                                <div>
-                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.target')}</span>
-                                                    <div className="mt-1 break-all text-sm font-mono text-[var(--app-fg)]">{server.target}</div>
-                                                </div>
-                                            ) : null}
-                                            {server.auth ? (
-                                                <div className="sm:col-span-2">
-                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
-                                                    <div className="mt-1 break-all text-sm text-[var(--app-fg)]">{server.auth}</div>
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : null}
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            <QueueStatusSheet
-                open={isCodexStatusDialogOpen}
-                onOpenChange={setIsCodexStatusDialogOpen}
-                loading={isCodexStatusLoading}
-                error={codexStatusError}
-                status={codexQueueStatus ?? null}
-                rows={codexStatusDetailRows}
-                message={codexStatusMessage}
-                usage={sessionUsage}
-                usageError={sessionUsageError}
-                formatNumber={formatUsageNumber}
-            />
-
-            <QueueSheet
-                open={isCodexQueueDialogOpen}
-                onOpenChange={setIsCodexQueueDialogOpen}
-                sendMode={codexSendMode}
-                loading={isCodexQueueLoading}
-                mutating={isCodexQueueMutating}
-                error={codexQueueError}
-                status={codexQueueStatus ?? null}
-                entries={codexQueueEntries}
-                onRefresh={() => void refreshCodexQueue()}
-                onClear={handleCodexQueueClear}
-                onMove={handleCodexQueueMove}
-                onRemove={handleCodexQueueRemove}
-            />
-
-            {/* Voice session component - renders nothing but initializes ElevenLabs */}
-            {voice && (
-                <RealtimeVoiceSession
-                    api={props.api}
-                    micMuted={voice.micMuted}
-                    onStatusChange={voice.setStatus}
+                <QueueStatusSheet
+                    open={isCodexStatusDialogOpen}
+                    onOpenChange={setIsCodexStatusDialogOpen}
+                    loading={isCodexStatusLoading}
+                    error={codexStatusError}
+                    status={codexQueueStatus ?? null}
+                    rows={codexStatusDetailRows}
+                    message={codexStatusMessage}
+                    usage={sessionUsage}
+                    usageError={sessionUsageError}
+                    formatNumber={formatUsageNumber}
                 />
-            )}
-        </div>
+
+                <QueueSheet
+                    open={isCodexQueueDialogOpen}
+                    onOpenChange={setIsCodexQueueDialogOpen}
+                    sendMode={codexSendMode}
+                    loading={isCodexQueueLoading}
+                    mutating={isCodexQueueMutating}
+                    error={codexQueueError}
+                    status={codexQueueStatus ?? null}
+                    entries={codexQueueEntries}
+                    onRefresh={() => void refreshCodexQueue()}
+                    onClear={handleCodexQueueClear}
+                    onMove={handleCodexQueueMove}
+                    onRemove={handleCodexQueueRemove}
+                />
+
+                {/* Voice session component - renders nothing but initializes ElevenLabs */}
+                {voice && (
+                    <RealtimeVoiceSession
+                        api={props.api}
+                        micMuted={voice.micMuted}
+                        onStatusChange={voice.setStatus}
+                    />
+                )}
+            </div>
+        </PreviewLinkContext.Provider>
     )
 }

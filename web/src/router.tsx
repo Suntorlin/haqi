@@ -74,8 +74,10 @@ import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned } from '@/lib/session-pins'
 import { useSessionPin } from '@/hooks/mutations/useSessionPin'
+import { useArchiveSession } from '@/hooks/mutations/useArchiveSession'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
+import { SessionDockLayout } from '@/components/SessionDockLayout'
 import PreviewPage from '@/routes/sessions/preview'
 import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
@@ -304,6 +306,8 @@ function SessionsPage() {
             })
         })
     }, [addToast, pinSession, t])
+    const archiveSession = useArchiveSession(api)
+    const archivePinnedSession = useCallback((session: SessionSummary) => archiveSession(session.id), [archiveSession])
 
     const handleRefresh = useCallback(() => {
         void refetch()
@@ -451,6 +455,7 @@ function SessionsPage() {
                     onSelect={selectSession}
                     onNewSession={() => openNewSession()}
                     onUnpin={unpinSession}
+                    onArchive={archivePinnedSession}
                 />
             )}
             {sessionTags.length ? (
@@ -793,7 +798,11 @@ function SessionDetailRoute() {
     const basePath = `/sessions/${sessionId}`
     const isChat = pathname === basePath || pathname === `${basePath}/`
 
-    return isChat ? <SessionPage /> : <Outlet />
+    const isMobileLayout = useIsMobileLayout()
+    const content = isChat ? <SessionPage /> : <Outlet />
+
+    // Desktop: terminal / preview dock beside the chat instead of replacing it.
+    return isMobileLayout ? content : <SessionDockLayout sessionId={sessionId}>{content}</SessionDockLayout>
 }
 
 function NewSessionPage() {

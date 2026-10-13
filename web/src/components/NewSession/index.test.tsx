@@ -187,6 +187,7 @@ describe('NewSession initial directory preset', () => {
 
         fireEvent.change(screen.getByPlaceholderText('/path/to/project'), { target: { value: '/tmp/project' } })
         fireEvent.click(screen.getByRole('radio', { name: 'codex' }))
+        fireEvent.click(screen.getByRole('button', { name: 'More options' }))
         fireEvent.change(screen.getByPlaceholderText('http://localhost:3000'), { target: { value: 'http://localhost:4173' } })
         fireEvent.keyDown(screen.getByPlaceholderText('/path/to/project'), { key: 'Enter', metaKey: true })
 

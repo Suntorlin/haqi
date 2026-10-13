@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getPermissionModeTone, isPermissionModeAllowedForFlavor } from '@hapi/protocol'
 import { permissionModeText, thinkEffortText } from '@/lib/option-labels'
@@ -107,6 +107,8 @@ export function SessionHeader(props: {
     const { session, api, onSessionDeleted } = props
     const isMobileLayout = useIsMobileLayout()
     const [infoOpen, setInfoOpen] = useState(false)
+    const [infoAnchor, setInfoAnchor] = useState<{ right: number; bottom: number } | null>(null)
+    const infoButtonRef = useRef<HTMLButtonElement>(null)
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
@@ -228,7 +230,7 @@ export function SessionHeader(props: {
                 isOpen={archiveOpen}
                 onClose={() => setArchiveOpen(false)}
                 title={t('dialog.archive.title')}
-                description={t('dialog.archive.description', { name: title })}
+                description={t(pinned ? 'dialog.archive.descriptionPinned' : 'dialog.archive.description', { name: title })}
                 confirmLabel={t('dialog.archive.confirm')}
                 confirmingLabel={t('dialog.archive.confirming')}
                 onConfirm={archiveSession}
@@ -305,9 +307,16 @@ export function SessionHeader(props: {
         </>
     )
 
-    // Session info: bottom sheet on phones, right-hand panel on desktop.
+    // Desktop: the card hangs under the "…" button, whichever of title or button opened it.
+    const openDesktopInfo = () => {
+        const rect = infoButtonRef.current?.getBoundingClientRect()
+        setInfoAnchor(rect ? { right: rect.right, bottom: rect.bottom } : null)
+        setInfoOpen(true)
+    }
+
+    // Session info: bottom sheet on phones, frosted card under the "…" button on desktop.
     const infoSheet = (
-        <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle>
+        <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle popoverAnchor={isMobileLayout ? null : infoAnchor}>
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <SessionAvatar session={session} size={48} ring={avatarRing} muted={!session.active} />
                 <div className="min-w-0 flex-1">
@@ -425,7 +434,7 @@ export function SessionHeader(props: {
                     subtitle={statusLine}
                     listVisible={props.sidebarVisible}
                     onToggleList={props.onToggleSidebar}
-                    onTitleClick={() => setInfoOpen(true)}
+                    onTitleClick={openDesktopInfo}
                     titleLabel={t('mobile.chat.info')}
                     actions={(
                         <>
@@ -444,7 +453,7 @@ export function SessionHeader(props: {
                                     <GlobeIcon className="h-[19px] w-[19px]" />
                                 </DesktopIconButton>
                             ) : null}
-                            <DesktopIconButton label={t('mobile.chat.info')} onClick={() => setInfoOpen(true)}>
+                            <DesktopIconButton label={t('mobile.chat.info')} onClick={openDesktopInfo} buttonRef={infoButtonRef}>
                                 <MoreHorizontalIcon className="h-[21px] w-[21px]" />
                             </DesktopIconButton>
                         </>

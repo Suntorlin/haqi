@@ -412,14 +412,6 @@ export function ChevronDownIcon(props: IconProps) {
     )
 }
 
-export function CheckIcon(props: IconProps) {
-    return (
-        <Svg {...props} strokeWidth={2.4}>
-            <polyline points="5 12.5 10 17.5 19 7" />
-        </Svg>
-    )
-}
-
 export function CloseIcon(props: IconProps) {
     return (
         <Svg {...props} strokeWidth={2}>
@@ -436,6 +428,14 @@ export function SwapIcon(props: IconProps) {
             <line x1="21" y1="7" x2="8" y2="7" />
             <polyline points="7 13 3 17 7 21" />
             <line x1="3" y1="17" x2="16" y2="17" />
+        </Svg>
+    )
+}
+
+export function CheckIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2.4}>
+            <polyline points="5 12.5 10 17.5 19 7" />
         </Svg>
     )
 }
@@ -464,6 +464,19 @@ export function LockIcon(props: IconProps) {
         <Svg {...props} strokeWidth={2}>
             <rect x="5" y="11" width="14" height="9.5" rx="2.5" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+        </Svg>
+    )
+}
+
+/** Arrows folding onto a line: squeeze the conversation into a summary ("/compact"). */
+export function CompactIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <line x1="12" y1="2.5" x2="12" y2="8.5" />
+            <polyline points="8.5 5.5 12 9 15.5 5.5" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <polyline points="8.5 18.5 12 15 15.5 18.5" />
+            <line x1="12" y1="15" x2="12" y2="21.5" />
         </Svg>
     )
 }

@@ -5,9 +5,11 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionAvatar } from '@/components/mobile/SessionAvatar'
-import { PinOffIcon } from '@/components/mobile/icons'
-import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { ArchiveBoxIcon, PinOffIcon } from '@/components/mobile/icons'
+import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 /** Pinned sessions that need attention come first: waiting for approval, then running, then recent. */
 function sortPinned(sessions: SessionSummary[]): SessionSummary[] {
@@ -68,7 +70,7 @@ function PinnedStory(props: {
                     </span>
                 ) : null}
             </span>
-            <span className={cn('w-full truncate text-center text-[12px]', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
+            <span className={cn('mt-1.5 w-full truncate text-center text-[12px]', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
                 {title}
             </span>
         </button>
@@ -77,7 +79,8 @@ function PinnedStory(props: {
 
 /**
  * Instagram-style row of the sessions the user pinned (WeChat "置顶"): they live here instead
- * of in the list below, with the same status rings. Long-press / right-click to unpin.
+ * of in the list below, with the same status rings. Long-press / right-click to unpin, or to
+ * archive a running session (which unpins it too).
  * Nothing pinned → no row, the list starts right away (pin from a row's menu).
  */
 export function PinnedStoriesStrip(props: {
@@ -85,11 +88,36 @@ export function PinnedStoriesStrip(props: {
     onSelect: (sessionId: string) => void
     onNewSession: () => void
     onUnpin: (session: SessionSummary) => void
+    onArchive?: (session: SessionSummary) => Promise<void>
 }) {
     const { t } = useTranslation()
     const stories = useMemo(() => sortPinned(props.sessions), [props.sessions])
     const [menu, setMenu] = useState<{ session: SessionSummary; point: { x: number; y: number } } | null>(null)
     const closeMenu = useCallback(() => setMenu(null), [])
+    const { skipArchiveConfirmation } = useArchiveConfirmation()
+    const [archiveTarget, setArchiveTarget] = useState<SessionSummary | null>(null)
+    const [archiving, setArchiving] = useState(false)
+
+    // Same rule as the session menu: archive (stop) only applies to a running session.
+    const archive = (session: SessionSummary) => {
+        if (!props.onArchive) return
+        if (!skipArchiveConfirmation) {
+            setArchiveTarget(session)
+            return
+        }
+        void props.onArchive(session).catch((error) => {
+            console.error('Failed to archive session', error)
+        })
+    }
+    const confirmArchive = async () => {
+        if (!archiveTarget || !props.onArchive) return
+        setArchiving(true)
+        try {
+            await props.onArchive(archiveTarget)
+        } finally {
+            setArchiving(false)
+        }
+    }
 
     if (stories.length === 0) return null
 
@@ -133,7 +161,32 @@ export function PinnedStoriesStrip(props: {
                         closeMenu()
                     }}
                 />
+                {menu?.session.active && props.onArchive ? (
+                    <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem
+                            icon={<ArchiveBoxIcon />}
+                            label={t('session.action.archive')}
+                            destructive
+                            onSelect={() => {
+                                archive(menu.session)
+                                closeMenu()
+                            }}
+                        />
+                    </>
+                ) : null}
             </ContextMenu>
+            <ConfirmDialog
+                isOpen={archiveTarget !== null}
+                onClose={() => setArchiveTarget(null)}
+                title={t('dialog.archive.title')}
+                description={t('dialog.archive.descriptionPinned', { name: archiveTarget ? getSessionTitle(archiveTarget) : '' })}
+                confirmLabel={t('dialog.archive.confirm')}
+                confirmingLabel={t('dialog.archive.confirming')}
+                onConfirm={confirmArchive}
+                isPending={archiving}
+                destructive
+            />
         </div>
     )
 }

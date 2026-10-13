@@ -13,11 +13,13 @@ import { useTranslation } from '@/lib/use-translation'
 import { SyntaxHighlighter } from '@/components/assistant-ui/shiki-highlighter'
 import { PathActionLink } from '@/components/assistant-ui/path-action-link'
 import { remarkPathLinks } from '@/components/assistant-ui/remark-path-links'
+import { remarkTrimAutolinks } from '@/components/assistant-ui/remark-trim-autolinks'
+import { useOpenInPreview } from '@/lib/preview-link'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { CopyIcon, CheckIcon } from '@/components/icons'
 import { decodePathLink } from '@/lib/pathLinks'
 
-export const MARKDOWN_PLUGINS = [remarkGfm, remarkPathLinks]
+export const MARKDOWN_PLUGINS = [remarkGfm, remarkTrimAutolinks, remarkPathLinks]
 
 function CodeHeader(props: CodeHeaderProps) {
     const { copied, copy } = useCopyToClipboard()
@@ -76,6 +78,7 @@ function Code(props: ComponentPropsWithoutRef<'code'>) {
 }
 
 function A(props: ComponentPropsWithoutRef<'a'>) {
+    const openInPreview = useOpenInPreview()
     const path = decodePathLink(props.href)
     if (path) {
         return <PathActionLink path={path} className={props.className} />
@@ -83,10 +86,23 @@ function A(props: ComponentPropsWithoutRef<'a'>) {
 
     const rel = props.target === '_blank' ? (props.rel ?? 'noreferrer') : props.rel
 
+    const href = props.href
+    const previewable = Boolean(openInPreview && href && /^https?:\/\//i.test(href))
+
     return (
         <a
             {...props}
             rel={rel}
+            onClick={(event) => {
+                props.onClick?.(event)
+                // Plain click opens the built-in preview; modifier / middle clicks keep the browser default.
+                if (!previewable || !href || !openInPreview || event.defaultPrevented) return
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+                event.preventDefault()
+                void openInPreview(href).then((opened) => {
+                    if (!opened) window.open(href, '_blank', 'noreferrer')
+                })
+            }}
             className={cn('aui-md-a text-[var(--app-link)] underline', props.className)}
         />
     )
