@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const toastVariants = cva(
-    'pointer-events-auto w-full max-w-sm rounded-lg border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-lg',
+    'pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-lg',
     {
         variants: {
             variant: {
@@ -33,7 +33,7 @@ export function Toast({ title, body, onClose, className, variant, ...props }: To
         <div className={cn(toastVariants({ variant }), className)} role="status" {...props}>
             <div className="flex items-start gap-3 p-3">
                 <div className="min-w-0 flex-1">
-                    <div className="text-sm font-semibold leading-5">{title}</div>
+                    <div className="text-[15px] font-semibold leading-5">{title}</div>
                     <div className="mt-1 text-xs text-[var(--social-fg-muted)]">{body}</div>
                 </div>
                 {onClose ? (
