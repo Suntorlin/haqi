@@ -49,8 +49,8 @@ import { SessionTypeSelector } from './SessionTypeSelector'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FormField, SuggestionChip } from '@/components/ui/FormControls'
+import { TextField } from '@/components/ui/TextField'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -442,14 +442,13 @@ export function NewSession(props: {
             />
             {experimentalSettings.previewEnabled ? (
                 <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
-                    <input
+                    <TextField
                         id={previewUrlId}
                         type="text"
                         placeholder="http://localhost:3000"
                         value={previewUrlInput}
                         onChange={(event) => setPreviewUrlInput(event.target.value)}
                         disabled={isFormDisabled}
-                        className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                     />
                     {previewUrlHistory.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5 pt-1">

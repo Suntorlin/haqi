@@ -28,7 +28,7 @@ export function ActionButtons(props: {
             >
                 {props.isPending ? (
                     <>
-                        <Spinner size="sm" label={null} className="text-[var(--app-button-text)]" />
+                        <Spinner size="sm" label={null} className="text-[var(--social-primary-fg)]" />
                         {t('newSession.creating')}
                     </>
                 ) : (
