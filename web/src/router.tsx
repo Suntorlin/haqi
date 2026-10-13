@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -122,7 +122,7 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
 }
 
 function getTagChipClass(selected: boolean): string {
-    return `h-8 shrink-0 rounded-full border px-3.5 text-[13px] transition-colors ${selected
+    return `h-8 max-w-full shrink-0 truncate rounded-full border px-3.5 text-[13px] transition-colors ${selected
         ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
         : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]'}`
 }
@@ -461,7 +461,7 @@ function SessionsPage() {
                 />
             )}
             {sessionTags.length ? (
-                <div className="session-tag-scroll flex gap-2 overflow-x-auto px-5 pb-1 pt-1">
+                <div className="flex flex-wrap gap-2 px-5 pb-1 pt-1">
                     <button
                         type="button"
                         onClick={() => setSelectedSessionTag(null)}
@@ -481,7 +481,7 @@ function SessionsPage() {
                     )) : (
                         // Desktop keeps drag-to-reorder for tag filters.
                         <DndContext sensors={tagSensors} onDragEnd={handleTagDragEnd}>
-                            <SortableContext items={orderedSessionTags} strategy={horizontalListSortingStrategy}>
+                            <SortableContext items={orderedSessionTags} strategy={rectSortingStrategy}>
                                 {orderedSessionTags.map((tag) => (
                                     <SortableSessionTag
                                         key={tag}
