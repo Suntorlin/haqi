@@ -1,13 +1,10 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useId, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { FormField } from '@/components/ui/FormControls'
-import { IconButton } from '@/components/ui/IconButton'
+import { InputHistory } from '@/components/ui/InputHistory'
 import { TextField } from '@/components/ui/TextField'
-import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
-import { ChevronDownIcon } from '@/components/mobile/icons'
-import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/use-translation'
 
 /** "/Users/me/projects/app" → "~/projects/app", so chips show the part that differs. */
@@ -30,72 +27,44 @@ export function DirectorySection(props: {
 }) {
     const { t } = useTranslation()
     const id = useId()
-    const wrapperRef = useRef<HTMLDivElement>(null)
-    const [recentOpen, setRecentOpen] = useState(false)
-    const hasRecent = props.recentPaths.length > 0
-
-    useEffect(() => {
-        if (!recentOpen) return
-        const close = (event: PointerEvent) => {
-            if (!wrapperRef.current?.contains(event.target as Node)) setRecentOpen(false)
-        }
-        document.addEventListener('pointerdown', close)
-        return () => document.removeEventListener('pointerdown', close)
-    }, [recentOpen])
 
     return (
         <FormField label={t('newSession.directory')} htmlFor={id}>
-            <div ref={wrapperRef} className="relative">
-                <TextField
-                    id={id}
-                    type="text"
-                    placeholder={t('newSession.placeholder')}
-                    value={props.directory}
-                    onChange={(event) => props.onDirectoryChange(event.target.value)}
-                    onKeyDown={props.onDirectoryKeyDown}
-                    onFocus={props.onDirectoryFocus}
-                    onBlur={props.onDirectoryBlur}
-                    disabled={props.isDisabled}
-                    trailing={hasRecent ? (
-                        <IconButton
-                            size="sm"
-                            label={t('newSession.recent')}
-                            aria-expanded={recentOpen}
+            <InputHistory
+                items={props.recentPaths}
+                label={t('newSession.recent')}
+                disabled={props.isDisabled}
+                format={shortenHomePath}
+                onPick={props.onPathClick}
+            >
+                {({ trailing, open }) => (
+                    <>
+                        <TextField
+                            id={id}
+                            type="text"
+                            placeholder={t('newSession.placeholder')}
+                            value={props.directory}
+                            onChange={(event) => props.onDirectoryChange(event.target.value)}
+                            onKeyDown={props.onDirectoryKeyDown}
+                            onFocus={props.onDirectoryFocus}
+                            onBlur={props.onDirectoryBlur}
                             disabled={props.isDisabled}
-                            onClick={() => setRecentOpen((open) => !open)}
-                            className="text-[var(--social-fg-subtle)]"
-                        >
-                            <ChevronDownIcon className={`h-4 w-4 transition-transform ${recentOpen ? 'rotate-180' : ''}`} />
-                        </IconButton>
-                    ) : undefined}
-                />
-                {recentOpen && hasRecent ? (
-                    <div className={cn('absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto', CONTEXT_MENU_SURFACE)}>
-                        {props.recentPaths.map((path) => (
-                            <ContextMenuItem
-                                key={path}
-                                label={shortenHomePath(path)}
-                                onSelect={() => {
-                                    setRecentOpen(false)
-                                    props.onPathClick(path)
-                                }}
-                            />
-                        ))}
-                    </div>
-                ) : null}
-                {props.suggestions.length > 0 && !recentOpen && (
-                    <div className="absolute top-full left-0 right-0 z-10 mt-1">
-                        <FloatingOverlay maxHeight={200}>
-                            <Autocomplete
-                                suggestions={props.suggestions}
-                                selectedIndex={props.selectedIndex}
-                                onSelect={props.onSuggestionSelect}
-                            />
-                        </FloatingOverlay>
-                    </div>
+                            trailing={trailing}
+                        />
+                        {props.suggestions.length > 0 && !open && (
+                            <div className="absolute top-full left-0 right-0 z-10 mt-1">
+                                <FloatingOverlay maxHeight={200}>
+                                    <Autocomplete
+                                        suggestions={props.suggestions}
+                                        selectedIndex={props.selectedIndex}
+                                        onSelect={props.onSuggestionSelect}
+                                    />
+                                </FloatingOverlay>
+                            </div>
+                        )}
+                    </>
                 )}
-            </div>
-
+            </InputHistory>
         </FormField>
     )
 }

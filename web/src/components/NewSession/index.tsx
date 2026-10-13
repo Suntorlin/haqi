@@ -49,10 +49,12 @@ import { SessionTypeSelector } from './SessionTypeSelector'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
-import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/TextField'
-import { FormField, SuggestionChip } from '@/components/ui/FormControls'
+import { FormField } from '@/components/ui/FormControls'
+import { InputHistory } from '@/components/ui/InputHistory'
 import { ChevronDownIcon } from '@/components/mobile/icons'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
     if (agent === 'claude') {
@@ -441,13 +443,12 @@ export function NewSession(props: {
                 <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
                     aria-expanded={showAdvanced}
                     onClick={() => setShowAdvanced((open) => !open)}
-                    className="-ml-2 self-start"
+                    className="-ml-3 self-start px-3 text-[13px]"
                 >
                     {t('newSession.advanced')}
-                    <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+                    <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform duration-150', showAdvanced && 'rotate-180')} />
                 </Button>
                 {showAdvanced ? (
                     <div className="flex flex-col gap-5">
@@ -460,26 +461,25 @@ export function NewSession(props: {
                         />
                         {experimentalSettings.previewEnabled ? (
                             <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
-                                <TextField
-                                    id={previewUrlId}
-                                    type="text"
-                                    placeholder="http://localhost:3000"
-                                    value={previewUrlInput}
-                                    onChange={(event) => setPreviewUrlInput(event.target.value)}
+                                <InputHistory
+                                    items={previewUrlHistory.slice(0, 8)}
+                                    label={t('preview.history')}
                                     disabled={isFormDisabled}
-                                />
-                                {previewUrlHistory.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                        {previewUrlHistory.slice(0, 8).map((url) => (
-                                            <SuggestionChip
-                                                key={url}
-                                                label={url}
-                                                disabled={isFormDisabled}
-                                                onClick={() => setPreviewUrlInput(url)}
-                                            />
-                                        ))}
-                                    </div>
-                                ) : null}
+                                    format={(url) => url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                                    onPick={setPreviewUrlInput}
+                                >
+                                    {({ trailing }) => (
+                                        <TextField
+                                            id={previewUrlId}
+                                            type="text"
+                                            placeholder="http://localhost:3000"
+                                            value={previewUrlInput}
+                                            onChange={(event) => setPreviewUrlInput(event.target.value)}
+                                            disabled={isFormDisabled}
+                                            trailing={trailing}
+                                        />
+                                    )}
+                                </InputHistory>
                             </FormField>
                         ) : null}
                         <SessionTypeSelector

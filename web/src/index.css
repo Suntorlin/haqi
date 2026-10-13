@@ -317,7 +317,7 @@ html[data-theme="dark"] .shiki span {
   -webkit-backdrop-filter: blur(28px) saturate(1.8);
   backdrop-filter: blur(28px) saturate(1.8);
   border: 1px solid color-mix(in srgb, var(--social-border) 80%, transparent);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
 }
 
 .animate-menu-pop {

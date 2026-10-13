@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { SwapIcon, CloseIcon } from '@/components/mobile/icons'
-import { SubPageHeaderButton } from '@/components/mobile/SubPageHeader'
+import { IconButton } from '@/components/ui/IconButton'
 import { PreviewPanel } from '@/routes/sessions/preview'
 import { TerminalPanel } from '@/routes/sessions/terminal'
 import {
@@ -54,12 +54,12 @@ function DockPanel(props: {
     const moveLabel = side === 'right' ? t('dock.moveLeft') : t('dock.moveRight')
     const actions = (
         <>
-            <SubPageHeaderButton label={moveLabel} onClick={() => dock.swapSide(id)}>
+            <IconButton size="sm" label={moveLabel} onClick={() => dock.swapSide(id)}>
                 <SwapIcon className="h-[18px] w-[18px]" />
-            </SubPageHeaderButton>
-            <SubPageHeaderButton label={t('dock.close')} onClick={() => dock.close(id)}>
+            </IconButton>
+            <IconButton size="sm" label={t('dock.close')} onClick={() => dock.close(id)}>
                 <CloseIcon className="h-[18px] w-[18px]" />
-            </SubPageHeaderButton>
+            </IconButton>
         </>
     )
 
