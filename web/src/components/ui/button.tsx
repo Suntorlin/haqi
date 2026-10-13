@@ -3,20 +3,25 @@ import { Slot } from '@radix-ui/react-slot'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
+/**
+ * The one button. Pill-shaped, 44px tall by default (Apple HIG touch target); `sm` is the dense
+ * 36px size for desktop toolbars and table rows. One primary (filled) button per view.
+ */
 export const buttonVariants = cva(
-    'inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] disabled:pointer-events-none disabled:opacity-50',
+    'inline-flex shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-semibold transition-[background-color,opacity,transform] duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-fg-subtle)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--app-bg)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
     {
         variants: {
             variant: {
-                default: 'bg-[var(--app-button)] text-[var(--app-button-text)] hover:opacity-90',
-                secondary: 'bg-[var(--app-secondary-bg)] text-[var(--app-fg)] hover:opacity-90',
-                outline: 'border border-[var(--app-border)] bg-transparent hover:bg-[var(--app-subtle-bg)]',
+                default: 'bg-[var(--social-primary)] text-[var(--social-primary-fg)] hover:opacity-90',
+                secondary: 'bg-[var(--social-muted)] text-[var(--social-fg)] hover:bg-[var(--social-border)]',
+                outline: 'border border-[var(--social-border)] bg-transparent text-[var(--social-fg)] hover:bg-[var(--social-hover)]',
+                ghost: 'bg-transparent text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]',
                 destructive: 'bg-[var(--social-danger)] text-white hover:opacity-90'
             },
             size: {
-                default: 'h-9 px-4 py-2',
-                sm: 'h-8 rounded-md px-3',
-                lg: 'h-10 rounded-md px-8'
+                default: 'h-11 px-5 text-[15px]',
+                sm: 'h-9 px-4 text-[13px]',
+                lg: 'h-12 px-6 text-[16px]'
             }
         },
         defaultVariants: {
@@ -45,4 +50,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     }
 )
 Button.displayName = 'Button'
-

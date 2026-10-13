@@ -69,7 +69,7 @@ function ProgressRow(props: {
     return (
         <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-[var(--app-text)]">{props.label}</span>
+                <span className="text-[var(--app-fg)]">{props.label}</span>
                 <span className="shrink-0 text-[var(--app-hint)]">
                     {props.percentage === null ? '—' : `${Math.round(props.percentage)}%`}
                     {props.secondaryText ? <span className="ml-2">· {props.secondaryText}</span> : null}
@@ -113,7 +113,7 @@ export function UsagePanel(props: UsagePanelProps) {
         <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3 shadow-lg">
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs font-medium">
-                    <span className="text-[var(--app-text)]">{t('usage.contextWindow')}</span>
+                    <span className="text-[var(--app-fg)]">{t('usage.contextWindow')}</span>
                     {contextRow ? (
                         <span className="text-[var(--app-hint)]">
                             {contextRow.text} ({Math.round(contextRow.percentage)}%)
@@ -137,7 +137,7 @@ export function UsagePanel(props: UsagePanelProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-                <div className="text-xs font-medium text-[var(--app-text)]">
+                <div className="text-xs font-medium text-[var(--app-fg)]">
                     {t('usage.planUsage')}
                 </div>
 
