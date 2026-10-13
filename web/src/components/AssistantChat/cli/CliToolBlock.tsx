@@ -77,7 +77,7 @@ function ResultPanel(props: {
     const displayText = expanded ? resultText : truncatedText
 
     return (
-        <div className="ml-5 mt-0.5 border-l border-[var(--app-divider)] pl-3 text-xs text-[var(--app-hint)]">
+        <div className="ml-5 mt-0.5 border-l border-[var(--social-divider)] pl-3 text-xs text-[var(--social-fg-muted)]">
             <pre className="whitespace-pre-wrap break-words leading-relaxed">
                 {displayText}
             </pre>
@@ -85,7 +85,7 @@ function ResultPanel(props: {
                 <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onExpand() }}
-                    className={cn('mt-0.5 text-[var(--app-link)] hover:underline', TEXT_HIT_AREA_CLASS)}
+                    className={cn('mt-0.5 text-[var(--social-fg)] hover:underline', TEXT_HIT_AREA_CLASS)}
                 >
                     show more…
                 </button>
@@ -126,8 +126,8 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
         : isPending
             ? 'text-[var(--app-badge-warning-text)]'
             : isRunning
-                ? 'text-[var(--app-hint)]'
-                : 'text-[var(--app-hint)] opacity-60'
+                ? 'text-[var(--social-fg-muted)]'
+                : 'text-[var(--social-fg-muted)] opacity-60'
 
     return (
         <div className="py-0.5">
@@ -135,7 +135,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className={cn('flex w-full items-center gap-1.5 rounded-md px-1 -mx-1 text-left text-xs transition-colors', TEXT_HIT_AREA_CLASS, hasResult ? 'cursor-pointer hover:bg-[var(--app-subtle-bg)]' : 'cursor-default')}
+                className={cn('flex w-full items-center gap-1.5 rounded-md px-1 -mx-1 text-left text-xs transition-colors', TEXT_HIT_AREA_CLASS, hasResult ? 'cursor-pointer hover:bg-[var(--social-hover)]' : 'cursor-default')}
             >
                 {/* Status indicator */}
                 <span className={`shrink-0 w-3.5 text-center ${stateColor}`}>
@@ -154,20 +154,20 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
                 <span className="shrink-0 text-[var(--cli-tool-icon-color)]">{prefix}</span>
 
                 {/* Title */}
-                <span className={`shrink-0 ${isRunning ? 'text-[var(--app-fg)]' : 'text-[var(--app-hint)]'}`}>
+                <span className={`shrink-0 ${isRunning ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}>
                     {pres.title}
                 </span>
 
                 {/* Subtitle / key param */}
                 {pres.subtitle && (
-                    <span className="text-[var(--app-hint)] truncate opacity-70">
+                    <span className="text-[var(--social-fg-muted)] truncate opacity-70">
                         {pres.subtitle}
                     </span>
                 )}
 
                 {/* Duration */}
                 {block.tool.completedAt && block.tool.startedAt && (
-                    <span className="ml-auto shrink-0 text-[var(--app-hint)] opacity-50">
+                    <span className="ml-auto shrink-0 text-[var(--social-fg-muted)] opacity-50">
                         {((block.tool.completedAt - block.tool.startedAt) / 1000).toFixed(1)}s
                     </span>
                 )}
@@ -185,7 +185,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
 
             {/* Nested children (sub-tasks, sub-tools) */}
             {block.children.length > 0 && (
-                <div className="ml-5 border-l border-[var(--app-divider)] pl-2">
+                <div className="ml-5 border-l border-[var(--social-divider)] pl-2">
                     {block.children.map(child => (
                         <CliBlockRenderer key={child.id} block={child} />
                     ))}

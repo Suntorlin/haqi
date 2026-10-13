@@ -25,7 +25,7 @@ export function Spinner({
 
     return (
         <svg
-            className={cn(sizeClasses[size], 'animate-spin text-[var(--app-hint)]', className)}
+            className={cn(sizeClasses[size], 'animate-spin text-[var(--social-fg-muted)]', className)}
             viewBox="0 0 24 24"
             fill="none"
             {...accessibilityProps}

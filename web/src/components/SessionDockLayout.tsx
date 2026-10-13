@@ -65,7 +65,7 @@ function DockPanel(props: {
 
     return (
         <aside
-            className={`relative flex shrink flex-col bg-[var(--app-bg)] ${side === 'right' ? 'border-l' : 'border-r'} border-[var(--social-border)]`}
+            className={`relative flex shrink flex-col bg-[var(--social-surface)] ${side === 'right' ? 'border-l' : 'border-r'} border-[var(--social-border)]`}
             style={{ width: dock.widthOf(id), minWidth: DOCK_MIN_WIDTH }}
         >
             <div

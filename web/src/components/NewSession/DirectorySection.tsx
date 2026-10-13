@@ -68,7 +68,7 @@ export function DirectorySection(props: {
                     ) : undefined}
                 />
                 {recentOpen && hasRecent ? (
-                    <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] p-1.5 shadow-lg">
+                    <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 shadow-lg">
                         {props.recentPaths.map((path) => (
                             <li key={path}>
                                 <button

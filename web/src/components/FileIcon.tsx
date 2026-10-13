@@ -34,7 +34,7 @@ export function FileIcon(props: { fileName: string; size?: number }) {
     const size = props.size ?? 20
     const color = useMemo(() => {
         const ext = getFileExtension(props.fileName)
-        return EXTENSION_COLORS[ext] ?? 'var(--app-hint)'
+        return EXTENSION_COLORS[ext] ?? 'var(--social-fg-muted)'
     }, [props.fileName])
 
     return (

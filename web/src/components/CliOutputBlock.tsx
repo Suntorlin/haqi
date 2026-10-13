@@ -115,14 +115,14 @@ export function CliOutputBlock(props: { text: string }) {
                             <div className="flex flex-col gap-1">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0 flex items-center gap-2">
-                                        <div className="shrink-0 flex h-4 w-4 items-center justify-center text-[var(--app-hint)] leading-none">
+                                        <div className="shrink-0 flex h-4 w-4 items-center justify-center text-[var(--social-fg-muted)] leading-none">
                                             <CliIcon />
                                         </div>
                                         <CardTitle className="min-w-0 text-sm font-medium leading-tight break-words">
                                             {commandName ?? t('terminal.commandName')}
                                         </CardTitle>
                                     </div>
-                                    <span className="text-[var(--app-hint)]">
+                                    <span className="text-[var(--social-fg-muted)]">
                                         <DetailsIcon />
                                     </span>
                                 </div>

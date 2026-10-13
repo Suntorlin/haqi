@@ -3,8 +3,8 @@
 
 :root {
     /*
-     * Design tokens. --social-* is the single source of truth (zinc monochrome, Instagram-style);
-     * --app-* are semantic aliases kept so existing components follow it automatically.
+     * Design tokens. --social-* is the single source of truth (zinc monochrome, Instagram-style).
+     * --app-badge-*, --app-code-*, --app-diff-*, --app-git-*, --app-scrollbar-* are domain tokens.
      * Radius scale (use only these): full = pills / avatars / bars, 2xl = cards / panels / sheets,
      * xl = inputs / rows, md = small tags. Type scale: 12 / 13 / 15 / 16 px, weights 400 + 600.
      * Touch targets >= 44px (use --touch-min), text inputs >= 16px on phones.
@@ -14,20 +14,7 @@
     --motion-base: 200ms;
     --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
-    --app-bg: var(--social-surface);
-    --app-fg: var(--social-fg);
-    --app-hint: var(--social-fg-muted);
-    --app-link: var(--social-fg);
-    --app-button: var(--social-primary);
-    --app-button-text: var(--social-primary-fg);
-    --app-banner-bg: var(--social-primary);
-    --app-banner-text: var(--social-primary-fg);
-    --app-secondary-bg: var(--social-muted);
-
     /* Theme-aware colors (light mode defaults) */
-    --app-border: var(--social-border);
-    --app-divider: var(--social-divider);
-    --app-subtle-bg: var(--social-hover);
     --app-code-bg: #fafafa;
     --app-inline-code-bg: #f4f4f5;
 
@@ -84,19 +71,6 @@
 
 [data-theme="dark"] {
     /* Primary colors - override fallbacks for non-Telegram browsers */
-    --app-bg: var(--social-surface);
-    --app-fg: var(--social-fg);
-    --app-hint: var(--social-fg-muted);
-    --app-link: var(--social-fg);
-    --app-button: var(--social-primary);
-    --app-button-text: var(--social-primary-fg);
-    --app-banner-bg: var(--social-muted);
-    --app-banner-text: var(--social-fg);
-    --app-secondary-bg: var(--social-muted);
-
-    --app-border: var(--social-border);
-    --app-divider: var(--social-divider);
-    --app-subtle-bg: var(--social-hover);
     --app-code-bg: #111113;
     --app-inline-code-bg: #1f1f23;
 
@@ -166,8 +140,8 @@ body {
 
 body {
     font-size: 1rem;
-    background: var(--app-bg);
-    color: var(--app-fg);
+    background: var(--social-surface);
+    color: var(--social-fg);
 }
 
 #root {
@@ -177,7 +151,7 @@ body {
 @media (hover: hover) and (pointer: fine) {
     .session-list-item:hover,
     .session-list-new-button:hover {
-        background-color: var(--app-subtle-bg);
+        background-color: var(--social-hover);
     }
 }
 
@@ -222,12 +196,12 @@ body {
 }
 
 /* Markdown styles */
-.markdown-content a { color: var(--app-link); text-decoration: underline; }
+.markdown-content a { color: var(--social-fg); text-decoration: underline; }
 .markdown-content code { background: var(--app-inline-code-bg); padding: 0.15em 0.35em; border-radius: 3px; font-size: 0.8em; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-.markdown-content blockquote { border-left: 3px solid var(--app-hint); padding-left: 0.75rem; margin: 0.5rem 0; opacity: 0.85; }
+.markdown-content blockquote { border-left: 3px solid var(--social-fg-muted); padding-left: 0.75rem; margin: 0.5rem 0; opacity: 0.85; }
 .markdown-content ul, .markdown-content ol { padding-left: 1.5rem; margin: 0.5rem 0; }
 .markdown-content table { border-collapse: collapse; width: 100%; }
-.markdown-content th, .markdown-content td { border: 1px solid var(--app-border); padding: 0.25rem 0.5rem; }
+.markdown-content th, .markdown-content td { border: 1px solid var(--social-border); padding: 0.25rem 0.5rem; }
 
 .aui-md-codeblock pre.shiki {
     margin: 0;
@@ -339,7 +313,7 @@ html[data-theme="dark"] .shiki span {
 }
 
 .social-glass {
-  background: color-mix(in srgb, var(--app-bg) 62%, transparent);
+  background: color-mix(in srgb, var(--social-surface) 62%, transparent);
   -webkit-backdrop-filter: blur(28px) saturate(1.8);
   backdrop-filter: blur(28px) saturate(1.8);
   border: 1px solid color-mix(in srgb, var(--social-border) 80%, transparent);
@@ -394,7 +368,7 @@ html[data-theme="dark"] .shiki span {
   --cli-font: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   --cli-prompt-color: #3b82f6;
   --cli-tool-icon-color: #8b5cf6;
-  --cli-panel-bg: var(--app-subtle-bg);
+  --cli-panel-bg: var(--social-hover);
 }
 
 [data-theme="dark"] .cli-session {
@@ -510,7 +484,7 @@ html.social-app {
 }
 
 .social-chat {
-    background: var(--app-bg);
+    background: var(--social-surface);
 }
 
 .social-card {
@@ -752,7 +726,7 @@ html.social-app {
         overscroll-behavior: contain;
         border-radius: 24px 24px 0 0;
         border-top: 1px solid var(--social-border);
-        background: var(--app-bg);
+        background: var(--social-surface);
         padding: 26px 20px calc(20px + env(safe-area-inset-bottom));
         box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
         animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);

@@ -62,7 +62,7 @@ function PinnedStory(props: {
                     <Badge
                         variant={isPending ? 'warning' : 'solid'}
                         className={cn(
-                            'absolute -bottom-1.5 left-1/2 h-5 -translate-x-1/2 px-2 ring-2 ring-[var(--app-bg)]',
+                            'absolute -bottom-1.5 left-1/2 h-5 -translate-x-1/2 px-2 ring-2 ring-[var(--social-surface)]',
                             !isPending && 'bg-[var(--social-badge)] text-white'
                         )}
                     >

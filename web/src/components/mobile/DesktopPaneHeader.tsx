@@ -53,7 +53,7 @@ export function DesktopPaneHeader(props: {
     )
 
     return (
-        <header className="relative z-20 flex h-[60px] shrink-0 items-center gap-1.5 border-b border-[var(--social-border)] bg-[var(--app-bg)] pl-3 pr-4">
+        <header className="relative z-20 flex h-[60px] shrink-0 items-center gap-1.5 border-b border-[var(--social-border)] bg-[var(--social-surface)] pl-3 pr-4">
             {props.onToggleList ? (
                 <DesktopIconButton label={toggleLabel} onClick={props.onToggleList}>
                     <SidebarToggleIcon className="h-[19px] w-[19px]" />

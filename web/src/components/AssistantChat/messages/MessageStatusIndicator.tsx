@@ -29,7 +29,7 @@ export function MessageStatusIndicator(props: {
                 <button
                     type="button"
                     onClick={props.onRetry}
-                    className={cn('text-xs text-[var(--app-link)] underline', TEXT_HIT_AREA_CLASS)}
+                    className={cn('text-xs text-[var(--social-fg)] underline', TEXT_HIT_AREA_CLASS)}
                 >
                     Retry
                 </button>

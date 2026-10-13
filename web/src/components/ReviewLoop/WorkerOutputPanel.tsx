@@ -102,10 +102,10 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
                 })()}>
                     <pre className={cn(CODE_BLOCK_CLASS, 'max-h-96 whitespace-pre-wrap break-all px-0')}>
                         {output.diff.split('\n').map((line, i) => {
-                            let style: React.CSSProperties = { color: 'var(--app-fg)' }
+                            let style: React.CSSProperties = { color: 'var(--social-fg)' }
                             if (line.startsWith('+')) style = { color: 'var(--app-diff-added-text)', backgroundColor: 'var(--app-diff-added-bg)' }
                             else if (line.startsWith('-')) style = { color: 'var(--app-diff-removed-text)', backgroundColor: 'var(--app-diff-removed-bg)' }
-                            else if (line.startsWith('@@')) style = { color: 'var(--app-hint)' }
+                            else if (line.startsWith('@@')) style = { color: 'var(--social-fg-muted)' }
                             return (
                                 <div key={i} className="px-3" style={style}>
                                     {line || ' '}

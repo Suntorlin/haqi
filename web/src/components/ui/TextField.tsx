@@ -23,7 +23,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
                 'flex h-11 min-w-0 items-center gap-1.5 transition-shadow duration-150 focus-within:ring-2 focus-within:ring-[var(--social-fg-subtle)]',
                 variant === 'pill'
                     ? 'rounded-full bg-[var(--social-muted)] pl-4 pr-1.5'
-                    : 'rounded-xl border bg-[var(--app-bg)] pl-3.5 pr-1.5',
+                    : 'rounded-xl border bg-[var(--social-surface)] pl-3.5 pr-1.5',
                 variant === 'field' && (invalid ? 'border-[var(--social-danger)]' : 'border-[var(--social-border)]'),
                 props.disabled && 'opacity-50',
                 wrapperClassName

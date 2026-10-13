@@ -29,13 +29,13 @@ function ImageAttachment(props: { attachment: AttachmentMetadata }) {
 function FileAttachment(props: { attachment: AttachmentMetadata }) {
     const { attachment } = props
     return (
-        <div className="flex items-center gap-2 rounded-xl bg-[var(--app-bg)] px-3 py-2">
+        <div className="flex items-center gap-2 rounded-xl bg-[var(--social-surface)] px-3 py-2">
             <FileIcon fileName={attachment.filename} size={24} />
             <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold text-[var(--app-fg)]">
+                <div className="truncate text-base font-semibold text-[var(--social-fg)]">
                     {attachment.filename}
                 </div>
-                <div className="text-xs text-[var(--app-hint)]">
+                <div className="text-xs text-[var(--social-fg-muted)]">
                     {formatFileSize(attachment.size)}
                 </div>
             </div>

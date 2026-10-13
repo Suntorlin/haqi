@@ -106,7 +106,7 @@ function classifyProbeFailure(error: string | undefined): PathProbeResult {
 
 function renderPlainPath(path: string, className?: string, title?: string) {
     return (
-        <span className={cn('font-mono text-[0.9em] text-[var(--app-link)]', className)} title={title ?? path}>
+        <span className={cn('font-mono text-[0.9em] text-[var(--social-fg)]', className)} title={title ?? path}>
             {path}
         </span>
     )
@@ -281,7 +281,7 @@ export function PathActionLink(props: {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="text-[12px] text-[var(--app-hint)]">...</span>
+                <span className="text-[12px] text-[var(--social-fg-muted)]">...</span>
             </span>
         )
     }
@@ -308,13 +308,13 @@ export function PathActionLink(props: {
     return (
         <>
             <span className={cn(
-                'inline-flex max-w-full items-center gap-1 rounded-xl border border-[var(--app-divider)] bg-[var(--app-subtle-bg)] px-1.5 py-0.5 align-middle',
+                'inline-flex max-w-full items-center gap-1 rounded-xl border border-[var(--social-divider)] bg-[var(--social-hover)] px-1.5 py-0.5 align-middle',
                 props.className
             )}>
                 <button
                     type="button"
                     onClick={openFilePage}
-                    className={cn('max-w-[16rem] truncate font-mono text-[0.8em] text-[var(--app-link)] underline decoration-dotted hover:opacity-90', TEXT_HIT_AREA_CLASS)}
+                    className={cn('max-w-[16rem] truncate font-mono text-[0.8em] text-[var(--social-fg)] underline decoration-dotted hover:opacity-90', TEXT_HIT_AREA_CLASS)}
                     title={path}
                 >
                     {path}
@@ -323,7 +323,7 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handlePreview}
                     disabled={busyAction !== null}
-                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
+                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
                     title={canPreviewImage ? 'Preview image' : 'Open file preview'}
                 >
                     {busyAction === 'preview' ? '...' : '预览'}
@@ -332,7 +332,7 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handleDownload}
                     disabled={busyAction !== null}
-                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--app-hint)] hover:bg-[var(--app-secondary-bg)] hover:text-[var(--app-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
+                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
                     title="Download file"
                 >
                     {busyAction === 'download' ? '...' : '下载'}
@@ -359,7 +359,7 @@ export function PathActionLink(props: {
                             <img src={previewImageUrl} alt={path} className="mx-auto max-h-[70vh] max-w-full object-contain" />
                         </div>
                     ) : (
-                        <div className="text-[13px] text-[var(--app-hint)]">Preview unavailable.</div>
+                        <div className="text-[13px] text-[var(--social-fg-muted)]">Preview unavailable.</div>
                     )}
                 </DialogContent>
             </Dialog>

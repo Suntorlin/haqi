@@ -90,7 +90,7 @@ export function LanguageSwitcher() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center h-8 w-8 rounded-md text-[var(--app-hint)] hover:text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)] transition-colors"
+        className="flex items-center justify-center h-8 w-8 rounded-md text-[var(--social-fg-muted)] hover:text-[var(--social-fg)] hover:bg-[var(--social-hover)] transition-colors"
         title={t('language.title')}
         aria-label={t('language.title')}
         aria-expanded={isOpen}
@@ -101,7 +101,7 @@ export function LanguageSwitcher() {
 
       {isOpen && (
         <div
-          className="absolute right-0 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--app-border)] bg-[var(--app-bg)] shadow-lg overflow-hidden z-50"
+          className="absolute right-0 top-full mt-1 min-w-[140px] rounded-lg border border-[var(--social-border)] bg-[var(--social-surface)] shadow-lg overflow-hidden z-50"
           role="listbox"
           aria-label={t('language.title')}
         >
@@ -116,13 +116,13 @@ export function LanguageSwitcher() {
                 onClick={() => handleLocaleChange(loc.value)}
                 className={`flex items-center justify-between w-full px-3 py-2 text-sm text-left transition-colors ${
                   isSelected
-                    ? 'text-[var(--app-link)] bg-[var(--app-subtle-bg)]'
-                    : 'text-[var(--app-fg)] hover:bg-[var(--app-subtle-bg)]'
+                    ? 'text-[var(--social-fg)] bg-[var(--social-hover)]'
+                    : 'text-[var(--social-fg)] hover:bg-[var(--social-hover)]'
                 }`}
               >
                 <span>{loc.label}</span>
                 {isSelected && (
-                  <span className="ml-2 text-[var(--app-link)]">
+                  <span className="ml-2 text-[var(--social-fg)]">
                     <CheckIcon />
                   </span>
                 )}

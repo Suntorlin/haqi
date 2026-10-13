@@ -69,13 +69,13 @@ function ProgressRow(props: {
     return (
         <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="text-[var(--app-fg)]">{props.label}</span>
-                <span className="shrink-0 text-[var(--app-hint)]">
+                <span className="text-[var(--social-fg)]">{props.label}</span>
+                <span className="shrink-0 text-[var(--social-fg-muted)]">
                     {props.percentage === null ? '—' : `${Math.round(props.percentage)}%`}
                     {props.secondaryText ? <span className="ml-2">· {props.secondaryText}</span> : null}
                 </span>
             </div>
-            <div className="h-1 w-full rounded-full bg-[var(--app-subtle-bg)]">
+            <div className="h-1 w-full rounded-full bg-[var(--social-hover)]">
                 {props.percentage === null ? null : (
                     <div
                         className={`h-1 rounded-full transition-[width] ${props.color}`}
@@ -110,19 +110,19 @@ export function UsagePanel(props: UsagePanelProps) {
     }, [props.rateLimitSnapshot])
 
     return (
-        <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--app-border)] bg-[var(--app-bg)] p-3 shadow-lg">
+        <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3 shadow-lg">
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
-                    <span className="text-[var(--app-fg)]">{t('usage.contextWindow')}</span>
+                    <span className="text-[var(--social-fg)]">{t('usage.contextWindow')}</span>
                     {contextRow ? (
-                        <span className="text-[var(--app-hint)]">
+                        <span className="text-[var(--social-fg-muted)]">
                             {contextRow.text} ({Math.round(contextRow.percentage)}%)
                         </span>
                     ) : (
-                        <span className="text-[var(--app-hint)]">—</span>
+                        <span className="text-[var(--social-fg-muted)]">—</span>
                     )}
                 </div>
-                <div className="h-1 w-full rounded-full bg-[var(--app-subtle-bg)]">
+                <div className="h-1 w-full rounded-full bg-[var(--social-hover)]">
                     {contextRow ? (
                         <div
                             className={`h-1 rounded-full transition-[width] ${
@@ -137,12 +137,12 @@ export function UsagePanel(props: UsagePanelProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-                <div className="text-xs font-semibold text-[var(--app-fg)]">
+                <div className="text-xs font-semibold text-[var(--social-fg)]">
                     {t('usage.planUsage')}
                 </div>
 
                 {!hasAnyRateLimit ? (
-                    <div className="text-[12px] text-[var(--app-hint)]">{t('usage.noRateLimitData')}</div>
+                    <div className="text-[12px] text-[var(--social-fg-muted)]">{t('usage.noRateLimitData')}</div>
                 ) : usageLimits?.length ? (
                     usageLimits.map((limit, index) => {
                         const labelKey = USAGE_KIND_LABEL_KEYS[limit.kind]

@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 
 
 const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
-const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] text-[var(--social-fg)] transition-transform active:scale-95'
+const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] transition-transform active:scale-95'
 
 function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; badge?: number }) {
     return (
@@ -204,7 +204,7 @@ export function QueueStrip(props: {
     const entries = props.entries ?? []
     return (
         <div role="status">
-            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
+            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px]">
                 <QueueListIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
                 <span className="shrink-0 font-semibold text-[var(--social-fg)]">
                     {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
@@ -260,7 +260,7 @@ export function VoiceCallBar(props: {
         ? t('voice.call.connecting')
         : props.micMuted ? t('voice.call.muted') : t('voice.call.active')
     return (
-        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
+        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px]">
             <DotBadge className={cn('h-2 w-2 shrink-0 ring-0', connecting ? 'opacity-50' : 'animate-pulse')} />
             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
             {props.onToggleMic && !connecting ? (

@@ -79,8 +79,8 @@ export function extractUpdatePlanChecklist(input: unknown, result: unknown): Che
 
 function checklistTone(item: ChecklistItem): string {
     if (item.status === 'completed') return 'text-[var(--app-badge-success-text)] line-through'
-    if (item.status === 'in_progress') return 'text-[var(--app-link)]'
-    return 'text-[var(--app-hint)]'
+    if (item.status === 'in_progress') return 'text-[var(--social-fg)]'
+    return 'text-[var(--social-fg-muted)]'
 }
 
 function checklistIcon(item: ChecklistItem): ReactNode {
@@ -91,7 +91,7 @@ function checklistIcon(item: ChecklistItem): ReactNode {
 export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: string | null }) {
     if (props.items.length === 0) {
         return props.emptyLabel ? (
-            <div className="text-[13px] text-[var(--app-hint)]">{props.emptyLabel}</div>
+            <div className="text-[13px] text-[var(--social-fg-muted)]">{props.emptyLabel}</div>
         ) : null
     }
 

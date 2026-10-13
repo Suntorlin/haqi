@@ -154,8 +154,8 @@ describe('UpdatePlanView', () => {
 
         expect(completed).toBeInTheDocument()
         expect(completed.className).toContain('line-through')
-        expect(inProgress.className).toContain('text-[var(--app-link)]')
-        expect(pending.className).toContain('text-[var(--app-hint)]')
+        expect(inProgress.className).toContain('text-[var(--social-fg)]')
+        expect(pending.className).toContain('text-[var(--social-fg-muted)]')
     })
 
     it('is registered as the compact tool view', () => {

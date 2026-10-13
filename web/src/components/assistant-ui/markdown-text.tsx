@@ -28,7 +28,7 @@ function CodeHeader(props: CodeHeaderProps) {
 
     return (
         <div className="aui-md-codeheader flex items-center justify-between rounded-t-md bg-[var(--app-code-bg)] px-2 py-1">
-            <div className="min-w-0 flex-1 pr-2 text-xs font-mono text-[var(--app-hint)]">
+            <div className="min-w-0 flex-1 pr-2 text-xs font-mono text-[var(--social-fg-muted)]">
                 {language}
             </div>
             <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-7 w-7', HIT_AREA_28_CLASS)}>
@@ -103,7 +103,7 @@ function A(props: ComponentPropsWithoutRef<'a'>) {
                     if (!opened) window.open(href, '_blank', 'noreferrer')
                 })
             }}
-            className={cn('aui-md-a text-[var(--app-link)] underline', props.className)}
+            className={cn('aui-md-a text-[var(--social-fg)] underline', props.className)}
         />
     )
 }
@@ -117,7 +117,7 @@ function Blockquote(props: ComponentPropsWithoutRef<'blockquote'>) {
         <blockquote
             {...props}
             className={cn(
-                'aui-md-blockquote border-l-4 border-[var(--app-hint)] pl-3 opacity-85',
+                'aui-md-blockquote border-l-4 border-[var(--social-fg-muted)] pl-3 opacity-85',
                 'break-words [overflow-wrap:anywhere]',
                 props.className
             )}
@@ -138,7 +138,7 @@ function ListItem(props: ComponentPropsWithoutRef<'li'>) {
 }
 
 function Hr(props: ComponentPropsWithoutRef<'hr'>) {
-    return <hr {...props} className={cn('aui-md-hr border-[var(--app-divider)]', props.className)} />
+    return <hr {...props} className={cn('aui-md-hr border-[var(--social-divider)]', props.className)} />
 }
 
 function Table(props: ComponentPropsWithoutRef<'table'>) {
@@ -168,7 +168,7 @@ function Th(props: ComponentPropsWithoutRef<'th'>) {
         <th
             {...props}
             className={cn(
-                'aui-md-th border border-[var(--app-border)] bg-[var(--app-subtle-bg)] px-2 py-1 text-left font-semibold',
+                'aui-md-th border border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1 text-left font-semibold',
                 props.className
             )}
         />
@@ -176,7 +176,7 @@ function Th(props: ComponentPropsWithoutRef<'th'>) {
 }
 
 function Td(props: ComponentPropsWithoutRef<'td'>) {
-    return <td {...props} className={cn('aui-md-td border border-[var(--app-border)] px-2 py-1', props.className)} />
+    return <td {...props} className={cn('aui-md-td border border-[var(--social-border)] px-2 py-1', props.className)} />
 }
 
 function H1(props: ComponentPropsWithoutRef<'h1'>) {

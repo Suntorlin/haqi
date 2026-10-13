@@ -42,7 +42,7 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-[13px] text-[var(--app-hint)]')}
+            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-[13px] text-[var(--social-fg-muted)]')}
         />
     )
 }
@@ -74,7 +74,7 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
                     'flex items-center gap-1.5 text-xs font-semibold',
-                    'text-[var(--app-hint)] hover:text-[var(--app-fg)]',
+                    'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]',
                     'transition-colors cursor-pointer select-none',
                     TEXT_HIT_AREA_CLASS
                 )}
@@ -82,7 +82,7 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 <ChevronIcon open={isOpen} />
                 <span>Reasoning</span>
                 {isStreaming && (
-                    <span className="flex items-center gap-1 ml-1 text-[var(--app-hint)]">
+                    <span className="flex items-center gap-1 ml-1 text-[var(--social-fg-muted)]">
                         <ShimmerDot />
                     </span>
                 )}
@@ -94,7 +94,7 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                     isOpen ? 'max-h-[5000px] opacity-100' : 'max-h-0 opacity-0'
                 )}
             >
-                <div className="pl-4 pt-2 border-l-2 border-[var(--app-border)] ml-0.5">
+                <div className="pl-4 pt-2 border-l-2 border-[var(--social-border)] ml-0.5">
                     {children}
                 </div>
             </div>
