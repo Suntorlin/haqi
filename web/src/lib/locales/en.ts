@@ -1003,4 +1003,7 @@ export default {
   'preview.error.invalid': 'The preview URL is not valid',
   'preview.error.save': 'Could not save the preview URL',
   'preview.error.clear': 'Could not clear the preview URL',
+  'voice.call.connecting': 'Connecting voice…',
+  'voice.call.active': 'Voice chat on',
+  'voice.call.muted': 'Voice chat on · mic muted',
 } as const

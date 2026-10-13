@@ -3,6 +3,7 @@ import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
 import {
     InfoCircleIcon,
+    MicIcon,
     MicWaveIcon,
     PaperclipIcon,
     PlanIcon,
@@ -10,7 +11,6 @@ import {
     QueueListIcon,
     SendArrowIcon,
     SlidersIcon,
-    SpeakerIcon,
     StopSquareIcon,
     SwitchIcon,
     TerminalIcon
@@ -44,9 +44,6 @@ function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void;
  */
 export function MobileComposerToolPanel(props: {
     controlsDisabled: boolean
-    voiceEnabled: boolean
-    voiceActive: boolean
-    onVoiceToggle: () => void
     showTerminalButton: boolean
     onTerminal: () => void
     showSettingsButton: boolean
@@ -62,13 +59,6 @@ export function MobileComposerToolPanel(props: {
                 </span>
                 {t('mobile.composer.attach')}
             </ComposerPrimitive.AddAttachment>
-            {props.voiceEnabled ? (
-                <PanelTile
-                    icon={props.voiceActive ? <StopSquareIcon className="h-5 w-5" /> : <MicWaveIcon className="h-6 w-6" />}
-                    label={props.voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
-                    onClick={props.onVoiceToggle}
-                />
-            ) : null}
             {props.showTerminalButton ? (
                 <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
             ) : null}
@@ -196,8 +186,8 @@ export function MobileComposerToggle(props: { open: boolean; onClick: () => void
 }
 
 /**
- * Right-hand action: send while there is a draft, stop while the agent is running,
- * otherwise the voice assistant (like WeChat swapping "+" for "发送").
+ * The one right-hand action, in both layouts: stop while the agent is running, send while there is
+ * a draft, otherwise voice (like WeChat swapping the mic for "发送" once you type).
  */
 export function MobileComposerAction(props: {
     hasDraft: boolean
@@ -261,8 +251,8 @@ export function MobileComposerAction(props: {
                 type="button"
                 onClick={props.onVoiceToggle}
                 disabled={props.controlsDisabled && !voiceActive}
-                aria-label={t('composer.voice')}
-                title={t('composer.voice')}
+                aria-label={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
+                title={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
                 className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-white' : '')}
             >
                 {voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
@@ -282,20 +272,55 @@ export function MobileComposerAction(props: {
     )
 }
 
+/**
+ * Shown above the input while a voice conversation runs: status, mute and hang up. It keeps the call
+ * controls reachable when the action button turns into "stop" for a running agent.
+ */
+export function VoiceCallBar(props: {
+    status: ConversationStatus
+    micMuted: boolean
+    onToggleMic?: () => void
+    onEnd: () => void
+}) {
+    const { t } = useTranslation()
+    const connecting = props.status === 'connecting'
+    const label = connecting
+        ? t('voice.call.connecting')
+        : props.micMuted ? t('voice.call.muted') : t('voice.call.active')
+    return (
+        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--app-bg)] py-1 pl-3.5 pr-1 text-[13px]">
+            <span className={cn('h-2 w-2 shrink-0 rounded-full bg-[var(--social-badge)]', connecting ? 'opacity-50' : 'animate-pulse')} aria-hidden="true" />
+            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
+            {props.onToggleMic && !connecting ? (
+                <button
+                    type="button"
+                    onClick={props.onToggleMic}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
+                    aria-label={props.micMuted ? t('voice.unmute') : t('voice.mute')}
+                    title={props.micMuted ? t('voice.unmute') : t('voice.mute')}
+                >
+                    <MicIcon muted={props.micMuted} className="h-4 w-4" />
+                </button>
+            ) : null}
+            <button
+                type="button"
+                onClick={props.onEnd}
+                className="shrink-0 rounded-full bg-[var(--social-badge)] px-3 py-1 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90"
+            >
+                {t('voice.end')}
+            </button>
+        </div>
+    )
+}
+
 const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
 
 /**
- * Desktop composer toolbar: the same four entries as the phone "+" panel, laid out inline.
+ * Desktop composer toolbar: the same entries as the phone "+" panel, laid out inline.
  * Each does one thing; every setting opens the shared "chat settings" panel.
  */
 export function DesktopComposerToolbar(props: {
     controlsDisabled: boolean
-    voiceEnabled: boolean
-    voiceActive: boolean
-    voiceConnected: boolean
-    voiceMicMuted?: boolean
-    onVoiceToggle: () => void
-    onVoiceMicToggle?: () => void
     showTerminalButton: boolean
     onTerminal: () => void
     showSettingsButton: boolean
@@ -316,28 +341,6 @@ export function DesktopComposerToolbar(props: {
             >
                 <PaperclipIcon className="h-[18px] w-[18px]" />
             </ComposerPrimitive.AddAttachment>
-            {props.voiceEnabled ? (
-                <button
-                    type="button"
-                    onClick={props.onVoiceToggle}
-                    className={cn(toolbarIconClass, props.voiceActive ? 'bg-[var(--social-badge)] text-white hover:bg-[var(--social-badge)] hover:text-white' : '')}
-                    aria-label={props.voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
-                    title={props.voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
-                >
-                    {props.voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
-                </button>
-            ) : null}
-            {props.voiceConnected && props.onVoiceMicToggle ? (
-                <button
-                    type="button"
-                    onClick={props.onVoiceMicToggle}
-                    className={cn(toolbarIconClass, props.voiceMicMuted ? 'bg-[var(--social-muted)] text-[var(--social-fg)]' : '')}
-                    aria-label={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                    title={props.voiceMicMuted ? t('voice.unmute') : t('voice.mute')}
-                >
-                    <SpeakerIcon muted={props.voiceMicMuted} className="h-[18px] w-[18px]" />
-                </button>
-            ) : null}
             {props.showTerminalButton ? (
                 <button
                     type="button"
