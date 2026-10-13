@@ -198,13 +198,11 @@ body {
 }
 
 /* Keep tag filters and the session list scrollable without showing a scrollbar. */
-.session-tag-scroll,
 .session-list-scroll {
     scrollbar-width: none;
     -ms-overflow-style: none;
 }
 
-.session-tag-scroll::-webkit-scrollbar,
 .session-list-scroll::-webkit-scrollbar {
     display: none;
 }
