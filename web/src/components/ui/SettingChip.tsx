@@ -14,7 +14,7 @@ export type ChoiceGroup<T extends string> = {
 }
 
 // Borderless like the rest of the composer toolbar; the open chip keeps its hover fill.
-const chipClass = 'flex h-8 min-w-0 max-w-[16rem] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-2 text-[12.5px] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] aria-expanded:bg-[var(--social-muted)] aria-expanded:text-[var(--social-fg)] disabled:opacity-40'
+const chipClass = `relative flex h-8 min-w-0 max-w-[16rem] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-2 text-[13px] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] aria-expanded:bg-[var(--social-muted)] aria-expanded:text-[var(--social-fg)] disabled:opacity-40`
 
 /**
  * One conversation setting shown as its current value. Tapping opens only that setting: a small

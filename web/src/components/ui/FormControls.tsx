@@ -127,7 +127,7 @@ export function SegmentedControl<T extends string>(props: {
                         disabled={props.disabled}
                         onClick={() => props.onChange(option.value)}
                         className={cn(
-                            'min-h-10 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-[14px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                            'min-h-11 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-[15px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                             selected
                                 ? 'bg-[var(--app-bg)] font-semibold text-[var(--social-fg)] shadow-sm'
                                 : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
