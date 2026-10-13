@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { usePlatform } from '@/hooks/usePlatform'
+import { CountBadge } from '@/components/ui/badge'
+import { IconButton } from '@/components/ui/IconButton'
 import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -67,12 +69,7 @@ function useNavTabs(sessionsBadge?: number): NavTab[] {
 }
 
 function NavBadge(props: { count?: number }) {
-    if (!props.count || props.count <= 0) return null
-    return (
-        <span className="absolute -right-2.5 -top-1.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--app-bg)]">
-            {props.count > 99 ? '99+' : props.count}
-        </span>
-    )
+    return <CountBadge count={props.count ?? 0} className="absolute -right-2.5 -top-1.5" />
 }
 
 /** Instagram-style icon-only bottom tab bar for the mobile top-level pages. */
@@ -87,27 +84,25 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
                 {tabs.map((tab) => {
                     const isActive = tab.key === props.active
                     return (
-                        <button
+                        <IconButton
                             key={tab.key}
-                            type="button"
+                            label={tab.label}
                             onClick={() => {
                                 if (isActive) return
                                 haptic.selection()
                                 navigate({ to: TAB_ROUTES[tab.key] })
                             }}
-                            className={cn(
-                                'relative flex flex-1 items-center justify-center [-webkit-tap-highlight-color:transparent]',
-                                isActive ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)]'
-                            )}
                             aria-current={isActive ? 'page' : undefined}
-                            aria-label={tab.label}
-                            title={tab.label}
+                            className={cn(
+                                'relative h-[50px] w-auto flex-1 rounded-xl hover:bg-transparent',
+                                isActive ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)] hover:text-[var(--social-fg-subtle)]'
+                            )}
                         >
                             <span className="relative">
                                 {tab.icon(isActive)}
                                 <NavBadge count={tab.badge} />
                             </span>
-                        </button>
+                        </IconButton>
                     )
                 })}
             </div>
@@ -135,25 +130,23 @@ export function DesktopNavRail() {
     const renderTab = (tab: NavTab) => {
         const isActive = tab.key === active
         return (
-            <button
+            <IconButton
                 key={tab.key}
-                type="button"
+                label={tab.label}
                 onClick={() => navigate({ to: TAB_ROUTES[tab.key] })}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                    'relative flex h-11 w-11 items-center justify-center rounded-[14px] transition-colors',
+                    'relative',
                     isActive
                         ? 'bg-[var(--social-muted)] text-[var(--social-fg)]'
                         : 'text-[var(--social-fg-muted)] hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)]'
                 )}
-                aria-current={isActive ? 'page' : undefined}
-                aria-label={tab.label}
-                title={tab.label}
             >
                 <span className="relative">
                     {tab.icon(isActive)}
                     <NavBadge count={tab.badge} />
                 </span>
-            </button>
+            </IconButton>
         )
     }
 
@@ -162,7 +155,7 @@ export function DesktopNavRail() {
             <button
                 type="button"
                 onClick={() => navigate({ to: '/sessions' })}
-                className="mb-6 flex h-9 w-9 items-center justify-center rounded-[11px] bg-[var(--social-primary)] text-[15px] font-bold tracking-[-0.04em] text-[var(--social-primary-fg)]"
+                className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--social-primary)] text-[15px] font-semibold tracking-[-0.04em] text-[var(--social-primary-fg)] [-webkit-tap-highlight-color:transparent]"
                 aria-label="HAQI"
                 title="HAQI"
             >
@@ -190,7 +183,7 @@ export function MobilePageHeader(props: {
         <header className="social-bar relative z-20 shrink-0 pt-[env(safe-area-inset-top)]">
             <div className={cn('mx-auto flex h-[54px] items-center gap-2 pr-3 lg:h-[68px]', props.contentWidth ? 'max-w-content pl-3' : 'max-w-xl pl-5')}>
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-[24px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">
+                    <div className="truncate text-[20px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">
                         {props.title}
                     </div>
                     {props.subtitle ? (
@@ -211,17 +204,12 @@ export function MobilePageHeader(props: {
 
 export function MobileHeaderIconButton(props: { label: string; onClick: () => void; children: ReactNode; active?: boolean }) {
     return (
-        <button
-            type="button"
+        <IconButton
+            label={props.label}
             onClick={props.onClick}
-            className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-full text-[var(--social-fg)] transition-colors [-webkit-tap-highlight-color:transparent] hover:bg-[var(--social-muted)] active:bg-[var(--social-muted)]',
-                props.active ? 'bg-[var(--social-muted)]' : ''
-            )}
-            title={props.label}
-            aria-label={props.label}
+            className={cn('text-[var(--social-fg)]', props.active ? 'bg-[var(--social-muted)]' : '')}
         >
             {props.children}
-        </button>
+        </IconButton>
     )
 }

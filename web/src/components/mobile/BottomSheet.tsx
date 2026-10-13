@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
+import { IconButton } from '@/components/ui/IconButton'
 import { SwitchTrack } from '@/components/ui/Switch'
 import { cn } from '@/lib/utils'
 
@@ -36,14 +37,13 @@ export function BottomSheet(props: {
                             >
                                 {props.title}
                             </DialogPrimitive.Title>
-                            <DialogPrimitive.Close
-                                className="ml-auto flex h-8 w-8 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]"
-                                aria-label="Close"
-                            >
-                                <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                </svg>
+                            <DialogPrimitive.Close asChild>
+                                <IconButton size="sm" label="Close" className="ml-auto">
+                                    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </IconButton>
                             </DialogPrimitive.Close>
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
@@ -62,7 +62,7 @@ export function BottomSheet(props: {
                 <DialogPrimitive.Content
                     aria-describedby={undefined}
                     className={cn(
-                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-[24px] border-t border-[var(--social-border)] bg-[var(--app-bg)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] outline-none',
+                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border-t border-[var(--social-border)] bg-[var(--app-bg)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] outline-none',
                         props.className
                     )}
                 >
@@ -97,7 +97,7 @@ export function SheetSection(props: { title?: string; children: ReactNode; class
     return (
         <section className={cn('px-4 pb-3', props.className)}>
             {props.title ? (
-                <div className="px-1 pb-2 text-[12px] font-medium text-[var(--social-fg-muted)]">
+                <div className="px-1 pb-2 text-[12px] font-semibold text-[var(--social-fg-muted)]">
                     {props.title}
                 </div>
             ) : null}
@@ -113,7 +113,7 @@ function SheetRowIcon(props: { children: ReactNode; destructive?: boolean }) {
     return (
         <span
             className={cn(
-                'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg [&>svg]:h-[18px] [&>svg]:w-[18px]',
+                'flex h-7 w-7 shrink-0 items-center justify-center rounded-xl [&>svg]:h-[18px] [&>svg]:w-[18px]',
                 props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-muted)]'
             )}
         >
@@ -137,7 +137,7 @@ export function SheetRow(props: {
             <span className={cn('min-w-0 shrink-0 text-[15px]', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>
                 {props.label}
             </span>
-            <span className="min-w-0 flex-1 truncate text-right text-[14px] text-[var(--social-fg-muted)]">
+            <span className="min-w-0 flex-1 truncate text-right text-[13px] text-[var(--social-fg-muted)]">
                 {props.value}
             </span>
             {props.chevron ? (
@@ -148,7 +148,7 @@ export function SheetRow(props: {
         </>
     )
 
-    const className = 'flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left [&+&]:border-t [&+&]:border-[var(--social-border)]'
+    const className = 'flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left [&+&]:border-t [&+&]:border-[var(--social-border)]'
 
     if (props.onClick) {
         return (
@@ -189,14 +189,14 @@ export function SheetOption(props: {
             aria-checked={props.selected}
             disabled={props.disabled}
             onClick={props.onSelect}
-            className="social-pressable flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
+            className="social-pressable flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
         >
             <span className="min-w-0 flex-1">
-                <span className={cn('block text-[15px]', props.selected ? 'font-medium text-[var(--social-fg)]' : 'text-[var(--social-fg)]')}>
+                <span className={cn('block text-[15px]', props.selected ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]')}>
                     {props.label}
                 </span>
                 {props.description ? (
-                    <span className="mt-0.5 block text-[12.5px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
+                    <span className="mt-0.5 block text-[12px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
                 ) : null}
             </span>
             <span className={cn('shrink-0 text-[var(--social-fg)] transition-opacity', props.selected ? 'opacity-100' : 'opacity-0')}>
@@ -222,13 +222,13 @@ export function SheetSwitchRow(props: {
             aria-checked={props.checked}
             disabled={props.disabled}
             onClick={() => props.onCheckedChange(!props.checked)}
-            className="social-pressable flex min-h-[48px] w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
+            className="social-pressable flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
         >
             {props.icon ? <SheetRowIcon>{props.icon}</SheetRowIcon> : null}
             <span className="min-w-0 flex-1">
                 <span className="block text-[15px] text-[var(--social-fg)]">{props.label}</span>
                 {props.description ? (
-                    <span className="mt-0.5 block text-[12.5px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
+                    <span className="mt-0.5 block text-[12px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
                 ) : null}
             </span>
             <SwitchTrack checked={props.checked} />
