@@ -8,11 +8,15 @@ import {
     type CSSProperties
 } from 'react'
 import { useTranslation } from '@/lib/use-translation'
+import { PinIcon, PinOffIcon } from '@/components/mobile/icons'
 
 type SessionActionMenuProps = {
     isOpen: boolean
     onClose: () => void
     sessionActive: boolean
+    /** Set to offer "pin to top" / "unpin" as the first action. */
+    pinned?: boolean
+    onTogglePin?: () => void
     onRename: () => void
     onTags?: () => void
     tags?: string[]
@@ -173,6 +177,8 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         isOpen,
         onClose,
         sessionActive,
+        pinned = false,
+        onTogglePin,
         onRename,
         onTags,
         tags = [],
@@ -229,6 +235,12 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const handleRename = () => {
         onClose()
         onRename()
+    }
+
+    const handleTogglePin = () => {
+        if (!onTogglePin) return
+        onClose()
+        onTogglePin()
     }
 
     const handleTags = () => {
@@ -390,6 +402,20 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 aria-labelledby={headingId}
                 className="flex flex-col gap-1"
             >
+                {onTogglePin ? (
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        onClick={handleTogglePin}
+                    >
+                        {pinned
+                            ? <PinOffIcon className="h-[18px] w-[18px] text-[var(--app-hint)]" />
+                            : <PinIcon className="h-[18px] w-[18px] text-[var(--app-hint)]" />}
+                        {pinned ? t('session.action.unpin') : t('session.action.pin')}
+                    </button>
+                ) : null}
+
                 <button
                     type="button"
                     role="menuitem"

@@ -1,5 +1,6 @@
 import type { SessionSummary } from '@/types/api'
 import { getSessionTitle } from '@/lib/session-title'
+import { getUserTags } from '@/lib/session-pins'
 
 function normalizeQuery(query: string): string {
     return query.trim().toLowerCase()
@@ -10,7 +11,7 @@ function buildSessionSearchFields(session: SessionSummary): string[] {
     const name = (session.metadata?.name ?? '').toLowerCase()
     const summary = (session.metadata?.summary?.text ?? '').toLowerCase()
     const path = (session.metadata?.path ?? '').toLowerCase()
-    const tags = (session.metadata?.tags ?? []).map((tag) => tag.toLowerCase())
+    const tags = getUserTags(session).map((tag) => tag.toLowerCase())
     const sessionId = session.id.toLowerCase()
     return [title, name, summary, path, sessionId, ...tags]
 }

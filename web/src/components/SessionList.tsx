@@ -47,6 +47,8 @@ import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
+import { getUserTags, isSessionPinned, withPinTag } from '@/lib/session-pins'
+import { useSessionPin } from '@/hooks/mutations/useSessionPin'
 
 type SessionGroup = {
     directory: string
@@ -364,7 +366,7 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
     const meta = [
         projectName,
         model && model !== 'default' ? shortModelName(model) : null,
-        ...(s.metadata?.tags ?? []).map((tag) => `#${tag}`)
+        ...getUserTags(s).map((tag) => `#${tag}`)
     ].filter(Boolean).join(' · ')
 
     return (
@@ -439,6 +441,7 @@ function SessionItem(props: {
     )
     const { skipArchiveConfirmation } = useArchiveConfirmation()
     const { sessionQuickArchiveEnabled } = useSessionQuickArchive()
+    const pinSession = useSessionPin(api)
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -455,6 +458,10 @@ function SessionItem(props: {
     })
 
     const sessionName = getSessionTitle(s)
+    const pinned = isSessionPinned(s)
+    const userTags = getUserTags(s)
+    // Editing tags must not drop the pin (it is stored as a system tag).
+    const saveUserTags = (tags: string[]) => setTags(withPinTag(tags, pinned))
     const effectiveActive = forceOffline ? false : s.active
     const effectiveThinking = forceOffline ? false : s.thinking
     const statusDotClass = effectiveActive
@@ -588,9 +595,9 @@ function SessionItem(props: {
                                 {s.metadata?.path ?? s.id}
                             </div>
                         ) : null}
-                        {s.metadata?.tags?.length ? (
+                        {userTags.length ? (
                             <div className="flex flex-wrap gap-1">
-                                {s.metadata.tags.map((tag) => (
+                                {userTags.map((tag) => (
                                     <span
                                         key={tag}
                                         className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[10px] text-[var(--app-hint)]"
@@ -647,11 +654,17 @@ function SessionItem(props: {
                 isOpen={menuOpen}
                 onClose={() => setMenuOpen(false)}
             sessionActive={s.active}
+            pinned={pinned}
+            onTogglePin={() => {
+                void pinSession(s, !pinned).catch((error) => {
+                    console.error('Failed to update session pin', error)
+                })
+            }}
             onRename={() => setRenameOpen(true)}
             onTags={() => setTagsOpen(true)}
-            tags={s.metadata?.tags ?? []}
+            tags={userTags}
             availableTags={availableTags}
-            onTagsChange={setTags}
+            onTagsChange={saveUserTags}
             tagsPending={isPending}
             onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
@@ -671,9 +684,9 @@ function SessionItem(props: {
             <SessionTagsDialog
                 isOpen={tagsOpen}
                 onClose={() => setTagsOpen(false)}
-                tags={s.metadata?.tags ?? []}
+                tags={userTags}
                 availableTags={availableTags}
-                onSave={setTags}
+                onSave={saveUserTags}
                 isPending={isPending}
             />
 

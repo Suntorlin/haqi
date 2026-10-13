@@ -769,4 +769,10 @@ export default {
   'desktop.loops.pick': '选一个评审循环查看进度',
   'desktop.groups.pick': '选一个群组开始',
   'desktop.composer.settingsHint': '对话设置：权限、模型、思考程度、发送方式',
+  'session.action.pin': '置顶',
+  'session.action.unpin': '取消置顶',
+  'session.pin.failed': '置顶没有保存成功',
+  'mobile.stories.pinned': '置顶',
+  'mobile.stories.pinHint': '长按会话选「置顶」，常用的会话会固定在这里',
+  'desktop.stories.pinHint': '右键会话选「置顶」，常用的会话会固定在这里',
 } as const

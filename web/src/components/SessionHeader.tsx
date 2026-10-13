@@ -6,7 +6,7 @@ import type { ClaudeRateLimitSnapshot } from '@hapi/protocol/types'
 import type { Session } from '@/types/api'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-import { BottomSheet, SheetRow, SheetSection } from '@/components/mobile/BottomSheet'
+import { BottomSheet, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import {
@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { useSessionPin } from '@/hooks/mutations/useSessionPin'
+import { isSessionPinned } from '@/lib/session-pins'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -127,6 +129,8 @@ export function SessionHeader(props: {
         session.metadata?.flavor ?? null
     )
     const { skipArchiveConfirmation } = useArchiveConfirmation()
+    const pinSession = useSessionPin(api)
+    const pinned = isSessionPinned(session)
 
     const handleDelete = async () => {
         await deleteSession()
@@ -374,6 +378,15 @@ export function SessionHeader(props: {
             ) : null}
 
             <SheetSection title={t('mobile.chat.manage')}>
+                <SheetSwitchRow
+                    label={t('session.action.pin')}
+                    checked={pinned}
+                    onCheckedChange={(next) => {
+                        void pinSession(session, next).catch((error) => {
+                            console.error('Failed to update session pin', error)
+                        })
+                    }}
+                />
                 <SheetRow icon={<PencilIcon className="h-4 w-4" />} label={t('session.action.rename')} chevron onClick={closeInfoThen(() => setRenameOpen(true))} />
                 <SheetRow icon={<CopyPlusIcon className="h-4 w-4" />} label={t('session.action.newSameConfig')} chevron onClick={closeInfoThen(handleSpawnSameConfig)} />
                 <SheetRow icon={<CopyPlusIcon className="h-4 w-4" />} label={t('session.action.duplicate')} chevron onClick={closeInfoThen(handleDuplicate)} />

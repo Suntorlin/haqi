@@ -767,4 +767,10 @@ export default {
   'desktop.loops.pick': 'Pick a review loop to see its progress',
   'desktop.groups.pick': 'Pick a group to start',
   'desktop.composer.settingsHint': 'Chat settings: permissions, model, thinking, send mode',
+  'session.action.pin': 'Pin to top',
+  'session.action.unpin': 'Unpin',
+  'session.pin.failed': 'Could not save the pin',
+  'mobile.stories.pinned': 'Pinned',
+  'mobile.stories.pinHint': 'Long-press a chat and choose "Pin to top" to keep it here',
+  'desktop.stories.pinHint': 'Right-click a chat and choose "Pin to top" to keep it here',
 } as const

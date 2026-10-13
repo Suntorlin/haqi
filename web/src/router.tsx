@@ -18,7 +18,7 @@ import {
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
-import { ActiveStoriesStrip } from '@/components/mobile/ActiveStoriesStrip'
+import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { ChevronLeftIcon, ClearIcon, FolderStackIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -65,6 +65,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
+import { getUserTags, isSessionPinned } from '@/lib/session-pins'
+import { useSessionPin } from '@/hooks/mutations/useSessionPin'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import PreviewPage from '@/routes/sessions/preview'
@@ -299,7 +301,7 @@ function SessionsPage() {
     }, [selectedSessionId, sessions])
 
     const sessionTags = useMemo(() => Array.from(new Set(
-        sessions.flatMap((session) => session.metadata?.tags ?? [])
+        sessions.flatMap((session) => getUserTags(session))
     )).sort((a, b) => a.localeCompare(b)), [sessions])
     const orderedSessionTags = useMemo(
         () => applySessionTagOrder(sessionTags, sessionTagOrder),
@@ -325,11 +327,25 @@ function SessionsPage() {
         }
     }, [selectedSessionTag, sessionTags])
 
+    // Pinned sessions live in the row at the top; the list below only repeats them in search results.
+    const pinnedSessions = useMemo(() => sessions.filter(isSessionPinned), [sessions])
     const visibleSessions = useMemo(() => {
         const searched = filterSessionsBySearch(sessions, sessionSearchQuery)
-        if (!selectedSessionTag) return searched
-        return searched.filter((session) => session.metadata?.tags?.includes(selectedSessionTag))
+        const listed = sessionSearchQuery ? searched : searched.filter((session) => !isSessionPinned(session))
+        if (!selectedSessionTag) return listed
+        return listed.filter((session) => session.metadata?.tags?.includes(selectedSessionTag))
     }, [sessions, sessionSearchQuery, selectedSessionTag])
+    const pinSession = useSessionPin(api)
+    const unpinSession = useCallback((session: SessionSummary) => {
+        void pinSession(session, false).catch((pinError) => {
+            addToast({
+                title: t('session.pin.failed'),
+                body: pinError instanceof Error ? pinError.message : '',
+                sessionId: session.id,
+                url: ''
+            })
+        })
+    }, [addToast, pinSession, t])
 
     const handleRefresh = useCallback(() => {
         void refetch()
@@ -472,10 +488,11 @@ function SessionsPage() {
                 />
             </div>
             {sessionSearchQuery ? null : (
-                <ActiveStoriesStrip
-                    sessions={sessions}
+                <PinnedStoriesStrip
+                    sessions={pinnedSessions}
                     onSelect={selectSession}
                     onNewSession={() => openNewSession()}
+                    onUnpin={unpinSession}
                 />
             )}
             {sessionTags.length ? (
