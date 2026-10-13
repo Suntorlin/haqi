@@ -7,6 +7,7 @@ import { Spinner } from '@/components/Spinner'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import {
     buildInitialQuestionOverlayState,
     buildQuestionToolAnswerPayload,
@@ -415,7 +416,7 @@ export function QuestionToolOverlay(props: {
                                         [{clampedStep + 1}/{total}]
                                     </span>
                                 </div>
-                                <div className="mt-1 text-[15px] text-[var(--app-hint)]">
+                                <div className="mt-1 text-[13px] text-[var(--app-hint)]">
                                     {t('tool.questionOverlay.description')}
                                 </div>
                             </div>
@@ -423,6 +424,8 @@ export function QuestionToolOverlay(props: {
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    size="sm"
+                                    className={HIT_AREA_CLASS}
                                     disabled={loading}
                                     onClick={() => setIsMinimized(true)}
                                 >
@@ -431,6 +434,8 @@ export function QuestionToolOverlay(props: {
                                 <Button
                                     type="button"
                                     variant="outline"
+                                    size="sm"
+                                    className={HIT_AREA_CLASS}
                                     disabled={props.disabled || loading}
                                     onClick={() => void cancel()}
                                 >
