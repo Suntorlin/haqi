@@ -721,6 +721,9 @@ html.social-app .app-dialog-content {
     bottom: 0;
     left: 0;
     right: 0;
+    /* Neutralise Tailwind's centring translate; the minifier drops a bare `translate: none`. */
+    --tw-translate-x: 0px;
+    --tw-translate-y: 0px;
     translate: none;
     transform: none;
     width: 100%;
