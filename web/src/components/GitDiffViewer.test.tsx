@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { I18nProvider } from '@/lib/i18n-context'
 import { GitDiffViewer } from './GitDiffViewer'
 
 vi.mock('@git-diff-view/react', () => ({
@@ -18,14 +19,16 @@ vi.mock('@git-diff-view/react', () => ({
 describe('GitDiffViewer', () => {
     it('enables syntax highlighting for diff content', () => {
         render(
-            <GitDiffViewer
-                filePath="a.txt"
-                language="text"
-                oldContent="before"
-                newContent="after"
-                diffContent="@@ -1 +1 @@"
-                theme="light"
-            />
+            <I18nProvider>
+                <GitDiffViewer
+                    filePath="a.txt"
+                    language="text"
+                    oldContent="before"
+                    newContent="after"
+                    diffContent="@@ -1 +1 @@"
+                    theme="light"
+                />
+            </I18nProvider>
         )
 
         expect(screen.getByTestId('diff-view')).toHaveAttribute('data-highlight', 'true')

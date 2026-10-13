@@ -21,14 +21,15 @@ import {
     DialogTitle
 } from '@/components/ui/dialog'
 function ConnectionIndicator(props: { status: 'idle' | 'connecting' | 'connected' | 'error' }) {
+    const { t } = useTranslation()
     const isConnected = props.status === 'connected'
     const isConnecting = props.status === 'connecting'
-    const label = isConnected ? 'Connected' : isConnecting ? 'Connecting' : 'Offline'
+    const label = isConnected ? t('terminal.status.connected') : isConnecting ? t('terminal.status.connecting') : t('terminal.status.offline')
     const colorClass = isConnected
         ? 'bg-[var(--social-success)]'
         : isConnecting
           ? 'bg-[var(--social-warning)] animate-pulse'
-          : 'bg-[var(--app-hint)]'
+          : 'bg-[var(--social-fg-muted)]'
 
     return (
         <div className="flex items-center" aria-label={label} title={label} role="status">
@@ -40,12 +41,12 @@ function ConnectionIndicator(props: { status: 'idle' | 'connecting' | 'connected
 type QuickInput = {
     label: string
     sequence?: string
-    description: string
+    descriptionKey: string
     modifier?: 'ctrl' | 'alt'
     popup?: {
         label: string
         sequence: string
-        description: string
+        descriptionKey: string
     }
 }
 
@@ -77,32 +78,32 @@ function shouldResetModifiers(sequence: string, state: ModifierState): boolean {
 
 const QUICK_INPUT_ROWS: QuickInput[][] = [
     [
-        { label: 'Esc', sequence: '\u001b', description: 'Escape' },
+        { label: 'Esc', sequence: '\u001b', descriptionKey: 'terminal.key.escape' },
         {
             label: '/',
             sequence: '/',
-            description: 'Forward slash',
-            popup: { label: '?', sequence: '?', description: 'Question mark' },
+            descriptionKey: 'terminal.key.slash',
+            popup: { label: '?', sequence: '?', descriptionKey: 'terminal.key.question' },
         },
         {
             label: '-',
             sequence: '-',
-            description: 'Hyphen',
-            popup: { label: '|', sequence: '|', description: 'Pipe' },
+            descriptionKey: 'terminal.key.hyphen',
+            popup: { label: '|', sequence: '|', descriptionKey: 'terminal.key.pipe' },
         },
-        { label: 'Home', sequence: '\u001b[H', description: 'Home' },
-        { label: '↑', sequence: '\u001b[A', description: 'Arrow up' },
-        { label: 'End', sequence: '\u001b[F', description: 'End' },
-        { label: 'PgUp', sequence: '\u001b[5~', description: 'Page up' },
+        { label: 'Home', sequence: '\u001b[H', descriptionKey: 'terminal.key.home' },
+        { label: '↑', sequence: '\u001b[A', descriptionKey: 'terminal.key.arrowUp' },
+        { label: 'End', sequence: '\u001b[F', descriptionKey: 'terminal.key.end' },
+        { label: 'PgUp', sequence: '\u001b[5~', descriptionKey: 'terminal.key.pageUp' },
     ],
     [
-        { label: 'Tab', sequence: '\t', description: 'Tab' },
-        { label: 'Ctrl', description: 'Control', modifier: 'ctrl' },
-        { label: 'Alt', description: 'Alternate', modifier: 'alt' },
-        { label: '←', sequence: '\u001b[D', description: 'Arrow left' },
-        { label: '↓', sequence: '\u001b[B', description: 'Arrow down' },
-        { label: '→', sequence: '\u001b[C', description: 'Arrow right' },
-        { label: 'PgDn', sequence: '\u001b[6~', description: 'Page down' },
+        { label: 'Tab', sequence: '\t', descriptionKey: 'terminal.key.tab' },
+        { label: 'Ctrl', descriptionKey: 'terminal.key.control', modifier: 'ctrl' },
+        { label: 'Alt', descriptionKey: 'terminal.key.alternate', modifier: 'alt' },
+        { label: '←', sequence: '\u001b[D', descriptionKey: 'terminal.key.arrowLeft' },
+        { label: '↓', sequence: '\u001b[B', descriptionKey: 'terminal.key.arrowDown' },
+        { label: '→', sequence: '\u001b[C', descriptionKey: 'terminal.key.arrowRight' },
+        { label: 'PgDn', sequence: '\u001b[6~', descriptionKey: 'terminal.key.pageDown' },
     ],
 ]
 
@@ -114,9 +115,11 @@ function QuickKeyButton(props: {
     onToggleModifier: (modifier: 'ctrl' | 'alt') => void
 }) {
     const { input, disabled, isActive, onPress, onToggleModifier } = props
+    const { t } = useTranslation()
+    const description = t(input.descriptionKey)
     const modifier = input.modifier
     const popupSequence = input.popup?.sequence
-    const popupDescription = input.popup?.description
+    const popupDescription = input.popup ? t(input.popup.descriptionKey) : undefined
     const hasPopup = Boolean(popupSequence)
     const longPressDisabled = disabled || Boolean(modifier) || !hasPopup
 
@@ -151,11 +154,11 @@ function QuickKeyButton(props: {
             onPointerDown={handlePointerDown}
             disabled={disabled}
             aria-pressed={modifier ? isActive : undefined}
-            className={`min-h-11 flex-1 border-l border-[var(--app-border)] px-2 py-1.5 text-[13px] text-[var(--app-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-button)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--app-subtle-bg)] sm:px-3 ${
-                isActive ? 'bg-[var(--app-link)] text-[var(--app-bg)]' : 'hover:bg-[var(--app-subtle-bg)]'
+            className={`min-h-11 flex-1 border-l border-[var(--social-border)] px-2 py-1.5 text-[13px] text-[var(--social-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-primary)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--social-hover)] sm:px-3 ${
+                isActive ? 'bg-[var(--social-fg)] text-[var(--social-surface)]' : 'hover:bg-[var(--social-hover)]'
             }`}
-            aria-label={input.description}
-            title={popupDescription ? `${input.description} (long press: ${popupDescription})` : input.description}
+            aria-label={description}
+            title={popupDescription ? t('terminal.key.longPress', { key: description, popup: popupDescription }) : description}
         >
             {input.label}
         </button>
@@ -395,7 +398,7 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
     if (!session) {
         return (
             <div className="flex h-full items-center justify-center">
-                <LoadingState label="Loading session…" className="text-sm" />
+                <LoadingState label={t('loading.session')} className="text-[13px]" />
             </div>
         )
     }
@@ -420,7 +423,7 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
 
             {session.active ? null : (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-xl bg-[var(--app-subtle-bg)] p-3 text-sm text-[var(--app-hint)]">
+                    <div className="mx-auto w-full max-w-content rounded-xl bg-[var(--social-hover)] p-3 text-[13px] text-[var(--social-fg-muted)]">
                         {t('terminal.inactive')}
                     </div>
                 </div>
@@ -436,20 +439,20 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
 
             {exitInfo ? (
                 <div className="mx-auto w-full max-w-content px-3 pt-3">
-                    <div className="rounded-xl border border-[var(--app-border)] bg-[var(--app-subtle-bg)] p-3 text-xs text-[var(--app-hint)]">
+                    <div className="rounded-xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-xs text-[var(--social-fg-muted)]">
                         {exitInfo.code !== null ? t('terminal.exitedWithCode', { code: exitInfo.code }) : t('terminal.exited')}
                         {exitInfo.signal ? ` (${exitInfo.signal})` : ''}
                     </div>
                 </div>
             ) : null}
 
-            <div className="flex-1 overflow-hidden bg-[var(--app-bg)]">
+            <div className="flex-1 overflow-hidden bg-[var(--social-surface)]">
                 <div className="mx-auto h-full w-full max-w-content p-3">
                     <TerminalView onMount={handleTerminalMount} onResize={handleResize} className="h-full w-full" />
                 </div>
             </div>
 
-            <div className="bg-[var(--app-bg)] border-t border-[var(--app-border)] pb-[env(safe-area-inset-bottom)]">
+            <div className="bg-[var(--social-surface)] border-t border-[var(--social-border)] pb-[env(safe-area-inset-bottom)]">
                 <div className="mx-auto w-full max-w-content px-3">
                     <div className="flex flex-col gap-2 py-2">
                         <Button
@@ -465,7 +468,7 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
                         {QUICK_INPUT_ROWS.map((row, rowIndex) => (
                             <div
                                 key={`terminal-quick-row-${rowIndex}`}
-                                className="flex items-stretch overflow-hidden rounded-2xl bg-[var(--app-secondary-bg)]"
+                                className="flex items-stretch overflow-hidden rounded-2xl bg-[var(--social-muted)]"
                             >
                                 {row.map((input) => {
                                     const modifier = input.modifier
