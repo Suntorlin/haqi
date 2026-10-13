@@ -4,7 +4,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { Chip } from '@/components/ui/Chip'
 import { cn } from '@/lib/utils'
 
-const CAPTION_CLASS = 'px-1 text-[12px] font-medium text-[var(--social-fg-muted)]'
+const CAPTION_CLASS = 'px-1 text-[12px] font-semibold text-[var(--social-fg-muted)]'
 
 /** Caption above a form control (same look as sheet section titles), with an optional hint below. */
 export function FormField(props: {
@@ -127,9 +127,9 @@ export function SegmentedControl<T extends string>(props: {
                         disabled={props.disabled}
                         onClick={() => props.onChange(option.value)}
                         className={cn(
-                            'min-w-0 flex-1 truncate rounded-[10px] px-2 py-2 text-[14px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                            'min-h-10 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-[14px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                             selected
-                                ? 'bg-[var(--app-bg)] font-medium text-[var(--social-fg)] shadow-sm'
+                                ? 'bg-[var(--app-bg)] font-semibold text-[var(--social-fg)] shadow-sm'
                                 : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
                         )}
                     >
