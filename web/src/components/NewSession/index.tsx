@@ -49,7 +49,8 @@ import { SessionTypeSelector } from './SessionTypeSelector'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from './spawnPayload'
 import { formatRunnerSpawnError } from '@/utils/formatRunnerSpawnError'
 import { useTranslation } from '@/lib/use-translation'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { Button } from '@/components/ui/button'
+import { TextField } from '@/components/ui/TextField'
 import { FormField, SuggestionChip } from '@/components/ui/FormControls'
 import { ChevronDownIcon } from '@/components/mobile/icons'
 
@@ -437,15 +438,17 @@ export function NewSession(props: {
                 onPathClick={handlePathClick}
             />
             <div className="flex flex-col gap-5">
-                <button
+                <Button
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     aria-expanded={showAdvanced}
                     onClick={() => setShowAdvanced((open) => !open)}
-                    className="flex items-center gap-1 self-start rounded-full px-1 py-0.5 text-[12px] font-medium text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]"
+                    className="-ml-2 self-start"
                 >
                     {t('newSession.advanced')}
                     <ChevronDownIcon className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
-                </button>
+                </Button>
                 {showAdvanced ? (
                     <div className="flex flex-col gap-5">
                         <MachineSelector
@@ -457,14 +460,13 @@ export function NewSession(props: {
                         />
                         {experimentalSettings.previewEnabled ? (
                             <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
-                                <input
+                                <TextField
                                     id={previewUrlId}
                                     type="text"
                                     placeholder="http://localhost:3000"
                                     value={previewUrlInput}
                                     onChange={(event) => setPreviewUrlInput(event.target.value)}
                                     disabled={isFormDisabled}
-                                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50`}
                                 />
                                 {previewUrlHistory.length > 0 ? (
                                     <div className="flex flex-wrap gap-1.5 pt-1">

@@ -2,8 +2,9 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboard
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { FormField } from '@/components/ui/FormControls'
+import { IconButton } from '@/components/ui/IconButton'
+import { TextField } from '@/components/ui/TextField'
 import { ChevronDownIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -43,7 +44,7 @@ export function DirectorySection(props: {
     return (
         <FormField label={t('newSession.directory')} htmlFor={id}>
             <div ref={wrapperRef} className="relative">
-                <input
+                <TextField
                     id={id}
                     type="text"
                     placeholder={t('newSession.placeholder')}
@@ -53,22 +54,39 @@ export function DirectorySection(props: {
                     onFocus={props.onDirectoryFocus}
                     onBlur={props.onDirectoryBlur}
                     disabled={props.isDisabled}
-                    className={`${DIALOG_INPUT_CLASS} disabled:opacity-50${hasRecent ? ' pr-11' : ''}`}
+                    trailing={hasRecent ? (
+                        <IconButton
+                            size="sm"
+                            label={t('newSession.recent')}
+                            aria-expanded={recentOpen}
+                            disabled={props.isDisabled}
+                            onClick={() => setRecentOpen((open) => !open)}
+                            className="text-[var(--social-fg-subtle)]"
+                        >
+                            <ChevronDownIcon className={`h-4 w-4 transition-transform ${recentOpen ? 'rotate-180' : ''}`} />
+                        </IconButton>
+                    ) : undefined}
                 />
-                {hasRecent ? (
-                    <button
-                        type="button"
-                        aria-label={t('newSession.recent')}
-                        aria-expanded={recentOpen}
-                        title={t('newSession.recent')}
-                        disabled={props.isDisabled}
-                        onClick={() => setRecentOpen((open) => !open)}
-                        className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-[var(--social-fg-subtle)] transition-colors hover:bg-[var(--social-hover)] disabled:opacity-50"
-                    >
-                        <ChevronDownIcon className={`h-4 w-4 transition-transform ${recentOpen ? 'rotate-180' : ''}`} />
-                    </button>
+                {recentOpen && hasRecent ? (
+                    <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--app-bg)] p-1.5 shadow-lg">
+                        {props.recentPaths.map((path) => (
+                            <li key={path}>
+                                <button
+                                    type="button"
+                                    title={path}
+                                    onClick={() => {
+                                        setRecentOpen(false)
+                                        props.onPathClick(path)
+                                    }}
+                                    className="block min-h-11 w-full truncate rounded-xl px-3 text-left text-[15px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
+                                >
+                                    {shortenHomePath(path)}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
                 ) : null}
-                {props.suggestions.length > 0 && (
+                {props.suggestions.length > 0 && !recentOpen && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">
                         <FloatingOverlay maxHeight={200}>
                             <Autocomplete
