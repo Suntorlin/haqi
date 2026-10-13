@@ -291,7 +291,7 @@ export function VoiceCallBar(props: {
     )
 }
 
-const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
+const toolbarIconClass = 'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[var(--social-fg-muted)] transition-colors enabled:hover:bg-[var(--social-muted)] enabled:hover:text-[var(--social-fg)] disabled:opacity-40 [&_svg]:stroke-[1.7]'
 
 /**
  * Desktop composer toolbar: attach, terminal and "/compact", then each conversation setting as a
