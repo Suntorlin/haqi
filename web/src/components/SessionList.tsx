@@ -467,7 +467,7 @@ function SessionItem(props: {
     const effectiveThinking = forceOffline ? false : s.thinking
     const statusDotClass = effectiveActive
         ? (effectiveThinking ? 'bg-[var(--app-badge-info-text)]' : 'bg-[var(--app-badge-success-text)]')
-        : 'bg-[var(--app-hint)]'
+        : 'bg-[var(--social-fg-muted)]'
     const isCompact = density === 'compact'
 
     const handleArchive = () => {
@@ -505,7 +505,7 @@ function SessionItem(props: {
                     setSortableNodeRef(node)
                 }}
                 style={{ transform: CSS.Transform.toString(transform), transition }}
-                className={`group/session-item relative ${isDragging ? 'z-10 bg-[var(--app-bg)] opacity-70' : ''}`}
+                className={`group/session-item relative ${isDragging ? 'z-10 bg-[var(--social-surface)] opacity-70' : ''}`}
                 onMouseEnter={() => setIsQuickArchiveVisible(true)}
                 onMouseLeave={() => setIsQuickArchiveVisible(false)}
                 onFocusCapture={() => setIsQuickArchiveVisible(true)}
@@ -548,7 +548,7 @@ function SessionItem(props: {
                     <button
                         type="button"
                         {...longPressHandlers}
-                        className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--app-link)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--app-secondary-bg)]' : ''}`}
+                        className={`session-list-item flex w-full flex-col text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-fg)] select-none ${isCompact ? 'gap-0.5 px-2.5 py-1.5' : 'gap-1.5 px-3 py-3'} ${selected ? 'bg-[var(--social-muted)]' : ''}`}
                         style={{ WebkitTouchCallout: 'none' }}
                         aria-current={selected ? 'page' : undefined}
                     >
@@ -559,7 +559,7 @@ function SessionItem(props: {
                                         className={`h-2 w-2 rounded-full ${statusDotClass}`}
                                     />
                                 </span>
-                                <div className={`truncate font-semibold ${isCompact ? 'text-sm' : 'text-base'}`}>
+                                <div className={`truncate font-semibold ${isCompact ? 'text-[15px]' : 'text-base'}`}>
                                     {sessionName}
                                 </div>
                             </div>
@@ -573,7 +573,7 @@ function SessionItem(props: {
                                     const progress = getTodoProgress(s)
                                     if (!progress) return null
                                     return (
-                                        <span className="flex items-center gap-1 text-[var(--app-hint)]">
+                                        <span className="flex items-center gap-1 text-[var(--social-fg-muted)]">
                                             <BulbIcon className="h-3 w-3" />
                                             {progress.completed}/{progress.total}
                                         </span>
@@ -585,14 +585,14 @@ function SessionItem(props: {
                                     </span>
                                 ) : null}
                                 <span
-                                    className={`text-[var(--app-hint)] transition-opacity ${sessionQuickArchiveEnabled && isQuickArchiveVisible ? 'opacity-0 pointer-events-none' : ''}`}
+                                    className={`text-[var(--social-fg-muted)] transition-opacity ${sessionQuickArchiveEnabled && isQuickArchiveVisible ? 'opacity-0 pointer-events-none' : ''}`}
                                 >
                                     {formatRelativeTime(s.updatedAt, t)}
                                 </span>
                             </div>
                         </div>
                         {showPath ? (
-                            <div className="truncate text-xs text-[var(--app-hint)]">
+                            <div className="truncate text-xs text-[var(--social-fg-muted)]">
                                 {s.metadata?.path ?? s.id}
                             </div>
                         ) : null}
@@ -601,7 +601,7 @@ function SessionItem(props: {
                                 {userTags.map((tag) => (
                                     <span
                                         key={tag}
-                                        className="rounded-full bg-[var(--app-secondary-bg)] px-2 py-0.5 text-[12px] text-[var(--app-hint)]"
+                                        className="rounded-full bg-[var(--social-muted)] px-2 py-0.5 text-[12px] text-[var(--social-fg-muted)]"
                                     >
                                         #{tag}
                                     </span>
@@ -609,7 +609,7 @@ function SessionItem(props: {
                             </div>
                         ) : null}
                         {!isCompact ? (
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--app-hint)]">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--social-fg-muted)]">
                                 <span className="inline-flex items-center gap-2">
                                     <span className="flex h-4 w-4 items-center justify-center" aria-hidden="true">
                                         ❖
@@ -630,7 +630,7 @@ function SessionItem(props: {
                         type="button"
                         {...dragAttributes}
                         {...dragListeners}
-                        className="absolute inset-y-0 left-0 flex w-3 cursor-grab touch-none select-none items-center justify-center text-[var(--app-hint)] opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-md:opacity-40"
+                        className="absolute inset-y-0 left-0 flex w-3 cursor-grab touch-none select-none items-center justify-center text-[var(--social-fg-muted)] opacity-0 transition-opacity hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-md:opacity-40"
                         title={t('sessions.reorder')}
                         aria-label={t('sessions.reorder')}
                     >
@@ -835,7 +835,7 @@ function SessionGroupRow(props: {
         <div
             ref={setNodeRef}
             style={dragStyle}
-            className={`z-10 flex w-full items-center gap-1 cursor-grab active:cursor-grabbing select-none ${minimal ? 'px-4 pb-1 pt-4' : `border-b border-[var(--app-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`} ${isDropTarget ? 'bg-[var(--app-secondary-bg)]' : 'bg-[var(--app-bg)]'} ${isDragging ? 'opacity-70' : ''}`}
+            className={`z-10 flex w-full items-center gap-1 cursor-grab active:cursor-grabbing select-none ${minimal ? 'px-4 pb-1 pt-4' : `border-b border-[var(--social-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`} ${isDropTarget ? 'bg-[var(--social-muted)]' : 'bg-[var(--social-surface)]'} ${isDragging ? 'opacity-70' : ''}`}
             onContextMenu={(event) => {
                 event.preventDefault()
                 event.stopPropagation()
@@ -847,27 +847,27 @@ function SessionGroupRow(props: {
             <button
                 type="button"
                 onClick={() => onToggleGroup(group.directory, isCollapsed)}
-                className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-[var(--app-secondary-bg)] ${minimal ? 'min-h-11' : ''}`}
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-[var(--social-muted)] ${minimal ? 'min-h-11' : ''}`}
             >
                 <ChevronIcon
-                    className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--app-hint)]'}
+                    className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--social-fg-muted)]'}
                     collapsed={isCollapsed}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                     <span
                         className={minimal
                             ? 'truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
-                            : `font-semibold break-words ${density === 'compact' ? 'text-sm' : 'text-base'}`}
+                            : `font-semibold break-words ${density === 'compact' ? 'text-[15px]' : 'text-base'}`}
                         title={group.directory}
                     >
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
-                        <span className="shrink-0 rounded-md bg-[var(--app-subtle-bg)] px-1.5 py-0.5 text-[12px] uppercase tracking-wide text-[var(--app-hint)]">
+                        <span className="shrink-0 rounded-md bg-[var(--social-hover)] px-1.5 py-0.5 text-[12px] uppercase tracking-wide text-[var(--social-fg-muted)]">
                             {t('misc.offline')}
                         </span>
                     ) : null}
-                    <span className="shrink-0 text-xs text-[var(--app-hint)]">
+                    <span className="shrink-0 text-xs text-[var(--social-fg-muted)]">
                         ({group.sessions.length})
                     </span>
                 </div>
@@ -877,7 +877,7 @@ function SessionGroupRow(props: {
                     {...plusButtonHandlers}
                     size={minimal ? 'default' : 'sm'}
                     label={t('sessions.newInProject')}
-                    className={minimal ? '-my-2' : 'text-[var(--app-link)]'}
+                    className={minimal ? '-my-2' : 'text-[var(--social-fg)]'}
                 >
                     <PlusIcon className="h-4 w-4" />
                 </IconButton>
@@ -915,14 +915,14 @@ function OfflineSectionRow(props: {
             type="button"
             onClick={() => onToggleGroup(directory, isCollapsed)}
             aria-expanded={!isCollapsed}
-            className={`flex w-full items-center gap-2 text-left text-xs text-[var(--app-hint)] transition-colors hover:text-[var(--app-fg)] ${props.minimal ? 'min-h-11 px-5 py-2' : `border-b border-[var(--app-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
+            className={`flex w-full items-center gap-2 text-left text-xs text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)] ${props.minimal ? 'min-h-11 px-5 py-2' : `border-b border-[var(--social-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
         >
             <ChevronIcon
-                className="h-3.5 w-3.5 text-[var(--app-hint)]"
+                className="h-3.5 w-3.5 text-[var(--social-fg-muted)]"
                 collapsed={isCollapsed}
             />
             <span className="uppercase tracking-wide">{label ?? t('misc.offline')}</span>
-            <span className="text-[var(--app-hint)]">
+            <span className="text-[var(--social-fg-muted)]">
                 ({count})
             </span>
         </button>
@@ -1107,14 +1107,14 @@ export function SessionList(props: {
         <div className="mx-auto flex h-full w-full max-w-content min-h-0 flex-col">
             {renderHeader ? (
                 <div className="flex items-center justify-between px-3 py-1">
-                    <div className="text-xs text-[var(--app-hint)]">
+                    <div className="text-xs text-[var(--social-fg-muted)]">
                         {t('sessions.count', { n: props.sessions.length, m: groups.length })}
                     </div>
                     <IconButton
                         size="sm"
                         label={t('sessions.new')}
                         onClick={() => props.onNewSession()}
-                        className="session-list-new-button text-[var(--app-link)]"
+                        className="session-list-new-button text-[var(--social-fg)]"
                     >
                         <PlusIcon className="h-5 w-5" />
                     </IconButton>
@@ -1211,7 +1211,7 @@ export function SessionList(props: {
                                 }
 
                                 return (
-                                    <div className={props.itemVariant === 'feed' ? '' : 'border-b border-[var(--app-divider)]'}>
+                                    <div className={props.itemVariant === 'feed' ? '' : 'border-b border-[var(--social-divider)]'}>
                                         <SessionItem
                                             session={row.session}
                                             onSelect={props.onSelect}
@@ -1271,7 +1271,7 @@ export function SessionFeed(props: {
                     Scroller: SessionListScroller,
                     Header: ListHeader,
                     EmptyPlaceholder: () => (
-                        <div className="px-6 py-16 text-center text-sm text-[var(--app-hint)]">
+                        <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">
                             {props.emptyLabel}
                         </div>
                     )
