@@ -3,6 +3,7 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { IconButton } from '@/components/ui/IconButton'
 import { SwitchTrack } from '@/components/ui/Switch'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
 /**
@@ -20,6 +21,7 @@ export function BottomSheet(props: {
     popoverAnchor?: { right: number; bottom: number } | null
 }) {
     const isMobileLayout = useIsMobileLayout()
+    const { t } = useTranslation()
 
     if (!isMobileLayout && props.popoverAnchor) {
         const { right, bottom } = props.popoverAnchor
@@ -69,7 +71,7 @@ export function BottomSheet(props: {
                                 {props.title}
                             </DialogPrimitive.Title>
                             <DialogPrimitive.Close asChild>
-                                <IconButton size="sm" label="Close" className="ml-auto">
+                                <IconButton size="sm" label={t('button.close')} className="ml-auto">
                                     <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                                         <line x1="18" y1="6" x2="6" y2="18" />
                                         <line x1="6" y1="6" x2="18" y2="18" />

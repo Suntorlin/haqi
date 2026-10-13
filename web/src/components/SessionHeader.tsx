@@ -8,6 +8,7 @@ import type { Session } from '@/types/api'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { BottomSheet, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
+import { ActionTile } from '@/components/mobile/ActionTile'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { IconButton } from '@/components/ui/IconButton'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
@@ -331,16 +332,7 @@ export function SessionHeader(props: {
 
             <div className="grid grid-cols-4 gap-2 px-4 pb-5">
                 {quickActions.map((action) => (
-                    <button
-                        key={action.key}
-                        type="button"
-                        disabled={!action.onClick}
-                        onClick={closeInfoThen(action.onClick)}
-                        className="flex flex-col items-center gap-1.5 rounded-2xl border border-[var(--social-border)] py-3 text-[12px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)] active:bg-[var(--social-muted)] disabled:opacity-35"
-                    >
-                        {action.icon}
-                        {action.label}
-                    </button>
+                    <ActionTile key={action.key} icon={action.icon} label={action.label} onClick={action.onClick ? closeInfoThen(action.onClick) : undefined} />
                 ))}
             </div>
 
