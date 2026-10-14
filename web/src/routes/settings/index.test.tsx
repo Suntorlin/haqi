@@ -357,13 +357,14 @@ describe('SettingsPage', () => {
         })
     })
 
-    it('persists default send mode preference', () => {
+    it('sends through the queue by default and persists a change to direct', () => {
         renderWithProviders(<SettingsPage />)
 
-        fireEvent.click(screen.getByRole('button', { name: /Default Send Mode/i }))
-        fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Queue/i }))
+        fireEvent.click(screen.getByRole('button', { name: /^Send mode/i }))
+        expect(screen.getByRole('menuitemcheckbox', { name: /Queue/i })).toBeChecked()
+        fireEvent.click(screen.getByRole('menuitemcheckbox', { name: /Direct/i }))
 
-        expect(window.localStorage.getItem('hapi:codexSendModeDefault')).toBe('queue')
+        expect(window.localStorage.getItem('hapi:codexSendModeDefault')).toBe('direct')
     })
 
     it('persists session reopen position preference', () => {
