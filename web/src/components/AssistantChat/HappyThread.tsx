@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { JumpToLatestButton } from '@/components/AssistantChat/JumpToLatestButton'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
+import { useNestedScrollPassthrough } from '@/components/AssistantChat/useNestedScrollPassthrough'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
@@ -186,6 +187,7 @@ export function HappyThread(props: {
     const contentRef = useRef<HTMLDivElement | null>(null)
     const isSocial = props.layout === 'social'
     const holdAutoScroll = useStickToBottom(isSocial, viewportRef, contentRef)
+    useNestedScrollPassthrough(viewportRef)
     const userMessageCount = useAssistantState(({ thread }) => thread.messages.reduce((count, message) => count + (message.role === 'user' ? 1 : 0), 0))
     const oldestRenderedKey = useAssistantState(({ thread }) => thread.messages[0]?.id ?? null)
     const olderStateRef = useRef({ userMessageCount, hasMore: props.hasMoreMessages })
