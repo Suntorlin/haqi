@@ -5,6 +5,7 @@ import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { HappyChatProvider } from '@/components/AssistantChat/context'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
+import { useNestedScrollPassthrough } from '@/components/AssistantChat/useNestedScrollPassthrough'
 import { CliBlockRenderer } from '@/components/AssistantChat/cli/CliBlockRenderer'
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/ui/button'
@@ -37,6 +38,7 @@ type CliThreadProps = {
 
 export const CliThread = memo(function CliThread(props: CliThreadProps) {
     const scrollRef = useRef<HTMLDivElement>(null)
+    useNestedScrollPassthrough(scrollRef)
     const {
         isNearBottom,
         showJumpToLatest,

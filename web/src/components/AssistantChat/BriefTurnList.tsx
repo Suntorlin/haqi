@@ -15,6 +15,7 @@ import {
     shouldShowLatestBriefTurnAsFullContent
 } from '@/components/AssistantChat/briefTurnPresentation'
 import { restoreScrollTopByDelta, shouldTriggerLoadOlder } from '@/components/AssistantChat/historyScroll'
+import { useNestedScrollPassthrough } from '@/components/AssistantChat/useNestedScrollPassthrough'
 import { Spinner } from '@/components/Spinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -497,6 +498,7 @@ export function BriefTurnList(props: {
     onLoadMoreTurns: () => Promise<void>
 }) {
     const scrollerRef = useRef<HTMLDivElement | null>(null)
+    useNestedScrollPassthrough(scrollerRef)
     const isAtBottomRef = useRef(true)
     const initialScrollAppliedRef = useRef(false)
     const pendingRestoreRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null)
