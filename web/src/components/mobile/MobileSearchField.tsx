@@ -4,7 +4,7 @@ import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 
 /** Rounded grey search field used at the top of lists and pickers. */
-export function MobileSearchField(props: { value: string; onChange: (value: string) => void; placeholder: string; autoFocus?: boolean }) {
+export function MobileSearchField(props: { value: string; onChange: (value: string) => void; placeholder: string; autoFocus?: boolean; onBlur?: () => void }) {
     const { t } = useTranslation()
     return (
         <TextField
@@ -13,6 +13,7 @@ export function MobileSearchField(props: { value: string; onChange: (value: stri
             onChange={(event) => props.onChange(event.target.value)}
             placeholder={props.placeholder}
             autoFocus={props.autoFocus}
+            onBlur={props.onBlur}
             className="[&::-webkit-search-cancel-button]:hidden"
             type="search"
             enterKeyHint="search"

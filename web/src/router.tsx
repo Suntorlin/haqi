@@ -21,7 +21,7 @@ import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -230,6 +230,7 @@ function SessionsPage() {
     const isMobileLayout = useIsMobileLayout()
     const [mobileListMode, setMobileListMode] = useState<MobileSessionListMode>(loadMobileSessionListMode)
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
+    const [sessionSearchOpen, setSessionSearchOpen] = useState(false)
     const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
     const [sessionTagOrder, setSessionTagOrder] = useState<string[]>(loadSessionTagOrder)
     const tagSensors = useSensors(
@@ -440,15 +441,33 @@ function SessionsPage() {
         density
     }
 
+    // Searching is occasional, so the field lives behind a header icon instead of taking a row all the time.
+    const searchVisible = sessionSearchOpen || sessionSearchQuery.length > 0
+    const toggleSessionSearch = () => {
+        if (searchVisible) {
+            setSessionSearchQuery('')
+            setSessionSearchOpen(false)
+        } else {
+            setSessionSearchOpen(true)
+        }
+    }
+
     const listHeader = (
         <div className="pb-2">
-            <div className="px-5 pb-3 pt-1">
-                <MobileSearchField
-                    value={sessionSearchQuery}
-                    onChange={setSessionSearchQuery}
-                    placeholder={t('sessions.search.placeholder')}
-                />
-            </div>
+            {searchVisible ? (
+                <div className="px-5 pb-3 pt-1">
+                    <MobileSearchField
+                        value={sessionSearchQuery}
+                        onChange={setSessionSearchQuery}
+                        placeholder={t('sessions.search.placeholder')}
+                        autoFocus
+                        onBlur={() => {
+                            // An emptied field folds away again; one holding a query stays.
+                            if (!sessionSearchQuery) setSessionSearchOpen(false)
+                        }}
+                    />
+                </div>
+            ) : null}
             {sessionSearchQuery ? null : (
                 <PinnedStoriesStrip
                     sessions={pinnedSessions}
@@ -526,6 +545,9 @@ function SessionsPage() {
 
     const listActions = (
         <>
+            <MobileHeaderIconButton label={t('sessions.search.open')} onClick={toggleSessionSearch}>
+                <SearchIcon className="h-[22px] w-[22px]" />
+            </MobileHeaderIconButton>
             <MobileHeaderIconButton
                 label={mobileListMode === 'recent' ? t('mobile.list.switchToProjects') : t('mobile.list.switchToRecent')}
                 onClick={toggleListMode}
