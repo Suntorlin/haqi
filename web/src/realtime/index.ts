@@ -15,8 +15,9 @@ export {
 // Client tools
 export { realtimeClientTools, registerSessionStore } from './realtimeClientTools'
 
-// Voice session component
-export { RealtimeVoiceSession, type RealtimeVoiceSessionProps } from './RealtimeVoiceSession'
+// The voice session component is not re-exported: importing it pulls the ElevenLabs SDK (~470KB) into
+// the first load. SessionChat loads it lazily from './RealtimeVoiceSession'.
+export type { RealtimeVoiceSessionProps } from './RealtimeVoiceSession'
 
 // Voice hooks
 export { voiceHooks, registerVoiceHooksStore, setVoicePureContextModeEnabled } from './hooks/voiceHooks'

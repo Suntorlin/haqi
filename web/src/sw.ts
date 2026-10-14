@@ -37,6 +37,15 @@ self.addEventListener('message', (event) => {
 
 precacheAndRoute(self.__WB_MANIFEST)
 
+// Hashed build files never change: whatever was not precached is kept after its first download.
+registerRoute(
+    ({ url }) => url.pathname.startsWith('/assets/'),
+    new CacheFirst({
+        cacheName: 'assets-runtime',
+        plugins: [new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 })]
+    })
+)
+
 registerRoute(
     ({ url }) => url.pathname === '/api/sessions',
     new NetworkFirst({

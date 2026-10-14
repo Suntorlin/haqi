@@ -93,7 +93,20 @@ export default defineConfig({
                 ]
             },
             injectManifest: {
-                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}']
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+                // Rarely used heavy chunks are cached on first use (runtime route in sw.ts) instead of being
+                // downloaded for every install and update.
+                globIgnores: [
+                    '**/GitDiffViewer-*.js',
+                    '**/mermaid*.js',
+                    '**/treemap-*.js',
+                    '**/cytoscape*.js',
+                    '**/katex-*.js',
+                    '**/architectureDiagram-*.js',
+                    '**/vendor-voice-*.js',
+                    '**/vendor-terminal-*.js',
+                    '**/{typescript,jsx,tsx,javascript}-*.js'
+                ]
             },
             devOptions: {
                 enabled: true,
