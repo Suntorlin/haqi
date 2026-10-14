@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useTranslation } from '@/lib/use-translation'
-import { SettingChip } from '@/components/ui/SettingChip'
+import { SettingsSelectRow } from '@/components/settings/SettingsParts'
 import { accountsKey } from './Settings'
 
 type RateLimitSnapshot = import('@hapi/protocol/schemas').ClaudeRateLimitSnapshot
@@ -59,8 +59,8 @@ export function quotaOptionLabel(snapshot: RateLimitSnapshot | undefined, t: Tra
     return parts.length ? parts.join(' · ') : undefined
 }
 
-/** Account for a new Claude session as a chip; the choices list each account's remaining quota. */
-export function ClaudeAccountChip({ api, machineId, selection, onChange, disabled }: {
+/** Account for a new Claude session as a settings row; the choices list each account's remaining quota. */
+export function ClaudeAccountRow({ api, machineId, selection, onChange, disabled }: {
     api: ApiClient; machineId: string | null; selection?: ClaudeAccountSelection;
     onChange: (selection?: ClaudeAccountSelection) => void; disabled: boolean
 }) {
@@ -88,15 +88,13 @@ export function ClaudeAccountChip({ api, machineId, selection, onChange, disable
     const current = value ? profiles.find(p => p.id === value)?.email ?? value : t('newSession.claudeAccount.machineDefault')
 
     return (
-        <SettingChip
+        <SettingsSelectRow
             title={t('newSession.claudeAccount')}
-            valueLabel={t('composer.chip.account', { value: current })}
+            valueLabel={current}
             disabled={disabled}
-            group={{
-                options,
-                value,
-                onChange: (accountId) => onChange(accountId ? { accountId, automatic: pool.autoSwitch } : undefined)
-            }}
+            options={options}
+            value={value}
+            onChange={(accountId) => onChange(accountId ? { accountId, automatic: pool.autoSwitch } : undefined)}
         />
     )
 }

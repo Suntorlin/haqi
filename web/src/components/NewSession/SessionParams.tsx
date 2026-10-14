@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import type { ApiClient } from '@/api/client'
-import { ClaudeAccountChip } from '@/components/ClaudeAccounts/Selector'
-import { SettingChip, ToggleChip } from '@/components/ui/SettingChip'
+import { ClaudeAccountRow } from '@/components/ClaudeAccounts/Selector'
+import { SettingsSelectRow, SettingsSwitchRow } from '@/components/settings/SettingsParts'
+import { ListGroup } from '@/components/ui/ListRow'
 import { TextField } from '@/components/ui/TextField'
 import { modelOptionText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
-import { Section } from './Section'
 import {
     CODEX_SERVICE_TIER_OPTIONS,
     getModelOptionsForAgent,
@@ -15,12 +15,14 @@ import {
     type ServiceTier,
     type ThinkEffort
 } from './types'
+import { Section } from './Section'
 
 const CUSTOM_MODEL = '__custom__'
 
 /**
- * The optional launch settings in one row of chips, the same chips as the chat composer: each
- * shows its value and opens only its own choices (menu on desktop, drawer on phones).
+ * What the session runs with, as one settings list: account (Claude), model, thinking, tier
+ * (Codex) and the YOLO switch. Each row shows its current value on the right and opens only its own
+ * choices (menu on desktop, drawer on phones), like the settings page.
  */
 export function SessionParams(props: {
     api: ApiClient
@@ -56,9 +58,9 @@ export function SessionParams(props: {
 
     return (
         <Section title={t('newSession.params')}>
-            <div className="flex flex-wrap gap-2 [&>button]:border [&>button]:border-[var(--social-border)] [&>button]:px-3 [&>button]:text-[var(--social-fg)] [&>button[aria-pressed=true]]:border-transparent [&>button[aria-pressed=true]]:text-[var(--social-primary-fg)]">
+            <ListGroup>
                 {props.agent === 'claude' ? (
-                    <ClaudeAccountChip
+                    <ClaudeAccountRow
                         api={props.api}
                         machineId={props.machineId}
                         selection={props.claudeAccount}
@@ -67,51 +69,54 @@ export function SessionParams(props: {
                     />
                 ) : null}
                 {modelOptions.length > 0 ? (
-                    <SettingChip
+                    <SettingsSelectRow
                         title={t('newSession.model')}
                         valueLabel={showCustom
                             ? t('newSession.model.customValue', { value: customModel || '…' })
                             : labelOf(modelOptions, props.model)}
                         disabled={props.isDisabled}
-                        group={{
-                            options: [...modelOptions, { value: CUSTOM_MODEL, label: t('newSession.model.custom') }],
-                            value: showCustom ? CUSTOM_MODEL : props.model,
-                            onChange: (value) => {
-                                if (value === CUSTOM_MODEL) {
-                                    setCustomOpen(true)
-                                    return
-                                }
-                                setCustomOpen(false)
-                                props.onCustomModelChange('')
-                                props.onModelChange(value)
+                        options={[...modelOptions, { value: CUSTOM_MODEL, label: t('newSession.model.custom') }]}
+                        value={showCustom ? CUSTOM_MODEL : props.model}
+                        onChange={(value) => {
+                            if (value === CUSTOM_MODEL) {
+                                setCustomOpen(true)
+                                return
                             }
+                            setCustomOpen(false)
+                            props.onCustomModelChange('')
+                            props.onModelChange(value)
                         }}
                     />
                 ) : null}
                 {thinkOptions.length > 0 ? (
-                    <SettingChip
+                    <SettingsSelectRow
                         title={t('newSession.think')}
-                        valueLabel={t('composer.chip.think', { value: labelOf(thinkOptions, props.thinkEffort) })}
+                        valueLabel={labelOf(thinkOptions, props.thinkEffort)}
                         disabled={props.isDisabled}
-                        group={{ options: thinkOptions, value: props.thinkEffort, onChange: props.onThinkEffortChange }}
+                        options={thinkOptions}
+                        value={props.thinkEffort}
+                        onChange={props.onThinkEffortChange}
                     />
                 ) : null}
                 {props.agent === 'codex' ? (
-                    <SettingChip
+                    <SettingsSelectRow
                         title={t('newSession.serviceTier')}
-                        valueLabel={t('composer.chip.tier', { value: labelOf(tierOptions, props.serviceTier) })}
+                        valueLabel={labelOf(tierOptions, props.serviceTier)}
                         disabled={props.isDisabled}
-                        group={{ options: tierOptions, value: props.serviceTier, onChange: props.onServiceTierChange }}
+                        options={tierOptions}
+                        value={props.serviceTier}
+                        onChange={props.onServiceTierChange}
                     />
                 ) : null}
-                <ToggleChip
+                <SettingsSwitchRow
+                    title={t('newSession.yolo')}
+                    subtitle={t('newSession.yolo.title')}
                     label={t('newSession.yolo')}
-                    title={`${t('newSession.yolo.title')} · ${t('newSession.yolo.desc')}`}
-                    pressed={props.yoloMode}
+                    checked={props.yoloMode}
                     disabled={props.isDisabled}
-                    onToggle={() => props.onYoloChange(!props.yoloMode)}
+                    onCheckedChange={props.onYoloChange}
                 />
-            </div>
+            </ListGroup>
             {showCustom ? (
                 <TextField
                     type="text"
