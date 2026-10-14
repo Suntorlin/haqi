@@ -71,6 +71,22 @@ function getInitialPath(): string {
     return sessionId ? `/sessions/${sessionId}` : '/sessions'
 }
 
+// A tab left open across a deploy still asks for chunk files the new build no longer has. Reload once
+// to pick up the new build instead of leaving a lazy page blank.
+window.addEventListener('vite:preloadError', (event) => {
+    try {
+        const key = 'hapi:preload-reload'
+        if (sessionStorage.getItem(key) === '1') {
+            return
+        }
+        sessionStorage.setItem(key, '1')
+        event.preventDefault()
+        window.location.reload()
+    } catch {
+        // storage blocked: leave the error to surface
+    }
+})
+
 async function bootstrap() {
     initializeFontScale()
 
