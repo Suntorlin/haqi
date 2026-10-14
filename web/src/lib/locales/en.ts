@@ -757,6 +757,8 @@ export default {
   'mobile.turn.waitingApproval': 'Waiting for your approval',
   'mobile.turn.done': 'Finished {n} steps',
   'mobile.turn.noReply': 'No text reply',
+  'mobile.turn.report': 'Report',
+  'mobile.turn.reportN': 'Report {n}',
   'mobile.turn.copy': 'Copy reply',
   'mobile.turn.copied': 'Copied',
   'mobile.turn.hideProcess': 'Hide process',

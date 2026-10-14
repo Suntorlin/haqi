@@ -20,7 +20,10 @@ import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_24_CLASS, HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { extractReportLinks } from '@/components/AssistantChat/reportLinks'
+import { FileIcon } from '@/components/mobile/icons'
+import { useOpenInPreview } from '@/lib/preview-link'
 
 export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
@@ -270,6 +273,18 @@ export function SocialAssistantMessage() {
     })
     const separatorAt = useTimeSeparatorAt(messageId)
     const layout = useMemo(() => computeTurnLayout(content), [content])
+    const reportLinks = useMemo(() => extractReportLinks(content), [content])
+    const openInPreview = useOpenInPreview()
+    const openReport = (url: string) => {
+        // Built-in preview (side panel / preview page); fall back to a new tab when it is off or fails.
+        if (!openInPreview) {
+            window.open(url, '_blank', 'noreferrer')
+            return
+        }
+        void openInPreview(url).then((opened) => {
+            if (!opened) window.open(url, '_blank', 'noreferrer')
+        })
+    }
     const [expanded, setExpanded] = useState(false)
     const [processLimit, setProcessLimit] = useState(PROCESS_PAGE_SIZE)
     const rootRef = useRef<HTMLDivElement | null>(null)
@@ -410,8 +425,8 @@ export function SocialAssistantMessage() {
                             </div>
                         )}
 
-                        {hasProcess || (!isMobileLayout && answerText) ? (
-                            <div className="flex items-center gap-3 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                        {hasProcess || reportLinks.length > 0 || (!isMobileLayout && answerText) ? (
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-[12px] text-[var(--social-fg-subtle)]">
                                 {hasProcess ? (
                                     <button
                                         ref={footerRef}
@@ -424,6 +439,18 @@ export function SocialAssistantMessage() {
                                         <ChevronIcon className={cn('h-3 w-3 transition-transform', expanded ? '-rotate-90' : 'rotate-90')} />
                                     </button>
                                 ) : null}
+                                {reportLinks.map((url, index) => (
+                                    <button
+                                        key={url}
+                                        type="button"
+                                        title={url}
+                                        onClick={() => openReport(url)}
+                                        className={cn('flex h-6 items-center gap-1 rounded-full border border-[var(--social-border)] px-2.5 text-[var(--social-fg-muted)] transition-colors hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)] [-webkit-tap-highlight-color:transparent]', HIT_AREA_24_CLASS)}
+                                    >
+                                        <FileIcon className="h-3 w-3" />
+                                        {reportLinks.length > 1 ? t('mobile.turn.reportN', { n: index + 1 }) : t('mobile.turn.report')}
+                                    </button>
+                                ))}
                                 {!isMobileLayout && answerText && !expanded ? (
                                     <button
                                         type="button"

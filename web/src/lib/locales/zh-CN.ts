@@ -759,6 +759,8 @@ export default {
   'mobile.turn.waitingApproval': '等你批准',
   'mobile.turn.done': '已完成 {n} 步',
   'mobile.turn.noReply': '没有文字回复',
+  'mobile.turn.report': '报告',
+  'mobile.turn.reportN': '报告 {n}',
   'mobile.turn.copy': '复制结论',
   'mobile.turn.copied': '已复制',
   'mobile.turn.hideProcess': '收起过程',
