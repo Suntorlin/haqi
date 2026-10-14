@@ -1,268 +1,156 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState } from 'react'
+import { BottomSheet } from '@/components/mobile/BottomSheet'
+import { MoreHorizontalIcon } from '@/components/mobile/icons'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { SubPageHeader } from '@/components/mobile/SubPageHeader'
+import { Badge } from '@/components/ui/badge'
+import { ChoiceChips, FieldHint, SegmentedControl } from '@/components/ui/FormControls'
 import { IconButton } from '@/components/ui/IconButton'
+import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-import { cn } from '@/lib/utils'
-import { CANDIDATES, MEMORIES, TODAY } from './mock'
-import { DecisionDetail, FeedList, PipelineFunnel, type Override } from './FeedView'
-import { GraphView } from './GraphView'
-import { LIBRARY_NAV, LibraryBoard, MemoryDetail, maturityCount, type LibraryScope } from './LibraryView'
-import { ReviewView } from './ReviewView'
-import { TrainingView } from './TrainingView'
-import { LayerDot } from './ui'
+import { LevelIcon, MemoryDetail } from './MemoryDetail'
+import { MemoryGraph } from './MemoryGraph'
+import { findMemory, GLOBAL_SCOPE, LEVEL_LABEL, MEMORIES, RECENT, SKIPPED_TODAY, STATS, type Level, type Memory } from './mock'
 
-type View = 'feed' | 'review' | 'library' | 'graph' | 'train'
+type Tab = 'recent' | Level | 'graph'
+type Mode = 'off' | 'record' | 'auto'
 
-const VIEWS: Array<{ key: View; label: string; hint: string }> = [
-    { key: 'feed', label: '动态', hint: '每条记忆从采集到写入的全过程' },
-    { key: 'review', label: '待确认', hint: '冲突、升级提议、拿不准的判断、每周复核' },
-    { key: 'library', label: '记忆库', hint: '按层和成熟度管理每一条记忆' },
-    { key: 'graph', label: '图谱', hint: '事实如何长成经验和原则' },
-    { key: 'train', label: '训练', hint: '校准 Jev、改判断标准、看健康信号' }
-]
-
-const PENDING_COUNT = TODAY.pending
-
-function scopeFromParam(value: string | null): LibraryScope {
-    if (value === 'haqi' || value === 'agent-engine' || value === 'shop-studio') return { layer: 'project', project: value }
-    if (value === 'task') return { layer: 'task' }
-    return { layer: 'user' }
+const MODE_LABEL: Record<Mode, string> = { off: '已关闭', record: '只记录', auto: '自动' }
+const MODE_HINT: Record<Mode, string> = {
+    off: '不采集新记忆。',
+    record: 'Jev 判断后列在这里，你可以改；还不注入会话。',
+    auto: 'Jev 有把握的直接生效；原则仍要你确认。'
 }
 
-function sameScope(a: LibraryScope, b: LibraryScope): boolean {
-    return a.layer === b.layer && a.project === b.project
+function scopesOf(list: Memory[]): string[] {
+    const projects = Array.from(new Set(list.map((m) => m.scope).filter((s) => s !== GLOBAL_SCOPE)))
+    return list.some((m) => m.scope === GLOBAL_SCOPE) ? [GLOBAL_SCOPE, ...projects] : projects
 }
 
-/** Prototype memory page (mock data): capture feed, Jev decisions you can override, library, graph, training. */
+/** Prototype memory page (mock data): recent captures with Jev's call, the three levels, a small graph. */
 export function MemoryPage() {
     const isMobile = useIsMobileLayout()
     const params = useMemo(() => new URLSearchParams(window.location.search), [])
-    const [view, setView] = useState<View>((params.get('view') as View | null) ?? 'feed')
-    const [candidateId, setCandidateId] = useState<string | null>(params.get('c') ?? (isMobile ? null : 'c2'))
-    const [memoryId, setMemoryId] = useState<string | null>(params.get('m'))
-    const [graphNode, setGraphNode] = useState<string | null>(params.get('g'))
-    const [scope, setScope] = useState<LibraryScope>(scopeFromParam(params.get('scope')))
-    const [overrides, setOverrides] = useState<Record<string, Override>>(() => {
-        const initial: Record<string, Override> = {}
-        if (params.get('o') === '1') {
-            initial.c2 = { layer: 'project', section: '架构', maturity: 'principle', text: '记忆按成熟度分三层：事实 → 经验/推断 → 原则/偏好；原则需要确认后才注入。', addToTraining: true }
-        }
-        return initial
-    })
+    const [tab, setTab] = useState<Tab>((params.get('tab') as Tab | null) ?? 'recent')
+    const [openId, setOpenId] = useState<string | null>(params.get('m'))
+    const [settingsOpen, setSettingsOpen] = useState(params.get('settings') === '1')
+    const [mode, setMode] = useState<Mode>('record')
 
-    const candidate = candidateId ? CANDIDATES.find((c) => c.id === candidateId) ?? null : null
-    const memory = memoryId ? MEMORIES.find((m) => m.id === memoryId) ?? null : null
-    const openMemory = (id: string) => {
-        const item = MEMORIES.find((m) => m.id === id)
-        if (item && view === 'library') setScope(item.layer === 'project' ? { layer: 'project', project: item.project } : { layer: item.layer })
-        setMemoryId(id)
-    }
+    const pending = MEMORIES.filter((m) => m.status === 'pending')
+    const open = openId ? findMemory(openId) : undefined
+    const count = (level: Level) => MEMORIES.filter((m) => m.level === level && m.status === 'active').length
 
-    const content = (mobile: boolean): ReactNode => {
-        switch (view) {
-            case 'feed':
-                return (
-                    <div className="space-y-4">
-                        <PipelineFunnel compact={mobile} />
-                        <FeedList candidates={CANDIDATES} selectedId={candidateId} overrides={overrides} onOpen={setCandidateId} compact={mobile} />
-                    </div>
-                )
-            case 'review':
-                return <ReviewView mobile={mobile} onOpenMemory={openMemory} />
-            case 'library':
-                return (
-                    <div className="space-y-4">
-                        {mobile ? (
-                            <div className="flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none]">
-                                {LIBRARY_NAV.map((entry) => (
-                                    <button
-                                        key={entry.label}
-                                        type="button"
-                                        onClick={() => setScope(entry.scope)}
-                                        className={cn('flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[13px]', sameScope(scope, entry.scope) ? 'border-[var(--social-primary)] bg-[var(--social-primary)] font-semibold text-[var(--social-primary-fg)]' : 'border-[var(--social-border)] text-[var(--social-fg)]')}
-                                    >
-                                        <LayerDot layer={entry.scope.layer} />
-                                        {entry.label}
-                                    </button>
-                                ))}
-                            </div>
-                        ) : null}
-                        <LibraryBoard scope={scope} selectedId={memoryId} onOpen={openMemory} mobile={mobile} />
-                    </div>
-                )
-            case 'graph':
-                return <GraphView selectedId={graphNode} onSelect={setGraphNode} onOpenMemory={(id) => { setView('library'); openMemory(id) }} mobile={mobile} />
-            case 'train':
-                return <TrainingView mobile={mobile} />
-        }
-    }
+    const recent = (
+        <div className="space-y-6">
+            <ListGroup title={`等你确认 · ${pending.length}`}>
+                {pending.map((m) => (
+                    <ListRow key={m.id} wrap icon={<LevelIcon level={m.level} />} title={m.text} subtitle={m.reason} onClick={() => setOpenId(m.id)} />
+                ))}
+            </ListGroup>
+            <ListGroup title="最近">
+                {RECENT.filter(({ id }) => findMemory(id)?.status !== 'pending').map(({ id, action }) => {
+                    const m = findMemory(id)
+                    if (!m) return null
+                    return (
+                        <ListRow
+                            key={id}
+                            wrap
+                            icon={<LevelIcon level={m.level} />}
+                            title={m.text}
+                            subtitle={`${action} · ${LEVEL_LABEL[m.level]} · ${m.scope} · ${m.at}`}
+                            onClick={() => setOpenId(id)}
+                        />
+                    )
+                })}
+                <ListRow wrap title={`今天没记 ${SKIPPED_TODAY.total} 条`} subtitle={SKIPPED_TODAY.detail} />
+            </ListGroup>
+        </div>
+    )
 
-    const detail = (): { title: string; subtitle?: string; body: ReactNode; close: () => void } | null => {
-        if (view === 'feed' && candidate) {
-            return {
-                title: 'Jev 决策',
-                subtitle: `${candidate.at} · ${candidate.session}`,
-                body: (
-                    <DecisionDetail
-                        candidate={candidate}
-                        override={overrides[candidate.id] ?? null}
-                        onOverride={(next) => setOverrides((current) => {
-                            const copy = { ...current }
-                            if (next) copy[candidate.id] = next
-                            else delete copy[candidate.id]
-                            return copy
-                        })}
-                    />
-                ),
-                close: () => setCandidateId(null)
-            }
-        }
-        if ((view === 'library' || view === 'review') && memory) {
-            return {
-                title: `记忆 ${memory.id}`,
-                subtitle: memory.layer === 'project' ? `项目层 · ${memory.project}` : memory.layer === 'user' ? '用户层' : '任务层',
-                body: <MemoryDetail key={memory.id} item={memory} onOpenMemory={openMemory} />,
-                close: () => setMemoryId(null)
-            }
-        }
-        return null
-    }
-
-    const panel = detail()
-    const viewMeta = VIEWS.find((v) => v.key === view) ?? VIEWS[0]
-
-    if (isMobile) {
-        if (panel) {
-            return (
-                <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
-                    <SubPageHeader title={panel.title} subtitle={panel.subtitle} onBack={panel.close} />
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-8 pt-4">{panel.body}</div>
-                </div>
-            )
-        }
+    const levelList = (level: Level) => {
+        const list = MEMORIES.filter((m) => m.level === level)
         return (
-            <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
-                <MobilePageHeader title="记忆" subtitle={`影子模式 · 今天采集 ${TODAY.captured} 条`} actions={<ModeBadge />} />
-                <div className="flex shrink-0 gap-2 overflow-x-auto px-4 pb-2.5 pt-1 [scrollbar-width:none]">
-                    {VIEWS.map((item) => (
-                        <button
-                            key={item.key}
-                            type="button"
-                            onClick={() => setView(item.key)}
-                            className={cn('flex h-8 shrink-0 items-center gap-1 rounded-full border px-3.5 text-[13px]', view === item.key ? 'border-[var(--social-primary)] bg-[var(--social-primary)] font-semibold text-[var(--social-primary-fg)]' : 'border-[var(--social-border)] text-[var(--social-fg)]')}
-                        >
-                            {item.label}
-                            {item.key === 'review' ? <span className={cn('rounded-full px-1.5 text-[11px] leading-4', view === item.key ? 'bg-[var(--social-primary-fg)] text-[var(--social-primary)]' : 'bg-amber-500 text-white')}>{PENDING_COUNT}</span> : null}
-                        </button>
-                    ))}
-                </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6 pt-1">{content(true)}</div>
-                <MobileTabBar active="memory" />
+            <div className="space-y-6">
+                {scopesOf(list).map((scope) => (
+                    <ListGroup key={scope} title={scope}>
+                        {list.filter((m) => m.scope === scope).map((m) => (
+                            <ListRow
+                                key={m.id}
+                                wrap
+                                title={m.text}
+                                subtitle={level === 'fact' ? `${m.at} · ${m.source}` : `${m.evidence?.length ? `依据 ${m.evidence.length} 条 · ` : ''}${m.source}`}
+                                trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : undefined}
+                                onClick={() => setOpenId(m.id)}
+                            />
+                        ))}
+                    </ListGroup>
+                ))}
             </div>
         )
     }
 
-    return (
-        <div className="flex h-full min-h-0">
-            <aside className="flex h-full w-[288px] shrink-0 flex-col border-r border-[var(--social-border)] bg-[var(--social-surface)]">
-                <MobilePageHeader title="记忆" subtitle={`影子模式 · 今天采集 ${TODAY.captured} 条`} actions={<ModeBadge />} />
-                <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
-                    {VIEWS.filter((item) => item.key !== 'library').map((item) => (
-                        <NavRow key={item.key} active={view === item.key} onClick={() => setView(item.key)} label={item.label} hint={item.hint} badge={item.key === 'review' ? PENDING_COUNT : item.key === 'feed' ? TODAY.captured : undefined} warn={item.key === 'review'} />
-                    ))}
-                    <div className="px-3 pb-1.5 pt-4 text-[11.5px] font-semibold text-[var(--social-fg-muted)]">记忆库</div>
-                    {LIBRARY_NAV.map((entry) => (
-                        <NavRow
-                            key={entry.label}
-                            active={view === 'library' && sameScope(scope, entry.scope)}
-                            onClick={() => { setView('library'); setScope(entry.scope); setMemoryId(null) }}
-                            label={entry.label}
-                            icon={<LayerDot layer={entry.scope.layer} className="h-2.5 w-2.5" />}
-                            badge={entry.count}
-                        />
-                    ))}
-                    <div className="mx-3 mt-4 rounded-2xl bg-[var(--social-muted)] px-3 py-3">
-                        <div className="text-[11.5px] font-semibold text-[var(--social-fg)]">成熟度分布</div>
-                        <div className="mt-2 space-y-1.5">
-                            {([
-                                ['principle', '原则 · 偏好', '始终注入'],
-                                ['experience', '经验 · 推断', '按项目注入'],
-                                ['fact', '事实', '只做证据']
-                            ] as const).map(([key, label, hint]) => (
-                                <div key={key} className="flex items-center gap-2 text-[12px]">
-                                    <span className="w-[76px] text-[var(--social-fg)]">{label}</span>
-                                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--social-surface)]">
-                                        <div className="h-full rounded-full bg-[var(--social-fg)]" style={{ width: `${(maturityCount(key) / MEMORIES.length) * 100 * 2}%`, opacity: key === 'principle' ? 1 : key === 'experience' ? 0.6 : 0.3 }} />
-                                    </div>
-                                    <span className="w-5 text-right tabular-nums text-[var(--social-fg-muted)]">{maturityCount(key)}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-2 text-[11px] leading-snug text-[var(--social-fg-muted)]">原则需要你确认；事实攒够了会被归纳成经验。</div>
-                    </div>
-                </nav>
-            </aside>
-            <main className="flex min-w-0 flex-1 flex-col bg-[var(--social-surface)]">
-                <header className="flex h-[60px] shrink-0 items-center gap-3 border-b border-[var(--social-border)] px-6">
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate text-[15px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]">
-                            {view === 'library' ? `记忆库 · ${LIBRARY_NAV.find((entry) => sameScope(entry.scope, scope))?.label ?? ''}` : viewMeta.label}
-                        </div>
-                        <div className="mt-[3px] truncate text-[12px] text-[var(--social-fg-muted)]">{viewMeta.hint}</div>
-                    </div>
-                    <span className="hidden rounded-full border border-[var(--social-border)] px-3 py-1 text-[12px] text-[var(--social-fg-muted)] xl:inline">原型 · 假数据</span>
-                </header>
-                <div className="flex min-h-0 flex-1">
-                    <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-5">{content(false)}</div>
-                    {panel ? (
-                        <aside className="flex h-full w-[440px] shrink-0 flex-col border-l border-[var(--social-border)] bg-[var(--social-surface)]">
-                            <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-[var(--social-border)] pl-5 pr-3">
-                                <div className="min-w-0 flex-1">
-                                    <div className="truncate text-[14px] font-semibold text-[var(--social-fg)]">{panel.title}</div>
-                                    {panel.subtitle ? <div className="truncate text-[11.5px] text-[var(--social-fg-muted)]">{panel.subtitle}</div> : null}
-                                </div>
-                                <IconButton label="关闭" size="sm" onClick={panel.close}>
-                                    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-                                </IconButton>
+    const body = tab === 'recent' ? recent : tab === 'graph' ? <MemoryGraph onOpen={setOpenId} /> : levelList(tab)
+
+    const tabs: Array<{ value: Tab; label: string }> = [
+        { value: 'recent', label: '最近' },
+        { value: 'principle', label: `原则 ${count('principle')}` },
+        { value: 'experience', label: `经验 ${count('experience')}` },
+        { value: 'fact', label: `事实 ${count('fact')}` },
+        { value: 'graph', label: '图谱' }
+    ]
+
+    const subtitle = `今天新记 ${STATS.addedToday} 条 · ${MODE_LABEL[mode]}`
+    const settingsButton = (
+        <IconButton label="记忆设置" onClick={() => setSettingsOpen(true)}>
+            <MoreHorizontalIcon className="h-6 w-6" />
+        </IconButton>
+    )
+
+    const page = (
+        <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
+            {isMobile ? (
+                <MobilePageHeader title="记忆" subtitle={subtitle} actions={settingsButton} />
+            ) : null}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+                <div className={tab === 'graph' && !isMobile ? 'mx-auto max-w-[1080px] px-4 pb-8' : 'mx-auto max-w-content px-4 pb-8'}>
+                    {isMobile ? null : (
+                        <div className="flex items-center gap-2 pb-2 pt-6">
+                            <div className="min-w-0 flex-1">
+                                <h1 className="text-[20px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">记忆</h1>
+                                <p className="mt-2 text-[12px] leading-none text-[var(--social-fg-muted)]">{subtitle}</p>
                             </div>
-                            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{panel.body}</div>
-                        </aside>
-                    ) : null}
+                            {settingsButton}
+                        </div>
+                    )}
+                    <ChoiceChips label="视图" value={tab} options={tabs} onChange={setTab} className="sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]" />
+                    <div className="pt-3">{body}</div>
                 </div>
-            </main>
+            </div>
+            {isMobile ? <MobileTabBar active="memory" /> : null}
+
+            <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open ? `${LEVEL_LABEL[open.level]} · ${open.scope}` : ''}>
+                {open ? <MemoryDetail key={open.id} memory={open} onOpen={setOpenId} onDone={() => setOpenId(null)} /> : null}
+            </BottomSheet>
+
+            <BottomSheet open={settingsOpen} onOpenChange={setSettingsOpen} title="记忆设置">
+                <div className="space-y-5 px-4 pb-6">
+                    <div className="space-y-2">
+                        <SegmentedControl
+                            label="模式"
+                            value={mode}
+                            options={[{ value: 'off', label: '关' }, { value: 'record', label: '只记录' }, { value: 'auto', label: '自动' }]}
+                            onChange={setMode}
+                        />
+                        <FieldHint>{MODE_HINT[mode]}</FieldHint>
+                    </div>
+                    <ListGroup>
+                        <ListRow title="Jev 判得准不准" trailing={`最近 ${STATS.jevRecent} 次，你改了 ${STATS.corrected} 次`} />
+                        <ListRow title="发给 Jev 的内容" trailing="今天 38 条" onClick={() => {}} />
+                        <ListRow title="导入现有记忆" subtitle="MEMORY.md、各账号的 Claude 记忆" wrap onClick={() => {}} />
+                    </ListGroup>
+                </div>
+            </BottomSheet>
         </div>
     )
-}
 
-function ModeBadge() {
-    return (
-        <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-[var(--social-border)] px-2.5 text-[12px] font-medium text-[var(--social-fg)]">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-            影子
-        </span>
-    )
-}
-
-function NavRow(props: { active: boolean; onClick: () => void; label: string; hint?: string; badge?: number; icon?: ReactNode; warn?: boolean }) {
-    return (
-        <button
-            type="button"
-            onClick={props.onClick}
-            aria-current={props.active ? 'page' : undefined}
-            className={cn(
-                'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors',
-                props.active ? 'bg-[var(--social-muted)]' : 'hover:bg-[var(--social-hover)]'
-            )}
-        >
-            {props.icon}
-            <div className="min-w-0 flex-1">
-                <div className={cn('truncate text-[14px]', props.active ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]')}>{props.label}</div>
-                {props.hint ? <div className="truncate text-[11.5px] text-[var(--social-fg-muted)]">{props.hint}</div> : null}
-            </div>
-            {props.badge !== undefined ? (
-                <span className={cn('shrink-0 rounded-full px-1.5 text-[11px] font-semibold tabular-nums leading-[18px]', props.warn ? 'bg-amber-500 text-white' : 'text-[var(--social-fg-muted)]')}>{props.badge}</span>
-            ) : null}
-        </button>
-    )
+    return page
 }
