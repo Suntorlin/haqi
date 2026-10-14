@@ -163,7 +163,7 @@ export default {
   'newSession.yolo.desc': 'Uses dangerous agent flags when spawning.',
   'newSession.project': 'Project',
   'newSession.otherFolder': 'Another folder…',
-  'newSession.customize': 'Customize',
+  'newSession.moreHint': 'Session type, preview URL',
   'newSession.startIn': 'Start in {name}',
   'newSession.create': 'Create',
   'newSession.creating': 'Creating…',

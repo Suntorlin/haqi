@@ -165,7 +165,7 @@ export default {
   'newSession.yolo.desc': '启动时使用危险的代理标志。',
   'newSession.project': '项目',
   'newSession.otherFolder': '其他目录…',
-  'newSession.customize': '自定义',
+  'newSession.moreHint': '会话类型、预览地址',
   'newSession.startIn': '在 {name} 中开始',
   'newSession.create': '创建',
   'newSession.creating': '创建中…',

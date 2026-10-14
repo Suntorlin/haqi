@@ -139,4 +139,11 @@ describe('NewSession preferences', () => {
             previewUrl: 'http://localhost:3000'
         })
     })
+    it('remembers the last Claude account and ignores malformed ids', () => {
+        saveLastSessionConfig({ agent: 'claude', claudeAccountId: 'acct-2' })
+        expect(loadLastSessionConfig()?.claudeAccountId).toBe('acct-2')
+
+        localStorage.setItem('hapi:newSession:lastConfig', JSON.stringify({ agent: 'claude', claudeAccountId: 'Bad Id!' }))
+        expect(loadLastSessionConfig()?.claudeAccountId).toBeUndefined()
+    })
 })
