@@ -10,6 +10,7 @@ import {
     type PointerEvent as ReactPointerEvent,
     type TouchEvent as ReactTouchEvent
 } from 'react'
+import { useUnreadSessions } from '@/lib/unread-sessions'
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -410,6 +411,7 @@ function SessionItem(props: {
     const { t } = useTranslation()
     const { session: s, onSelect, showPath = true, api, availableTags = [], selected = false, density, forceOffline = false, variant = 'default', sortable = true } = props
     const isFeed = variant === 'feed'
+    const unreadSessions = useUnreadSessions()
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -532,6 +534,7 @@ function SessionItem(props: {
                             ring={effectiveActive && s.pendingRequestsCount > 0 ? 'pending' : effectiveThinking ? 'live' : null}
                             muted={!effectiveActive}
                             badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
+                            unread={unreadSessions.has(s.id)}
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">

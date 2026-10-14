@@ -594,7 +594,9 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
             title: z.string(),
             body: z.string(),
             sessionId: z.string(),
-            url: z.string()
+            url: z.string(),
+            /** `ready` is shown as an unread dot on the session avatar, not as a popup. */
+            kind: z.enum(['ready', 'permission']).optional()
         })
     }),
     SessionEventBaseSchema.extend({

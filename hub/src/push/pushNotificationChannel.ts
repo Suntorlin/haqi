@@ -43,7 +43,8 @@ export class PushNotificationChannel implements NotificationChannel {
                     title: payload.title,
                     body: payload.body,
                     sessionId: session.id,
-                    url
+                    url,
+                    kind: 'permission'
                 }
             })
             if (delivered > 0) {
@@ -81,7 +82,8 @@ export class PushNotificationChannel implements NotificationChannel {
                     title: payload.title,
                     body: payload.body,
                     sessionId: session.id,
-                    url
+                    url,
+                    kind: 'ready'
                 }
             })
             if (delivered > 0) {

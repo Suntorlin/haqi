@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react'
-import { CountBadge } from '@/components/ui/badge'
+import { CountBadge, DotBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
 type SessionLike = {
@@ -121,6 +121,8 @@ export function SessionAvatar(props: {
     size: number
     ring?: AvatarRing
     badgeCount?: number
+    /** Finished while you were elsewhere: a small dot (a pending-approval counter takes its place). */
+    unread?: boolean
     muted?: boolean
     className?: string
 }) {
@@ -147,6 +149,7 @@ export function SessionAvatar(props: {
                 style={{ left: inset, top: inset }}
             />
             <CountBadge count={badgeCount} className="absolute -right-1 -top-1" />
+            {props.unread && badgeCount === 0 ? <DotBadge className="absolute -right-0.5 -top-0.5" /> : null}
         </span>
     )
 }
