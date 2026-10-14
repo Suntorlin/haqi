@@ -177,8 +177,8 @@ html {
     font-size: calc(100% * var(--app-font-scale, 1));
 }
 
-/* iOS: the app root tracks the visual viewport (see lib/ios-viewport.ts). */
-html.ios-vv #root {
+/* iOS keyboard: while it is up the root follows the visual viewport (see lib/ios-viewport.ts). */
+html.ios-vv[data-keyboard='open'] #root {
     position: fixed;
     left: 0;
     right: 0;
@@ -213,6 +213,15 @@ body {
 
 #root {
     height: 100%;
+}
+
+/* Home-screen apps on iOS: dvh stops 62px short of the screen (WebKit bug 254868); vh is the real height. */
+@media (display-mode: standalone) {
+    html,
+    body {
+        height: 100vh;
+        height: var(--tg-viewport-stable-height, 100vh);
+    }
 }
 
 @media (hover: hover) and (pointer: fine) {
