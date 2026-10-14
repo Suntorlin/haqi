@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -95,7 +96,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const isMobileLayout = useIsMobileLayout()
     const { isOpen, onClose, onTags } = props
     const [tagsOpen, setTagsOpen] = useState(false)
-    const [submenuSide, setSubmenuSide] = useState<'left' | 'right'>('right')
+    const [submenuPos, setSubmenuPos] = useState<{ top: number; left?: number; right?: number } | null>(null)
     const tagsWrapperRef = useRef<HTMLDivElement | null>(null)
     const closeTimer = useRef<number | null>(null)
 
@@ -114,10 +115,18 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     }, [isOpen, cancelClose])
     useEffect(() => cancelClose, [cancelClose])
 
+    // The flyout is portalled to the body: the menu itself scrolls when tall, which would clip a child
+    // positioned outside it. Placed beside the "tags" row, flipped to the left near the window edge.
     useLayoutEffect(() => {
-        if (!tagsOpen || !tagsWrapperRef.current) return
+        if (!tagsOpen || !tagsWrapperRef.current) {
+            setSubmenuPos(null)
+            return
+        }
         const rect = tagsWrapperRef.current.getBoundingClientRect()
-        setSubmenuSide(rect.right + 236 > window.innerWidth ? 'left' : 'right')
+        const top = Math.max(8, Math.min(rect.top - 6, window.innerHeight - 320))
+        setSubmenuPos(rect.right + 236 > window.innerWidth
+            ? { top, right: window.innerWidth - rect.left + 8 }
+            : { top, left: rect.right + 8 })
     }, [tagsOpen])
 
     const run = (action?: () => void) => () => {
@@ -151,9 +160,8 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                 onFocus={() => setTagsOpen(true)}
                 trailing={<ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />}
             />
-            {tagsOpen ? (
-                // pl/pr bridge keeps the pointer inside the wrapper while crossing the gap
-                <div className={cn('absolute -top-1.5 z-10', submenuSide === 'right' ? 'left-full pl-2' : 'right-full pr-2')}>
+            {tagsOpen && submenuPos ? createPortal(
+                <div data-context-submenu className="fixed z-[60]" style={submenuPos}>
                     <TagsSubmenu
                         tags={props.tags ?? []}
                         availableTags={props.availableTags ?? []}
@@ -162,7 +170,8 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                         onEdit={onTags}
                         onClose={onClose}
                     />
-                </div>
+                </div>,
+                document.body
             ) : null}
         </div>
     )) : null
