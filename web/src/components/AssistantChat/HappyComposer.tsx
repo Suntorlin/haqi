@@ -942,8 +942,9 @@ export function HappyComposer(props: {
     const handleKeyDown = useCallback((e: ReactKeyboardEvent<HTMLTextAreaElement>) => {
         const key = e.key
 
-        // Avoid intercepting IME composition keystrokes (Enter, arrows, etc.)
-        if (e.nativeEvent.isComposing) {
+        // Avoid intercepting IME composition keystrokes (Enter, arrows, etc.). Safari ends the
+        // composition before the confirming Enter's keydown, so also treat keyCode 229 as composing.
+        if (e.nativeEvent.isComposing || e.keyCode === 229) {
             return
         }
 
@@ -995,7 +996,8 @@ export function HappyComposer(props: {
             return
         }
 
-        if (key === 'Enter' && !e.shiftKey && enterSends && queueSendEnabled && canSend) {
+        // Soft keyboards have no Shift, so on touch Return must stay a newline.
+        if (key === 'Enter' && !e.shiftKey && enterSends && queueSendEnabled && canSend && !isTouch) {
             e.preventDefault()
             void sendComposerNow()
             return
@@ -1029,7 +1031,8 @@ export function HappyComposer(props: {
         permissionMode,
         permissionModes,
         haptic,
-        enterBehavior
+        enterBehavior,
+        isTouch
     ])
 
     useEffect(() => {
@@ -1325,7 +1328,9 @@ export function HappyComposer(props: {
                                     ref={textareaRef}
                                     autoFocus={false}
                                     placeholder={showContinueHint ? t('misc.typeMessage') : t('mobile.composer.placeholder')}
-                                    disabled={controlsDisabled || isSendButtonLoading}
+                                    disabled={controlsDisabled}
+                                    // readOnly, not disabled: a disabled textarea loses focus, which closes the phone keyboard after every send.
+                                    readOnly={isSendButtonLoading}
                                     maxRows={6}
                                     submitOnEnter={!isTouch && enterBehavior === 'send'}
                                     cancelOnEscape={false}
@@ -1414,7 +1419,9 @@ export function HappyComposer(props: {
                                 ref={textareaRef}
                                 autoFocus={!controlsDisabled && !isTouch}
                                 placeholder={showContinueHint ? t('misc.typeMessage') : t('mobile.composer.placeholder')}
-                                disabled={controlsDisabled || isSendButtonLoading}
+                                disabled={controlsDisabled}
+                                    // readOnly, not disabled: a disabled textarea loses focus, which closes the phone keyboard after every send.
+                                    readOnly={isSendButtonLoading}
                                 maxRows={10}
                                 submitOnEnter={!isTouch && enterBehavior === 'send'}
                                 cancelOnEscape={false}

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { readSessionScrollSnapshot, writeSessionScrollSnapshot } from './sessionScrollState'
+import { readSessionScrollSnapshot, resetSessionScrollStateCache, writeSessionScrollSnapshot } from './sessionScrollState'
 
 describe('sessionScrollState', () => {
     beforeEach(() => {
         window.localStorage.clear()
+        resetSessionScrollStateCache()
     })
 
     it('persists dom scroll snapshot by session + view mode', () => {

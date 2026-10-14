@@ -31,6 +31,8 @@ const RECONNECT_BASE_DELAY_MS = 1_000
 const RECONNECT_MAX_DELAY_MS = 30_000
 const RECONNECT_JITTER_MS = 500
 const INVALIDATION_BATCH_MS = 16
+// Brief mode refetches /turns per session; a streaming reply used to trigger one request per message.
+const TURNS_REFETCH_THROTTLE_MS = 1000
 
 type SessionPatch = Partial<Pick<Session, 'active' | 'thinking' | 'activeAt' | 'updatedAt' | 'permissionMode' | 'modelMode'>>
 
@@ -179,6 +181,7 @@ export function useSSE(options: {
     const onToastRef = useRef(options.onToast)
     const eventSourceRef = useRef<EventSource | null>(null)
     const invalidationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const turnsTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
     const pendingInvalidationsRef = useRef<{
         sessions: boolean
         machines: boolean
@@ -227,6 +230,10 @@ export function useSSE(options: {
             pendingInvalidationsRef.current.sessions = false
             pendingInvalidationsRef.current.machines = false
             pendingInvalidationsRef.current.sessionIds.clear()
+            for (const timer of turnsTimersRef.current.values()) {
+                clearTimeout(timer)
+            }
+            turnsTimersRef.current.clear()
             if (reconnectTimerRef.current) {
                 clearTimeout(reconnectTimerRef.current)
                 reconnectTimerRef.current = null
@@ -486,7 +493,13 @@ export function useSSE(options: {
 
             if (event.type === 'message-received') {
                 ingestIncomingMessages(event.sessionId, [event.message])
-                void queryClient.invalidateQueries({ queryKey: queryKeys.turns(event.sessionId) })
+                if (!turnsTimersRef.current.has(event.sessionId)) {
+                    const turnsSessionId = event.sessionId
+                    turnsTimersRef.current.set(turnsSessionId, setTimeout(() => {
+                        turnsTimersRef.current.delete(turnsSessionId)
+                        void queryClient.invalidateQueries({ queryKey: queryKeys.turns(turnsSessionId) })
+                    }, TURNS_REFETCH_THROTTLE_MS))
+                }
             }
 
             if (event.type === 'session-added' || event.type === 'session-updated' || event.type === 'session-removed') {
@@ -639,6 +652,10 @@ export function useSSE(options: {
             pendingInvalidationsRef.current.sessions = false
             pendingInvalidationsRef.current.machines = false
             pendingInvalidationsRef.current.sessionIds.clear()
+            for (const timer of turnsTimersRef.current.values()) {
+                clearTimeout(timer)
+            }
+            turnsTimersRef.current.clear()
             if (reconnectTimerRef.current) {
                 clearTimeout(reconnectTimerRef.current)
                 reconnectTimerRef.current = null

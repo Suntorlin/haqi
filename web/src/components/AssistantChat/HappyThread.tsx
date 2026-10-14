@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
@@ -223,27 +223,39 @@ export function HappyThread(props: {
     const effectiveDensity: SessionListDensity = isSocial ? 'compact' : props.density
     const isCompact = effectiveDensity === 'compact'
 
+    const chatContext = useMemo(() => ({
+        api: props.api,
+        sessionId: props.sessionId,
+        metadata: props.metadata,
+        agentState: props.agentState,
+        permissionMode: props.permissionMode,
+        disabled: props.disabled,
+        density: effectiveDensity,
+        onRefresh: props.onRefresh,
+        onRetryMessage: props.onRetryMessage,
+        toolProgress: props.toolProgress,
+        layout: props.layout ?? 'classic' as const,
+        timeSeparators: props.timeSeparators ?? null,
+        runStats: props.runStats ?? null,
+        holdAutoScroll
+    }), [
+        props.api, props.sessionId, props.metadata, props.agentState, props.permissionMode, props.disabled,
+        effectiveDensity, props.onRefresh, props.onRetryMessage, props.toolProgress, props.layout,
+        props.timeSeparators, props.runStats, holdAutoScroll
+    ])
+
     return (
-        <HappyChatProvider value={{
-            api: props.api,
-            sessionId: props.sessionId,
-            metadata: props.metadata,
-            agentState: props.agentState,
-            permissionMode: props.permissionMode,
-            disabled: props.disabled,
-            density: effectiveDensity,
-            onRefresh: props.onRefresh,
-            onRetryMessage: props.onRetryMessage,
-            toolProgress: props.toolProgress,
-            layout: props.layout ?? 'classic',
-            timeSeparators: props.timeSeparators ?? null,
-            runStats: props.runStats ?? null,
-            holdAutoScroll
-        }}>
+        <HappyChatProvider value={chatContext}>
             <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
                 <ThreadPrimitive.Viewport
                     ref={viewportRef}
                     autoScroll={isSocial ? false : undefined}
+                    // assistant-ui arms a sticky scroll-to-bottom on run start / initialize / thread switch even
+                    // with autoScroll off, which re-pins the view on every resize (it fought users scrolling
+                    // up while an agent ran). The social layout positions itself through the two hooks above.
+                    scrollToBottomOnRunStart={isSocial ? false : undefined}
+                    scrollToBottomOnInitialize={isSocial ? false : undefined}
+                    scrollToBottomOnThreadSwitch={isSocial ? false : undefined}
                     className={cn(
                         'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
                         isSocial ? 'social-chat' : ''
