@@ -33,15 +33,21 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
     const [error, setError] = useState<string | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
+    // Callers pass a fresh `tags` array on every render; read it through a ref so a parent
+    // re-render (SSE updates, pending flags) cannot reset what the user is typing.
+    const tagsRef = useRef(tags)
+    tagsRef.current = tags
+
     useEffect(() => {
         if (!isOpen) return
-        setValue(tags.join(', '))
+        setValue(tagsRef.current.join(', '))
         setError(null)
-        setTimeout(() => {
+        const timer = setTimeout(() => {
             inputRef.current?.focus()
             inputRef.current?.select()
         }, 100)
-    }, [isOpen, tags])
+        return () => clearTimeout(timer)
+    }, [isOpen])
 
     const quickSelectTags = Array.from(new Set([...availableTags, ...tags]))
         .map((tag) => tag.trim().toLowerCase())
