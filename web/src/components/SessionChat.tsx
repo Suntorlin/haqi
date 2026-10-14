@@ -23,7 +23,7 @@ import { extractToolProgress } from '@/chat/toolProgress'
 import { reduceChatBlocks } from '@/chat/reducer'
 import { reconcileChatBlocks } from '@/chat/reconcile'
 import { HappyComposer, type CodexSendMode } from '@/components/AssistantChat/HappyComposer'
-import { safeReadCodexSendModeDefault } from '@/hooks/useCodexSendModePreference'
+import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
 import { HappyThread } from '@/components/AssistantChat/HappyThread'
 import { BriefTurnList } from '@/components/AssistantChat/BriefTurnList'
 import { CliThread } from '@/components/AssistantChat/CliThread'
@@ -341,37 +341,6 @@ function getCodexPlanStatusBadgeVariant(status: CodexPlanStatus): 'success' | 'i
     return 'default'
 }
 
-const CODEX_SEND_MODE_STORAGE_PREFIX = 'hapi:codexSendMode:'
-
-function getCodexSendModeStorageKey(sessionId: string): string {
-    return `${CODEX_SEND_MODE_STORAGE_PREFIX}${sessionId}`
-}
-
-function readCodexSendMode(sessionId: string): CodexSendMode {
-    if (typeof window === 'undefined') {
-        return 'direct'
-    }
-    try {
-        const value = localStorage.getItem(getCodexSendModeStorageKey(sessionId))
-        if (value === 'queue' || value === 'direct') {
-            return value
-        }
-        return safeReadCodexSendModeDefault()
-    } catch {
-        return safeReadCodexSendModeDefault()
-    }
-}
-
-function writeCodexSendMode(sessionId: string, mode: CodexSendMode): void {
-    if (typeof window === 'undefined') {
-        return
-    }
-    try {
-        localStorage.setItem(getCodexSendModeStorageKey(sessionId), mode)
-    } catch {
-    }
-}
-
 function normalizeCodexCollaborationMode(value: string | undefined): 'plan' | 'default' {
     return value?.trim().toLowerCase() === 'plan' ? 'plan' : 'default'
 }
@@ -432,7 +401,8 @@ export function SessionChat(props: {
     const [isCodexQueueLoading, setIsCodexQueueLoading] = useState(false)
     const [isCodexQueueMutating, setIsCodexQueueMutating] = useState(false)
     const [codexQueueError, setCodexQueueError] = useState<string | null>(null)
-    const [codexSendMode, setCodexSendMode] = useState<CodexSendMode>(() => readCodexSendMode(props.session.id))
+    // One system-wide setting (Settings > Interaction); there is no per-session send mode any more.
+    const { codexSendModeDefault: codexSendMode } = useCodexSendModePreference()
     const [codexCollaborationMode, setCodexCollaborationMode] = useState<'plan' | 'default'>(
         () => normalizeCodexCollaborationMode(props.session.metadata?.collaborationMode)
     )
@@ -611,7 +581,6 @@ export function SessionChat(props: {
         setIsCodexQueueLoading(false)
         setIsCodexQueueMutating(false)
         setCodexQueueError(null)
-        setCodexSendMode(readCodexSendMode(props.session.id))
         setCodexCollaborationMode(normalizeCodexCollaborationMode(props.session.metadata?.collaborationMode))
         setDismissedCodexPlanSignature(null)
         setIsCodexPlanCollapsed(false)
@@ -1017,11 +986,6 @@ export function SessionChat(props: {
             }
         }
     }, [supportsQueueControls, props.api, props.session.id, t, haptic, applyCodexQueueSummary, applyQueueState])
-
-    const handleCodexQueueModeChange = useCallback((mode: CodexSendMode) => {
-        setCodexSendMode(mode)
-        writeCodexSendMode(props.session.id, mode)
-    }, [props.session.id])
 
     const handleCodexQueueRefreshAfterSend = useCallback(() => {
         if (!supportsQueueControls) {
@@ -1616,7 +1580,6 @@ export function SessionChat(props: {
                             onCodexStatus={supportsQueueControls ? handleCodexStatus : undefined}
                             codexSendMode={codexSendMode}
                             onCodexPlanModeChange={agentFlavor === 'codex' ? handleCodexPlanModeChange : undefined}
-                            onCodexSendModeChange={supportsQueueControls ? handleCodexQueueModeChange : undefined}
                             codexQueuePendingCount={codexQueuePendingCount}
                             codexQueueSummary={codexQueueSummary}
                             codexQueueEntries={codexQueueEntries}

@@ -3,18 +3,19 @@ import type { CodexSendMode } from '@/components/AssistantChat/HappyComposer'
 
 const CODEX_SEND_MODE_DEFAULT_KEY = 'hapi:codexSendModeDefault'
 
+// Queue is the default for every session: messages sent while the agent runs wait in line instead of interrupting it.
 function normalizeCodexSendMode(value: string | null): CodexSendMode {
-    return value === 'queue' ? 'queue' : 'direct'
+    return value === 'direct' ? 'direct' : 'queue'
 }
 
 export function safeReadCodexSendModeDefault(): CodexSendMode {
     if (typeof window === 'undefined') {
-        return 'direct'
+        return 'queue'
     }
     try {
         return normalizeCodexSendMode(window.localStorage.getItem(CODEX_SEND_MODE_DEFAULT_KEY))
     } catch {
-        return 'direct'
+        return 'queue'
     }
 }
 
