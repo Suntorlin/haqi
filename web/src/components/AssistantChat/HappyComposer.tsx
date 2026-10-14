@@ -1392,7 +1392,7 @@ export function HappyComposer(props: {
                 {inlineQueuePanel ? <div className="pb-2">{inlineQueuePanel}</div> : null}
 
                 <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
-                    <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
+                    <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-card)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
                         {!active ? (
                             <div className="absolute inset-0 z-20 flex items-center justify-between gap-3 bg-[var(--social-surface)] pl-5 pr-2.5 text-[15px] text-[var(--social-fg-muted)]">
                                 <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>

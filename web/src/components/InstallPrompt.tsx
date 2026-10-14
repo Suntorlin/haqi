@@ -20,7 +20,7 @@ export function InstallPrompt() {
     if (canInstallIOS) {
         if (showIOSGuide) {
             return (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center">
+                <div className="fixed inset-0 bg-[var(--scrim)] z-50 flex items-end justify-center">
                     <div className="w-full max-w-lg bg-[var(--social-surface)] rounded-t-2xl p-5 pb-8 space-y-4 animate-slide-up">
                         <div className="flex items-center justify-between">
                             <h3 className="text-[16px] font-semibold text-[var(--social-fg)]">
@@ -82,7 +82,7 @@ export function InstallPrompt() {
         }
 
         return (
-            <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-lg z-50">
+            <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-[var(--shadow-float)] z-50">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <p className="text-[15px] font-semibold text-[var(--social-fg)]">
@@ -128,7 +128,7 @@ export function InstallPrompt() {
     }
 
     return (
-        <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-lg z-50">
+        <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-[var(--shadow-float)] z-50">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <p className="text-[15px] font-semibold text-[var(--social-fg)]">

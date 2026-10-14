@@ -103,7 +103,7 @@ export function ToggleChip(props: { label: string; title?: string; pressed: bool
             aria-pressed={props.pressed}
             title={props.title}
             className={cn(
-                'flex h-8 shrink-0 items-center rounded-full px-2.5 text-[12.5px] transition-colors disabled:opacity-40',
+                'flex h-8 shrink-0 items-center rounded-full px-2.5 text-[13px] transition-colors disabled:opacity-40',
                 props.pressed
                     ? 'bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
                     : 'text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]'

@@ -48,7 +48,7 @@ export function CountBadge({ count, max = 99, className }: { count: number; max?
     return (
         <span
             className={cn(
-                'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[11px] font-semibold leading-none text-white ring-2 ring-[var(--social-surface)]',
+                'inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[var(--social-badge)] px-1 text-[12px] font-semibold leading-none text-[var(--social-on-accent)] ring-2 ring-[var(--social-surface)]',
                 className
             )}
         >

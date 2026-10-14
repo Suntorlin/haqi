@@ -26,7 +26,7 @@ export function SettingsGroup(props: {
                 onClick={props.onToggle}
                 aria-expanded={props.isExpanded}
                 aria-controls={contentId}
-                className="social-pressable flex min-h-[64px] w-full items-center gap-3 px-4 py-3 text-left"
+                className="social-pressable mx-2 flex min-h-[64px] w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-2 py-3 text-left"
             >
                 <span className="min-w-0 flex-1">
                     <span className="block text-[16px] font-semibold text-[var(--social-fg)]">{props.title}</span>

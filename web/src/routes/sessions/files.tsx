@@ -206,10 +206,10 @@ function FileListSkeleton(props: { label: string; rows?: number }) {
             <span className="sr-only">{props.label}</span>
             {Array.from({ length: rows }).map((_, index) => (
                 <div key={`skeleton-row-${index}`} className="flex items-center gap-3">
-                    <div className="h-6 w-6 rounded bg-[var(--social-hover)]" />
+                    <div className="h-6 w-6 rounded-md bg-[var(--social-hover)]" />
                     <div className="flex-1 space-y-2">
-                        <div className={`h-3 ${titleWidths[index % titleWidths.length]} rounded bg-[var(--social-hover)]`} />
-                        <div className={`h-2 ${subtitleWidths[index % subtitleWidths.length]} rounded bg-[var(--social-hover)]`} />
+                        <div className={`h-3 ${titleWidths[index % titleWidths.length]} rounded-md bg-[var(--social-hover)]`} />
+                        <div className={`h-2 ${subtitleWidths[index % subtitleWidths.length]} rounded-md bg-[var(--social-hover)]`} />
                     </div>
                 </div>
             ))}

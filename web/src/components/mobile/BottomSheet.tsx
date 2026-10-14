@@ -56,11 +56,11 @@ export function BottomSheet(props: {
         return (
             <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
                 <DialogPrimitive.Portal>
-                    <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-black/20" />
+                    <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-[var(--scrim-soft)]" />
                     <DialogPrimitive.Content
                         aria-describedby={undefined}
                         className={cn(
-                            'animate-panel-in fixed inset-y-0 right-0 z-[70] flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-[-16px_0_48px_rgba(0,0,0,0.08)] outline-none',
+                            'animate-panel-in fixed inset-y-0 right-0 z-[70] flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-[var(--shadow-panel)] outline-none',
                             props.className
                         )}
                     >
@@ -91,11 +91,11 @@ export function BottomSheet(props: {
     return (
         <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
             <DialogPrimitive.Portal>
-                <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-black/40" />
+                <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-[var(--scrim)]" />
                 <DialogPrimitive.Content
                     aria-describedby={undefined}
                     className={cn(
-                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border-t border-[var(--social-border)] bg-[var(--social-surface)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[0_-8px_40px_rgba(0,0,0,0.12)] outline-none',
+                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border-t border-[var(--social-border)] bg-[var(--social-surface)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[var(--shadow-sheet)] outline-none',
                         props.className
                     )}
                 >

@@ -46,6 +46,7 @@ Single source: `web/src/index.css`. `:root` = light, `[data-theme="dark"]` = dar
 | `--social-danger` | `#e5484d` | `#ff6369` | Destructive actions, errors |
 | `--social-success` | `#10b981` | `#34d399` | Success |
 | `--social-warning` | `#f59e0b` | `#fbbf24` | Warning |
+| `--social-on-accent` | `#ffffff` | `#ffffff` | Text / icon on solid danger, warning, badge fills and the switch knob (never write `text-white`) |
 | `--social-bar-bg` | `rgba(255,255,255,.86)` | `rgba(9,9,11,.86)` | Translucent header / tab bar (with blur) |
 
 Status tints (soft fill + text), used by `Badge` and notices: `--app-badge-{info,success,warning,error}-{bg,text,border}` (domain tokens, kept under the `--app-` prefix).
@@ -54,6 +55,22 @@ Status tints (soft fill + text), used by `Badge` and notices: `--app-badge-{info
 
 - The old `--app-*` aliases (`bg fg hint link border divider subtle-bg secondary-bg button banner-*`) are **removed**. Use `--social-*` only. If JS reads a token (e.g. the terminal theme) read the `--social-*` name.
 - Domain tokens, not part of the generic scale: `--app-code-bg`, `--app-inline-code-bg`, `--app-diff-*` (diff view), `--app-git-*` (git status colours), `--app-scrollbar-*`, `--cli-*` (terminal-style CLI messages), `--app-font-scale` (user font size, 0.8-1.2).
+
+### 2.2b Shadows, scrims, avatars, file types
+
+Flat by default: cards, bubbles and tool cards have **no shadow**. Only floating things get one, always via token:
+
+| Token | Use |
+|---|---|
+| `--shadow-raised` | Small raised thing: switch knob, selected segment |
+| `--shadow-card` | Composer card (very soft) |
+| `--shadow-float` | Menus, popovers, toasts, dialogs, overlays, install prompt (`shadow-[var(--shadow-float)]`) |
+| `--shadow-sheet` / `--shadow-panel` | Bottom sheet / right-hand panel |
+| `--scrim-soft` / `--scrim` / `--scrim-strong` | Dim layers behind dialogs and sheets, and the gradient on image captions (never `bg-black/50`) |
+
+Illustration palettes are tokens too: `--orb-<family>-<slot>` (18 avatar orb families, 4 colours each), `--orb-shade/edge/sheen/glaze-*/gloss` (orb lighting), `--ring-live` / `--ring-pending` (story rings), `--filetype-<ext>` (file-icon accents). Add a colour here, not as a hex in a component.
+
+Allowed raw colours (documented exceptions): xterm fallback colours in `Terminal/TerminalView.tsx` (xterm needs real colour strings when the token cannot be read) and the rainbow keyframes of the CLI loader in `index.css`.
 
 ### 2.3 Radius (only these)
 
@@ -64,7 +81,9 @@ Status tints (soft fill + text), used by `Badge` and notices: `--app-badge-{info
 | `rounded-xl` | 12 | Text fields, list rows, menu items, segmented-control segments |
 | `rounded-md` | 8 | Tiny tags, inline code |
 
-Only intentional exception: the single-line mobile composer input (`rounded-[22px]`) because it grows to multiple lines.
+Intentional exceptions: the single-line mobile composer input (`rounded-[22px]`, it grows to multiple lines) and chat-bubble tail corners (`rounded-br-md` / `rounded-tl-md`). Bare `rounded` is not used (write `rounded-md`).
+
+**Press / hover highlight must sit inside a rounded shape.** A row inside a `ListGroup` is clipped by the group. A standalone full-width row (e.g. a settings section header using `social-pressable`) must be inset and rounded itself (`mx-2 w-[calc(100%-1rem)] rounded-2xl`), otherwise the highlight shows as a square band next to rounded cards.
 
 ### 2.4 Type
 

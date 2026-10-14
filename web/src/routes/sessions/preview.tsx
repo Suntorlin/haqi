@@ -236,7 +236,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
                         />
 
                         {historyOpen && historyUrls.length > 0 ? (
-                            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 shadow-lg">
+                            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 shadow-[var(--shadow-float)]">
                                 {historyUrls.slice(0, 10).map((url) => (
                                     <li key={url}>
                                         <button

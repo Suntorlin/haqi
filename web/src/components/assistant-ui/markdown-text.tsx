@@ -70,7 +70,7 @@ function Code(props: ComponentPropsWithoutRef<'code'>) {
         <code
             {...props}
             className={cn(
-                'aui-md-code break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] font-mono text-[0.9em]',
+                'aui-md-code break-words rounded-md bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] font-mono text-[0.9em]',
                 props.className
             )}
         />
@@ -212,7 +212,7 @@ function Em(props: ComponentPropsWithoutRef<'em'>) {
 }
 
 function Image(props: ComponentPropsWithoutRef<'img'>) {
-    return <img {...props} className={cn('aui-md-img max-w-full rounded', props.className)} />
+    return <img {...props} className={cn('aui-md-img max-w-full rounded-md', props.className)} />
 }
 
 export const defaultComponents = memoizeMarkdownComponents({

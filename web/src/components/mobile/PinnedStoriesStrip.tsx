@@ -63,7 +63,7 @@ function PinnedStory(props: {
                         variant={isPending ? 'warning' : 'solid'}
                         className={cn(
                             'absolute -bottom-1.5 left-1/2 h-5 -translate-x-1/2 px-2 ring-2 ring-[var(--social-surface)]',
-                            !isPending && 'bg-[var(--social-badge)] text-white'
+                            !isPending && 'bg-[var(--social-badge)] text-[var(--social-on-accent)]'
                         )}
                     >
                         {isPending ? t('mobile.stories.pending') : t('mobile.stories.live')}

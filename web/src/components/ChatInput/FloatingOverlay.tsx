@@ -6,7 +6,7 @@ interface FloatingOverlayProps {
 }
 
 /**
- * A floating panel container with shadow and rounded corners
+ * A floating panel container with shadow and rounded-md corners
  * Used for autocomplete suggestions and settings panels
  */
 export const FloatingOverlay = memo(function FloatingOverlay(props: FloatingOverlayProps) {
@@ -14,7 +14,7 @@ export const FloatingOverlay = memo(function FloatingOverlay(props: FloatingOver
 
     return (
         <div
-            className="overflow-hidden rounded-xl border border-[var(--social-divider)] bg-[var(--social-surface)] shadow-lg"
+            className="overflow-hidden rounded-xl border border-[var(--social-divider)] bg-[var(--social-surface)] shadow-[var(--shadow-float)]"
             style={{ maxHeight }}
         >
             <div className="overflow-y-auto" style={{ maxHeight }}>

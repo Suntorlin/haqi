@@ -21,7 +21,7 @@ export function PlanApprovalOverlay(props: {
 
     return (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
-            <div className="pointer-events-auto w-full max-w-3xl rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-2xl">
+            <div className="pointer-events-auto w-full max-w-3xl rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-float)]">
                 <div className="max-h-[65vh] overflow-y-auto p-4">
                     <div className="text-[15px] font-semibold text-[var(--social-fg)]">Plan approval</div>
                     <div className="mt-1 text-xs text-[var(--social-fg-muted)]">Review the proposed plan below and choose whether to continue.</div>

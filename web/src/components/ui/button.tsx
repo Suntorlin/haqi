@@ -16,7 +16,7 @@ export const buttonVariants = cva(
                 secondary: 'bg-[var(--social-muted)] text-[var(--social-fg)] hover:bg-[var(--social-border)]',
                 outline: 'border border-[var(--social-border)] bg-transparent text-[var(--social-fg)] hover:bg-[var(--social-hover)]',
                 ghost: 'bg-transparent text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)]',
-                destructive: 'bg-[var(--social-danger)] text-white hover:opacity-90'
+                destructive: 'bg-[var(--social-danger)] text-[var(--social-on-accent)] hover:opacity-90'
             },
             size: {
                 default: 'h-11 px-5 text-[15px]',

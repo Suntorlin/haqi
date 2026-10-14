@@ -77,7 +77,7 @@ function FileContentSkeleton() {
             <span className="sr-only">{t('file.loading')}</span>
             <div className="animate-pulse space-y-2 rounded-xl border border-[var(--social-border)] bg-[var(--app-code-bg)] p-3">
                 {Array.from({ length: 12 }).map((_, index) => (
-                    <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded bg-[var(--social-hover)]`} />
+                    <div key={`file-skeleton-${index}`} className={`h-3 ${widths[index % widths.length]} rounded-md bg-[var(--social-hover)]`} />
                 ))}
             </div>
         </div>

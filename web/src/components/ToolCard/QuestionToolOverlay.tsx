@@ -346,7 +346,7 @@ export function QuestionToolOverlay(props: {
     if (isMinimized) {
         return (
             <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-end p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:p-4">
-                <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] p-3 shadow-2xl">
+                <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] p-3 shadow-[var(--shadow-float)]">
                     <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
                             <div className="truncate text-[15px] font-semibold text-[var(--social-fg)]">
@@ -373,9 +373,9 @@ export function QuestionToolOverlay(props: {
 
     return (
         <div className="fixed inset-0 z-[70]">
-            <div className="absolute inset-0 bg-black/45" aria-hidden="true" />
+            <div className="absolute inset-0 bg-[var(--scrim)]" aria-hidden="true" />
             <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
-                <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] shadow-2xl sm:max-h-[min(88vh,860px)]">
+                <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] shadow-[var(--shadow-float)] sm:max-h-[min(88vh,860px)]">
                     <div className="flex shrink-0 items-center justify-between gap-2 py-1 pl-4 pr-2">
                         <span className="min-w-0 truncate text-[13px] text-[var(--social-fg-muted)]">
                             {[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
