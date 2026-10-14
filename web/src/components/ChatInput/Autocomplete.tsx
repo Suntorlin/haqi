@@ -35,7 +35,7 @@ export const Autocomplete = memo(function Autocomplete(props: AutocompleteProps)
                     key={suggestion.key}
                     type="button"
                     data-suggestion-index={index}
-                    className={`flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left text-[15px] transition-colors ${
+                    className={`flex min-h-11 w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left text-[15px] transition-colors ${
                         index === selectedIndex
                             ? 'bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
                             : 'text-[var(--social-fg)] hover:bg-[var(--social-muted)]'
