@@ -53,6 +53,7 @@ export default {
   'sessions.projectOffline.disable': 'Unmark project offline',
   'sessions.display.toggleToCompact': 'Switch to compact view',
   'sessions.display.toggleToComfortable': 'Switch to comfortable view',
+  'sessions.search.open': 'Search chats',
   'sessions.search.placeholder': 'Search sessions…',
   'sessions.tags.all': 'All tags',
   'groups.search.placeholder': 'Search groups…',

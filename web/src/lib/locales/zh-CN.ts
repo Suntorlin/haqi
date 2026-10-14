@@ -53,6 +53,7 @@ export default {
   'sessions.projectOffline.disable': '取消项目离线',
   'sessions.display.toggleToCompact': '切换到紧凑视图',
   'sessions.display.toggleToComfortable': '切换到舒适视图',
+  'sessions.search.open': '搜索会话',
   'sessions.search.placeholder': '搜索会话…',
   'sessions.tags.all': '全部标签',
   'groups.search.placeholder': '搜索群组…',
