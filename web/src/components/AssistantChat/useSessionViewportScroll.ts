@@ -19,7 +19,11 @@ const LOAD_OLDER_COOLDOWN_MS = 300
 type PendingRestoreState = {
     scrollTop: number
     scrollHeight: number
+    at: number
+    renderedOldestKey: string | null | undefined
 }
+
+const PENDING_RESTORE_MAX_AGE_MS = 3000
 
 export function useSessionViewportScroll(params: {
     sessionId: string
@@ -32,6 +36,8 @@ export function useSessionViewportScroll(params: {
     contentVersion: number
     latestKey: string | null
     forceScrollToken?: number
+    /** Id of the oldest message the thread has rendered; a change means older history reached the DOM (live appends do not change it). */
+    renderedOldestKey?: string | null
     onLoadMore: () => Promise<unknown> | void
     onFlushPending: () => Promise<void> | void
 }) {
@@ -41,6 +47,10 @@ export function useSessionViewportScroll(params: {
     const lastLoadTriggerAtRef = useRef(0)
     const loadMoreArmedRef = useRef(true)
     const pendingRestoreRef = useRef<PendingRestoreState | null>(null)
+    const renderedOldestRef = useRef(params.renderedOldestKey)
+    renderedOldestRef.current = params.renderedOldestKey
+    const isLoadingMoreRef = useRef(params.isLoadingMore)
+    isLoadingMoreRef.current = params.isLoadingMore
     const initialPositionAppliedRef = useRef(false)
     const lastForceScrollTokenRef = useRef(params.forceScrollToken ?? 0)
     const latestKeyRef = useRef<string | null>(params.latestKey)
@@ -65,6 +75,50 @@ export function useSessionViewportScroll(params: {
             savedAt: Date.now()
         })
     }, [params.sessionId, params.viewMode, resolveViewport])
+
+    // Older messages render a beat after the store updates (assistant-ui syncs in a passive effect), so
+    // the restore must wait until the content has actually grown; applying it early was a 0px delta.
+    const applyPendingRestore = useCallback((): boolean => {
+        const viewport = resolveViewport()
+        const pending = pendingRestoreRef.current
+        if (!viewport || !pending) {
+            return false
+        }
+        if (Date.now() - pending.at > PENDING_RESTORE_MAX_AGE_MS) {
+            pendingRestoreRef.current = null
+            return false
+        }
+        // Ready once the thread rendered more messages (exact). Threads that cannot report that fall back to
+        // "request finished and the height changed", because the spinner swap alone also changes the height.
+        const ready = pending.renderedOldestKey !== undefined && renderedOldestRef.current !== undefined
+            ? renderedOldestRef.current !== pending.renderedOldestKey
+            : !isLoadingMoreRef.current && viewport.scrollHeight !== pending.scrollHeight
+        if (!ready) {
+            return false
+        }
+        viewport.scrollTop = restoreScrollTopByDelta({
+            previousScrollTop: pending.scrollTop,
+            previousScrollHeight: pending.scrollHeight,
+            nextScrollHeight: viewport.scrollHeight
+        })
+        previousScrollTopRef.current = viewport.scrollTop
+        pendingRestoreRef.current = null
+        return true
+    }, [resolveViewport])
+
+    /** Remember where we are so the view stays on the same message once older history is prepended. */
+    const markRestorePoint = useCallback(() => {
+        const viewport = resolveViewport()
+        if (!viewport) {
+            return
+        }
+        pendingRestoreRef.current = {
+            scrollTop: viewport.scrollTop,
+            scrollHeight: viewport.scrollHeight,
+            at: Date.now(),
+            renderedOldestKey: renderedOldestRef.current
+        }
+    }, [resolveViewport])
 
     const jumpToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
         const viewport = resolveViewport()
@@ -141,7 +195,9 @@ export function useSessionViewportScroll(params: {
                 lastLoadTriggerAtRef.current = Date.now()
                 pendingRestoreRef.current = {
                     scrollTop: viewport.scrollTop,
-                    scrollHeight: viewport.scrollHeight
+                    scrollHeight: viewport.scrollHeight,
+                    at: Date.now(),
+                    renderedOldestKey: renderedOldestRef.current
                 }
                 void params.onLoadMore()
             }
@@ -165,21 +221,45 @@ export function useSessionViewportScroll(params: {
         resolveViewport
     ])
 
+    useEffect(() => {
+        const viewport = resolveViewport()
+        const content = viewport?.firstElementChild
+        if (!viewport || !content) {
+            return
+        }
+        let expiry: ReturnType<typeof setTimeout> | null = null
+        const observer = new ResizeObserver(() => {
+            if (!pendingRestoreRef.current) {
+                return
+            }
+            if (applyPendingRestore()) {
+                if (expiry) clearTimeout(expiry)
+                expiry = null
+            } else if (!expiry) {
+                // A load that returned nothing new never grows the content; drop the stale restore.
+                expiry = setTimeout(() => {
+                    expiry = null
+                    pendingRestoreRef.current = null
+                }, 2000)
+            }
+        })
+        observer.observe(content)
+        return () => {
+            if (expiry) clearTimeout(expiry)
+            observer.disconnect()
+        }
+    }, [applyPendingRestore, resolveViewport, params.sessionId, params.viewMode])
+
     useLayoutEffect(() => {
         const viewport = resolveViewport()
         if (!viewport) {
             return
         }
 
-        const pendingRestore = pendingRestoreRef.current
-        if (pendingRestore) {
-            viewport.scrollTop = restoreScrollTopByDelta({
-                previousScrollTop: pendingRestore.scrollTop,
-                previousScrollHeight: pendingRestore.scrollHeight,
-                nextScrollHeight: viewport.scrollHeight
-            })
-            previousScrollTopRef.current = viewport.scrollTop
-            pendingRestoreRef.current = null
+        if (pendingRestoreRef.current) {
+            // Applied now if the content already grew, otherwise by the observer below; never pin to the
+            // bottom while a restore is waiting.
+            applyPendingRestore()
             return
         }
 
@@ -223,8 +303,10 @@ export function useSessionViewportScroll(params: {
             jumpToBottom('auto')
         }
     }, [
+        applyPendingRestore,
         jumpToBottom,
         params.contentVersion,
+        params.renderedOldestKey,
         params.forceScrollToken,
         params.isLoading,
         params.latestKey,
@@ -237,6 +319,7 @@ export function useSessionViewportScroll(params: {
         isNearBottom,
         showJumpToLatest: params.pendingCount > 0 || !isNearBottom,
         scrollToBottom: () => jumpToBottom('smooth'),
+        markRestorePoint,
         persistSnapshot
     }
 }
