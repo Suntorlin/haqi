@@ -122,10 +122,7 @@ export function PinnedStoriesStrip(props: {
     if (stories.length === 0) return null
 
     return (
-        <div className="pb-1">
-            <div className="px-5 pb-1.5 text-[12px] font-semibold text-[var(--social-fg-muted)]">
-                {t('mobile.stories.pinned')}
-            </div>
+        <div className="pb-1" role="group" aria-label={t('mobile.stories.pinned')}>
             <div className="social-scroll-x flex gap-4 overflow-x-auto px-5 pb-3 pt-1">
                 <button
                     type="button"
