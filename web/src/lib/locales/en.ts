@@ -702,6 +702,7 @@ export default {
   'mobile.tab.sessions': 'Chats',
   'mobile.tab.groups': 'Groups',
   'mobile.tab.loops': 'Loops',
+  'mobile.tab.memory': 'Memory',
   'mobile.tab.me': 'Me',
   'mobile.stories.new': 'New',
   'mobile.stories.live': 'LIVE',
