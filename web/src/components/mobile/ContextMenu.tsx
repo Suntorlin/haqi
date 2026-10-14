@@ -51,6 +51,8 @@ export function ContextMenu(props: {
         }
         const handlePointerDown = (event: PointerEvent) => {
             if (menuRef.current?.contains(event.target as Node)) return
+            // Flyouts are portalled out of the menu (the menu scrolls, which would clip them).
+            if ((event.target as Element).closest?.('[data-context-submenu]')) return
             onClose()
         }
         const handleKeyDown = (event: KeyboardEvent) => {

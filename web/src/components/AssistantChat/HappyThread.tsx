@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { JumpToLatestButton } from '@/components/AssistantChat/JumpToLatestButton'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
+import { useNestedScrollPassthrough } from '@/components/AssistantChat/useNestedScrollPassthrough'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
@@ -75,6 +76,10 @@ function useStickToBottom(
 // Social layout collapses each agent turn, so a long turn can fill the latest page entirely.
 // Pull a few older pages so the user's own last message is on screen too.
 const MAX_SOCIAL_AUTO_LOAD_PAGES = 4
+// Loading older history in the social layout keeps paging until something visible appears (a user
+// message); pages made only of collapsed tool steps add no height, so one click looked like a no-op.
+const MAX_LOAD_OLDER_PAGES = 8
+const LOAD_OLDER_SETTLE_MS = 80
 
 function MessageSkeleton() {
     const { t } = useTranslation()
@@ -182,10 +187,34 @@ export function HappyThread(props: {
     const contentRef = useRef<HTMLDivElement | null>(null)
     const isSocial = props.layout === 'social'
     const holdAutoScroll = useStickToBottom(isSocial, viewportRef, contentRef)
+    useNestedScrollPassthrough(viewportRef)
+    const userMessageCount = useAssistantState(({ thread }) => thread.messages.reduce((count, message) => count + (message.role === 'user' ? 1 : 0), 0))
+    const oldestRenderedKey = useAssistantState(({ thread }) => thread.messages[0]?.id ?? null)
+    const olderStateRef = useRef({ userMessageCount, hasMore: props.hasMoreMessages })
+    olderStateRef.current = { userMessageCount, hasMore: props.hasMoreMessages }
+    const onLoadMoreProp = props.onLoadMore
+    const markRestorePointRef = useRef<() => void>(() => {})
+    const loadOlder = useCallback(async () => {
+        if (!isSocial) {
+            await onLoadMoreProp()
+            return
+        }
+        const startCount = olderStateRef.current.userMessageCount
+        for (let page = 0; page < MAX_LOAD_OLDER_PAGES; page += 1) {
+            markRestorePointRef.current()
+            await onLoadMoreProp()
+            // Let the store update reach the thread before judging whether anything new is visible.
+            await new Promise((resolve) => setTimeout(resolve, LOAD_OLDER_SETTLE_MS))
+            if (olderStateRef.current.userMessageCount > startCount || !olderStateRef.current.hasMore) {
+                break
+            }
+        }
+    }, [isSocial, onLoadMoreProp])
     const {
         isNearBottom,
         showJumpToLatest,
-        scrollToBottom
+        scrollToBottom,
+        markRestorePoint
     } = useSessionViewportScroll({
         sessionId: props.sessionId,
         viewMode: 'normal',
@@ -197,9 +226,12 @@ export function HappyThread(props: {
         contentVersion: props.messagesVersion,
         latestKey: props.newestMessageSeq !== null ? String(props.newestMessageSeq) : null,
         forceScrollToken: props.forceScrollToken,
-        onLoadMore: props.onLoadMore,
+        renderedOldestKey: oldestRenderedKey,
+        onLoadMore: loadOlder,
         onFlushPending: props.onFlushPending
     })
+
+    markRestorePointRef.current = markRestorePoint
 
     useEffect(() => {
         props.onAtBottomChange(isNearBottom)
@@ -269,7 +301,7 @@ export function HappyThread(props: {
                                 <HistoryLoadMoreControl
                                     loading={props.isLoadingMoreMessages}
                                     hasMore={props.hasMoreMessages}
-                                    onLoadMore={props.onLoadMore}
+                                    onLoadMore={() => { void loadOlder() }}
                                 />
 
                                 {props.messagesWarning ? (

@@ -34,6 +34,24 @@ function mergeTurns(current: ConversationTurn[], incoming: ConversationTurn[]): 
     return Array.from(byId.values()).sort((left, right) => left.turnIndex - right.turnIndex)
 }
 
+/**
+ * A refetch returns only the newest page. Keep any older pages the user already loaded instead of
+ * replacing them (the list used to shrink back to page 1 on the next streamed message).
+ */
+export function mergeTurnPages(existing: TurnsPage | undefined, fresh: TurnsPage): TurnsPage {
+    if (!existing || existing.turns.length === 0) {
+        return fresh
+    }
+    const oldestExisting = existing.turns[0]?.turnIndex ?? Infinity
+    const oldestFresh = fresh.turns[0]?.turnIndex ?? Infinity
+    const keepsOlderPages = oldestExisting < oldestFresh
+    return {
+        turns: mergeTurns(existing.turns, fresh.turns),
+        // The page cursor must describe the oldest loaded turn, so "load more" continues from there.
+        page: keepsOlderPages ? { ...fresh.page, nextBeforeTurnIndex: existing.page.nextBeforeTurnIndex, hasMore: existing.page.hasMore } : fresh.page
+    }
+}
+
 export function useConversationTurns(
     api: ApiClient | null,
     sessionId: string | null,
@@ -71,7 +89,8 @@ export function useConversationTurns(
                     }
                 }
             }
-            return await api.getConversationTurns(sessionId, { limit: DEFAULT_PAGE_LIMIT })
+            const fresh = await api.getConversationTurns(sessionId, { limit: DEFAULT_PAGE_LIMIT })
+            return mergeTurnPages(queryClient.getQueryData<TurnsPage>(key), fresh)
         }
     })
 
