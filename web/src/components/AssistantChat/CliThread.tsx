@@ -9,6 +9,7 @@ import { CliBlockRenderer } from '@/components/AssistantChat/cli/CliBlockRendere
 import { Spinner } from '@/components/Spinner'
 import { Button } from '@/components/ui/button'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { JumpToLatestButton } from '@/components/AssistantChat/JumpToLatestButton'
 import { useTranslation } from '@/lib/use-translation'
 
 type CliThreadProps = {
@@ -32,18 +33,6 @@ type CliThreadProps = {
     pendingCount: number
     newestMessageSeq: number | null
     messagesVersion: number
-}
-
-function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void }) {
-    const { t } = useTranslation()
-    if (!props.show) {
-        return null
-    }
-    return (
-        <Button onClick={props.onClick} className="absolute bottom-20 left-1/2 -translate-x-1/2 shadow-lg animate-bounce-in z-10">
-            {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
-        </Button>
-    )
 }
 
 export const CliThread = memo(function CliThread(props: CliThreadProps) {
@@ -120,7 +109,8 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                         ))}
                     </div>
                 </div>
-                <NewMessagesIndicator
+                <JumpToLatestButton
+                    raised
                     count={props.pendingCount}
                     show={showJumpToLatest}
                     onClick={scrollToBottom}

@@ -11,6 +11,7 @@ import {
 import { restoreScrollTopByDelta, shouldTriggerLoadOlder } from '@/components/AssistantChat/historyScroll'
 
 const NEAR_BOTTOM_THRESHOLD_PX = 32
+const UPWARD_ESCAPE_PX = 2
 const LOAD_OLDER_THRESHOLD_PX = 48
 const LOAD_OLDER_REARM_PX = 96
 const LOAD_OLDER_COOLDOWN_MS = 300
@@ -108,7 +109,9 @@ export function useSessionViewportScroll(params: {
             const currentScrollTop = viewport.scrollTop
             const previousScrollTop = previousScrollTopRef.current
             const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
-            const nextIsNearBottom = distanceFromBottom <= NEAR_BOTTOM_THRESHOLD_PX
+            // Any upward movement leaves the bottom at once, so streaming content cannot yank the user back down.
+            const movedUp = currentScrollTop < previousScrollTop && distanceFromBottom > UPWARD_ESCAPE_PX
+            const nextIsNearBottom = !movedUp && distanceFromBottom <= NEAR_BOTTOM_THRESHOLD_PX
 
             if (nextIsNearBottom !== isNearBottomRef.current) {
                 isNearBottomRef.current = nextIsNearBottom

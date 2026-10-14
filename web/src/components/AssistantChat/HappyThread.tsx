@@ -10,6 +10,7 @@ import { SocialAssistantMessage, SocialUserMessage } from '@/components/Assistan
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { JumpToLatestButton } from '@/components/AssistantChat/JumpToLatestButton'
 import { useSessionViewportScroll } from '@/components/AssistantChat/useSessionViewportScroll'
 import { Spinner } from '@/components/Spinner'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
@@ -18,6 +19,7 @@ import type { RunStats } from '@/components/mobile/chatTimeline'
 import { useTranslation } from '@/lib/use-translation'
 
 const STICK_TO_BOTTOM_THRESHOLD_PX = 32
+const USER_INPUT_QUIET_MS = 250
 
 /**
  * Social layout replaces assistant-ui's auto-scroll: stay pinned to the bottom while content grows,
@@ -34,18 +36,34 @@ function useStickToBottom(
         const content = contentRef.current
         if (!enabled || !viewport || !content) return
         let nearBottom = true
+        let lastTop = viewport.scrollTop
+        let lastInputAt = 0
         const onScroll = () => {
-            nearBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= STICK_TO_BOTTOM_THRESHOLD_PX
+            const top = viewport.scrollTop
+            const distance = viewport.scrollHeight - top - viewport.clientHeight
+            // Moving up lets go of the bottom immediately, even inside the threshold; otherwise a
+            // streaming reply would snap the view back while the user is still scrolling away.
+            nearBottom = !(top < lastTop && distance > 2) && distance <= STICK_TO_BOTTOM_THRESHOLD_PX
+            lastTop = top
         }
+        // Never move the view while a finger or wheel is driving it.
+        const onInput = () => { lastInputAt = performance.now() }
         onScroll()
         viewport.addEventListener('scroll', onScroll, { passive: true })
+        viewport.addEventListener('touchstart', onInput, { passive: true })
+        viewport.addEventListener('touchmove', onInput, { passive: true })
+        viewport.addEventListener('wheel', onInput, { passive: true })
         const observer = new ResizeObserver(() => {
-            if (!nearBottom || performance.now() < holdUntilRef.current) return
+            const now = performance.now()
+            if (!nearBottom || now < holdUntilRef.current || now - lastInputAt < USER_INPUT_QUIET_MS) return
             viewport.scrollTop = viewport.scrollHeight
         })
         observer.observe(content)
         return () => {
             viewport.removeEventListener('scroll', onScroll)
+            viewport.removeEventListener('touchstart', onInput)
+            viewport.removeEventListener('touchmove', onInput)
+            viewport.removeEventListener('wheel', onInput)
             observer.disconnect()
         }
     }, [enabled, viewportRef, contentRef])
@@ -57,26 +75,6 @@ function useStickToBottom(
 // Social layout collapses each agent turn, so a long turn can fill the latest page entirely.
 // Pull a few older pages so the user's own last message is on screen too.
 const MAX_SOCIAL_AUTO_LOAD_PAGES = 4
-
-function NewMessagesIndicator(props: { count: number; show: boolean; onClick: () => void; social?: boolean }) {
-    const { t } = useTranslation()
-    if (!props.show) {
-        return null
-    }
-
-    return (
-        <Button
-            size={props.social ? 'sm' : 'default'}
-            onClick={props.onClick}
-            className={cn(
-                'absolute left-1/2 -translate-x-1/2 shadow-lg animate-bounce-in z-10',
-                props.social ? cn('bottom-3', HIT_AREA_CLASS) : 'bottom-20'
-            )}
-        >
-            {props.count > 0 ? t('misc.newMessage', { n: props.count }) : t('misc.jumpToLatest')} &#8595;
-        </Button>
-    )
-}
 
 function MessageSkeleton() {
     const { t } = useTranslation()
@@ -274,11 +272,11 @@ export function HappyThread(props: {
                         </div>
                     </div>
                 </ThreadPrimitive.Viewport>
-                <NewMessagesIndicator
+                <JumpToLatestButton
                     count={props.pendingCount}
                     show={showJumpToLatest}
                     onClick={scrollToBottom}
-                    social={isSocial}
+                    raised={!isSocial}
                 />
             </ThreadPrimitive.Root>
         </HappyChatProvider>
