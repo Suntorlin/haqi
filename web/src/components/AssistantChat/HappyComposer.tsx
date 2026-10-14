@@ -1289,7 +1289,7 @@ export function HappyComposer(props: {
             <div
                 ref={mobileComposerRef}
                 className={`social-bar relative z-10 shrink-0 border-t border-[var(--social-border)] ${cliMode ? 'cli-composer' : ''}`}
-                style={{ paddingBottom: isIOSPWA ? 'max(env(safe-area-inset-bottom), 0.5rem)' : '0.5rem' }}
+                style={{ paddingBottom: isIOSPWA ? 'max(var(--safe-bottom), 0.5rem)' : '0.5rem' }}
             >
                 <ComposerPrimitive.Root className="relative mx-auto w-full max-w-content" onSubmit={handleSubmit}>
                     {overlays}

@@ -79,7 +79,7 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
     const tabs = useNavTabs(props.sessionsBadge)
 
     return (
-        <nav className="social-bar relative z-20 shrink-0 border-t border-[var(--social-border)] pb-[env(safe-area-inset-bottom)]">
+        <nav className="social-bar relative z-20 shrink-0 border-t border-[var(--social-border)] pb-[var(--safe-bottom)]">
             <div className="mx-auto flex h-[50px] max-w-xl">
                 {tabs.map((tab) => {
                     const isActive = tab.key === props.active

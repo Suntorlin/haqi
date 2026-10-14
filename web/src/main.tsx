@@ -10,6 +10,7 @@ import { getTelegramWebApp, isTelegramEnvironment, loadTelegramSdk } from './hoo
 import { queryClient } from './lib/query-client'
 import { createAppRouter } from './router'
 import { I18nProvider } from './lib/i18n-context'
+import { installIOSViewportFit } from './lib/ios-viewport'
 
 function isSafariEngine(): boolean {
     const ua = window.navigator.userAgent
@@ -89,6 +90,9 @@ window.addEventListener('vite:preloadError', (event) => {
 
 async function bootstrap() {
     initializeFontScale()
+    if (!isTelegramEnvironment()) {
+        installIOSViewportFit()
+    }
 
     // Only load Telegram SDK in Telegram environment (with 3s timeout)
     const isTelegram = isTelegramEnvironment()

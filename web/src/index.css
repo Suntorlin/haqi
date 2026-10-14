@@ -177,6 +177,23 @@ html {
     font-size: calc(100% * var(--app-font-scale, 1));
 }
 
+/* iOS: the app root tracks the visual viewport (see lib/ios-viewport.ts). */
+html.ios-vv #root {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--app-top, 0px);
+    height: var(--app-height, 100dvh);
+}
+
+:root {
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html[data-keyboard='open'] {
+    --safe-bottom: 0px;
+}
+
 html,
 body {
     height: 100vh;
