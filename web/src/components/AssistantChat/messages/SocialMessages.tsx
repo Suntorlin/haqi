@@ -235,7 +235,7 @@ function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: b
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="social-card w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3" role="status" aria-live="polite">
+        <div className="social-card w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3">
             <div className="flex min-w-0 items-center gap-2.5">
                 <span className="social-spinner shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--social-fg)]">{title}</span>

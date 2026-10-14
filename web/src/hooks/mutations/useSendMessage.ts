@@ -136,7 +136,9 @@ export function useSendMessage(
             })
             return true
         } catch {
-            return false
+            // The optimistic bubble is already in the thread, now marked failed with a Retry. Report it
+            // as taken so the composer clears; keeping the draft too made one tap send two copies.
+            return true
         }
     }
 
@@ -161,11 +163,19 @@ export function useSendMessage(
 
         updateMessageStatus(sessionId, localId, 'sending')
 
+        // The optimistic message carries the attachments; a retry must not drop them.
+        const content = message.content
+        const attachments = typeof content === 'object' && content !== null && 'content' in content
+            && typeof content.content === 'object' && content.content !== null && 'attachments' in content.content
+            ? (content.content.attachments as AttachmentMetadata[] | undefined)
+            : undefined
+
         mutation.mutate({
             sessionId,
             text: message.originalText,
             localId,
             createdAt: message.createdAt,
+            attachments,
         })
     }
 

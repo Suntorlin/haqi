@@ -332,7 +332,15 @@ export async function fetchLatestMessages(api: ApiClient, sessionId: string): Pr
         const response = await api.getMessages(sessionId, { limit: PAGE_SIZE, beforeSeq: null })
         updateState(sessionId, (prev) => {
             if (prev.atBottom) {
-                const merged = mergeMessages(prev.messages, [...prev.pending, ...response.messages])
+                // After a long disconnect the latest page may start past our newest message. Merging
+                // would leave a hole that older-page loading can never fill, so start over from it.
+                const responseOldestSeq = response.messages.reduce<number | null>(
+                    (min, message) => message.seq === null || message.seq === undefined ? min : min === null ? message.seq : Math.min(min, message.seq),
+                    null
+                )
+                const hasGap = prev.newestSeq !== null && responseOldestSeq !== null && responseOldestSeq > prev.newestSeq + 1
+                const base = hasGap ? [] : prev.messages
+                const merged = mergeMessages(base, [...(hasGap ? [] : prev.pending), ...response.messages])
                 const trimmed = trimVisible(merged, 'append')
                 return buildState(prev, {
                     messages: trimmed,

@@ -34,6 +34,8 @@ type ToastEvent = Extract<SyncEvent, { type: 'toast' }>
 
 const REQUIRE_SERVER_URL = requireHubUrlForLogin()
 
+const SESSIONS_STALE_MS = 60_000
+
 export function App() {
     return (
         <ToastProvider>
@@ -129,6 +131,8 @@ function AppInner() {
     const [sseDisconnected, setSseDisconnected] = useState(false)
     const [sseDisconnectReason, setSseDisconnectReason] = useState<string | null>(null)
     const syncTokenRef = useRef(0)
+    const needsFullRefreshRef = useRef(true)
+    const lastSessionsRefreshAtRef = useRef(0)
     const isFirstConnectRef = useRef(true)
     const baseUrlRef = useRef(baseUrl)
     const pushPromptedRef = useRef(false)
@@ -206,9 +210,19 @@ function AppInner() {
         } else {
             startSync()
         }
+        // The stream reopens on every session switch. The session list is kept live by SSE patches, so only
+        // refetch it (900+ rows) on page load, after a real disconnect, or when it has gone stale.
+        const needsFullRefresh = needsFullRefreshRef.current
+            || Date.now() - lastSessionsRefreshAtRef.current > SESSIONS_STALE_MS
+        needsFullRefreshRef.current = false
+        if (needsFullRefresh) {
+            lastSessionsRefreshAtRef.current = Date.now()
+        }
         const invalidations = [
-            queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
-            queryClient.invalidateQueries({ queryKey: queryKeys.memory }),
+            ...(needsFullRefresh ? [
+                queryClient.invalidateQueries({ queryKey: queryKeys.sessions }),
+                queryClient.invalidateQueries({ queryKey: queryKeys.memory })
+            ] : []),
             ...(selectedSessionId ? [
                 queryClient.invalidateQueries({ queryKey: queryKeys.session(selectedSessionId) })
             ] : []),
@@ -236,6 +250,7 @@ function AppInner() {
     }, [api, queryClient, selectedSessionId, selectedGroupId, startSync, endSync])
 
     const handleSseDisconnect = useCallback((reason: string) => {
+        needsFullRefreshRef.current = true
         // Only show reconnecting banner if we've already connected once
         if (!isFirstConnectRef.current) {
             setSseDisconnected(true)
@@ -255,7 +270,9 @@ function AppInner() {
 
     const eventSubscription = useMemo(() => {
         if (selectedSessionId) {
-            return { sessionId: selectedSessionId }
+            // `all` keeps the sidebar live while a chat is open; the hub still sends message events only
+            // for `sessionId`, so message traffic is unchanged.
+            return { all: true, sessionId: selectedSessionId }
         }
         if (selectedGroupId) {
             // Group pages also need session lifecycle events to keep member status fresh.

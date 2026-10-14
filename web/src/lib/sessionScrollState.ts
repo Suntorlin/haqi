@@ -15,7 +15,14 @@ function buildStorageKey(sessionId: string, viewMode: SessionScrollViewMode): st
     return `${sessionId}:${viewMode}`
 }
 
-function readAllSnapshots(): SessionScrollStateRecord {
+const MAX_STORED_SNAPSHOTS = 200
+const PERSIST_DELAY_MS = 400
+
+let cache: SessionScrollStateRecord | null = null
+let persistTimer: ReturnType<typeof setTimeout> | null = null
+let flushListenersInstalled = false
+
+function loadFromStorage(): SessionScrollStateRecord {
     if (typeof window === 'undefined') {
         return {}
     }
@@ -34,13 +41,56 @@ function readAllSnapshots(): SessionScrollStateRecord {
     }
 }
 
-function persistAllSnapshots(value: SessionScrollStateRecord): void {
+/** Read once, then served from memory: the scroll handlers call this many times a second. */
+function readAllSnapshots(): SessionScrollStateRecord {
+    if (cache === null) {
+        cache = loadFromStorage()
+    }
+    return cache
+}
+
+/** Drops the in-memory copy so the next read goes back to localStorage (tests, external edits). */
+export function resetSessionScrollStateCache(): void {
+    if (persistTimer !== null) {
+        clearTimeout(persistTimer)
+        persistTimer = null
+    }
+    cache = null
+}
+
+function flushSnapshots(): void {
+    if (persistTimer !== null) {
+        clearTimeout(persistTimer)
+        persistTimer = null
+    }
+    if (typeof window === 'undefined' || cache === null) {
+        return
+    }
+    // Keep the newest entries only; the record used to grow with every session ever opened.
+    const entries = Object.entries(cache)
+    if (entries.length > MAX_STORED_SNAPSHOTS) {
+        entries.sort((a, b) => (b[1]?.savedAt ?? 0) - (a[1]?.savedAt ?? 0))
+        cache = Object.fromEntries(entries.slice(0, MAX_STORED_SNAPSHOTS))
+    }
+    try {
+        window.localStorage.setItem(SESSION_SCROLL_STATE_STORAGE_KEY, JSON.stringify(cache))
+    } catch {
+    }
+}
+
+function schedulePersist(): void {
     if (typeof window === 'undefined') {
         return
     }
-    try {
-        window.localStorage.setItem(SESSION_SCROLL_STATE_STORAGE_KEY, JSON.stringify(value))
-    } catch {
+    if (!flushListenersInstalled) {
+        flushListenersInstalled = true
+        window.addEventListener('pagehide', flushSnapshots)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') flushSnapshots()
+        })
+    }
+    if (persistTimer === null) {
+        persistTimer = setTimeout(flushSnapshots, PERSIST_DELAY_MS)
     }
 }
 
@@ -77,5 +127,5 @@ export function writeSessionScrollSnapshot(
         lastKey: typeof snapshot.lastKey === 'string' ? snapshot.lastKey : null,
         savedAt: snapshot.savedAt
     }
-    persistAllSnapshots(all)
+    schedulePersist()
 }

@@ -79,6 +79,9 @@ export function mergeMessages(existing: DecryptedMessage[], incoming: DecryptedM
         if (optimistic.status === 'sent') {
             const hasServerUserMessage = nonOptimisticMessages.some((m) =>
                 isUserMessage(m) &&
+                // An echo that carries its own localId already matched its bubble; counting it here
+                // made a second, still-pending bubble disappear when the first echo arrived.
+                !m.localId &&
                 Math.abs(m.createdAt - optimistic.createdAt) < 10_000
             )
             if (hasServerUserMessage) {
