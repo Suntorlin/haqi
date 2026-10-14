@@ -2971,7 +2971,7 @@ export default function GroupDetailPage() {
     const composerArea = isMobileLayout ? (
         <div
             className="social-bar relative z-10 shrink-0 border-t border-[var(--social-border)]"
-            style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)' }}
+            style={{ paddingBottom: 'max(var(--safe-bottom), 0.5rem)' }}
         >
             <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
                 {composerOverlays}
