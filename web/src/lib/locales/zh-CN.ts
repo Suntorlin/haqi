@@ -704,6 +704,7 @@ export default {
   'mobile.tab.sessions': '会话',
   'mobile.tab.groups': '群组',
   'mobile.tab.loops': '循环',
+  'mobile.tab.memory': '记忆',
   'mobile.tab.me': '我',
   'mobile.stories.new': '新会话',
   'mobile.stories.live': '运行中',

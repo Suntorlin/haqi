@@ -17,6 +17,7 @@ import {
     useSearch,
 } from '@tanstack/react-router'
 import { App } from '@/App'
+import { MemoryPage } from '@/routes/memory'
 import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
@@ -1713,6 +1714,12 @@ const settingsRoute = createRoute({
     component: SettingsPage,
 })
 
+const memoryRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/memory',
+    component: MemoryPage,
+})
+
 const debugDiffRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/debug/diff',
@@ -1776,6 +1783,7 @@ export const routeTree = rootRoute.addChildren([
         reviewLoopsIndexRoute,
         reviewLoopDetailRoute,
     ]),
+    memoryRoute,
     settingsRoute,
 ])
 

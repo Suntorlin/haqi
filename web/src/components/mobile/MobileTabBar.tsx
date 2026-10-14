@@ -8,7 +8,7 @@ import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-export type MobileTab = 'sessions' | 'groups' | 'loops' | 'settings'
+export type MobileTab = 'sessions' | 'groups' | 'loops' | 'memory' | 'settings'
 
 function ChatsIcon(props: { filled: boolean }) {
     return (
@@ -40,6 +40,19 @@ function LoopsIcon(props: { filled: boolean }) {
     )
 }
 
+function MemoryIcon(props: { filled: boolean }) {
+    return (
+        <svg viewBox="0 0 24 24" className="h-[25px] w-[25px]" fill="none" stroke="currentColor" strokeWidth={props.filled ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="5" r="2.2" fill={props.filled ? 'currentColor' : 'none'} />
+            <circle cx="5.5" cy="12.5" r="2.2" />
+            <circle cx="18.5" cy="12.5" r="2.2" />
+            <circle cx="9" cy="19.5" r="2" />
+            <circle cx="15" cy="19.5" r="2" />
+            <path d="M10.5 6.6 6.9 10.6M13.5 6.6l3.6 4M6.6 14.5l1.7 3.1M17.4 14.5l-1.7 3.1" />
+        </svg>
+    )
+}
+
 function MeIcon(props: { filled: boolean }) {
     return (
         <svg viewBox="0 0 24 24" className="h-[25px] w-[25px]" fill={props.filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={props.filled ? 0 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -49,10 +62,11 @@ function MeIcon(props: { filled: boolean }) {
     )
 }
 
-const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/review-loops' | '/settings'> = {
+const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/review-loops' | '/memory' | '/settings'> = {
     sessions: '/sessions',
     groups: '/groups',
     loops: '/review-loops',
+    memory: '/memory',
     settings: '/settings'
 }
 
@@ -64,6 +78,7 @@ function useNavTabs(sessionsBadge?: number): NavTab[] {
         { key: 'sessions', label: t('mobile.tab.sessions'), icon: (filled) => <ChatsIcon filled={filled} />, badge: sessionsBadge },
         { key: 'groups', label: t('mobile.tab.groups'), icon: (filled) => <GroupsIcon filled={filled} /> },
         { key: 'loops', label: t('mobile.tab.loops'), icon: (filled) => <LoopsIcon filled={filled} /> },
+        { key: 'memory', label: t('mobile.tab.memory'), icon: (filled) => <MemoryIcon filled={filled} /> },
         { key: 'settings', label: t('mobile.tab.me'), icon: (filled) => <MeIcon filled={filled} /> }
     ]
 }
@@ -113,6 +128,7 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
 function getActiveTab(pathname: string): MobileTab {
     if (pathname.startsWith('/groups')) return 'groups'
     if (pathname.startsWith('/review-loops')) return 'loops'
+    if (pathname.startsWith('/memory')) return 'memory'
     if (pathname.startsWith('/settings')) return 'settings'
     return 'sessions'
 }
