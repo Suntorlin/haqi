@@ -21,7 +21,7 @@ import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -482,9 +482,12 @@ function SessionsPage() {
                     <button
                         type="button"
                         onClick={() => setSelectedSessionTag(null)}
-                        className={tagChipClass(selectedSessionTag === null)}
+                        className={`${tagChipClass(selectedSessionTag === null)} inline-flex items-center justify-center px-2.5`}
+                        aria-label={t('sessions.tags.all')}
+                        aria-pressed={selectedSessionTag === null}
+                        title={t('sessions.tags.all')}
                     >
-                        {t('sessions.tags.all')}
+                        <TagIcon className="h-4 w-4" />
                     </button>
                     {isMobileLayout ? orderedSessionTags.map((tag) => (
                         <button
