@@ -77,10 +77,12 @@ export function ChoiceChips<T extends string>(props: {
     disabled?: boolean
     /** Extra classes for every chip, e.g. `capitalize` (buttons do not inherit text-transform). */
     optionClassName?: string
+    /** Container classes, e.g. a single scrolling row instead of wrapping. */
+    className?: string
     onChange: (value: T) => void
 }) {
     return (
-        <div role="radiogroup" aria-label={props.label} className="flex flex-wrap gap-1.5">
+        <div role="radiogroup" aria-label={props.label} className={cn('flex flex-wrap gap-1.5', props.className)}>
             {props.options.map((option) => {
                 const selected = option.value === props.value
                 return (

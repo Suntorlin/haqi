@@ -8,11 +8,11 @@ import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 
 /** "/Users/me/projects/app" → "~/projects/app", so chips show the part that differs. */
-function shortenHomePath(path: string): string {
+export function shortenHomePath(path: string): string {
     return path.replace(/^\/(?:Users|home)\/[^/]+(?=\/|$)/, '~')
 }
 
-export function DirectorySection(props: {
+export type DirectorySectionProps = {
     directory: string
     suggestions: readonly Suggestion[]
     selectedIndex: number
@@ -24,12 +24,16 @@ export function DirectorySection(props: {
     onDirectoryKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => void
     onSuggestionSelect: (index: number) => void
     onPathClick: (path: string) => void
-}) {
+    /** The picker above already names this field; skip the caption. */
+    hideLabel?: boolean
+    autoFocus?: boolean
+}
+
+export function DirectorySection(props: DirectorySectionProps) {
     const { t } = useTranslation()
     const id = useId()
 
-    return (
-        <FormField label={t('newSession.directory')} htmlFor={id}>
+    const field = (
             <InputHistory
                 items={props.recentPaths}
                 label={t('newSession.recent')}
@@ -49,6 +53,7 @@ export function DirectorySection(props: {
                             onFocus={props.onDirectoryFocus}
                             onBlur={props.onDirectoryBlur}
                             disabled={props.isDisabled}
+                            autoFocus={props.autoFocus}
                             trailing={trailing}
                         />
                         {props.suggestions.length > 0 && !open && (
@@ -65,6 +70,7 @@ export function DirectorySection(props: {
                     </>
                 )}
             </InputHistory>
-        </FormField>
     )
+
+    return props.hideLabel ? field : <FormField label={t('newSession.directory')} htmlFor={id}>{field}</FormField>
 }

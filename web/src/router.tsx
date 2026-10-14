@@ -845,18 +845,12 @@ function NewSessionPage() {
         })
     }, [addToast, api, navigate, queryClient, search.tag, t])
     const formId = 'new-session-page-form'
-    const submitDisabled = Boolean(machinesLoading || machinesError)
 
     return (
         <div className="flex h-full min-h-0 flex-col">
             <SubPageHeader
                 title={t('newSession.title')}
                 onBack={isTelegramApp() ? undefined : goBack}
-                actions={(
-                    <Button type="submit" form={formId} disabled={submitDisabled}>
-                        {t('newSession.create')}
-                    </Button>
-                )}
             />
 
             <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">

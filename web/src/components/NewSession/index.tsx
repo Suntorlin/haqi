@@ -24,8 +24,8 @@ import {
 } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
-import { DirectorySection } from './DirectorySection'
-import { MachineSelector } from './MachineSelector'
+import { MachineSelector, getMachineTitle } from './MachineSelector'
+import { ProjectPicker } from './ProjectPicker'
 import {
     loadLastSessionConfig,
     loadPreferredAgent,
@@ -52,8 +52,10 @@ import { useTranslation } from '@/lib/use-translation'
 import { TextField } from '@/components/ui/TextField'
 import { FormField } from '@/components/ui/FormControls'
 import { InputHistory } from '@/components/ui/InputHistory'
-import { ChevronDownIcon } from '@/components/mobile/icons'
-import { Button } from '@/components/ui/button'
+import { ChevronDownIcon, SlidersIcon } from '@/components/mobile/icons'
+import { getProjectName } from '@/components/mobile/SessionAvatar'
+import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { modelOptionText, thinkEffortText } from '@/lib/option-labels'
 import { cn } from '@/lib/utils'
 
 function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
@@ -414,10 +416,32 @@ export function NewSession(props: {
         void handleCreate()
     }
 
+    const projectName = directory.trim() ? getProjectName(directory.trim()) : undefined
+    const summary = useMemo(() => {
+        const parts: string[] = []
+        const customModelValue = customModel.trim()
+        const modelOption = modelOptions.find((option) => option.value === model)
+        if (customModelValue) {
+            parts.push(customModelValue)
+        } else if (modelOption) {
+            parts.push(modelOptionText(modelOption.value, modelOption.label, t))
+        }
+        const thinkOption = getThinkEffortOptions(agent).find((option) => option.value === thinkEffort)
+        if (thinkOption) {
+            parts.push(t('composer.chip.think', { value: thinkEffortText(thinkOption.value, thinkOption.label, t) }))
+        }
+        if (yoloMode) parts.push(t('newSession.yolo'))
+        if (sessionType === 'worktree') parts.push(t('newSession.type.worktree'))
+        if (experimentalSettings.previewEnabled && previewUrlInput.trim()) parts.push(t('newSession.previewUrl'))
+        if (props.machines.length > 1 && selectedMachine) parts.push(getMachineTitle(selectedMachine))
+        return parts.join(' · ')
+    }, [agent, customModel, model, modelOptions, thinkEffort, yoloMode, sessionType,
+        experimentalSettings.previewEnabled, previewUrlInput, props.machines.length, selectedMachine, t])
+
     return (
         <form
             id={props.formId}
-            className="mx-auto flex w-full max-w-[640px] flex-col gap-5 px-4 pb-6 pt-4"
+            className="mx-auto flex min-h-full w-full max-w-[560px] flex-col gap-6 px-4 pt-3"
             onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit}
         >
@@ -426,7 +450,12 @@ export function NewSession(props: {
                     {t('newSession.runnerError', { error: runnerSpawnError })}
                 </div>
             ) : null}
-            <DirectorySection
+            {!props.isLoading && props.machines.length === 0 ? (
+                <div className="rounded-2xl bg-[var(--app-badge-warning-bg)] px-4 py-3 text-[13px] text-[var(--app-badge-warning-text)]">
+                    {t('misc.noMachines')}
+                </div>
+            ) : null}
+            <ProjectPicker
                 directory={directory}
                 suggestions={suggestions}
                 selectedIndex={selectedIndex}
@@ -439,25 +468,51 @@ export function NewSession(props: {
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
             />
-            <div className="flex flex-col gap-5">
-                <Button
-                    type="button"
-                    variant="ghost"
-                    aria-expanded={showAdvanced}
-                    onClick={() => setShowAdvanced((open) => !open)}
-                    className="-ml-3 self-start px-3 text-[13px]"
-                >
-                    {t('newSession.advanced')}
-                    <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform duration-150', showAdvanced && 'rotate-180')} />
-                </Button>
+            <AgentSelector
+                agent={agent}
+                isDisabled={isFormDisabled}
+                onAgentChange={setAgent}
+            />
+            <div className="flex flex-col gap-4">
+                <ListGroup>
+                    <ListRow
+                        icon={<SlidersIcon className="h-[18px] w-[18px]" />}
+                        title={t('newSession.customize')}
+                        subtitle={summary}
+                        trailing={<ChevronDownIcon className={cn('h-4 w-4 text-[var(--social-fg-subtle)] transition-transform duration-150', showAdvanced && 'rotate-180')} />}
+                        chevron={false}
+                        aria-expanded={showAdvanced}
+                        onClick={() => setShowAdvanced((open) => !open)}
+                    />
+                </ListGroup>
                 {showAdvanced ? (
                     <div className="flex flex-col gap-5">
-                        <MachineSelector
-                            machines={props.machines}
+                        <SessionParams
+                            key={agent}
+                            api={props.api}
+                            agent={agent}
                             machineId={machineId}
-                            isLoading={props.isLoading}
+                            model={model}
+                            customModel={customModel}
+                            thinkEffort={thinkEffort}
+                            serviceTier={serviceTier}
+                            yoloMode={yoloMode}
+                            claudeAccount={claudeAccount}
                             isDisabled={isFormDisabled}
-                            onChange={handleMachineChange}
+                            onModelChange={setModel}
+                            onCustomModelChange={setCustomModel}
+                            onThinkEffortChange={setThinkEffort}
+                            onServiceTierChange={setServiceTier}
+                            onYoloChange={setYoloMode}
+                            onClaudeAccountChange={setClaudeAccount}
+                        />
+                        <SessionTypeSelector
+                            sessionType={sessionType}
+                            worktreeName={worktreeName}
+                            worktreeInputRef={worktreeInputRef}
+                            isDisabled={isFormDisabled}
+                            onSessionTypeChange={setSessionType}
+                            onWorktreeNameChange={setWorktreeName}
                         />
                         {experimentalSettings.previewEnabled ? (
                             <FormField label={t('newSession.previewUrl')} htmlFor={previewUrlId} optional>
@@ -482,41 +537,18 @@ export function NewSession(props: {
                                 </InputHistory>
                             </FormField>
                         ) : null}
-                        <SessionTypeSelector
-                            sessionType={sessionType}
-                            worktreeName={worktreeName}
-                            worktreeInputRef={worktreeInputRef}
-                            isDisabled={isFormDisabled}
-                            onSessionTypeChange={setSessionType}
-                            onWorktreeNameChange={setWorktreeName}
-                        />
+                        {props.machines.length > 1 ? (
+                            <MachineSelector
+                                machines={props.machines}
+                                machineId={machineId}
+                                isLoading={props.isLoading}
+                                isDisabled={isFormDisabled}
+                                onChange={handleMachineChange}
+                            />
+                        ) : null}
                     </div>
                 ) : null}
             </div>
-            <AgentSelector
-                agent={agent}
-                isDisabled={isFormDisabled}
-                onAgentChange={setAgent}
-            />
-            <SessionParams
-                key={agent}
-                api={props.api}
-                agent={agent}
-                machineId={machineId}
-                model={model}
-                customModel={customModel}
-                thinkEffort={thinkEffort}
-                serviceTier={serviceTier}
-                yoloMode={yoloMode}
-                claudeAccount={claudeAccount}
-                isDisabled={isFormDisabled}
-                onModelChange={setModel}
-                onCustomModelChange={setCustomModel}
-                onThinkEffortChange={setThinkEffort}
-                onServiceTierChange={setServiceTier}
-                onYoloChange={setYoloMode}
-                onClaudeAccountChange={setClaudeAccount}
-            />
 
             {(error ?? spawnError) ? (
                 <div className="px-1 text-[13px] text-[var(--social-danger)]">
@@ -527,8 +559,7 @@ export function NewSession(props: {
             <ActionButtons
                 isPending={isPending}
                 canCreate={canCreate}
-                isDisabled={isFormDisabled}
-                onCancel={props.onCancel}
+                projectName={projectName}
             />
         </form>
     )

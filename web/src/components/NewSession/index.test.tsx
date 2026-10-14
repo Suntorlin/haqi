@@ -111,8 +111,9 @@ describe('NewSession initial directory preset', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Recent paths' }))
         fireEvent.click(await screen.findByRole('menuitem', { name: '/recent/path' }))
 
-        expect(screen.getByPlaceholderText('/path/to/project')).toHaveValue('/recent/path')
+        // The picked path is now one of the project rows: the field folds away and the start button names it.
         expect(screen.queryByRole('menuitem', { name: '/recent/path' })).toBeNull()
+        expect(screen.getByRole('button', { name: 'Start in path' })).toBeEnabled()
     })
 
     it('creates session on command + enter', async () => {
@@ -155,6 +156,7 @@ describe('NewSession initial directory preset', () => {
             />
         )
 
+        fireEvent.click(screen.getByRole('button', { name: 'Another folder…' }))
         const directoryInput = screen.getByPlaceholderText('/path/to/project')
         fireEvent.change(directoryInput, { target: { value: '/tmp/project' } })
         fireEvent.keyDown(directoryInput, { key: 'Enter', metaKey: true })
@@ -208,9 +210,10 @@ describe('NewSession initial directory preset', () => {
             />
         )
 
+        fireEvent.click(screen.getByRole('button', { name: 'Another folder…' }))
         fireEvent.change(screen.getByPlaceholderText('/path/to/project'), { target: { value: '/tmp/project' } })
         fireEvent.click(screen.getByRole('radio', { name: 'codex' }))
-        fireEvent.click(screen.getByRole('button', { name: 'More options' }))
+        fireEvent.click(screen.getByRole('button', { name: /Customize/ }))
         fireEvent.change(screen.getByPlaceholderText('http://localhost:3000'), { target: { value: 'http://localhost:4173' } })
         fireEvent.keyDown(screen.getByPlaceholderText('/path/to/project'), { key: 'Enter', metaKey: true })
 
