@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation, type Locale } from '@/lib/use-translation'
+import { IconButton } from '@/components/ui/IconButton'
 
 const locales: { value: Locale; label: string }[] = [
   { value: 'en', label: 'English' },
@@ -87,17 +88,15 @@ export function LanguageSwitcher() {
 
   return (
     <div ref={containerRef} className="relative">
-      <button
-        type="button"
+      <IconButton
+        size="sm"
+        label={t('language.title')}
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center h-8 w-8 rounded-md text-[var(--social-fg-muted)] hover:text-[var(--social-fg)] hover:bg-[var(--social-hover)] transition-colors"
-        title={t('language.title')}
-        aria-label={t('language.title')}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
       >
         <LanguageIcon />
-      </button>
+      </IconButton>
 
       {isOpen && (
         <div
@@ -114,7 +113,7 @@ export function LanguageSwitcher() {
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleLocaleChange(loc.value)}
-                className={`flex items-center justify-between w-full px-3 py-2 text-[15px] text-left transition-colors ${
+                className={`flex min-h-11 items-center justify-between w-full px-3 py-2 text-[15px] text-left transition-colors ${
                   isSelected
                     ? 'text-[var(--social-fg)] bg-[var(--social-hover)]'
                     : 'text-[var(--social-fg)] hover:bg-[var(--social-hover)]'

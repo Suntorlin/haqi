@@ -100,7 +100,7 @@ function DirectoryNode(props: {
             <button
                 type="button"
                 onClick={() => props.onToggle(props.path)}
-                className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
+                className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
                 style={{ paddingLeft: indent }}
             >
                 <ChevronIcon collapsed={!isExpanded} className="text-[var(--social-fg-muted)]" />
@@ -141,7 +141,7 @@ function DirectoryNode(props: {
                                     key={filePath}
                                     type="button"
                                     onClick={() => props.onOpenFile(filePath)}
-                                    className="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
+                                    className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
                                     style={{ paddingLeft: childIndent }}
                                 >
                                     <span className="h-4 w-4" />
