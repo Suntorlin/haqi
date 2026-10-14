@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { IconButton } from '@/components/ui/IconButton'
 import { useTranslation } from '@/lib/use-translation'
+import { cn } from '@/lib/utils'
 
 function TrashIcon(props: { className?: string }) {
     return (
@@ -76,8 +78,8 @@ export function SessionQuickArchiveButton(props: {
     }
 
     return (
-        <button
-            type="button"
+        <IconButton
+            size="sm"
             onClick={(event) => {
                 event.preventDefault()
                 event.stopPropagation()
@@ -94,9 +96,14 @@ export function SessionQuickArchiveButton(props: {
                 }
             }}
             disabled={isPending}
-            className={`absolute z-10 inline-flex items-center justify-center rounded-md border shadow-sm transition-all disabled:cursor-not-allowed ${confirming ? 'border-[var(--app-danger,#ef4444)] bg-[var(--app-danger,#ef4444)] text-white' : 'border-[var(--social-divider)] bg-[var(--social-surface)] text-[var(--app-danger,#ef4444)]'} ${compact ? 'right-2.5 top-1 h-7 w-7' : 'right-3 top-2 h-8 w-8'}`}
-            aria-label={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
-            title={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
+            className={cn(
+                'absolute z-10 border shadow-sm',
+                confirming
+                    ? 'border-[var(--social-danger)] bg-[var(--social-danger)] text-white hover:bg-[var(--social-danger)] hover:text-white'
+                    : 'border-[var(--social-divider)] bg-[var(--social-surface)] text-[var(--social-danger)] hover:bg-[var(--social-muted)] hover:text-[var(--social-danger)]',
+                compact ? 'right-2.5 top-1 h-7 w-7' : 'right-3 top-2 h-8 w-8'
+            )}
+            label={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
         >
             {isPending ? (
                 <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
@@ -105,6 +112,6 @@ export function SessionQuickArchiveButton(props: {
             ) : (
                 <TrashIcon className="h-4 w-4" />
             )}
-        </button>
+        </IconButton>
     )
 }
