@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
@@ -13,9 +13,10 @@ import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { buttonVariants } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
+import { InputHistory } from '@/components/ui/InputHistory'
 import { TextField } from '@/components/ui/TextField'
 import { cn } from '@/lib/utils'
-import { ChevronDownIcon, ChevronLeftIcon, ClearIcon, ExternalLinkIcon, GlobeIcon, RefreshIcon, SendArrowIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, ClearIcon, ExternalLinkIcon, GlobeIcon, RefreshIcon, SendArrowIcon } from '@/components/mobile/icons'
 
 export default function PreviewPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/preview' })
@@ -111,18 +112,6 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
         }
     }, [api, invalidatePreviewData, sessionId, t])
 
-    const barRef = useRef<HTMLDivElement>(null)
-    const [historyOpen, setHistoryOpen] = useState(false)
-
-    useEffect(() => {
-        if (!historyOpen) return
-        const close = (event: PointerEvent) => {
-            if (!barRef.current?.contains(event.target as Node)) setHistoryOpen(false)
-        }
-        document.addEventListener('pointerdown', close)
-        return () => document.removeEventListener('pointerdown', close)
-    }, [historyOpen])
-
     // Early returns stay below every hook: settings load after the first render.
     if (experimentalSettingsLoading) {
         return (
@@ -164,97 +153,79 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
                             <ChevronLeftIcon className="h-6 w-6" />
                         </IconButton>
                     )}
-                    <div ref={barRef} className="relative min-w-0 flex-1">
-                        <TextField
-                            variant="pill"
-                            type="text"
-                            inputMode="url"
-                            autoCapitalize="off"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            value={inputUrl}
-                            onChange={(event) => setInputUrl(event.target.value)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter') {
-                                    event.preventDefault()
-                                    void openPreview(inputUrl)
-                                }
+                    <div className="min-w-0 flex-1">
+                        <InputHistory
+                            items={historyUrls.slice(0, 10)}
+                            label={t('preview.history')}
+                            format={(url) => url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                            onPick={(url) => {
+                                setInputUrl(url)
+                                void openPreview(url)
                             }}
-                            placeholder="http://localhost:3000"
-                            aria-label={t('newSession.previewUrl')}
-                            leading={<GlobeIcon className={iconSize} />}
-                            trailing={
-                                <>
-                                    {historyUrls.length > 0 ? (
-                                        <IconButton
-                                            size="sm"
-                                            label={t('preview.history')}
-                                            aria-expanded={historyOpen}
-                                            onClick={() => setHistoryOpen((open) => !open)}
-                                        >
-                                            <ChevronDownIcon className={`${iconSize} transition-transform ${historyOpen ? 'rotate-180' : ''}`} />
-                                        </IconButton>
-                                    ) : null}
-                                    {inputUrl ? (
-                                        <IconButton
-                                            size="sm"
-                                            label={t('preview.clear')}
-                                            disabled={isSaving}
-                                            onClick={() => {
-                                                if (dirty) {
-                                                    setInputUrl('')
-                                                } else {
-                                                    void clearPreview()
-                                                }
-                                            }}
-                                        >
-                                            <ClearIcon className={iconSize} />
-                                        </IconButton>
-                                    ) : null}
-                                    {dirty ? (
-                                        <IconButton
-                                            size="sm"
-                                            variant="filled"
-                                            label={isSaving ? t('preview.saving') : t('preview.go')}
-                                            disabled={isSaving || !inputUrl.trim()}
-                                            onClick={() => void openPreview(inputUrl)}
-                                        >
-                                            <SendArrowIcon className={iconSize} />
-                                        </IconButton>
-                                    ) : (
-                                        <IconButton
-                                            size="sm"
-                                            label={t('preview.reload')}
-                                            disabled={!frameUrl}
-                                            onClick={() => setFrameKey((key) => key + 1)}
-                                        >
-                                            <RefreshIcon className={iconSize} />
-                                        </IconButton>
-                                    )}
-                                </>
-                            }
-                        />
-
-                        {historyOpen && historyUrls.length > 0 ? (
-                            <ul className="absolute left-0 right-0 top-full z-10 mt-1 max-h-[260px] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 shadow-[var(--shadow-float)]">
-                                {historyUrls.slice(0, 10).map((url) => (
-                                    <li key={url}>
-                                        <button
-                                            type="button"
-                                            title={url}
-                                            onClick={() => {
-                                                setHistoryOpen(false)
-                                                setInputUrl(url)
-                                                void openPreview(url)
-                                            }}
-                                            className="block min-h-11 w-full truncate rounded-xl px-3 text-left text-[13px] text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
-                                        >
-                                            {url.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : null}
+                        >
+                            {({ trailing: historyToggle }) => (
+                                <TextField
+                                    variant="pill"
+                                    type="text"
+                                    inputMode="url"
+                                    autoCapitalize="off"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    value={inputUrl}
+                                    onChange={(event) => setInputUrl(event.target.value)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                            event.preventDefault()
+                                            void openPreview(inputUrl)
+                                        }
+                                    }}
+                                    placeholder="http://localhost:3000"
+                                    aria-label={t('newSession.previewUrl')}
+                                    leading={<GlobeIcon className={iconSize} />}
+                                    trailing={
+                                        <>
+                                            {historyToggle}
+                                            {inputUrl ? (
+                                                <IconButton
+                                                    size="sm"
+                                                    label={t('preview.clear')}
+                                                    disabled={isSaving}
+                                                    onClick={() => {
+                                                        if (dirty) {
+                                                            setInputUrl('')
+                                                        } else {
+                                                            void clearPreview()
+                                                        }
+                                                    }}
+                                                >
+                                                    <ClearIcon className={iconSize} />
+                                                </IconButton>
+                                            ) : null}
+                                            {dirty ? (
+                                                <IconButton
+                                                    size="sm"
+                                                    variant="filled"
+                                                    label={isSaving ? t('preview.saving') : t('preview.go')}
+                                                    disabled={isSaving || !inputUrl.trim()}
+                                                    onClick={() => void openPreview(inputUrl)}
+                                                >
+                                                    <SendArrowIcon className={iconSize} />
+                                                </IconButton>
+                                            ) : (
+                                                <IconButton
+                                                    size="sm"
+                                                    label={t('preview.reload')}
+                                                    disabled={!frameUrl}
+                                                    onClick={() => setFrameKey((key) => key + 1)}
+                                                >
+                                                    <RefreshIcon className={iconSize} />
+                                                </IconButton>
+                                            )}
+                                        </>
+                                    }
+                                />
+                            )}
+                        </InputHistory>
                     </div>
                     {frameUrl ? (
                         <a
