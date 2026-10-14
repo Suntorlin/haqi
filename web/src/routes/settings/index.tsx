@@ -1,4 +1,5 @@
 import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
+import { ViewportDiagnostics } from '@/components/ViewportDiagnostics'
 import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
@@ -1403,6 +1404,7 @@ export default function SettingsPage() {
                             />
                             <SettingsValueRow title={t('settings.about.appVersion')} value={__APP_VERSION__} />
                             <SettingsValueRow title={t('settings.about.protocolVersion')} value={PROTOCOL_VERSION} />
+                            <ViewportDiagnostics />
                         </SettingsBlock>
                     </SettingsGroup>
                 </div>
