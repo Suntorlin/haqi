@@ -24,6 +24,8 @@ export function ListRow(props: {
     trailing?: ReactNode
     onClick?: () => void
     destructive?: boolean
+    /** Show the trailing chevron; defaults to true for rows that navigate (have onClick). */
+    chevron?: boolean
     disabled?: boolean
     /** Let long title / subtitle wrap instead of truncating (settings descriptions). */
     wrap?: boolean
@@ -40,7 +42,7 @@ export function ListRow(props: {
                 {props.subtitle ? <span className={cn(text, 'mt-0.5 text-[13px] text-[var(--social-fg-muted)]')}>{props.subtitle}</span> : null}
             </span>
             {props.trailing ? <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">{props.trailing}</span> : null}
-            {props.onClick ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}
+            {(props.chevron ?? Boolean(props.onClick)) ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}
         </>
     )
     const className = cn('flex min-h-[52px] w-full items-center gap-3 px-4 py-2', props.disabled && 'pointer-events-none opacity-50')

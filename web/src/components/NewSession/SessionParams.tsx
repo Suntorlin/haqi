@@ -56,7 +56,7 @@ export function SessionParams(props: {
 
     return (
         <FormField label={t('newSession.params')}>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2 [&>button]:border [&>button]:border-[var(--social-border)] [&>button]:px-3 [&>button]:text-[var(--social-fg)] [&>button[aria-pressed=true]]:border-transparent [&>button[aria-pressed=true]]:text-[var(--social-primary-fg)]">
                 {modelOptions.length > 0 ? (
                     <SettingChip
                         title={t('newSession.model')}

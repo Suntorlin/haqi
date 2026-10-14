@@ -1,6 +1,7 @@
 import type { AgentType } from './types'
-import { ChoiceChips, FormField } from '@/components/ui/FormControls'
+import { ChoiceChips } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
+import { Section } from './Section'
 
 const AGENTS: ReadonlyArray<{ value: AgentType; label: string }> = (['claude', 'codex', 'cursor', 'gemini', 'opencode'] as const)
     .map((agent) => ({ value: agent, label: agent }))
@@ -13,15 +14,16 @@ export function AgentSelector(props: {
     const { t } = useTranslation()
 
     return (
-        <FormField label={t('newSession.agent')}>
+        <Section title={t('newSession.agent')}>
             <ChoiceChips
                 label={t('newSession.agent')}
                 value={props.agent}
                 options={AGENTS}
                 disabled={props.isDisabled}
-                optionClassName="capitalize"
+                className="-mx-4 flex-nowrap gap-2 overflow-x-auto px-4 [scrollbar-width:none]"
+                optionClassName="shrink-0 capitalize"
                 onChange={props.onAgentChange}
             />
-        </FormField>
+        </Section>
     )
 }
