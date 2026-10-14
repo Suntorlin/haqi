@@ -110,7 +110,7 @@ export function UsagePanel(props: UsagePanelProps) {
     }, [props.rateLimitSnapshot])
 
     return (
-        <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3 shadow-lg">
+        <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3 shadow-[var(--shadow-float)]">
             <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold">
                     <span className="text-[var(--social-fg)]">{t('usage.contextWindow')}</span>

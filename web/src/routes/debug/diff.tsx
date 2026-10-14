@@ -63,7 +63,7 @@ export default function DebugDiffPage() {
         <div className="min-h-screen bg-[var(--social-surface)] text-[var(--social-fg)]">
             <div className="mx-auto w-full max-w-6xl p-6">
                 <div className="mb-4">
-                    <h1 className="text-xl font-semibold">Debug Diff Viewer</h1>
+                    <h1 className="text-[20px] font-semibold">Debug Diff Viewer</h1>
                     <p className="mt-1 text-[13px] text-[var(--social-fg-muted)]">{subtitle}</p>
                 </div>
 

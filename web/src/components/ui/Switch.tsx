@@ -21,8 +21,8 @@ export function SwitchTrack(props: { checked: boolean; className?: string }) {
         >
             <span
                 className={cn(
-                    'h-5 w-5 rounded-full shadow-sm transition-transform',
-                    props.checked ? 'translate-x-[18px] bg-[var(--social-primary-fg)]' : 'translate-x-0.5 bg-white'
+                    'h-5 w-5 rounded-full shadow-[var(--shadow-raised)] transition-transform',
+                    props.checked ? 'translate-x-[18px] bg-[var(--social-primary-fg)]' : 'translate-x-0.5 bg-[var(--social-on-accent)]'
                 )}
             />
         </span>

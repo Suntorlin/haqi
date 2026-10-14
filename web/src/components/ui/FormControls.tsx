@@ -129,7 +129,7 @@ export function SegmentedControl<T extends string>(props: {
                         className={cn(
                             'min-h-11 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-[15px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                             selected
-                                ? 'bg-[var(--social-surface)] font-semibold text-[var(--social-fg)] shadow-sm'
+                                ? 'bg-[var(--social-surface)] font-semibold text-[var(--social-fg)] shadow-[var(--shadow-raised)]'
                                 : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
                         )}
                     >

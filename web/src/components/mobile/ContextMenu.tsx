@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 type Point = { x: number; y: number }
 
 /** Surface + item classes, for the few menus that position themselves (submenus). */
-export const CONTEXT_MENU_SURFACE = 'max-h-[70vh] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 text-[var(--social-fg)] shadow-[0_12px_40px_rgba(0,0,0,0.14)]'
+export const CONTEXT_MENU_SURFACE = 'max-h-[70vh] overflow-y-auto rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-1.5 text-[var(--social-fg)] shadow-[var(--shadow-float)]'
 
 /**
  * The one context menu used by every list (long-press on phones, right-click on desktop):

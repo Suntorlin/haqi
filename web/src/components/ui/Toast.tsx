@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const toastVariants = cva(
-    'pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-lg',
+    'pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-[var(--shadow-float)]',
     {
         variants: {
             variant: {

@@ -69,13 +69,13 @@ function TagsSubmenu(props: {
                     disabled={!props.onTagsChange || props.pending}
                     onSelect={() => toggle(tag)}
                     trailing={(
-                        <span className={cn('text-[14px]', selected.includes(tag) ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
+                        <span className={cn('text-[15px]', selected.includes(tag) ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
                             ✓
                         </span>
                     )}
                 />
             )) : (
-                <div className="px-3 py-2.5 text-[14px] text-[var(--social-fg-muted)]">{t('session.action.noTags')}</div>
+                <div className="px-3 py-2.5 text-[15px] text-[var(--social-fg-muted)]">{t('session.action.noTags')}</div>
             )}
             <ContextMenuSeparator />
             <ContextMenuItem

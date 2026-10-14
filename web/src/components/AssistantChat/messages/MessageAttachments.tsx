@@ -17,8 +17,8 @@ function ImageAttachment(props: { attachment: AttachmentMetadata }) {
                 alt={attachment.filename}
                 className="max-h-48 max-w-full object-contain"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1.5">
-                <span className="text-xs text-white/90 line-clamp-1">
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[var(--scrim-strong)] to-transparent px-2 py-1.5">
+                <span className="text-xs text-[var(--social-on-accent)] line-clamp-1">
                     {attachment.filename}
                 </span>
             </div>

@@ -175,7 +175,7 @@ export function MobileComposerAction(props: {
                 label={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
                 onClick={props.onVoiceToggle}
                 disabled={props.controlsDisabled && !voiceActive}
-                className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-white' : '')}
+                className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)]' : '')}
             >
                 {voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
             </IconButton>

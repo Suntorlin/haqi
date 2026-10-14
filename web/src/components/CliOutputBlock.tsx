@@ -107,7 +107,7 @@ export function CliOutputBlock(props: { text: string }) {
     const commandName = useMemo(() => extractCommandName(props.text), [props.text])
 
     return (
-        <Card className="min-w-0 max-w-full overflow-hidden shadow-sm">
+        <Card className="min-w-0 max-w-full overflow-hidden">
             <CardHeader className="p-3 space-y-0">
                 <Dialog>
                     <DialogTrigger asChild>

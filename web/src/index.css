@@ -14,6 +14,48 @@
     --motion-base: 200ms;
     --motion-ease: cubic-bezier(0.2, 0, 0, 1);
 
+    /* Overlays, shadows, on-colour text. Components use these; no raw rgba / black / white. */
+    --social-on-accent: #ffffff;
+    --scrim-soft: rgba(0, 0, 0, 0.2);
+    --scrim: rgba(0, 0, 0, 0.45);
+    --scrim-strong: rgba(0, 0, 0, 0.6);
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 24px rgba(0, 0, 0, 0.04);
+    --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.14);
+    --shadow-sheet: 0 -8px 40px rgba(0, 0, 0, 0.12);
+    --shadow-panel: -16px 0 48px rgba(0, 0, 0, 0.08);
+
+    /* Avatar orbs (4 colours per family: blob, blob, blob, base) and story rings. */
+    --orb-0-0: #5b8def; --orb-0-1: #9b6bdf; --orb-0-2: #6fd3e0; --orb-0-3: #7f9be6;
+    --orb-1-0: #3fae8a; --orb-1-1: #e3c35a; --orb-1-2: #7cc9a8; --orb-1-3: #8fbf8a;
+    --orb-2-0: #e2735a; --orb-2-1: #f0a95c; --orb-2-2: #e98fa0; --orb-2-3: #e8957a;
+    --orb-3-0: #b86ad8; --orb-3-1: #e870a6; --orb-3-2: #7f7be0; --orb-3-3: #c985d0;
+    --orb-4-0: #4aa3c7; --orb-4-1: #4cc3a0; --orb-4-2: #8fd0e8; --orb-4-3: #6dbdc4;
+    --orb-5-0: #d9a441; --orb-5-1: #e5785b; --orb-5-2: #efcf7d; --orb-5-3: #e2a867;
+    --orb-6-0: #7a6fe0; --orb-6-1: #4fa6e8; --orb-6-2: #c07ae0; --orb-6-3: #8a8be6;
+    --orb-7-0: #e0627f; --orb-7-1: #f09a5c; --orb-7-2: #b567c9; --orb-7-3: #e57f8f;
+    --orb-8-0: #5fb35c; --orb-8-1: #2f9fb0; --orb-8-2: #c4d95f; --orb-8-3: #7cbf86;
+    --orb-9-0: #e08a4f; --orb-9-1: #d9585f; --orb-9-2: #f0c261; --orb-9-3: #e5805a;
+    --orb-10-0: #3f7fd0; --orb-10-1: #38b5a5; --orb-10-2: #9a7be0; --orb-10-3: #5c9bd8;
+    --orb-11-0: #d96aa8; --orb-11-1: #7aa0f0; --orb-11-2: #f2b27a; --orb-11-3: #d98fb8;
+    --orb-12-0: #8f6fd6; --orb-12-1: #d9708f; --orb-12-2: #5cc0d8; --orb-12-3: #a888d8;
+    --orb-13-0: #6cb76a; --orb-13-1: #e8b84f; --orb-13-2: #4fa8b8; --orb-13-3: #92c487;
+    --orb-14-0: #cf5f74; --orb-14-1: #7b68d8; --orb-14-2: #e8a15f; --orb-14-3: #c0708e;
+    --orb-15-0: #45a5e0; --orb-15-1: #e57fb0; --orb-15-2: #7be0c0; --orb-15-3: #8cb4e6;
+    --orb-16-0: #a0b84a; --orb-16-1: #4ea88a; --orb-16-2: #e0c85f; --orb-16-3: #98b868;
+    --orb-17-0: #e07a45; --orb-17-1: #c25fb0; --orb-17-2: #6f8fe8; --orb-17-3: #d98a80;
+    --orb-shade: rgba(15, 23, 42, 0.16);
+    --orb-edge: rgba(15, 23, 42, 0.08);
+    --orb-sheen: rgba(255, 255, 255, 0.18);
+    --ring-live: linear-gradient(45deg, #feda75 0%, #fa7e1e 25%, #d62976 50%, #962fbf 75%, #4f5bd5 100%);
+    --ring-pending: linear-gradient(45deg, #fcd34d 0%, #fb923c 50%, #f43f5e 100%);
+
+    /* File-type accent colours (file icons). */
+    --filetype-ts: #3178c6; --filetype-js: #f7df1e; --filetype-json: #f59e0b; --filetype-md: #64748b; --filetype-css: #2563eb; --filetype-scss: #db2777; --filetype-html: #f97316; --filetype-yaml: #ef4444; --filetype-sh: #10b981; --filetype-py: #3776ab; --filetype-go: #0ea5e9; --filetype-rs: #f97316;
+    --orb-glaze-1: rgba(255, 255, 255, 0.16);
+    --orb-glaze-2: rgba(255, 255, 255, 0.08);
+    --orb-gloss: rgba(255, 255, 255, 0.2);
+
     /* Theme-aware colors (light mode defaults) */
     --app-code-bg: #fafafa;
     --app-inline-code-bg: #f4f4f5;
@@ -70,6 +112,14 @@
 }
 
 [data-theme="dark"] {
+    --scrim-soft: rgba(0, 0, 0, 0.35);
+    --scrim: rgba(0, 0, 0, 0.6);
+    --scrim-strong: rgba(0, 0, 0, 0.75);
+    --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 6px 24px rgba(0, 0, 0, 0.2);
+    --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.5);
+    --shadow-sheet: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    --shadow-panel: -16px 0 48px rgba(0, 0, 0, 0.4);
     /* Primary colors - override fallbacks for non-Telegram browsers */
     --app-code-bg: #111113;
     --app-inline-code-bg: #1f1f23;
@@ -302,7 +352,7 @@ html[data-theme="dark"] .shiki span {
   -webkit-backdrop-filter: blur(28px) saturate(1.8);
   backdrop-filter: blur(28px) saturate(1.8);
   border: 1px solid color-mix(in srgb, var(--social-border) 80%, transparent);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  box-shadow: var(--shadow-float);
 }
 
 .animate-menu-pop {
@@ -535,7 +585,7 @@ html.social-app {
 }
 
 .social-chat .social-card .aui-md-codeheader {
-    border-radius: 10px 10px 0 0;
+    border-radius: 0.75rem 0.75rem 0 0;
 }
 
 /* Expanded process: quieter, smaller text on a hairline timeline. */
@@ -709,11 +759,11 @@ html.social-app {
         max-height: 88dvh;
         overflow-y: auto;
         overscroll-behavior: contain;
-        border-radius: 24px 24px 0 0;
+        border-radius: 1rem 1rem 0 0;
         border-top: 1px solid var(--social-border);
         background: var(--social-surface);
         padding: 26px 20px calc(20px + env(safe-area-inset-bottom));
-        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
+        box-shadow: var(--shadow-sheet);
         animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1);
     }
 

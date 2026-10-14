@@ -799,7 +799,7 @@ function ToolCardInner(props: ToolCardProps) {
     return (
         <Card
             className={cn(
-                'overflow-hidden shadow-sm',
+                'overflow-hidden',
                 chatContext.layout === 'social' && 'border border-[var(--social-border)] bg-transparent shadow-none'
             )}
         >

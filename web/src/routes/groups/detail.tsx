@@ -2995,7 +2995,7 @@ export default function GroupDetailPage() {
         <div className="shrink-0 bg-[var(--social-surface)] px-6 pb-5 pt-1">
             <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
                 {composerOverlays}
-                <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.04)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-card)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
                     <ComposerAttachmentList
                         attachments={composerAttachments}
                         disabled={isPending}

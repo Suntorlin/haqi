@@ -53,8 +53,8 @@ function DirectorySkeleton(props: { depth: number; rows?: number }) {
                     className="flex items-center gap-3 px-3 py-2"
                     style={{ paddingLeft: indent }}
                 >
-                    <div className="h-5 w-5 rounded bg-[var(--social-hover)]" />
-                    <div className="h-3 w-40 rounded bg-[var(--social-hover)]" />
+                    <div className="h-5 w-5 rounded-md bg-[var(--social-hover)]" />
+                    <div className="h-3 w-40 rounded-md bg-[var(--social-hover)]" />
                 </div>
             ))}
         </div>

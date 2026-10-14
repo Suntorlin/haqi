@@ -19,7 +19,7 @@ export function CodeBlock(props: {
                 <button
                     type="button"
                     onClick={() => copy(props.code)}
-                    className="absolute right-1.5 top-1.5 rounded p-1 text-[var(--social-fg-muted)] hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)] transition-colors"
+                    className="absolute right-1.5 top-1.5 rounded-md p-1 text-[var(--social-fg-muted)] hover:bg-[var(--social-hover)] hover:text-[var(--social-fg)] transition-colors"
                     title={t('code.copy')}
                 >
                     {copied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
