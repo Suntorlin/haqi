@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { useUnreadSessions } from '@/lib/unread-sessions'
 import type { SessionSummary } from '@/types/api'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -31,6 +32,7 @@ function PinnedStory(props: {
     const { t } = useTranslation()
     const { haptic } = usePlatform()
     const { session } = props
+    const unreadSessions = useUnreadSessions()
     const isPending = session.active && session.pendingRequestsCount > 0
     const isLive = session.active && session.thinking
     const title = getSessionTitle(session)
@@ -57,6 +59,7 @@ function PinnedStory(props: {
                     size={46}
                     ring={isPending ? 'pending' : isLive ? 'live' : session.active ? 'seen' : null}
                     muted={!session.active}
+                    unread={unreadSessions.has(session.id) && !isPending}
                 />
                 {isPending || isLive ? (
                     <Badge

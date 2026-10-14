@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { markSessionUnread } from '@/lib/unread-sessions'
 import { useQueryClient } from '@tanstack/react-query'
 import { isObject, toSessionSummary } from '@hapi/protocol'
 import type {
@@ -367,6 +368,7 @@ export function useSSE(options: {
 
         const patchSessionSummary = (sessionId: string, patch: SessionPatch): boolean => {
             let patched = false
+            let finishedWorking = false
             queryClient.setQueryData<SessionsResponse | undefined>(queryKeys.sessions, (previous) => {
                 if (!previous) {
                     return previous
@@ -393,10 +395,15 @@ export function useSSE(options: {
                 }
 
                 patched = true
+                finishedWorking = current.active && current.thinking && nextSummary.thinking === false
                 nextSessions[index] = nextSummary
                 nextSessions.sort(sortSessionSummaries)
                 return { ...previous, sessions: nextSessions }
             })
+            // A session that stopped working while another one is open has something new to read.
+            if (finishedWorking && sessionId !== subscription.sessionId) {
+                markSessionUnread(sessionId)
+            }
             return patched
         }
 

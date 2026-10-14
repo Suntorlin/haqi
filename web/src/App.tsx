@@ -28,6 +28,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { DesktopNavRail } from '@/components/mobile/MobileTabBar'
 import { ToastContainer } from '@/components/ToastContainer'
 import { ToastProvider, useToast } from '@/lib/toast-context'
+import { markSessionRead, markSessionUnread } from '@/lib/unread-sessions'
 import type { SyncEvent } from '@/types/api'
 
 type ToastEvent = Extract<SyncEvent, { type: 'toast' }>
@@ -258,15 +259,28 @@ function AppInner() {
         }
     }, [])
 
+    // Opening a session reads it.
+    useEffect(() => {
+        if (selectedSessionId) markSessionRead(selectedSessionId)
+    }, [selectedSessionId])
+
     const handleSseEvent = useCallback(() => {}, [])
     const handleToast = useCallback((event: ToastEvent) => {
+        // `title` covers a hub that has not been restarted onto the new toast `kind` yet.
+        if (event.data.kind === 'ready' || event.data.title === 'Ready for input') {
+            // "Ready for input" is an unread dot on the session's avatar, not a popup.
+            if (event.data.sessionId !== selectedSessionId) {
+                markSessionUnread(event.data.sessionId)
+            }
+            return
+        }
         addToast({
             title: event.data.title,
             body: event.data.body,
             sessionId: event.data.sessionId,
             url: event.data.url
         })
-    }, [addToast])
+    }, [addToast, selectedSessionId])
 
     const eventSubscription = useMemo(() => {
         if (selectedSessionId) {
