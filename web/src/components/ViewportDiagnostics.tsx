@@ -2,6 +2,15 @@ import { useEffect, useState } from 'react'
 
 type Snapshot = Record<string, string>
 
+function unitHeight(unit: string): string {
+    const probe = document.createElement('div')
+    probe.style.cssText = `position:fixed;visibility:hidden;left:0;top:0;width:1px;height:100${unit};`
+    document.body.appendChild(probe)
+    const height = probe.getBoundingClientRect().height
+    probe.remove()
+    return `${Math.round(height)}`
+}
+
 function readSnapshot(): Snapshot {
     const probe = document.createElement('div')
     probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);'
@@ -19,6 +28,8 @@ function readSnapshot(): Snapshot {
         'window.inner': `${window.innerWidth} x ${window.innerHeight}`,
         'visualViewport': vv ? `${Math.round(vv.width)} x ${Math.round(vv.height)}, top ${Math.round(vv.offsetTop)}` : 'n/a',
         'screen': `${screen.width} x ${screen.height}`,
+        'vh / lvh / svh / dvh': `${unitHeight('vh')} / ${unitHeight('lvh')} / ${unitHeight('svh')} / ${unitHeight('dvh')}`,
+        'outer / client height': `${window.outerHeight} / ${document.documentElement.clientHeight}`,
         'safe-area top / bottom': `${safeTop} / ${safeBottom}`,
         '#root': root ? `top ${Math.round(root.top)}, height ${Math.round(root.height)}` : 'n/a',
         'standalone': String(standalone),
