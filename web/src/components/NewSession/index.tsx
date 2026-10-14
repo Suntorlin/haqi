@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useQuery } from '@tanstack/react-query'
+import { accountsKey } from '@/components/ClaudeAccounts/Settings'
 import type { ApiClient } from '@/api/client'
 import type { Machine } from '@/types/api'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -102,6 +103,7 @@ export function NewSession(props: {
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
     const [claudeAccount, setClaudeAccount] = useState<ClaudeAccountSelection | undefined>()
     useEffect(() => { setClaudeAccount(undefined) }, [machineId])
+    const restoredAccountMachineRef = useRef<string | null>(null)
     const [directory, setDirectory] = useState(props.initialDirectory ?? '')
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
@@ -163,6 +165,24 @@ export function NewSession(props: {
             setMachineId(props.machines[0].id)
         }
     }, [props.machines, machineId, getLastUsedMachineId, getRecentPaths, hasPresetDirectory])
+
+    // Claude: start from the account used last time (when it is still enabled on this machine).
+    const accountsQuery = useQuery({
+        queryKey: accountsKey(machineId ?? ''),
+        queryFn: () => props.api.getClaudeAccounts(machineId as string),
+        enabled: Boolean(machineId) && agent === 'claude',
+        retry: false
+    })
+    useEffect(() => {
+        const pool = accountsQuery.data?.pool
+        if (agent !== 'claude' || !machineId || !pool) return
+        if (restoredAccountMachineRef.current === machineId) return
+        restoredAccountMachineRef.current = machineId
+        const wanted = lastSessionConfig?.claudeAccountId
+        if (wanted && pool.profiles.some((profile) => profile.enabled && profile.id === wanted)) {
+            setClaudeAccount({ accountId: wanted, automatic: pool.autoSwitch })
+        }
+    }, [accountsQuery.data, agent, machineId, lastSessionConfig?.claudeAccountId])
 
     const selectedMachine = useMemo(
         () => (machineId ? props.machines.find((machine) => machine.id === machineId) ?? null : null),
@@ -384,7 +404,8 @@ export function NewSession(props: {
                     yoloMode,
                     sessionType,
                     worktreeName: worktreeName.trim(),
-                    previewUrl: normalizedPreviewUrl.value ?? ''
+                    previewUrl: normalizedPreviewUrl.value ?? '',
+                    ...(agent === 'claude' && claudeAccount ? { claudeAccountId: claudeAccount.accountId } : {})
                 })
                 await props.onSuccess(result.sessionId)
                 return
@@ -417,26 +438,14 @@ export function NewSession(props: {
     }
 
     const projectName = directory.trim() ? getProjectName(directory.trim()) : undefined
-    const summary = useMemo(() => {
+    // What is folded behind "More options": say what is set there, or what lives there.
+    const moreSummary = useMemo(() => {
         const parts: string[] = []
-        const customModelValue = customModel.trim()
-        const modelOption = modelOptions.find((option) => option.value === model)
-        if (customModelValue) {
-            parts.push(customModelValue)
-        } else if (modelOption) {
-            parts.push(modelOptionText(modelOption.value, modelOption.label, t))
-        }
-        const thinkOption = getThinkEffortOptions(agent).find((option) => option.value === thinkEffort)
-        if (thinkOption) {
-            parts.push(t('composer.chip.think', { value: thinkEffortText(thinkOption.value, thinkOption.label, t) }))
-        }
-        if (yoloMode) parts.push(t('newSession.yolo'))
         if (sessionType === 'worktree') parts.push(t('newSession.type.worktree'))
         if (experimentalSettings.previewEnabled && previewUrlInput.trim()) parts.push(t('newSession.previewUrl'))
         if (props.machines.length > 1 && selectedMachine) parts.push(getMachineTitle(selectedMachine))
-        return parts.join(' · ')
-    }, [agent, customModel, model, modelOptions, thinkEffort, yoloMode, sessionType,
-        experimentalSettings.previewEnabled, previewUrlInput, props.machines.length, selectedMachine, t])
+        return parts.length > 0 ? parts.join(' · ') : t('newSession.moreHint')
+    }, [sessionType, experimentalSettings.previewEnabled, previewUrlInput, props.machines.length, selectedMachine, t])
 
     return (
         <form
@@ -473,12 +482,31 @@ export function NewSession(props: {
                 isDisabled={isFormDisabled}
                 onAgentChange={setAgent}
             />
+            <SessionParams
+                key={agent}
+                api={props.api}
+                agent={agent}
+                machineId={machineId}
+                model={model}
+                customModel={customModel}
+                thinkEffort={thinkEffort}
+                serviceTier={serviceTier}
+                yoloMode={yoloMode}
+                claudeAccount={claudeAccount}
+                isDisabled={isFormDisabled}
+                onModelChange={setModel}
+                onCustomModelChange={setCustomModel}
+                onThinkEffortChange={setThinkEffort}
+                onServiceTierChange={setServiceTier}
+                onYoloChange={setYoloMode}
+                onClaudeAccountChange={setClaudeAccount}
+            />
             <div className="flex flex-col gap-4">
                 <ListGroup>
                     <ListRow
                         icon={<SlidersIcon className="h-[18px] w-[18px]" />}
-                        title={t('newSession.customize')}
-                        subtitle={summary}
+                        title={t('newSession.advanced')}
+                        subtitle={moreSummary}
                         trailing={<ChevronDownIcon className={cn('h-4 w-4 text-[var(--social-fg-subtle)] transition-transform duration-150', showAdvanced && 'rotate-180')} />}
                         chevron={false}
                         aria-expanded={showAdvanced}
@@ -487,25 +515,6 @@ export function NewSession(props: {
                 </ListGroup>
                 {showAdvanced ? (
                     <div className="flex flex-col gap-5">
-                        <SessionParams
-                            key={agent}
-                            api={props.api}
-                            agent={agent}
-                            machineId={machineId}
-                            model={model}
-                            customModel={customModel}
-                            thinkEffort={thinkEffort}
-                            serviceTier={serviceTier}
-                            yoloMode={yoloMode}
-                            claudeAccount={claudeAccount}
-                            isDisabled={isFormDisabled}
-                            onModelChange={setModel}
-                            onCustomModelChange={setCustomModel}
-                            onThinkEffortChange={setThinkEffort}
-                            onServiceTierChange={setServiceTier}
-                            onYoloChange={setYoloMode}
-                            onClaudeAccountChange={setClaudeAccount}
-                        />
                         <SessionTypeSelector
                             sessionType={sessionType}
                             worktreeName={worktreeName}

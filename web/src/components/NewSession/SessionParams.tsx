@@ -2,11 +2,11 @@ import { useState } from 'react'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import type { ApiClient } from '@/api/client'
 import { ClaudeAccountChip } from '@/components/ClaudeAccounts/Selector'
-import { FormField } from '@/components/ui/FormControls'
 import { SettingChip, ToggleChip } from '@/components/ui/SettingChip'
 import { TextField } from '@/components/ui/TextField'
 import { modelOptionText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
+import { Section } from './Section'
 import {
     CODEX_SERVICE_TIER_OPTIONS,
     getModelOptionsForAgent,
@@ -55,8 +55,17 @@ export function SessionParams(props: {
     const showCustom = customOpen || customModel.length > 0
 
     return (
-        <FormField label={t('newSession.params')}>
+        <Section title={t('newSession.params')}>
             <div className="flex flex-wrap gap-2 [&>button]:border [&>button]:border-[var(--social-border)] [&>button]:px-3 [&>button]:text-[var(--social-fg)] [&>button[aria-pressed=true]]:border-transparent [&>button[aria-pressed=true]]:text-[var(--social-primary-fg)]">
+                {props.agent === 'claude' ? (
+                    <ClaudeAccountChip
+                        api={props.api}
+                        machineId={props.machineId}
+                        selection={props.claudeAccount}
+                        onChange={props.onClaudeAccountChange}
+                        disabled={props.isDisabled}
+                    />
+                ) : null}
                 {modelOptions.length > 0 ? (
                     <SettingChip
                         title={t('newSession.model')}
@@ -95,15 +104,6 @@ export function SessionParams(props: {
                         group={{ options: tierOptions, value: props.serviceTier, onChange: props.onServiceTierChange }}
                     />
                 ) : null}
-                {props.agent === 'claude' ? (
-                    <ClaudeAccountChip
-                        api={props.api}
-                        machineId={props.machineId}
-                        selection={props.claudeAccount}
-                        onChange={props.onClaudeAccountChange}
-                        disabled={props.isDisabled}
-                    />
-                ) : null}
                 <ToggleChip
                     label={t('newSession.yolo')}
                     title={`${t('newSession.yolo.title')} · ${t('newSession.yolo.desc')}`}
@@ -123,6 +123,6 @@ export function SessionParams(props: {
                     aria-label={t('newSession.model.customPlaceholder')}
                 />
             ) : null}
-        </FormField>
+        </Section>
     )
 }

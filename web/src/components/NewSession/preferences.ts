@@ -24,6 +24,8 @@ export type LastSessionConfig = {
     sessionType?: SessionType
     worktreeName?: string
     previewUrl?: string
+    /** Claude account chosen last time; empty/absent means the machine default. */
+    claudeAccountId?: string
 }
 
 function loadAgentPreferenceMap(storageKey: string): AgentPreferenceMap {
@@ -247,6 +249,9 @@ export function loadLastSessionConfig(): LastSessionConfig | null {
         }
         if (typeof parsed.previewUrl === 'string') {
             config.previewUrl = parsed.previewUrl
+        }
+        if (typeof parsed.claudeAccountId === 'string' && /^[a-z0-9_-]{1,40}$/.test(parsed.claudeAccountId)) {
+            config.claudeAccountId = parsed.claudeAccountId
         }
 
         return Object.keys(config).length > 0 ? config : null
