@@ -135,7 +135,8 @@ export function PinnedStoriesStrip(props: {
                             <line x1="5" y1="12" x2="19" y2="12" />
                         </svg>
                     </span>
-                    <span className="w-full truncate text-center text-[12px] text-[var(--social-fg-muted)]">
+                    {/* mt-1.5 matches the story labels (they leave room for the status badge) so the row's captions line up */}
+                    <span className="mt-1.5 w-full truncate text-center text-[12px] text-[var(--social-fg-muted)]">
                         {t('mobile.stories.new')}
                     </span>
                 </button>
