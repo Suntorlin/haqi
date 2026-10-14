@@ -1,8 +1,7 @@
-import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { Suspense, lazy, useCallback, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { SwapIcon, CloseIcon } from '@/components/mobile/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { PreviewPanel } from '@/routes/sessions/preview'
-import { TerminalPanel } from '@/routes/sessions/terminal'
 import {
     DOCK_CHAT_MIN_WIDTH,
     DOCK_MIN_WIDTH,
@@ -14,6 +13,9 @@ import {
     type SessionDock
 } from '@/hooks/useSessionDock'
 import { useTranslation } from '@/lib/use-translation'
+
+// xterm is loaded the first time a terminal panel opens.
+const TerminalPanel = lazy(() => import('@/routes/sessions/terminal').then((m) => ({ default: m.TerminalPanel })))
 
 function DockPanel(props: {
     id: DockPanelId
@@ -85,7 +87,7 @@ function DockPanel(props: {
             </div>
             <div className="min-h-0 flex-1">
                 {id === 'terminal'
-                    ? <TerminalPanel sessionId={props.sessionId} dockActions={actions} />
+                    ? <Suspense fallback={null}><TerminalPanel sessionId={props.sessionId} dockActions={actions} /></Suspense>
                     : <PreviewPanel sessionId={props.sessionId} dockActions={actions} />}
             </div>
         </aside>

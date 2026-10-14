@@ -9,6 +9,7 @@ import {
     createRootRoute,
     createRoute,
     createRouter,
+    lazyRouteComponent,
     useLocation,
     useMatchRoute,
     useNavigate,
@@ -79,7 +80,6 @@ import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
 import { SessionDockLayout } from '@/components/SessionDockLayout'
 import PreviewPage from '@/routes/sessions/preview'
-import TerminalPage from '@/routes/sessions/terminal'
 import SettingsPage from '@/routes/settings'
 import DebugDiffPage from '@/routes/debug/diff'
 import GroupDetailPage from '@/routes/groups/detail'
@@ -1555,6 +1555,9 @@ function ReviewLoopsLayout() {
         </>
     )
 }
+
+// xterm (~420KB) is only needed on the terminal page.
+const TerminalPage = lazyRouteComponent(() => import('@/routes/sessions/terminal'))
 
 const rootRoute = createRootRoute({
     component: App,

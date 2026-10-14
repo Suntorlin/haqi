@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { AssistantRuntimeProvider } from '@assistant-ui/react'
@@ -51,7 +51,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useTranslation } from '@/lib/use-translation'
 import { useVoiceOptional } from '@/lib/voice-context'
 import { useToast } from '@/lib/toast-context'
-import { RealtimeVoiceSession, registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
+import { registerSessionStore, registerVoiceHooksStore, voiceHooks } from '@/realtime'
 import { supportsQueueControlsFlavor } from '@/lib/agentFlavorUtils'
 import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { computeRunStats, computeTimeSeparators } from '@/components/mobile/chatTimeline'
@@ -72,6 +72,9 @@ type McpGuideItem = {
 
 type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 type SessionServiceTier = 'auto' | 'fast' | 'flex'
+
+// Loaded on first use so the voice SDK stays out of the first page load.
+const RealtimeVoiceSession = lazy(() => import('@/realtime/RealtimeVoiceSession').then((m) => ({ default: m.RealtimeVoiceSession })))
 
 const MCP_GUIDES: McpGuideItem[] = [
     {
@@ -1877,11 +1880,13 @@ export function SessionChat(props: {
 
                 {/* Voice session component - renders nothing but initializes ElevenLabs */}
                 {voice && (
-                    <RealtimeVoiceSession
-                        api={props.api}
-                        micMuted={voice.micMuted}
-                        onStatusChange={voice.setStatus}
-                    />
+                    <Suspense fallback={null}>
+                        <RealtimeVoiceSession
+                            api={props.api}
+                            micMuted={voice.micMuted}
+                            onStatusChange={voice.setStatus}
+                        />
+                    </Suspense>
                 )}
             </div>
         </PreviewLinkContext.Provider>
