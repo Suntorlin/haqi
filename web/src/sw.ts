@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
-import { precacheAndRoute } from 'workbox-precaching'
-import { registerRoute } from 'workbox-routing'
+import { createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { CacheFirst, NetworkFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 
@@ -36,6 +36,12 @@ self.addEventListener('message', (event) => {
 })
 
 precacheAndRoute(self.__WB_MANIFEST)
+
+// Deep links (/sessions/<id>...) open the app shell even with no network; server-rendered and API
+// paths are left alone.
+registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+    denylist: [/^\/api\//, /^\/share\//, /^\/socket\.io\//, /^\/health/, /^\/sw\.js$/, /^\/manifest\.webmanifest$/]
+}))
 
 // Hashed build files never change: whatever was not precached is kept after its first download.
 registerRoute(
@@ -141,6 +147,20 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
     event.notification.close()
     const data = event.notification.data as { url?: string } | undefined
-    const url = data?.url ?? '/'
-    event.waitUntil(self.clients.openWindow(url))
+    const target = new URL(data?.url ?? '/', self.location.origin).href
+    // Reuse an open window instead of stacking a new one for every notification.
+    event.waitUntil((async () => {
+        const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+        const existing = windows.find((client) => new URL(client.url).origin === self.location.origin)
+        if (existing) {
+            try {
+                const navigated = await existing.navigate(target)
+                await (navigated ?? existing).focus()
+                return
+            } catch {
+                // fall through to a new window
+            }
+        }
+        await self.clients.openWindow(target)
+    })())
 })
