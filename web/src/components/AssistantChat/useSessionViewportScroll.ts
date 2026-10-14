@@ -15,6 +15,7 @@ const UPWARD_ESCAPE_PX = 2
 const LOAD_OLDER_THRESHOLD_PX = 48
 const LOAD_OLDER_REARM_PX = 96
 const LOAD_OLDER_COOLDOWN_MS = 300
+const MAX_TOP_RETRIGGERS = 6
 
 type PendingRestoreState = {
     scrollTop: number
@@ -46,6 +47,7 @@ export function useSessionViewportScroll(params: {
     const previousScrollTopRef = useRef(0)
     const lastLoadTriggerAtRef = useRef(0)
     const loadMoreArmedRef = useRef(true)
+    const topRetriggersRef = useRef(0)
     const pendingRestoreRef = useRef<PendingRestoreState | null>(null)
     const renderedOldestRef = useRef(params.renderedOldestKey)
     renderedOldestRef.current = params.renderedOldestKey
@@ -96,11 +98,16 @@ export function useSessionViewportScroll(params: {
         if (!ready) {
             return false
         }
-        viewport.scrollTop = restoreScrollTopByDelta({
+        const nextTop = restoreScrollTopByDelta({
             previousScrollTop: pending.scrollTop,
             previousScrollHeight: pending.scrollHeight,
             nextScrollHeight: viewport.scrollHeight
         })
+        // Any scrollTop write stops a touch fling on iOS, so skip it when nothing actually moved
+        // (pages made only of collapsed steps add no height).
+        if (Math.abs(nextTop - viewport.scrollTop) >= 1) {
+            viewport.scrollTop = nextTop
+        }
         previousScrollTopRef.current = viewport.scrollTop
         pendingRestoreRef.current = null
         return true
@@ -177,6 +184,7 @@ export function useSessionViewportScroll(params: {
 
             if (currentScrollTop >= LOAD_OLDER_REARM_PX) {
                 loadMoreArmedRef.current = true
+                topRetriggersRef.current = 0
             }
 
             if (shouldTriggerLoadOlder({
@@ -220,6 +228,37 @@ export function useSessionViewportScroll(params: {
         persistSnapshot,
         resolveViewport
     ])
+
+    // Arriving at the top arms nothing again until the user scrolls away, so a load that added no visible
+    // height used to leave them stuck at the top with history still available. Ask again, a few times.
+    useEffect(() => {
+        if (params.isLoadingMore || params.isLoading || !params.hasMore || !initialPositionAppliedRef.current) {
+            return
+        }
+        const viewport = resolveViewport()
+        if (!viewport || viewport.scrollTop > LOAD_OLDER_THRESHOLD_PX || isNearBottomRef.current) {
+            return
+        }
+        if (topRetriggersRef.current >= MAX_TOP_RETRIGGERS) {
+            return
+        }
+        const timer = setTimeout(() => {
+            const current = resolveViewport()
+            if (!current || current.scrollTop > LOAD_OLDER_THRESHOLD_PX || pendingRestoreRef.current) {
+                return
+            }
+            topRetriggersRef.current += 1
+            lastLoadTriggerAtRef.current = Date.now()
+            pendingRestoreRef.current = {
+                scrollTop: current.scrollTop,
+                scrollHeight: current.scrollHeight,
+                at: Date.now(),
+                renderedOldestKey: renderedOldestRef.current
+            }
+            void params.onLoadMore()
+        }, LOAD_OLDER_COOLDOWN_MS)
+        return () => clearTimeout(timer)
+    }, [params.isLoadingMore, params.isLoading, params.hasMore, params.contentVersion, params.onLoadMore, resolveViewport])
 
     useEffect(() => {
         const viewport = resolveViewport()

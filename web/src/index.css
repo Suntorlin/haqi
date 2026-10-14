@@ -736,9 +736,10 @@ html.social-app {
     animation: process-in 200ms ease-out;
 }
 
+/* No content-visibility here: rows enter at their real height instead of an estimate, so scrolling
+   up through an expanded list does not shift under the finger (Safari has no scroll anchoring). */
 .social-process-item {
-    content-visibility: auto;
-    contain-intrinsic-size: auto 44px;
+    contain: layout style;
 }
 
 /* Phones: every dialog becomes the same bottom sheet as "session info" / "chat settings". */
