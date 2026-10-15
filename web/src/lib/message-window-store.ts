@@ -38,6 +38,8 @@ type PendingVisibilityCacheEntry = {
 }
 
 const states = new Map<string, InternalState>()
+// Sessions whose running turn has its steps open: new messages show at once, even away from the bottom.
+const followingRunningTurn = new Set<string>()
 const listeners = new Map<string, Set<() => void>>()
 const pendingVisibilityCacheBySession = new Map<string, Map<string, PendingVisibilityCacheEntry>>()
 
@@ -401,7 +403,7 @@ export function ingestIncomingMessages(sessionId: string, incoming: DecryptedMes
         return
     }
     updateState(sessionId, (prev) => {
-        if (prev.atBottom) {
+        if (prev.atBottom || followingRunningTurn.has(sessionId)) {
             const merged = mergeMessages(prev.messages, incoming)
             const trimmed = trimVisible(merged, 'append')
             const pending = filterPendingAgainstVisible(prev.pending, trimmed)
@@ -437,6 +439,14 @@ export function flushPendingMessages(sessionId: string): boolean {
         })
     })
     return needsRefresh
+}
+
+export function setFollowingRunningTurn(sessionId: string, following: boolean): void {
+    if (following) {
+        followingRunningTurn.add(sessionId)
+    } else {
+        followingRunningTurn.delete(sessionId)
+    }
 }
 
 export function setAtBottom(sessionId: string, atBottom: boolean): void {
