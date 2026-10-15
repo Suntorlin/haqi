@@ -434,6 +434,15 @@ function isManualApprovalRequiredTool(toolName: unknown): boolean {
     return normalized === 'exitplanmode' || normalized === 'exit_plan_mode';
 }
 
+const YOLO_PERMISSION_MODES: ReadonlySet<string> = new Set(['yolo', 'bypassPermissions', 'auto-approve'])
+
+/** The permission mode the CLI ends up in when it is started with --yolo (Codex: --auto-approve). */
+function yoloPermissionModeForFlavor(flavor: string): PermissionMode {
+    if (flavor === 'claude') return 'bypassPermissions'
+    if (flavor === 'codex') return 'auto-approve'
+    return 'yolo'
+}
+
 export class SyncEngine {
     private readonly store: Store
     private readonly eventPublisher: EventPublisher
@@ -1803,6 +1812,15 @@ ${note.content}
             sourceClaudeAccountId
         )
 
+        // The agent reports its permission mode only once it is running; remember the requested one now so a
+        // session that exits at startup (or is woken later) still comes back in YOLO.
+        if (result.type === 'success' && yolo === true) {
+            const yoloMode = yoloPermissionModeForFlavor(resolvedAgent)
+            if (isPermissionModeAllowedForFlavor(yoloMode, resolvedAgent)) {
+                this.sessionCache.applySessionConfig(result.sessionId, { permissionMode: yoloMode })
+            }
+        }
+
         if (result.type === 'success' && previewUrl) {
             try {
                 await this.persistSessionPreviewUrlWithRetry(result.sessionId, previewUrl)
@@ -1902,30 +1920,7 @@ ${note.content}
         }
 
         const flavor = this.normalizeSpawnFlavor(metadata.flavor)
-        const model = typeof metadata.model === 'string' && metadata.model.trim()
-            ? metadata.model.trim()
-            : undefined
-        const thinkEffort = (() => {
-            const value = typeof metadata.thinkEffort === 'string'
-                ? metadata.thinkEffort.trim().toLowerCase()
-                : ''
-            if (value !== 'auto' && value !== 'low' && value !== 'medium' && value !== 'high' && value !== 'xhigh') {
-                return undefined
-            }
-            if (flavor === 'claude' && value === 'xhigh') {
-                return undefined
-            }
-            return value
-        })()
-        const serviceTier = (() => {
-            const value = typeof metadata.serviceTier === 'string'
-                ? metadata.serviceTier.trim().toLowerCase()
-                : ''
-            if (value !== 'fast' && value !== 'flex') {
-                return undefined
-            }
-            return value
-        })()
+        const { model, thinkEffort, serviceTier } = this.readSpawnPreferences(metadata, flavor)
         const sessionType: 'simple' | 'worktree' = metadata.worktree ? 'worktree' : 'simple'
         const directory = metadata.worktree?.basePath?.trim() || metadata.path.trim()
         if (!directory) {
@@ -2082,6 +2077,33 @@ ${note.content}
         return undefined
     }
 
+    /** Model, effort and tier a session was started with, read back from its metadata for a respawn. */
+    private readSpawnPreferences(
+        metadata: NonNullable<Session['metadata']>,
+        flavor: string
+    ): {
+        model: string | undefined
+        thinkEffort: 'auto' | 'low' | 'medium' | 'high' | 'xhigh' | undefined
+        serviceTier: 'fast' | 'flex' | undefined
+    } {
+        const model = typeof metadata.model === 'string' && metadata.model.trim()
+            ? metadata.model.trim()
+            : undefined
+        const effortValue = typeof metadata.thinkEffort === 'string'
+            ? metadata.thinkEffort.trim().toLowerCase()
+            : ''
+        const thinkEffort = (effortValue === 'auto' || effortValue === 'low' || effortValue === 'medium'
+            || effortValue === 'high' || effortValue === 'xhigh')
+            && !(flavor === 'claude' && effortValue === 'xhigh')
+            ? effortValue
+            : undefined
+        const tierValue = typeof metadata.serviceTier === 'string'
+            ? metadata.serviceTier.trim().toLowerCase()
+            : ''
+        const serviceTier = tierValue === 'fast' || tierValue === 'flex' ? tierValue : undefined
+        return { model, thinkEffort, serviceTier }
+    }
+
     private normalizeSpawnFlavor(value: string | null | undefined): 'claude' | 'codex' | 'gemini' | 'opencode' {
         return value === 'codex' || value === 'gemini' || value === 'opencode'
             ? value
@@ -2216,14 +2238,20 @@ ${note.content}
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
         }
 
+        // A woken session must come back with the settings it was started with, not the defaults.
+        const { model, thinkEffort, serviceTier } = this.readSpawnPreferences(metadata, flavor)
+        const yolo = session.permissionMode !== undefined
+            && YOLO_PERMISSION_MODES.has(session.permissionMode)
+            && isPermissionModeAllowedForFlavor(session.permissionMode, flavor)
+
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
             metadata.path,
             flavor,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
+            model,
+            thinkEffort,
+            serviceTier,
+            yolo || undefined,
             undefined,
             undefined,
             resumeSessionId
