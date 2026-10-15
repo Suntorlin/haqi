@@ -83,11 +83,12 @@ export function savePreferredAgent(agent: AgentType): void {
     }
 }
 
+// YOLO is the default; only an explicit "off" saved by the user switches it off.
 export function loadPreferredYoloMode(): boolean {
     try {
-        return localStorage.getItem(YOLO_STORAGE_KEY) === 'true'
+        return localStorage.getItem(YOLO_STORAGE_KEY) !== 'false'
     } catch {
-        return false
+        return true
     }
 }
 
