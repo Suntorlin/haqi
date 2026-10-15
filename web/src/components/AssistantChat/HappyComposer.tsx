@@ -279,6 +279,7 @@ function buildClaudeModelOptions(
 ): ComposerModelOption[] {
     const options: ComposerModelOption[] = [
         { value: 'auto', label: 'Default (recommended)' },
+        { value: 'claude-fable-5', label: 'Fable 5' },
         { value: 'sonnet', label: 'Sonnet (latest)' },
         { value: 'opus', label: 'Opus (latest)' },
         { value: 'haiku', label: 'Haiku (latest)' },
