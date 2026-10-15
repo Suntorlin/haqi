@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ThreadPrimitive, useAssistantState } from '@assistant-ui/react'
 import type { ApiClient } from '@/api/client'
 import type { AgentState, PermissionMode, SessionMetadataSummary } from '@/types/api'
@@ -78,7 +78,10 @@ function useStickToBottom(
 const MAX_SOCIAL_AUTO_LOAD_PAGES = 4
 // Loading older history in the social layout keeps paging until something visible appears (a user
 // message); pages made only of collapsed tool steps add no height, so one click looked like a no-op.
-const MAX_LOAD_OLDER_PAGES = 8
+// A long agent turn can be hundreds of such steps, so each page asks for more than the last one
+// (the hub caps a page at 200). The total (1750) stays well under the store's prepend window (4000),
+// which drops the newest messages once exceeded.
+const LOAD_OLDER_PAGE_LIMITS = [50, 100, 200, 200, 200, 200, 200, 200, 200, 200] as const
 const LOAD_OLDER_SETTLE_MS = 80
 
 function MessageSkeleton() {
@@ -172,7 +175,7 @@ export function HappyThread(props: {
     messagesWarning: string | null
     hasMoreMessages: boolean
     isLoadingMoreMessages: boolean
-    onLoadMore: () => Promise<unknown>
+    onLoadMore: (options?: { limit?: number }) => Promise<unknown>
     pendingCount: number
     newestMessageSeq: number | null
     messagesVersion: number
@@ -194,22 +197,43 @@ export function HappyThread(props: {
     olderStateRef.current = { userMessageCount, hasMore: props.hasMoreMessages }
     const onLoadMoreProp = props.onLoadMore
     const markRestorePointRef = useRef<() => void>(() => {})
+    // The store's loading flag drops between pages; this one stays up for the whole multi-page load,
+    // so the spinner does not flicker and the scroll hook does not start a second load mid-way.
+    const [isPagingOlder, setIsPagingOlder] = useState(false)
+    const pagingOlderRef = useRef(false)
     const loadOlder = useCallback(async () => {
         if (!isSocial) {
             await onLoadMoreProp()
             return
         }
-        const startCount = olderStateRef.current.userMessageCount
-        for (let page = 0; page < MAX_LOAD_OLDER_PAGES; page += 1) {
-            markRestorePointRef.current()
-            await onLoadMoreProp()
-            // Let the store update reach the thread before judging whether anything new is visible.
-            await new Promise((resolve) => setTimeout(resolve, LOAD_OLDER_SETTLE_MS))
-            if (olderStateRef.current.userMessageCount > startCount || !olderStateRef.current.hasMore) {
-                break
+        if (pagingOlderRef.current) {
+            return
+        }
+        pagingOlderRef.current = true
+        setIsPagingOlder(true)
+        try {
+            const startCount = olderStateRef.current.userMessageCount
+            const startHeight = viewportRef.current?.scrollHeight ?? 0
+            for (const limit of LOAD_OLDER_PAGE_LIMITS) {
+                markRestorePointRef.current()
+                await onLoadMoreProp({ limit })
+                // Let the store update reach the thread before judging whether anything new is visible.
+                await new Promise((resolve) => setTimeout(resolve, LOAD_OLDER_SETTLE_MS))
+                if (olderStateRef.current.userMessageCount > startCount || !olderStateRef.current.hasMore) {
+                    break
+                }
+                // Visible content (not only a user message) is enough: stop once a screen of it was added.
+                const viewport = viewportRef.current
+                if (viewport && viewport.scrollHeight - startHeight >= viewport.clientHeight) {
+                    break
+                }
             }
+        } finally {
+            pagingOlderRef.current = false
+            setIsPagingOlder(false)
         }
     }, [isSocial, onLoadMoreProp])
+    const isLoadingOlder = props.isLoadingMoreMessages || isPagingOlder
     const {
         isNearBottom,
         showJumpToLatest,
@@ -221,7 +245,7 @@ export function HappyThread(props: {
         viewportRef,
         isLoading: props.isLoadingMessages,
         hasMore: props.hasMoreMessages,
-        isLoadingMore: props.isLoadingMoreMessages,
+        isLoadingMore: isLoadingOlder,
         pendingCount: props.pendingCount,
         contentVersion: props.messagesVersion,
         latestKey: props.newestMessageSeq !== null ? String(props.newestMessageSeq) : null,
@@ -299,7 +323,7 @@ export function HappyThread(props: {
                         ) : (
                             <>
                                 <HistoryLoadMoreControl
-                                    loading={props.isLoadingMoreMessages}
+                                    loading={isLoadingOlder}
                                     hasMore={props.hasMoreMessages}
                                     onLoadMore={() => { void loadOlder() }}
                                 />

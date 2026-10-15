@@ -21,7 +21,7 @@ export type MessageWindowState = {
 export const VISIBLE_WINDOW_SIZE = 400
 // When users scroll upward to load history, keep a larger buffer so they can
 // still scroll back down to recent messages after multiple "load older" actions.
-export const PREPEND_WINDOW_SIZE = 2000
+export const PREPEND_WINDOW_SIZE = 4000
 export const PENDING_WINDOW_SIZE = 200
 const PAGE_SIZE = 50
 const PENDING_OVERFLOW_WARNING = 'New messages arrived while you were away. Scroll to bottom to refresh.'
@@ -369,7 +369,7 @@ export async function fetchLatestMessages(api: ApiClient, sessionId: string): Pr
     }
 }
 
-export async function fetchOlderMessages(api: ApiClient, sessionId: string): Promise<void> {
+export async function fetchOlderMessages(api: ApiClient, sessionId: string, limit: number = PAGE_SIZE): Promise<void> {
     const initial = getState(sessionId)
     if (initial.isLoadingMore || !initial.hasMore) {
         return
@@ -380,7 +380,7 @@ export async function fetchOlderMessages(api: ApiClient, sessionId: string): Pro
     updateState(sessionId, (prev) => buildState(prev, { isLoadingMore: true }))
 
     try {
-        const response = await api.getMessages(sessionId, { limit: PAGE_SIZE, beforeSeq: initial.oldestSeq })
+        const response = await api.getMessages(sessionId, { limit, beforeSeq: initial.oldestSeq })
         updateState(sessionId, (prev) => {
             const merged = mergeMessages(response.messages, prev.messages)
             const trimmed = trimVisible(merged, 'prepend')
