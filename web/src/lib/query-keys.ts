@@ -7,6 +7,7 @@ export const queryKeys = {
     machineCodexCredentials: (machineId: string) => ['machine-codex-credentials', machineId] as const,
     previewUrlHistory: ['preview-url-history'] as const,
     experimentalSettings: ['experimental-settings'] as const,
+    newSessionDefaults: ['new-session-defaults'] as const,
     groups: ['groups'] as const,
     group: (groupId: string) => ['group', groupId] as const,
     groupMessages: (groupId: string) => ['group-messages', groupId] as const,

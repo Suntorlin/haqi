@@ -37,7 +37,8 @@ import {
     loadPreferredModel,
     loadPreferredServiceTier,
     loadPreferredThinkEffort,
-    loadPreferredYoloMode
+    loadPreferredYoloMode,
+    pickRememberedConfig
 } from '@/components/NewSession/preferences'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
 import { LoadingState } from '@/components/LoadingState'
@@ -335,7 +336,14 @@ function SessionsPage() {
         }
 
         try {
-            const lastConfig = loadLastSessionConfig()
+            // Same starting point as the form: the settings picked last on any device.
+            const sharedDefaults = await queryClient.fetchQuery({
+                queryKey: queryKeys.newSessionDefaults,
+                queryFn: () => api.getNewSessionDefaults(),
+                staleTime: 0,
+                retry: false
+            }).then((response) => response.defaults).catch(() => null)
+            const lastConfig = pickRememberedConfig(loadLastSessionConfig(), sharedDefaults)
             const quickCreateAgent = lastConfig?.agent ?? loadPreferredAgent()
             const quickModel = lastConfig?.model ?? loadPreferredModel(quickCreateAgent) ?? undefined
             const quickCustomModel = (lastConfig?.customModel ?? loadPreferredCustomModel(quickCreateAgent)).trim()

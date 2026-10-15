@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent as ReactFormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { accountsKey } from '@/components/ClaudeAccounts/Settings'
 import type { ApiClient } from '@/api/client'
-import type { Machine } from '@/types/api'
+import type { Machine, NewSessionDefaultsResponse } from '@/types/api'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSpawnSession } from '@/hooks/mutations/useSpawnSession'
 import { useExperimentalSettings } from '@/hooks/queries/useExperimentalSettings'
@@ -14,11 +14,8 @@ import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizePreviewUrlInput } from '@/lib/preview-url'
 import {
-    CLAUDE_THINK_EFFORT_OPTIONS,
-    CODEX_THINK_EFFORT_OPTIONS,
     MODEL_OPTIONS,
     getModelOptionsForAgent,
-    getThinkEffortOptions,
     type AgentType,
     type ThinkEffort,
     type SessionType
@@ -30,12 +27,10 @@ import { ProjectPicker } from './ProjectPicker'
 import {
     loadLastSessionConfig,
     loadPreferredAgent,
-    loadPreferredCustomModel,
-    loadPreferredModel,
     loadPreferredSessionType,
-    loadPreferredServiceTier,
-    loadPreferredThinkEffort,
     loadPreferredYoloMode,
+    pickRememberedConfig,
+    resolveSessionModelParams,
     saveLastSessionConfig,
     savePreferredAgent,
     savePreferredCustomModel,
@@ -44,6 +39,8 @@ import {
     savePreferredServiceTier,
     savePreferredThinkEffort,
     savePreferredYoloMode,
+    toNewSessionDefaults,
+    type LastSessionConfig,
 } from './preferences'
 import { SessionParams } from './SessionParams'
 import { SessionTypeSelector } from './SessionTypeSelector'
@@ -58,16 +55,6 @@ import { getProjectName } from '@/components/mobile/SessionAvatar'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { modelOptionText, thinkEffortText } from '@/lib/option-labels'
 import { cn } from '@/lib/utils'
-
-function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
-    if (agent === 'claude') {
-        return CLAUDE_THINK_EFFORT_OPTIONS[0]?.value ?? 'auto'
-    }
-    if (agent === 'codex') {
-        return CODEX_THINK_EFFORT_OPTIONS[0]?.value ?? 'auto'
-    }
-    return 'auto'
-}
 
 export function NewSession(props: {
     api: ApiClient
@@ -85,38 +72,37 @@ export function NewSession(props: {
     const { sessions } = useSessions(props.api)
     const isFormDisabled = Boolean(isPending || props.isLoading)
     const { getRecentPaths, addRecentPath, getLastUsedMachineId, setLastUsedMachineId } = useRecentPaths()
-    const lastSessionConfig = loadLastSessionConfig()
+    const queryClient = useQueryClient()
+    // Start from the settings picked last on any device. This browser's copy shows until the hub answers.
+    const [lastSessionConfig] = useState(() => pickRememberedConfig(
+        loadLastSessionConfig(),
+        queryClient.getQueryData<NewSessionDefaultsResponse>(queryKeys.newSessionDefaults)?.defaults
+    ))
     const initialAgent = lastSessionConfig?.agent ?? loadPreferredAgent()
-    const initialModel = (
-        lastSessionConfig?.model && getModelOptionsForAgent(initialAgent).some((option) => option.value === lastSessionConfig.model)
-            ? lastSessionConfig.model
-            : (loadPreferredModel(initialAgent) ?? (getModelOptionsForAgent(initialAgent)[0]?.value ?? 'auto'))
-    )
-    const initialThinkEffort = (
-        lastSessionConfig?.thinkEffort && getThinkEffortOptions(initialAgent).some((option) => option.value === lastSessionConfig.thinkEffort)
-            ? lastSessionConfig.thinkEffort
-            : (loadPreferredThinkEffort(initialAgent) ?? getDefaultThinkEffort(initialAgent))
-    )
+    const [initialParams] = useState(() => resolveSessionModelParams(initialAgent, lastSessionConfig))
 
     const { t } = useTranslation()
     const previewUrlId = useId()
     const [machineId, setMachineId] = useState<string | null>(props.initialMachineId ?? null)
     const [claudeAccount, setClaudeAccount] = useState<ClaudeAccountSelection | undefined>()
-    useEffect(() => { setClaudeAccount(undefined) }, [machineId])
-    const restoredAccountMachineRef = useRef<string | null>(null)
+    const [rememberedAccountId, setRememberedAccountId] = useState(lastSessionConfig?.claudeAccountId)
+    // Once a model setting is changed by hand, a late answer from the hub must not undo it.
+    const paramsEditedRef = useRef(false)
+    const accountEditedRef = useRef(false)
+    useEffect(() => {
+        setClaudeAccount(undefined)
+        accountEditedRef.current = false
+    }, [machineId])
+    const restoredAccountKeyRef = useRef<string | null>(null)
     const [directory, setDirectory] = useState(props.initialDirectory ?? '')
     const [suppressSuggestions, setSuppressSuggestions] = useState(false)
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>(initialAgent)
-    const [model, setModel] = useState(initialModel)
-    const [customModel, setCustomModel] = useState(() => lastSessionConfig?.customModel ?? loadPreferredCustomModel(initialAgent))
-    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(initialThinkEffort)
-    const [serviceTier, setServiceTier] = useState(() => (
-        lastSessionConfig?.serviceTier
-        ?? loadPreferredServiceTier(initialAgent)
-        ?? 'auto'
-    ))
+    const [model, setModel] = useState(initialParams.model)
+    const [customModel, setCustomModel] = useState(initialParams.customModel)
+    const [thinkEffort, setThinkEffort] = useState<ThinkEffort>(initialParams.thinkEffort)
+    const [serviceTier, setServiceTier] = useState(initialParams.serviceTier)
     const [yoloMode, setYoloMode] = useState(() => lastSessionConfig?.yoloMode ?? loadPreferredYoloMode())
     const [sessionType, setSessionType] = useState<SessionType>(() => lastSessionConfig?.sessionType ?? loadPreferredSessionType())
     const [worktreeName, setWorktreeName] = useState(() => lastSessionConfig?.worktreeName ?? '')
@@ -141,12 +127,44 @@ export function NewSession(props: {
         }
     }, [sessionType])
 
+    const sharedDefaultsQuery = useQuery({
+        queryKey: queryKeys.newSessionDefaults,
+        queryFn: () => props.api.getNewSessionDefaults(),
+        staleTime: 0,
+        retry: false
+    })
+    const sharedDefaults = sharedDefaultsQuery.data?.defaults
+
     useEffect(() => {
-        setModel(loadPreferredModel(agent) ?? (getModelOptionsForAgent(agent)[0]?.value ?? 'auto'))
-        setCustomModel(loadPreferredCustomModel(agent))
-        setThinkEffort(loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent))
-        setServiceTier(loadPreferredServiceTier(agent) ?? 'auto')
-    }, [agent])
+        if (!sharedDefaults || paramsEditedRef.current) return
+        const remembered = pickRememberedConfig(loadLastSessionConfig(), sharedDefaults)
+        if (!remembered) return
+        const rememberedAgent = remembered.agent ?? loadPreferredAgent()
+        const params = resolveSessionModelParams(rememberedAgent, remembered)
+        setAgent(rememberedAgent)
+        setModel(params.model)
+        setCustomModel(params.customModel)
+        setThinkEffort(params.thinkEffort)
+        setServiceTier(params.serviceTier)
+        setYoloMode(remembered.yoloMode ?? loadPreferredYoloMode())
+        setRememberedAccountId(remembered.claudeAccountId)
+    }, [sharedDefaults])
+
+    const handleAgentChange = useCallback((nextAgent: AgentType) => {
+        if (nextAgent === agent) return
+        paramsEditedRef.current = true
+        const params = resolveSessionModelParams(nextAgent, pickRememberedConfig(loadLastSessionConfig(), sharedDefaults))
+        setAgent(nextAgent)
+        setModel(params.model)
+        setCustomModel(params.customModel)
+        setThinkEffort(params.thinkEffort)
+        setServiceTier(params.serviceTier)
+    }, [agent, sharedDefaults])
+
+    const edited = <T,>(apply: (value: T) => void) => (value: T) => {
+        paramsEditedRef.current = true
+        apply(value)
+    }
 
     useEffect(() => {
         if (props.machines.length === 0) return
@@ -175,14 +193,15 @@ export function NewSession(props: {
     })
     useEffect(() => {
         const pool = accountsQuery.data?.pool
-        if (agent !== 'claude' || !machineId || !pool) return
-        if (restoredAccountMachineRef.current === machineId) return
-        restoredAccountMachineRef.current = machineId
-        const wanted = lastSessionConfig?.claudeAccountId
-        if (wanted && pool.profiles.some((profile) => profile.enabled && profile.id === wanted)) {
-            setClaudeAccount({ accountId: wanted, automatic: pool.autoSwitch })
-        }
-    }, [accountsQuery.data, agent, machineId, lastSessionConfig?.claudeAccountId])
+        if (agent !== 'claude' || !machineId || !pool || accountEditedRef.current) return
+        const restoreKey = `${machineId}:${rememberedAccountId ?? ''}`
+        if (restoredAccountKeyRef.current === restoreKey) return
+        restoredAccountKeyRef.current = restoreKey
+        const wanted = rememberedAccountId
+        setClaudeAccount(wanted && pool.profiles.some((profile) => profile.enabled && profile.id === wanted)
+            ? { accountId: wanted, automatic: pool.autoSwitch }
+            : undefined)
+    }, [accountsQuery.data, agent, machineId, rememberedAccountId])
 
     const selectedMachine = useMemo(
         () => (machineId ? props.machines.find((machine) => machine.id === machineId) ?? null : null),
@@ -395,7 +414,7 @@ export function NewSession(props: {
                 savePreferredServiceTier(agent, serviceTier)
                 savePreferredYoloMode(yoloMode)
                 savePreferredSessionType(sessionType)
-                saveLastSessionConfig({
+                const usedConfig: LastSessionConfig = {
                     agent,
                     model,
                     customModel: customModelValue,
@@ -405,8 +424,20 @@ export function NewSession(props: {
                     sessionType,
                     worktreeName: worktreeName.trim(),
                     previewUrl: normalizedPreviewUrl.value ?? '',
-                    ...(agent === 'claude' && claudeAccount ? { claudeAccountId: claudeAccount.accountId } : {})
-                })
+                    ...(agent === 'claude' && claudeAccount ? { claudeAccountId: claudeAccount.accountId } : {}),
+                    savedAt: Date.now()
+                }
+                saveLastSessionConfig(usedConfig)
+                // Share the choice with other devices; keep the hub's clock so the copies compare correctly.
+                void Promise.resolve()
+                    .then(() => props.api.saveNewSessionDefaults(toNewSessionDefaults(usedConfig)))
+                    .then((response) => {
+                        queryClient.setQueryData(queryKeys.newSessionDefaults, response)
+                        if (response.defaults) {
+                            saveLastSessionConfig({ ...usedConfig, savedAt: response.defaults.updatedAt })
+                        }
+                    })
+                    .catch(() => {})
                 await props.onSuccess(result.sessionId)
                 return
             }
@@ -480,7 +511,7 @@ export function NewSession(props: {
             <AgentSelector
                 agent={agent}
                 isDisabled={isFormDisabled}
-                onAgentChange={setAgent}
+                onAgentChange={handleAgentChange}
             />
             <SessionParams
                 key={agent}
@@ -494,12 +525,15 @@ export function NewSession(props: {
                 yoloMode={yoloMode}
                 claudeAccount={claudeAccount}
                 isDisabled={isFormDisabled}
-                onModelChange={setModel}
-                onCustomModelChange={setCustomModel}
-                onThinkEffortChange={setThinkEffort}
-                onServiceTierChange={setServiceTier}
-                onYoloChange={setYoloMode}
-                onClaudeAccountChange={setClaudeAccount}
+                onModelChange={edited(setModel)}
+                onCustomModelChange={edited(setCustomModel)}
+                onThinkEffortChange={edited(setThinkEffort)}
+                onServiceTierChange={edited(setServiceTier)}
+                onYoloChange={edited(setYoloMode)}
+                onClaudeAccountChange={(selection) => {
+                    accountEditedRef.current = true
+                    edited(setClaudeAccount)(selection)
+                }}
             />
             <div className="flex flex-col gap-4">
                 <ListGroup>
