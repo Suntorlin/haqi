@@ -324,10 +324,15 @@ export async function startRunner(): Promise<void> {
         };
         if (options.claudeAccount) {
           if (agent !== 'claude' || options.token) throw new Error('账号池只支持 Claude 会话，不能与外部 token 混用');
-          const { loadAccounts } = await import('../claude/accounts/profiles');
+          const { loadAccounts, verifyAccount, accountEnvironment } = await import('../claude/accounts/profiles');
           const config = await loadAccounts(configuration.happyHomeDir);
           const target = config.profiles.find(p => p.id === options.claudeAccount!.accountId && p.enabled !== false);
           if (!target) throw new Error('所选账号不存在或已停用');
+          // Check the login before spawning. The child registers with the hub first and only then verifies, so a
+          // logged-out account used to give a session that exits at once and shows up as "asleep" with no reason.
+          // Failing here returns the reason (account and login command) to whoever asked for the session.
+          const { getDefaultClaudeCodePath } = await import('../claude/sdk/utils');
+          await verifyAccount(getDefaultClaudeCodePath(), configuration.happyHomeDir, accountEnvironment(process.env, target), target);
           // Native Claude resume reads the transcript from CLAUDE_CONFIG_DIR. Account
           // profiles are isolated, so copy only the selected conversation before
           // launching; no credentials or other project history cross the boundary.
