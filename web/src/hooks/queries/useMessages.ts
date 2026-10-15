@@ -40,7 +40,7 @@ export function useMessages(
     newestSeq: number | null
     pendingCount: number
     messagesVersion: number
-    loadMore: () => Promise<unknown>
+    loadMore: (options?: { limit?: number }) => Promise<unknown>
     refetch: () => Promise<unknown>
     flushPending: () => Promise<void>
     setAtBottom: (atBottom: boolean) => void
@@ -78,10 +78,12 @@ export function useMessages(
         }
     }, [sessionId])
 
-    const loadMore = useCallback(async () => {
+    const loadMore = useCallback(async (options?: { limit?: number }) => {
         if (!api || !sessionId || !enabled) return
         if (!state.hasMore || state.isLoadingMore) return
-        await fetchOlderMessages(api, sessionId)
+        // Button handlers pass a click event here, so accept only a numeric limit.
+        const limit = typeof options?.limit === 'number' ? options.limit : undefined
+        await fetchOlderMessages(api, sessionId, limit)
     }, [api, enabled, sessionId, state.hasMore, state.isLoadingMore])
 
     const refetch = useCallback(async () => {
