@@ -23,9 +23,14 @@ describe('NewSession preferences', () => {
         localStorage.clear()
     })
 
+    it('keeps YOLO off only when the user saved it off', () => {
+        localStorage.setItem('hapi:newSession:yolo', 'false')
+        expect(loadPreferredYoloMode()).toBe(false)
+    })
+
     it('loads defaults when storage is empty', () => {
         expect(loadPreferredAgent()).toBe('claude')
-        expect(loadPreferredYoloMode()).toBe(false)
+        expect(loadPreferredYoloMode()).toBe(true)
         expect(loadPreferredSessionType()).toBe('simple')
         expect(loadPreferredThinkEffort('claude')).toBeNull()
         expect(loadPreferredServiceTier('codex')).toBeNull()
