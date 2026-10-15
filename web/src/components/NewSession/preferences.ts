@@ -1,5 +1,6 @@
+import type { NewSessionDefaults } from '@/types/api'
 import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
-import { CODEX_SERVICE_TIER_OPTIONS, MODEL_OPTIONS, getThinkEffortOptions } from './types'
+import { CODEX_SERVICE_TIER_OPTIONS, MODEL_OPTIONS, getModelOptionsForAgent, getThinkEffortOptions } from './types'
 
 const AGENT_STORAGE_KEY = 'hapi:newSession:agent'
 const YOLO_STORAGE_KEY = 'hapi:newSession:yolo'
@@ -26,7 +27,13 @@ export type LastSessionConfig = {
     previewUrl?: string
     /** Claude account chosen last time; empty/absent means the machine default. */
     claudeAccountId?: string
+    /** When this choice was made, to compare with the copy shared through the hub. */
+    savedAt?: number
 }
+
+/** The part of the last config that the hub shares between devices. */
+const SHARED_CONFIG_KEYS = ['agent', 'model', 'customModel', 'thinkEffort', 'serviceTier', 'yoloMode', 'claudeAccountId'] as const
+const CLAUDE_ACCOUNT_ID_PATTERN = /^[a-z0-9_-]{1,40}$/
 
 function loadAgentPreferenceMap(storageKey: string): AgentPreferenceMap {
     try {
@@ -213,49 +220,55 @@ export function savePreferredCustomModel(agent: AgentType, value: string): void 
     saveAgentPreferenceValue(CUSTOM_MODEL_STORAGE_KEY, agent, value)
 }
 
+function sanitizeLastSessionConfig(parsed: unknown): LastSessionConfig | null {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return null
+    }
+    const raw = parsed as Record<string, unknown>
+    const config: LastSessionConfig = {}
+
+    if (typeof raw.agent === 'string' && VALID_AGENTS.includes(raw.agent as AgentType)) {
+        config.agent = raw.agent as AgentType
+    }
+    if (typeof raw.model === 'string') {
+        config.model = raw.model
+    }
+    if (typeof raw.customModel === 'string') {
+        config.customModel = raw.customModel
+    }
+    if (typeof raw.thinkEffort === 'string' && VALID_THINK_EFFORTS.includes(raw.thinkEffort as ThinkEffort)) {
+        config.thinkEffort = raw.thinkEffort as ThinkEffort
+    }
+    if (typeof raw.serviceTier === 'string' && CODEX_SERVICE_TIER_OPTIONS.some((option) => option.value === raw.serviceTier)) {
+        config.serviceTier = raw.serviceTier as ServiceTier
+    }
+    if (typeof raw.yoloMode === 'boolean') {
+        config.yoloMode = raw.yoloMode
+    }
+    if (raw.sessionType === 'simple' || raw.sessionType === 'worktree') {
+        config.sessionType = raw.sessionType
+    }
+    if (typeof raw.worktreeName === 'string') {
+        config.worktreeName = raw.worktreeName
+    }
+    if (typeof raw.previewUrl === 'string') {
+        config.previewUrl = raw.previewUrl
+    }
+    if (typeof raw.claudeAccountId === 'string' && CLAUDE_ACCOUNT_ID_PATTERN.test(raw.claudeAccountId)) {
+        config.claudeAccountId = raw.claudeAccountId
+    }
+    if (typeof raw.savedAt === 'number' && Number.isFinite(raw.savedAt)) {
+        config.savedAt = raw.savedAt
+    }
+
+    return Object.keys(config).length > 0 ? config : null
+}
+
 export function loadLastSessionConfig(): LastSessionConfig | null {
     try {
         const stored = localStorage.getItem(LAST_CONFIG_STORAGE_KEY)
         if (!stored) return null
-        const parsed = JSON.parse(stored)
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-            return null
-        }
-
-        const config: LastSessionConfig = {}
-
-        if (typeof parsed.agent === 'string' && VALID_AGENTS.includes(parsed.agent as AgentType)) {
-            config.agent = parsed.agent as AgentType
-        }
-        if (typeof parsed.model === 'string') {
-            config.model = parsed.model
-        }
-        if (typeof parsed.customModel === 'string') {
-            config.customModel = parsed.customModel
-        }
-        if (typeof parsed.thinkEffort === 'string' && VALID_THINK_EFFORTS.includes(parsed.thinkEffort as ThinkEffort)) {
-            config.thinkEffort = parsed.thinkEffort as ThinkEffort
-        }
-        if (typeof parsed.serviceTier === 'string' && CODEX_SERVICE_TIER_OPTIONS.some((option) => option.value === parsed.serviceTier)) {
-            config.serviceTier = parsed.serviceTier as ServiceTier
-        }
-        if (typeof parsed.yoloMode === 'boolean') {
-            config.yoloMode = parsed.yoloMode
-        }
-        if (parsed.sessionType === 'simple' || parsed.sessionType === 'worktree') {
-            config.sessionType = parsed.sessionType
-        }
-        if (typeof parsed.worktreeName === 'string') {
-            config.worktreeName = parsed.worktreeName
-        }
-        if (typeof parsed.previewUrl === 'string') {
-            config.previewUrl = parsed.previewUrl
-        }
-        if (typeof parsed.claudeAccountId === 'string' && /^[a-z0-9_-]{1,40}$/.test(parsed.claudeAccountId)) {
-            config.claudeAccountId = parsed.claudeAccountId
-        }
-
-        return Object.keys(config).length > 0 ? config : null
+        return sanitizeLastSessionConfig(JSON.parse(stored))
     } catch {
         return null
     }
@@ -266,5 +279,89 @@ export function saveLastSessionConfig(config: LastSessionConfig): void {
         localStorage.setItem(LAST_CONFIG_STORAGE_KEY, JSON.stringify(config))
     } catch {
         // Ignore storage errors
+    }
+}
+
+/** The model settings of a config, as the hub stores them. An empty account means the machine default. */
+export function toNewSessionDefaults(config: LastSessionConfig): Omit<NewSessionDefaults, 'updatedAt'> {
+    return {
+        agent: config.agent,
+        model: config.model,
+        customModel: config.customModel ?? '',
+        thinkEffort: config.thinkEffort,
+        serviceTier: config.serviceTier,
+        yoloMode: config.yoloMode,
+        claudeAccountId: config.claudeAccountId ?? ''
+    }
+}
+
+/**
+ * The newer of this browser's last config and the copy shared through the hub (which also follows
+ * model switches made inside a chat). Only the model settings are shared; session type, worktree
+ * name and preview URL stay with the browser.
+ */
+export function pickRememberedConfig(
+    local: LastSessionConfig | null,
+    shared: NewSessionDefaults | null | undefined
+): LastSessionConfig | null {
+    if (!shared) return local
+    if (local?.savedAt !== undefined && local.savedAt > shared.updatedAt) return local
+
+    const fromHub = sanitizeLastSessionConfig(shared) ?? {}
+    const merged: LastSessionConfig = { ...local }
+    for (const key of SHARED_CONFIG_KEYS) {
+        if (shared[key] === undefined) continue
+        if (key === 'claudeAccountId' && shared.claudeAccountId === '') {
+            delete merged.claudeAccountId
+            continue
+        }
+        if (fromHub[key] !== undefined) {
+            (merged as Record<string, unknown>)[key] = fromHub[key]
+        }
+    }
+    merged.savedAt = shared.updatedAt
+    return merged
+}
+
+export function getDefaultThinkEffort(agent: AgentType): ThinkEffort {
+    return getThinkEffortOptions(agent)[0]?.value ?? 'auto'
+}
+
+export type SessionModelParams = {
+    model: string
+    customModel: string
+    thinkEffort: ThinkEffort
+    serviceTier: ServiceTier
+}
+
+/**
+ * Model, thinking and tier to start `agent` with: the remembered choice when it was made for this
+ * agent, otherwise what this browser last used with the agent.
+ */
+export function resolveSessionModelParams(agent: AgentType, remembered: LastSessionConfig | null): SessionModelParams {
+    const own = remembered?.agent === agent ? remembered : null
+    const modelOptions = getModelOptionsForAgent(agent)
+    const isListed = (value: string | undefined): value is string =>
+        Boolean(value) && modelOptions.some((option) => option.value === value)
+    const thinkOptions = getThinkEffortOptions(agent)
+
+    if (!own) {
+        return {
+            model: loadPreferredModel(agent) ?? modelOptions[0]?.value ?? 'auto',
+            customModel: loadPreferredCustomModel(agent),
+            thinkEffort: loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent),
+            serviceTier: loadPreferredServiceTier(agent) ?? 'auto'
+        }
+    }
+
+    // A model switched to in a chat that the form does not list is kept as a custom model.
+    const unlistedModel = own.model && !isListed(own.model) && modelOptions.length > 0 ? own.model : ''
+    return {
+        model: isListed(own.model) ? own.model : (loadPreferredModel(agent) ?? modelOptions[0]?.value ?? 'auto'),
+        customModel: own.customModel?.trim() || unlistedModel,
+        thinkEffort: own.thinkEffort && thinkOptions.some((option) => option.value === own.thinkEffort)
+            ? own.thinkEffort
+            : (loadPreferredThinkEffort(agent) ?? getDefaultThinkEffort(agent)),
+        serviceTier: own.serviceTier ?? loadPreferredServiceTier(agent) ?? 'auto'
     }
 }

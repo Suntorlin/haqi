@@ -31,6 +31,8 @@ import type {
     ExperimentalSettingsResponse,
     ReportDomainResponse,
     ProjectOfflineSettingsResponse,
+    NewSessionDefaults,
+    NewSessionDefaultsResponse,
     UpdateMemoryResponse,
     CreateGroupResponse,
     AddGroupMemberResponse,
@@ -429,6 +431,17 @@ export class ApiClient {
 
     async getProjectOfflineSettings(): Promise<ProjectOfflineSettingsResponse> {
         return await this.request<ProjectOfflineSettingsResponse>('/api/settings/project-offline')
+    }
+
+    async getNewSessionDefaults(): Promise<NewSessionDefaultsResponse> {
+        return await this.request<NewSessionDefaultsResponse>('/api/settings/new-session-defaults')
+    }
+
+    async saveNewSessionDefaults(payload: Omit<NewSessionDefaults, 'updatedAt'>): Promise<NewSessionDefaultsResponse> {
+        return await this.request<NewSessionDefaultsResponse>('/api/settings/new-session-defaults', {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+        })
     }
 
     async updateProjectOfflineSettings(payload: { directories: string[] }): Promise<ProjectOfflineSettingsResponse> {

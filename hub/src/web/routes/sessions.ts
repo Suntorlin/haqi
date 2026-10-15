@@ -2,6 +2,11 @@ import { getPermissionModesForFlavor, isModelModeAllowedForFlavor, isPermissionM
 import { ClaudeAccountSelectionSchema, ModelModeSchema, PermissionModeSchema } from '@hapi/protocol/schemas'
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
+import {
+    getNewSessionDefaultsStore,
+    type ChatSettingChange,
+    type NewSessionDefaultsStore
+} from '../../config/newSessionDefaults'
 import type { SyncEngine, Session } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
@@ -156,8 +161,20 @@ function collectAllSessionMessages(engine: SyncEngine, sessionId: string): Retur
     return collected
 }
 
-export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
+export function createSessionsRoutes(
+    getSyncEngine: () => SyncEngine | null,
+    getNewSessionDefaults: () => NewSessionDefaultsStore = getNewSessionDefaultsStore
+): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
+
+    // A model / thinking / tier picked inside a chat becomes the next new session's default.
+    const rememberChatSetting = async (c: Context<WebAppEnv>, flavor: string, change: ChatSettingChange) => {
+        try {
+            await getNewSessionDefaults().rememberChatChange(c.get('namespace'), flavor, change)
+        } catch (error) {
+            console.error('[sessions] Failed to remember chat setting for new sessions:', error)
+        }
+    }
 
     const requireQueueSession = (
         c: Context<WebAppEnv>,
@@ -779,6 +796,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
                 modelMode: requestedMode,
                 model: requestedModel
             })
+            await rememberChatSetting(c, flavor, { model: requestedModel === 'default' ? 'auto' : requestedModel })
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply model mode'
@@ -816,6 +834,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             await engine.applySessionConfig(sessionResult.sessionId, {
                 thinkEffort: parsed.data.thinkEffort
             })
+            await rememberChatSetting(c, flavor, { thinkEffort: parsed.data.thinkEffort })
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply think level'
@@ -852,6 +871,7 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             await engine.applySessionConfig(sessionResult.sessionId, {
                 serviceTier
             })
+            await rememberChatSetting(c, flavor, { serviceTier: parsed.data.serviceTier })
             return c.json({ ok: true })
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to apply service tier'

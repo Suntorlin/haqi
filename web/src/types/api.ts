@@ -474,6 +474,22 @@ export type ProjectOfflineSettingsResponse = {
     directories: string[]
 }
 
+/** The model settings picked last (new-session form or a chat switch), shared by every device. */
+export type NewSessionDefaults = {
+    agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
+    model?: string
+    customModel?: string
+    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
+    serviceTier?: 'auto' | 'fast' | 'flex'
+    yoloMode?: boolean
+    claudeAccountId?: string
+    updatedAt: number
+}
+
+export type NewSessionDefaultsResponse = {
+    defaults: NewSessionDefaults | null
+}
+
 export type UsageTotals = {
     inputTokens: number
     cachedInputTokens: number

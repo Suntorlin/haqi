@@ -2,6 +2,11 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 
 import { configuration } from '../../configuration'
+import {
+    getNewSessionDefaultsStore,
+    newSessionDefaultsSchema,
+    type NewSessionDefaultsStore
+} from '../../config/newSessionDefaults'
 import { readSettingsOrThrow, writeSettings } from '../../config/settings'
 import type { Store } from '../../store'
 import type { WebAppEnv } from '../middleware/auth'
@@ -45,7 +50,10 @@ function normalizeDirectories(directories: string[]): string[] {
     return normalized
 }
 
-export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
+export function createSettingsRoutes(
+    store: Store,
+    getNewSessionDefaults: () => NewSessionDefaultsStore = getNewSessionDefaultsStore
+): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
     app.get('/settings/experimental', async (c) => {
@@ -130,6 +138,34 @@ export function createSettingsRoutes(store: Store): Hono<WebAppEnv> {
         } catch (error) {
             return c.json({
                 error: error instanceof Error ? error.message : 'Failed to update project offline settings'
+            }, 500)
+        }
+    })
+
+    app.get('/settings/new-session-defaults', async (c) => {
+        try {
+            const defaults = await getNewSessionDefaults().get(c.get('namespace'))
+            return c.json({ defaults })
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : 'Failed to load new session defaults'
+            }, 500)
+        }
+    })
+
+    app.put('/settings/new-session-defaults', async (c) => {
+        const body = await c.req.json().catch(() => null)
+        const parsed = newSessionDefaultsSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ error: 'Invalid body' }, 400)
+        }
+
+        try {
+            const defaults = await getNewSessionDefaults().replace(c.get('namespace'), parsed.data)
+            return c.json({ defaults })
+        } catch (error) {
+            return c.json({
+                error: error instanceof Error ? error.message : 'Failed to save new session defaults'
             }, 500)
         }
     })
