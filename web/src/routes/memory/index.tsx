@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { MoreHorizontalIcon } from '@/components/mobile/icons'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
@@ -8,8 +8,9 @@ import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { LevelIcon, MemoryDetail } from './MemoryDetail'
-import { MemoryGraph } from './MemoryGraph'
 import { findMemory, GLOBAL_SCOPE, LEVEL_LABEL, MEMORIES, RECENT, SKIPPED_TODAY, STATS, type Level, type Memory } from './mock'
+
+const MemoryGraph = lazy(() => import('./MemoryGraph'))
 
 type Tab = 'recent' | Level | 'graph'
 type Mode = 'off' | 'record' | 'auto'
@@ -88,7 +89,7 @@ export function MemoryPage() {
         )
     }
 
-    const body = tab === 'recent' ? recent : tab === 'graph' ? <MemoryGraph onOpen={setOpenId} /> : levelList(tab)
+    const body = tab === 'recent' ? recent : tab === 'graph' ? null : levelList(tab)
 
     const tabs: Array<{ value: Tab; label: string }> = [
         { value: 'recent', label: '最近' },
@@ -105,26 +106,42 @@ export function MemoryPage() {
         </IconButton>
     )
 
+    const desktopTitle = isMobile ? null : (
+        <div className="flex items-center gap-2 pb-2 pt-6">
+            <div className="min-w-0 flex-1">
+                <h1 className="text-[20px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">记忆</h1>
+                <p className="mt-2 text-[12px] leading-none text-[var(--social-fg-muted)]">{subtitle}</p>
+            </div>
+            {settingsButton}
+        </div>
+    )
+
     const page = (
         <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
             {isMobile ? (
                 <MobilePageHeader title="记忆" subtitle={subtitle} actions={settingsButton} />
             ) : null}
-            <div className="min-h-0 flex-1 overflow-y-auto">
-                <div className={tab === 'graph' && !isMobile ? 'mx-auto max-w-[1080px] px-4 pb-8' : 'mx-auto max-w-content px-4 pb-8'}>
-                    {isMobile ? null : (
-                        <div className="flex items-center gap-2 pb-2 pt-6">
-                            <div className="min-w-0 flex-1">
-                                <h1 className="text-[20px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">记忆</h1>
-                                <p className="mt-2 text-[12px] leading-none text-[var(--social-fg-muted)]">{subtitle}</p>
-                            </div>
-                            {settingsButton}
-                        </div>
-                    )}
-                    <ChoiceChips label="视图" value={tab} options={tabs} onChange={setTab} className="sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]" />
-                    <div className="pt-3">{body}</div>
+            {tab === 'graph' ? (
+                <div className="flex min-h-0 flex-1 flex-col">
+                    <div className="mx-auto w-full max-w-content px-4">
+                        {desktopTitle}
+                        <ChoiceChips label="视图" value={tab} options={tabs} onChange={setTab} className="-mx-4 flex-nowrap overflow-x-auto px-4 py-2 [scrollbar-width:none]" />
+                    </div>
+                    <div className="min-h-0 flex-1 px-4 pb-4 pt-1">
+                        <Suspense fallback={<div className="flex h-full items-center justify-center text-[13px] text-[var(--social-fg-muted)]">正在加载图谱…</div>}>
+                            <MemoryGraph onOpen={setOpenId} mobile={isMobile} />
+                        </Suspense>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="min-h-0 flex-1 overflow-y-auto">
+                    <div className="mx-auto max-w-content px-4 pb-8">
+                        {desktopTitle}
+                        <ChoiceChips label="视图" value={tab} options={tabs} onChange={setTab} className="sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]" />
+                        <div className="pt-3">{body}</div>
+                    </div>
+                </div>
+            )}
             {isMobile ? <MobileTabBar active="memory" /> : null}
 
             <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open ? `${LEVEL_LABEL[open.level]} · ${open.scope}` : ''}>

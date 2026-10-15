@@ -1,0 +1,8 @@
+/* React Flow ships a light attribution chip; keep it on the page tokens in both themes. */
+.memory-graph .react-flow__attribution {
+    background: transparent;
+}
+
+.memory-graph .react-flow__attribution a {
+    color: var(--social-fg-subtle);
+}
