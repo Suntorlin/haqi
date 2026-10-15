@@ -24,6 +24,7 @@ import { HIT_AREA_24_CLASS, HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/com
 import { extractReportLinks } from '@/components/AssistantChat/reportLinks'
 import { FileIcon } from '@/components/mobile/icons'
 import { useOpenInPreview } from '@/lib/preview-link'
+import { setFollowingRunningTurn } from '@/lib/message-window-store'
 
 export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
@@ -305,6 +306,8 @@ export function SocialAssistantMessage() {
     })
     const separatorAt = useTimeSeparatorAt(messageId)
     const layout = useMemo(() => computeTurnLayout(content), [content])
+    // While running, the process is every step so far; afterwards, everything except the reply.
+    const shownProcessIndices = isRunning ? layout.liveIndices : layout.processIndices
     const reportLinks = useMemo(() => extractReportLinks(content), [content])
     const openInPreview = useOpenInPreview()
     const openReport = (url: string) => {
@@ -318,7 +321,8 @@ export function SocialAssistantMessage() {
         })
     }
     const [expanded, setExpanded] = useState(false)
-    const [processLimit, setProcessLimit] = useState(PROCESS_PAGE_SIZE)
+    // First step of the open list. It stays put while open, so a running turn's new steps only add at the end.
+    const [processStart, setProcessStart] = useState<number | null>(null)
     const rootRef = useRef<HTMLDivElement | null>(null)
     const footerRef = useRef<HTMLButtonElement | null>(null)
     const processRef = useRef<HTMLDivElement | null>(null)
@@ -326,10 +330,18 @@ export function SocialAssistantMessage() {
 
     const expandProcess = () => {
         ctx.holdAutoScroll?.()
-        flushSync(() => setExpanded(true))
+        flushSync(() => {
+            setProcessStart(Math.max(0, shownProcessIndices.length - PROCESS_PAGE_SIZE))
+            setExpanded(true)
+        })
         const viewport = getChatViewport(rootRef.current)
         const footer = footerRef.current
         if (!viewport || !footer) return
+        if (isRunning) {
+            // A running turn opens at its latest steps; from the bottom the view keeps following new ones.
+            viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' })
+            return
+        }
         // When the footer sits low on screen, glide up so the start of the process is visible.
         const box = viewport.getBoundingClientRect()
         const footerTop = footer.getBoundingClientRect().top
@@ -372,7 +384,7 @@ export function SocialAssistantMessage() {
             const footerTop = footer.getBoundingClientRect().top
             flushSync(() => {
                 setExpanded(false)
-                setProcessLimit(PROCESS_PAGE_SIZE)
+                setProcessStart(null)
             })
             viewport.scrollTop += footer.getBoundingClientRect().top - footerTop
             collapsingRef.current = false
@@ -394,7 +406,7 @@ export function SocialAssistantMessage() {
         const firstVisible = processRef.current?.querySelector<HTMLElement>('.social-process-item')
         const before = firstVisible?.getBoundingClientRect().top ?? null
         ctx.holdAutoScroll?.()
-        flushSync(() => setProcessLimit((limit) => limit + PROCESS_PAGE_SIZE * 2))
+        flushSync(() => setProcessStart((start) => Math.max(0, (start ?? shownProcessIndices.length) - PROCESS_PAGE_SIZE * 2)))
         if (viewport && firstVisible && before !== null) {
             viewport.scrollTop += firstVisible.getBoundingClientRect().top - before
         }
@@ -415,11 +427,21 @@ export function SocialAssistantMessage() {
 
     const stats = ctx.runStats?.get(messageId)
     const startAt = stats?.startAt ?? createdAt?.getTime() ?? Date.now()
-    // While running, the process is every step so far; afterwards, everything except the reply.
-    const shownProcessIndices = isRunning ? layout.liveIndices : layout.processIndices
     const hasProcess = shownProcessIndices.length > 0
-    const visibleProcessIndices = shownProcessIndices.slice(-processLimit)
-    const hiddenProcessCount = shownProcessIndices.length - visibleProcessIndices.length
+    const firstShownProcess = Math.min(
+        processStart ?? Math.max(0, shownProcessIndices.length - PROCESS_PAGE_SIZE),
+        shownProcessIndices.length
+    )
+    const visibleProcessIndices = shownProcessIndices.slice(firstShownProcess)
+    const hiddenProcessCount = firstShownProcess
+
+    // With its steps open, a running turn keeps showing new steps even when the view is not at the bottom.
+    const sessionId = ctx.sessionId
+    useEffect(() => {
+        if (!isRunning || !expanded || !sessionId) return
+        setFollowingRunningTurn(sessionId, true)
+        return () => setFollowingRunningTurn(sessionId, false)
+    }, [expanded, isRunning, sessionId])
     const answerText = layout.answerIndices
         .map((index) => content[index]?.text ?? '')
         .join('\n\n')

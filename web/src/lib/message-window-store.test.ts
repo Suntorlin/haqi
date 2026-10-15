@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ApiClient } from '@/api/client'
 import type { DecryptedMessage } from '@/types/api'
-import { clearMessageWindow, fetchLatestMessages, getMessageWindowState } from './message-window-store'
+import { clearMessageWindow, fetchLatestMessages, getMessageWindowState, ingestIncomingMessages, setAtBottom, setFollowingRunningTurn } from './message-window-store'
 
 function message(seq: number): DecryptedMessage {
     return {
@@ -39,5 +39,39 @@ describe('fetchLatestMessages', () => {
         const state = getMessageWindowState(sessionId)
         expect(state.messages.map((m) => m.seq)).toEqual([50, 51])
         expect(state.hasMore).toBe(true)
+    })
+})
+
+describe('incoming messages away from the bottom', () => {
+    const sessionId = 'session-follow'
+
+    afterEach(() => {
+        setFollowingRunningTurn(sessionId, false)
+        clearMessageWindow(sessionId)
+    })
+
+    it('are held back until the user returns to the bottom', async () => {
+        await fetchLatestMessages(apiReturning([message(1)]), sessionId)
+        setAtBottom(sessionId, false)
+
+        ingestIncomingMessages(sessionId, [message(2)])
+
+        const state = getMessageWindowState(sessionId)
+        expect(state.messages.map((m) => m.seq)).toEqual([1])
+        expect(state.pendingCount).toBe(1)
+    })
+
+    it('show at once while the running turn has its steps open', async () => {
+        await fetchLatestMessages(apiReturning([message(1)]), sessionId)
+        setAtBottom(sessionId, false)
+        setFollowingRunningTurn(sessionId, true)
+
+        ingestIncomingMessages(sessionId, [message(2)])
+        expect(getMessageWindowState(sessionId).messages.map((m) => m.seq)).toEqual([1, 2])
+
+        setFollowingRunningTurn(sessionId, false)
+        ingestIncomingMessages(sessionId, [message(3)])
+        expect(getMessageWindowState(sessionId).messages.map((m) => m.seq)).toEqual([1, 2])
+        expect(getMessageWindowState(sessionId).pendingCount).toBe(1)
     })
 })
