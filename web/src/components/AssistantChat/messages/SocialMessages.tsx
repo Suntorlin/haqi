@@ -75,6 +75,8 @@ type TurnLayout = {
     answerIndices: number[]
     /** Everything else, in order: earlier text, reasoning and tool calls. */
     processIndices: number[]
+    /** While the turn runs: every step so far, in order, the reply being written included. */
+    liveIndices: number[]
     /** Tool calls waiting for the user's approval; always visible. */
     pendingIndices: number[]
     steps: number
@@ -93,7 +95,7 @@ function hasText(part: MessagePartLike): boolean {
 }
 
 /** Splits one merged agent turn into "final reply" vs "process" (WeChat-simple, details on demand). */
-function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
+export function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
     let lastToolIndex = -1
     let previousToolIndex = -1
     let lastTextIndex = -1
@@ -121,9 +123,14 @@ function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
         if (block && hasPendingPermission(block)) pendingIndices.push(index)
     })
 
+    const isShown = (part: MessagePartLike) => part.type !== 'text' || hasText(part)
     const hidden = new Set([...answerIndices, ...pendingIndices])
     const processIndices = parts
-        .map((part, index) => (!hidden.has(index) && (part.type !== 'text' || hasText(part)) ? index : -1))
+        .map((part, index) => (!hidden.has(index) && isShown(part) ? index : -1))
+        .filter((index) => index >= 0)
+    const pending = new Set(pendingIndices)
+    const liveIndices = parts
+        .map((part, index) => (!pending.has(index) && isShown(part) ? index : -1))
         .filter((index) => index >= 0)
 
     const lastPart = parts[parts.length - 1]
@@ -143,7 +150,7 @@ function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
         ? parts[lastTextIndex].text ?? null
         : null
 
-    return { answerIndices, processIndices, pendingIndices, steps, latestText, current }
+    return { answerIndices, processIndices, liveIndices, pendingIndices, steps, latestText, current }
 }
 
 function ProcessReasoning() {
@@ -199,8 +206,20 @@ function ChevronIcon(props: { className?: string }) {
     )
 }
 
-/** While the agent works: one quiet card with the current step and its latest words. */
-function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: boolean }) {
+/**
+ * While the agent works: one quiet card with the current step and its latest words. The step count
+ * opens the steps done so far, as the footer of a finished turn does.
+ */
+function LiveStatusCard(props: {
+    layout: TurnLayout
+    startAt: number
+    partial: boolean
+    expanded: boolean
+    onToggle?: () => void
+    toggleRef?: React.Ref<HTMLButtonElement>
+    pressProps?: React.HTMLAttributes<HTMLDivElement>
+    pressClass?: string
+}) {
     const { t } = useTranslation()
     const ctx = useHappyChatContext()
     const now = useNow(1000)
@@ -238,7 +257,7 @@ function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: b
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="social-card w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3">
+        <div {...props.pressProps} className={cn('social-card w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3', props.pressClass)}>
             <div className="flex min-w-0 items-center gap-2.5">
                 <span className="social-spinner shrink-0" aria-hidden="true" />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--social-fg)]">{title}</span>
@@ -248,7 +267,20 @@ function LiveStatusCard(props: { layout: TurnLayout; startAt: number; partial: b
             ) : toolDetail ? (
                 <p className="mt-1.5 truncate pl-[24px] font-mono text-[13px] text-[var(--social-fg-muted)]">{toolDetail}</p>
             ) : null}
-            <div className="mt-1.5 pl-[24px] text-[12px] tabular-nums text-[var(--social-fg-subtle)]">{meta}</div>
+            {props.onToggle ? (
+                <button
+                    ref={props.toggleRef}
+                    type="button"
+                    onClick={props.onToggle}
+                    aria-expanded={props.expanded}
+                    className={cn('ml-[24px] mt-1.5 flex w-fit items-center gap-1 text-[12px] tabular-nums text-[var(--social-fg-subtle)] transition-colors hover:text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent]', TEXT_HIT_AREA_CLASS)}
+                >
+                    {meta}
+                    <ChevronIcon className={cn('h-3 w-3 transition-transform', props.expanded ? '-rotate-90' : 'rotate-90')} />
+                </button>
+            ) : (
+                <div className="mt-1.5 pl-[24px] text-[12px] tabular-nums text-[var(--social-fg-subtle)]">{meta}</div>
+            )}
         </div>
     )
 }
@@ -383,9 +415,11 @@ export function SocialAssistantMessage() {
 
     const stats = ctx.runStats?.get(messageId)
     const startAt = stats?.startAt ?? createdAt?.getTime() ?? Date.now()
-    const hasProcess = layout.processIndices.length > 0
-    const visibleProcessIndices = layout.processIndices.slice(-processLimit)
-    const hiddenProcessCount = layout.processIndices.length - visibleProcessIndices.length
+    // While running, the process is every step so far; afterwards, everything except the reply.
+    const shownProcessIndices = isRunning ? layout.liveIndices : layout.processIndices
+    const hasProcess = shownProcessIndices.length > 0
+    const visibleProcessIndices = shownProcessIndices.slice(-processLimit)
+    const hiddenProcessCount = shownProcessIndices.length - visibleProcessIndices.length
     const answerText = layout.answerIndices
         .map((index) => content[index]?.text ?? '')
         .join('\n\n')
@@ -396,6 +430,36 @@ export function SocialAssistantMessage() {
         stats && !partial ? t('mobile.turn.took', { d: formatElapsed(stats.endAt - stats.startAt, t) }) : null
     ].filter(Boolean).join(' · ')
 
+    const processList = expanded ? (
+        <div ref={processRef} className="social-process animate-process-in ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
+            {hiddenProcessCount > 0 ? (
+                <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={showEarlierSteps}
+                    className={cn('h-7 w-fit px-3 text-[12px]', HIT_AREA_28_CLASS)}
+                >
+                    {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
+                </Button>
+            ) : null}
+            {visibleProcessIndices.map((index) => (
+                <div key={index} className="social-process-item min-w-0">
+                    <MessagePrimitive.PartByIndex index={index} components={PROCESS_COMPONENTS} />
+                </div>
+            ))}
+            <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
+                {answerText && !isRunning ? (
+                    <button type="button" onClick={() => void copy(answerText)} className={TEXT_HIT_AREA_CLASS}>
+                        {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
+                    </button>
+                ) : null}
+                <button type="button" onClick={() => collapseProcess('end')} className={TEXT_HIT_AREA_CLASS}>
+                    {t('mobile.turn.hideProcess')}
+                </button>
+            </div>
+        </div>
+    ) : null
+
     return (
         <MessagePrimitive.Root ref={rootRef} className="group/turn flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
@@ -404,7 +468,19 @@ export function SocialAssistantMessage() {
                 {isCliOutput ? (
                     <CliOutputBlock text={content.find((part) => part.type === 'text')?.text ?? ''} />
                 ) : isRunning ? (
-                    <LiveStatusCard layout={layout} startAt={startAt} partial={stats?.partial ?? false} />
+                    <>
+                        <LiveStatusCard
+                            layout={layout}
+                            startAt={startAt}
+                            partial={partial}
+                            expanded={expanded}
+                            onToggle={hasProcess ? toggleProcess : undefined}
+                            toggleRef={footerRef}
+                            pressProps={hasProcess ? pressProps : undefined}
+                            pressClass={hasProcess ? pressClass : undefined}
+                        />
+                        {processList}
+                    </>
                 ) : (
                     <>
                         {layout.answerIndices.length > 0 ? (
@@ -463,35 +539,7 @@ export function SocialAssistantMessage() {
                             </div>
                         ) : null}
 
-                        {expanded ? (
-                            <div ref={processRef} className="social-process animate-process-in ml-1 flex min-w-0 flex-col gap-2 py-1 pl-3.5">
-                                {hiddenProcessCount > 0 ? (
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        onClick={showEarlierSteps}
-                                        className={cn('h-7 w-fit px-3 text-[12px]', HIT_AREA_28_CLASS)}
-                                    >
-                                        {t('mobile.turn.showEarlier', { n: hiddenProcessCount })}
-                                    </Button>
-                                ) : null}
-                                {visibleProcessIndices.map((index) => (
-                                    <div key={index} className="social-process-item min-w-0">
-                                        <MessagePrimitive.PartByIndex index={index} components={PROCESS_COMPONENTS} />
-                                    </div>
-                                ))}
-                                <div className="flex gap-4 pt-1 text-[12px] text-[var(--social-fg-muted)]">
-                                    {answerText ? (
-                                        <button type="button" onClick={() => void copy(answerText)} className={TEXT_HIT_AREA_CLASS}>
-                                            {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
-                                        </button>
-                                    ) : null}
-                                    <button type="button" onClick={() => collapseProcess('end')} className={TEXT_HIT_AREA_CLASS}>
-                                        {t('mobile.turn.hideProcess')}
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
+                        {processList}
                     </>
                 )}
 
