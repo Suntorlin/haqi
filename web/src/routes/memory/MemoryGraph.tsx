@@ -1,6 +1,6 @@
 import '@xyflow/react/dist/base.css'
 import './memoryGraph.css'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
     Background,
     BackgroundVariant,
@@ -33,7 +33,6 @@ type BoxFlowNode = Node<BoxNodeData, 'box'>
 type RouteFlowEdge = Edge<RouteEdgeData, 'route'>
 
 const HIDDEN_HANDLE = '!h-px !w-px !min-h-0 !min-w-0 !border-0 !bg-transparent'
-const LEVEL_HINT: Record<Level, string> = { principle: '始终注入', experience: '按项目注入', fact: '只做证据' }
 
 function MemoryNode(props: NodeProps<MemoryFlowNode>) {
     const { memory, dim, focus, tip } = props.data
@@ -81,9 +80,8 @@ function BoxNode(props: NodeProps<BoxFlowNode>) {
                 <span className="text-[12px] text-[var(--social-fg-muted)]">{box.count} 条</span>
             </div>
             {(['principle', 'experience', 'fact'] as const).map((level) => (
-                <div key={level} className="absolute left-6" style={{ top: box.rowY[level] - box.y + NODE_H / 2 - 16 }}>
-                    <div className="text-[12px] font-semibold text-[var(--social-fg-muted)]">{LEVEL_LABEL[level]}</div>
-                    <div className="text-[12px] text-[var(--social-fg-subtle)]">{LEVEL_HINT[level]}</div>
+                <div key={level} className="absolute left-6 text-[12px] text-[var(--social-fg-muted)]" style={{ top: box.rowY[level] - box.y + NODE_H / 2 - 8 }}>
+                    {LEVEL_LABEL[level]}
                 </div>
             ))}
         </div>
@@ -121,6 +119,7 @@ function Legend() {
 function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) {
     const flow = useReactFlow()
     const layout = useMemo(layoutGraph, [])
+    const canvasRef = useRef<HTMLDivElement | null>(null)
     const [hover, setHover] = useState<string | null>(null)
     const [focusId, setFocusId] = useState<string | null>(null)
     const [query, setQuery] = useState('')
@@ -189,10 +188,25 @@ function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) 
         void flow.setCenter(placed.x, placed.y + NODE_H / 2, { zoom: 1.1, duration: 400 })
     }
 
+    // Fit everything, top-aligned, so no empty band sits above the boxes.
+    const showAll = (duration = 0) => {
+        const el = canvasRef.current
+        if (!el || layout.boxes.length === 0) return
+        const width = Math.max(...layout.boxes.map((b) => b.x + b.width))
+        const height = Math.max(...layout.boxes.map((b) => b.y + b.height))
+        const pad = 16
+        const zoom = Math.min((el.clientWidth - pad * 2) / width, (el.clientHeight - pad * 2) / height, 1)
+        void flow.setViewport({ x: (el.clientWidth - width * zoom) / 2, y: pad, zoom }, { duration })
+    }
+
     // Phones open at a readable zoom on the top-left of the first box; "看全部" shows everything.
     const onInit = () => {
         const first = layout.boxes[0]
-        if (!props.mobile || !first) return
+        if (!props.mobile) {
+            showAll()
+            return
+        }
+        if (!first) return
         const zoom = 0.72
         void flow.setViewport({ x: 12 - first.x * zoom, y: 12 - first.y * zoom, zoom })
     }
@@ -224,19 +238,17 @@ function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) 
                             </IconButton>
                         </>
                     )}
-                    <IconButton size={props.mobile ? 'default' : 'sm'} label="看全部" onClick={() => { setFocusId(null); void flow.fitView({ duration: 300, padding: 0.04 }) }}>
+                    <IconButton size={props.mobile ? 'default' : 'sm'} label="看全部" onClick={() => { setFocusId(null); showAll(300) }}>
                         <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
                     </IconButton>
                 </div>
             </div>
-            <div className="min-h-0 flex-1">
+            <div ref={canvasRef} className="min-h-0 flex-1">
                 <ReactFlow
                     nodes={nodes}
                     edges={edges}
                     nodeTypes={NODE_TYPES}
                     edgeTypes={EDGE_TYPES}
-                    fitView={!props.mobile}
-                    fitViewOptions={{ padding: 0.04 }}
                     onInit={onInit}
                     minZoom={0.25}
                     maxZoom={2}

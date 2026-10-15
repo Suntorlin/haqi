@@ -7,7 +7,7 @@ import { ChoiceChips, FieldHint, SegmentedControl } from '@/components/ui/FormCo
 import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-import { LevelIcon, MemoryDetail } from './MemoryDetail'
+import { MemoryDetail } from './MemoryDetail'
 import { findMemory, GLOBAL_SCOPE, LEVEL_LABEL, MEMORIES, RECENT, SKIPPED_TODAY, STATS, type Level, type Memory } from './mock'
 
 const MemoryGraph = lazy(() => import('./MemoryGraph'))
@@ -44,26 +44,27 @@ export function MemoryPage() {
         <div className="space-y-6">
             <ListGroup title={`等你确认 · ${pending.length}`}>
                 {pending.map((m) => (
-                    <ListRow key={m.id} wrap icon={<LevelIcon level={m.level} />} title={m.text} subtitle={m.reason} onClick={() => setOpenId(m.id)} />
+                    <ListRow key={m.id} wrap title={m.text} subtitle={`${LEVEL_LABEL[m.level]} · ${m.reason}`} onClick={() => setOpenId(m.id)} />
                 ))}
             </ListGroup>
-            <ListGroup title="最近">
-                {RECENT.filter(({ id }) => findMemory(id)?.status !== 'pending').map(({ id, action }) => {
-                    const m = findMemory(id)
-                    if (!m) return null
-                    return (
-                        <ListRow
-                            key={id}
-                            wrap
-                            icon={<LevelIcon level={m.level} />}
-                            title={m.text}
-                            subtitle={`${action} · ${LEVEL_LABEL[m.level]} · ${m.scope} · ${m.at}`}
-                            onClick={() => setOpenId(id)}
-                        />
-                    )
-                })}
-                <ListRow wrap title={`今天没记 ${SKIPPED_TODAY.total} 条`} subtitle={SKIPPED_TODAY.detail} />
-            </ListGroup>
+            <div className="space-y-2">
+                <ListGroup title="最近">
+                    {RECENT.filter(({ id }) => findMemory(id)?.status !== 'pending').map(({ id, action }) => {
+                        const m = findMemory(id)
+                        if (!m) return null
+                        return (
+                            <ListRow
+                                key={id}
+                                wrap
+                                title={m.text}
+                                subtitle={`${action} · ${LEVEL_LABEL[m.level]} · ${m.scope} · ${m.at}`}
+                                onClick={() => setOpenId(id)}
+                            />
+                        )
+                    })}
+                </ListGroup>
+                <p className="px-4 text-[13px] text-[var(--social-fg-muted)]">今天另有 {SKIPPED_TODAY.total} 条没记：{SKIPPED_TODAY.detail}。</p>
+            </div>
         </div>
     )
 
@@ -78,7 +79,7 @@ export function MemoryPage() {
                                 key={m.id}
                                 wrap
                                 title={m.text}
-                                subtitle={level === 'fact' ? `${m.at} · ${m.source}` : `${m.evidence?.length ? `依据 ${m.evidence.length} 条 · ` : ''}${m.source}`}
+                                subtitle={level === 'fact' ? m.source : `${m.evidence?.length ? `依据 ${m.evidence.length} 条 · ` : ''}${m.source}`}
                                 trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : undefined}
                                 onClick={() => setOpenId(m.id)}
                             />
@@ -144,7 +145,7 @@ export function MemoryPage() {
             )}
             {isMobile ? <MobileTabBar active="memory" /> : null}
 
-            <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open ? `${LEVEL_LABEL[open.level]} · ${open.scope}` : ''}>
+            <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open?.status === 'pending' ? '等你确认' : '编辑记忆'}>
                 {open ? <MemoryDetail key={open.id} memory={open} onOpen={setOpenId} onDone={() => setOpenId(null)} /> : null}
             </BottomSheet>
 
@@ -160,7 +161,7 @@ export function MemoryPage() {
                         <FieldHint>{MODE_HINT[mode]}</FieldHint>
                     </div>
                     <ListGroup>
-                        <ListRow title="Jev 判得准不准" trailing={`最近 ${STATS.jevRecent} 次，你改了 ${STATS.corrected} 次`} />
+                        <ListRow title="Jev 准确率" trailing={`最近 ${STATS.jevRecent} 次，你改了 ${STATS.corrected} 次`} />
                         <ListRow title="发给 Jev 的内容" trailing="今天 38 条" onClick={() => {}} />
                         <ListRow title="导入现有记忆" subtitle="MEMORY.md、各账号的 Claude 记忆" wrap onClick={() => {}} />
                     </ListGroup>
