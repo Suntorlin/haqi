@@ -244,6 +244,9 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         }
 
         if (data.hook_event_name === 'Stop' || data.hook_event_name === 'StopFailure') {
+            // A tool call another PreToolUse hook blocked never gets PostToolUse; no tool
+            // outlives the turn, so drop them all or the session reads as busy forever.
+            this.clearAuxiliaryActivity('claude-tool:');
             this.client.sendSessionEvent({ type: 'ready' });
             this.refreshClaudeTeamSnapshot();
             return;
