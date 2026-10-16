@@ -561,4 +561,30 @@ describe('MessageQueue2', () => {
         expect(batch2?.deferUserMessageUntilDequeue).toBe(true);
         expect(batch3?.deferUserMessageUntilDequeue).toBe(true);
     });
+    it('waitForHead leaves a message queued until something dequeues it', async () => {
+        const queue = new MessageQueue2<string>(mode => mode);
+
+        const headPromise = queue.waitForHead();
+        queue.push('queued while busy', 'local', { isolate: true });
+
+        const head = await headPromise;
+        expect(head?.message).toBe('queued while busy');
+        expect(head?.isolate).toBe(true);
+        expect(queue.size()).toBe(1);
+        expect(queue.listEntries().map((entry) => entry.message)).toEqual(['queued while busy']);
+
+        const taken = await queue.waitForMessagesAndGetAsString();
+        expect(taken?.message).toBe('queued while busy');
+        expect(queue.size()).toBe(0);
+    });
+
+    it('waitForHead returns null when aborted', async () => {
+        const queue = new MessageQueue2<string>(mode => mode);
+        const controller = new AbortController();
+
+        const headPromise = queue.waitForHead(controller.signal);
+        controller.abort();
+
+        expect(await headPromise).toBeNull();
+    });
 });
