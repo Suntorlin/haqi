@@ -474,6 +474,9 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                     }
                     ongoingToolCalls.clear();
                     session.clearRunningAgents();
+                    // A killed Claude process (stop, relaunch) sends no PostToolUse or
+                    // SessionEnd hook, so its tool keys would keep the session busy forever.
+                    session.clearAuxiliaryActivity();
 
                     logger.debug('[remote]: flushing message queue');
                     await messageQueue.flush();
