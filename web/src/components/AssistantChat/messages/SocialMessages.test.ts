@@ -37,6 +37,22 @@ describe('computeTurnLayout', () => {
         expect(layout.steps).toBe(2)
     })
 
+    it('shows an answer written mid-turn next to the final reply, and folds only short status lines', () => {
+        const parts = [
+            { type: 'reasoning', text: 'planning' },
+            { type: 'text', text: 'Still in use.\n\nEvery new signup domain is checked once; 1,899 lookups in the last 7 days.' },
+            toolPart({ result: 'ok' }),
+            { type: 'text', text: 'The suite stopped at 4% with no failures. Restarting it detached.' },
+            toolPart({ result: 'ok' }),
+            { type: 'text', text: 'Tests are running again in the background.' }
+        ]
+
+        const layout = computeTurnLayout(parts)
+
+        expect(layout.answerIndices).toEqual([1, 5])
+        expect(layout.processIndices).toEqual([0, 2, 3, 4])
+    })
+
     it('keeps a step waiting for approval out of the list, since it is always shown below', () => {
         const parts = [
             toolPart({ result: 'ok' }),

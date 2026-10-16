@@ -72,7 +72,7 @@ function hasPendingPermission(block: ChatBlock): boolean {
 }
 
 type TurnLayout = {
-    /** Final reply: trailing text after the last tool call (falls back to the last text). */
+    /** Reply: trailing text after the last tool call (falls back to the last text), plus any longer text said mid-turn. */
     answerIndices: number[]
     /** Everything else, in order: earlier text, reasoning and tool calls. */
     processIndices: number[]
@@ -95,6 +95,14 @@ function hasText(part: MessagePartLike): boolean {
     return part.type === 'text' && typeof part.text === 'string' && part.text.trim().length > 0
 }
 
+const NARRATION_MAX_LENGTH = 120
+
+/** A short one-line status ("Let me check the logs.") belongs to the process; longer text is said to the user. */
+function isNarration(text: string): boolean {
+    const trimmed = text.trim()
+    return !trimmed.includes('\n') && trimmed.length <= NARRATION_MAX_LENGTH
+}
+
 /** Splits one merged agent turn into "final reply" vs "process" (WeChat-simple, details on demand). */
 export function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout {
     let lastToolIndex = -1
@@ -110,12 +118,14 @@ export function computeTurnLayout(parts: readonly MessagePartLike[]): TurnLayout
         if (hasText(part)) lastTextIndex = index
     })
 
-    let answerIndices = parts
+    const trailingTextIndices = parts
         .map((part, index) => (index > lastToolIndex && hasText(part) ? index : -1))
         .filter((index) => index >= 0)
-    if (answerIndices.length === 0 && lastTextIndex >= 0) {
-        answerIndices = [lastTextIndex]
-    }
+    const replyIndices = new Set(trailingTextIndices.length > 0 || lastTextIndex < 0 ? trailingTextIndices : [lastTextIndex])
+    // An answer written mid-turn (the agent replied, then kept working) must not fold away with the steps.
+    const answerIndices = parts
+        .map((part, index) => (hasText(part) && (replyIndices.has(index) || !isNarration(part.text ?? '')) ? index : -1))
+        .filter((index) => index >= 0)
 
     const pendingIndices: number[] = []
     parts.forEach((part, index) => {
