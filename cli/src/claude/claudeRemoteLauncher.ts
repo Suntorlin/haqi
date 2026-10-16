@@ -352,11 +352,10 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         }
 
         try {
-            let pending: {
-                message: string;
-                mode: EnhancedMode;
-                deferUserMessageUntilDequeue: boolean;
-            } | null = null;
+            // Set when the queue head needs a fresh launch (isolated or new mode).
+            // The head stays in the queue, so the user still sees, edits or
+            // removes it while the running turn finishes; the next launch takes it.
+            let takeHeadOnNextLaunch = false;
 
             let previousSessionId: string | null = null;
             while (!this.exitReason) {
@@ -392,32 +391,24 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                             return permissionHandler.isAborted(toolCallId);
                         },
                         nextMessage: async (signal?: AbortSignal) => {
-                            if (pending) {
-                                let p = pending;
-                                pending = null;
-                                permissionHandler.handleModeChange(p.mode.permissionMode);
-                                if (p.deferUserMessageUntilDequeue) {
-                                    session.client.sendUserMessage(
-                                        p.message,
-                                        p.mode.routeContext ? { routeContext: p.mode.routeContext } : undefined
-                                    );
-                                }
-                                return {
-                                    message: p.message,
-                                    mode: p.mode
-                                };
-                            }
+                            const waitSignal = signal ? AbortSignal.any([controller.signal, signal]) : controller.signal;
 
-                            let msg = await session.queue.waitForMessagesAndGetAsString(
-                                signal ? AbortSignal.any([controller.signal, signal]) : controller.signal
-                            );
-
-                            if (msg) {
-                                if ((modeHash && msg.hash !== modeHash) || msg.isolate) {
-                                    logger.debug('[remote]: mode has changed, pending message');
-                                    pending = msg;
+                            if (!takeHeadOnNextLaunch) {
+                                const head = await session.queue.waitForHead(waitSignal);
+                                if (!head) {
                                     return null;
                                 }
+                                if ((modeHash && head.modeHash !== modeHash) || head.isolate) {
+                                    logger.debug('[remote]: mode has changed, relaunching for the queued message');
+                                    takeHeadOnNextLaunch = true;
+                                    return null;
+                                }
+                            }
+
+                            let msg = await session.queue.waitForMessagesAndGetAsString(waitSignal);
+
+                            if (msg) {
+                                takeHeadOnNextLaunch = false;
                                 modeHash = msg.hash;
                                 mode = msg.mode;
                                 permissionHandler.handleModeChange(mode.permissionMode);
@@ -452,7 +443,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
                             session.clearSessionId();
                         },
                         onReady: () => {
-                            if (!pending && session.queue.size() === 0 && !session.getRunningAgent()) {
+                            if (session.queue.size() === 0 && !session.getRunningAgent()) {
                                 session.client.sendSessionEvent({ type: 'ready' });
                             }
                         },

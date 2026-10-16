@@ -338,6 +338,27 @@ export class MessageQueue2<T> {
     }
 
     /**
+     * Wait until a message can be dequeued and return the first one without removing it.
+     * Returns null if aborted/closed.
+     */
+    async waitForHead(abortSignal?: AbortSignal): Promise<MessageQueueItem<T> | null> {
+        while (true) {
+            if (this.queue.length > 0 && !this.dequeuePaused) {
+                return { ...this.queue[0] };
+            }
+
+            if (this.closed || abortSignal?.aborted) {
+                return null;
+            }
+
+            const hasMessages = await this.waitForMessages(abortSignal);
+            if (!hasMessages) {
+                return null;
+            }
+        }
+    }
+
+    /**
      * Collect a batch of messages with the same mode, respecting isolation requirements
      */
     private collectBatch(): {
