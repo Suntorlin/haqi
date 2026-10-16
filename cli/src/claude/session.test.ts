@@ -217,6 +217,29 @@ describe('Claude Session running agent state', () => {
         session.stopKeepAlive()
     })
 
+    it('clears a tool call a PreToolUse hook blocked when the turn stops', () => {
+        const { session } = createSession()
+
+        // Another hook denies the call: Claude Code sends no PostToolUse for it.
+        session.applyClaudeHookEvent({
+            hook_event_name: 'PreToolUse',
+            session_id: 'claude-session-1',
+            tool_name: 'Bash',
+            tool_input: { command: 'git push' },
+            tool_use_id: 'tool-blocked'
+        })
+        session.setAuxiliaryActivity('claude-compact', true)
+        session.applyClaudeHookEvent({
+            hook_event_name: 'Stop',
+            session_id: 'claude-session-1'
+        })
+        expect(session.thinking).toBe(true)
+
+        session.setAuxiliaryActivity('claude-compact', false)
+        expect(session.thinking).toBe(false)
+        session.stopKeepAlive()
+    })
+
     it('treats permission_prompt notifications as ready', () => {
         const { session, client } = createSession()
 

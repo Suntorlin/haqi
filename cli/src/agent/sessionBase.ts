@@ -79,11 +79,14 @@ export class AgentSessionBase<Mode> {
         this.refreshThinkingState();
     };
 
-    clearAuxiliaryActivity = (): void => {
-        if (this.auxiliaryActivityKeys.size === 0) {
+    clearAuxiliaryActivity = (prefix?: string): void => {
+        const keys = [...this.auxiliaryActivityKeys].filter((key) => !prefix || key.startsWith(prefix));
+        if (keys.length === 0) {
             return;
         }
-        this.auxiliaryActivityKeys.clear();
+        for (const key of keys) {
+            this.auxiliaryActivityKeys.delete(key);
+        }
         this.refreshThinkingState();
     };
 
