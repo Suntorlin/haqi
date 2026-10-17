@@ -21,6 +21,13 @@ export const reportCreateInputSchema: z.ZodTypeAny = z.object({
     share_expires_in_hours: z.number().positive().max(24 * 365).optional()
 })
 
+export const memoryProposeInputSchema: z.ZodTypeAny = z.object({
+    text: z.string().min(4).max(400).describe('One short sentence to remember'),
+    said_by_user: z.boolean().optional().describe('True when the user said it in so many words')
+})
+
+export const MEMORY_PROPOSE_DESCRIPTION = "Offer one sentence for the user's long-term memory: a standing preference or rule the user stated, or a durable lesson or fact about this project. HAQI decides whether it is a fact, experience or principle, global or for this project, and may hold it for the user's review. Not for task progress, temporary details, secrets, or anything the code or git history already shows."
+
 export const reportUpdateInputSchema: z.ZodTypeAny = z.object({
     report_id: z.string().min(1).max(255),
     task_id: z.string().min(1).max(120).optional(),
@@ -118,6 +125,12 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         title: 'Create Report',
         description: 'Create a markdown report and a public share link. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
         inputSchema: reportCreateInputSchema
+    },
+    {
+        name: 'memory_propose',
+        title: 'Propose Memory',
+        description: MEMORY_PROPOSE_DESCRIPTION,
+        inputSchema: memoryProposeInputSchema
     },
     {
         name: 'report_update',

@@ -26,6 +26,8 @@ export const TITLE_INSTRUCTION = trimIdent(`
     If you implemented a feature and also ran tests, title the feature work, not test execution.
     Do NOT downgrade to generic action-only titles like "Commit changes".
     Only change the title when the main topic changes significantly.
+
+    When the user states a lasting preference or rule, or you learn a durable lesson about this project (a pitfall, a build / deploy / test step that matters), call functions.haqi__memory_propose with one short sentence; set said_by_user when the user said it. Do not propose task progress, temporary details, secrets, or anything the code or git history already shows. A few per session at most.
 `);
 
 export const REPORT_INSTRUCTION = trimIdent(`

@@ -24,9 +24,10 @@ const AUTO_APPROVE_TOOL_NAME_HINTS = [
     'geminireasoning',
     'codexreasoning',
     'think',
-    'save_memory'
+    'save_memory',
+    'memory_propose'
 ];
-const AUTO_APPROVE_TOOL_ID_HINTS = ['change_title', 'save_memory'];
+const AUTO_APPROVE_TOOL_ID_HINTS = ['change_title', 'save_memory', 'memory_propose'];
 const AUTO_APPROVE_WRITE_TOOL_HINTS = ['write', 'edit', 'create', 'delete', 'patch', 'fs-edit'];
 
 export type PermissionHandlerClient = {
