@@ -265,3 +265,51 @@ export type VersionedUpdateResult<T> =
     | { result: 'success'; version: number; value: T }
     | { result: 'version-mismatch'; version: number; value: T }
     | { result: 'error' }
+
+export type StoredMemory = {
+    id: string
+    namespace: string
+    text: string
+    level: 'fact' | 'experience' | 'principle'
+    /** '' = applies everywhere; otherwise a repository name. */
+    scope: string
+    status: 'active' | 'pending' | 'archived'
+    reason: string | null
+    source: string
+    sourceLabel: string | null
+    sessionId: string | null
+    said: boolean
+    support: number
+    jev: unknown | null
+    overridden: { level?: string; scope?: string } | null
+    replaces: string | null
+    version: number
+    createdAt: number
+    updatedAt: number
+}
+
+export type StoredMemoryLink = {
+    namespace: string
+    /** `fromId` backs (supports) `toId`. */
+    fromId: string
+    toId: string
+    createdAt: number
+}
+
+export type StoredMemoryEvent = {
+    id: string
+    namespace: string
+    memoryId: string | null
+    action: string
+    text: string
+    reason: string | null
+    source: string
+    sourceLabel: string | null
+    sourceRef: string | null
+    hash: string | null
+    sessionId: string | null
+    jev: unknown | null
+    costUsd: number
+    latencyMs: number
+    createdAt: number
+}

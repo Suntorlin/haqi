@@ -35,6 +35,8 @@ import {
     type RpcUploadFileResponse
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
+import { MemoryService } from '../memory/service'
+import { configuration } from '../configuration'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -99,6 +101,8 @@ const NOTE_REFRESH_TASK_PREFIX = 'note-refresh:'
 const MAX_NOTE_REFRESH_CONTENT_LENGTH = 20_000
 const MAX_GROUP_MIRROR_TEXT_LENGTH = 8_000
 const GROUP_NOTE_FILE_SYNC_INTERVAL_MS = 3 * 60 * 1000
+const MEMORY_HARVEST_INTERVAL_MS = 15 * 60 * 1000
+const MEMORY_HARVEST_FIRST_DELAY_MS = 60 * 1000
 const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'tool-call',
     'tool-call-result',
@@ -464,6 +468,9 @@ export class SyncEngine {
     private readonly localQueueTextBySessionPreview: Map<string, Map<string, string>> = new Map()
     private inactivityTimer: NodeJS.Timeout | null = null
     private groupNoteFileSyncTimer: NodeJS.Timeout | null = null
+    private memoryHarvestTimer: NodeJS.Timeout | null = null
+    private memoryHarvestKickoff: NodeJS.Timeout | null = null
+    private readonly memoryService: MemoryService
 
     constructor(
         store: Store,
@@ -504,6 +511,25 @@ export class SyncEngine {
             () => this.syncGroupNoteMarkdownFiles(),
             GROUP_NOTE_FILE_SYNC_INTERVAL_MS
         )
+        this.memoryService = new MemoryService(store, {
+            paths: () => ({ dataDir: configuration.dataDir, settingsFile: configuration.settingsFile }),
+            onChange: (namespace) => this.eventPublisher.emit({ type: 'memories-updated', namespace })
+        })
+        if (store.getDatabasePath() !== ':memory:') {
+            this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
+            this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
+        }
+    }
+
+    getMemoryService(): MemoryService {
+        return this.memoryService
+    }
+
+    private harvestMemories(): void {
+        void this.memoryService.harvestClaude().catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : String(error)
+            console.warn(`[SyncEngine] Memory harvest failed: ${message}`)
+        })
     }
 
     stop(): void {
@@ -514,6 +540,14 @@ export class SyncEngine {
         if (this.groupNoteFileSyncTimer) {
             clearInterval(this.groupNoteFileSyncTimer)
             this.groupNoteFileSyncTimer = null
+        }
+        if (this.memoryHarvestKickoff) {
+            clearTimeout(this.memoryHarvestKickoff)
+            this.memoryHarvestKickoff = null
+        }
+        if (this.memoryHarvestTimer) {
+            clearInterval(this.memoryHarvestTimer)
+            this.memoryHarvestTimer = null
         }
     }
 

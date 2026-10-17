@@ -24,6 +24,7 @@ import { createUsageRoutes } from './routes/usage'
 import { createGroupsRoutes } from './routes/groups'
 import { createReviewLoopsRoutes } from './routes/reviewLoops'
 import { createMemoryRoutes } from './routes/memory'
+import { createMemoriesRoutes } from './routes/memories'
 import { createReportsRoutes } from './routes/reports'
 import { createPublicReportsRoutes } from './routes/publicReports'
 import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
@@ -134,6 +135,7 @@ function createWebApp(options: {
     app.route('/api', createGroupsRoutes(options.getSyncEngine))
     app.route('/api', createReviewLoopsRoutes(options.getSyncEngine))
     app.route('/api', createMemoryRoutes())
+    app.route('/api', createMemoriesRoutes(options.getSyncEngine))
     app.route('/api', createSettingsRoutes(options.store))
     const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {
         value: options.reportPublicBaseUrl
