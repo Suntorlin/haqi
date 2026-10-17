@@ -1,4 +1,6 @@
 import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
+import { useNavigate } from '@tanstack/react-router'
+import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
@@ -158,6 +160,7 @@ function downloadTextFile(filename: string, content: string): void {
 }
 
 export default function SettingsPage() {
+    const navigate = useNavigate()
     const { t, locale, setLocale } = useTranslation()
     const { api } = useAppContext()
     const queryClient = useQueryClient()
@@ -813,6 +816,11 @@ export default function SettingsPage() {
 
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
+                    <div className="px-4 pb-2 pt-3">
+                        <ListGroup>
+                            <ListRow title={t('mobile.tab.loops')} onClick={() => navigate({ to: '/review-loops' })} />
+                        </ListGroup>
+                    </div>
                     <SettingsGroup
                         title={t('settings.group.claudeAccounts.title')}
                         description={t('settings.group.claudeAccounts.description')}

@@ -1517,7 +1517,7 @@ function ReviewLoopsLayout() {
                 <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
                     {listHeader}
                     {listBody}
-                    <MobileTabBar active="loops" />
+                    <MobileTabBar active="settings" />
                     {createLoopModal}
                 </div>
             )
