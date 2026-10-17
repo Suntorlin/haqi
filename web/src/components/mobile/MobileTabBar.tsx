@@ -8,7 +8,7 @@ import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-export type MobileTab = 'sessions' | 'groups' | 'loops' | 'memory' | 'settings'
+export type MobileTab = 'sessions' | 'groups' | 'memory' | 'settings'
 
 function ChatsIcon(props: { filled: boolean }) {
     return (
@@ -25,17 +25,6 @@ function GroupsIcon(props: { filled: boolean }) {
             <path d="M2.5 19.5c.6-3.4 3.3-5.5 6.5-5.5s5.9 2.1 6.5 5.5z" />
             <circle cx="16.8" cy="9.2" r="2.7" />
             <path d="M16.6 13.6c2.6.1 4.4 1.9 4.9 4.9h-4.1" />
-        </svg>
-    )
-}
-
-function LoopsIcon(props: { filled: boolean }) {
-    return (
-        <svg viewBox="0 0 24 24" className="h-[25px] w-[25px]" fill="none" stroke="currentColor" strokeWidth={props.filled ? 2.3 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" />
-            <polyline points="4 3.5 4 8 8.5 8" />
-            <path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" />
-            <polyline points="20 20.5 20 16 15.5 16" />
         </svg>
     )
 }
@@ -62,10 +51,9 @@ function MeIcon(props: { filled: boolean }) {
     )
 }
 
-const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/review-loops' | '/memory' | '/settings'> = {
+const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/memory' | '/settings'> = {
     sessions: '/sessions',
     groups: '/groups',
-    loops: '/review-loops',
     memory: '/memory',
     settings: '/settings'
 }
@@ -77,7 +65,6 @@ function useNavTabs(sessionsBadge?: number): NavTab[] {
     return [
         { key: 'sessions', label: t('mobile.tab.sessions'), icon: (filled) => <ChatsIcon filled={filled} />, badge: sessionsBadge },
         { key: 'groups', label: t('mobile.tab.groups'), icon: (filled) => <GroupsIcon filled={filled} /> },
-        { key: 'loops', label: t('mobile.tab.loops'), icon: (filled) => <LoopsIcon filled={filled} /> },
         { key: 'memory', label: t('mobile.tab.memory'), icon: (filled) => <MemoryIcon filled={filled} /> },
         { key: 'settings', label: t('mobile.tab.me'), icon: (filled) => <MeIcon filled={filled} /> }
     ]
@@ -127,7 +114,8 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
 
 function getActiveTab(pathname: string): MobileTab {
     if (pathname.startsWith('/groups')) return 'groups'
-    if (pathname.startsWith('/review-loops')) return 'loops'
+    // Loops moved under 我 (settings): its pages light that tab.
+    if (pathname.startsWith('/review-loops')) return 'settings'
     if (pathname.startsWith('/memory')) return 'memory'
     if (pathname.startsWith('/settings')) return 'settings'
     return 'sessions'
