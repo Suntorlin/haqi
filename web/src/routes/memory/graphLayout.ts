@@ -1,47 +1,45 @@
 import dagre from '@dagrejs/dagre'
-import { findMemory, GLOBAL_SCOPE, MEMORIES, type Level, type Memory } from './mock'
+import type { MemoryItem, MemoryLink } from '@/types/api'
+import { evidenceOf, scopeLabel, scopesInOrder, type Level } from './model'
 
 export const NODE_W = 132
 export const NODE_H = 44
 const RANK: Record<Level, number> = { fact: 0, experience: 1, principle: 2 }
-const ROW = NODE_H + 52
+const LEVELS: Level[] = ['principle', 'experience', 'fact']
+const COL_GAP = 20
+const SLOT = NODE_W + COL_GAP
+const ROW_GAP = 16
+const LEVEL_GAP = 52
+const PER_ROW = 6
 const BOX_PAD_X = 24
 const LABEL_COL = 84
 const TITLE_H = 52
 const BOX_GAP = 32
-const GAP = 20
 
-export type PlacedMemory = { memory: Memory; x: number; y: number }
+export type PlacedMemory = { memory: MemoryItem; x: number; y: number }
 export type Point = { x: number; y: number }
 export type RoutedEdge = { child: string; parent: string; points: Point[] }
-export type ScopeBox = { scope: string; count: number; x: number; y: number; width: number; height: number; rowY: Record<Level, number> }
-
-export function scopesInOrder(): string[] {
-    const projects = Array.from(new Set(MEMORIES.map((m) => m.scope).filter((s) => s !== GLOBAL_SCOPE)))
-    return [GLOBAL_SCOPE, ...projects]
-}
+export type ScopeBox = { scope: string; label: string; count: number; x: number; y: number; width: number; height: number; rowY: Record<Level, number> }
 
 /**
- * x order inside one scope from dagre (crossing minimisation); y is fixed by level.
- * An unlinked memory stands on its own chain of invisible spacers, so it keeps its level
- * without tying unrelated memories together.
+ * Left-to-right order per level inside one scope. dagre minimises crossings for linked memories;
+ * an unlinked memory stands on its own chain of invisible spacers so it keeps its level.
+ * A pending rewrite goes right after the memory it would replace.
  */
-function orderScope(scope: string): { items: Memory[]; centerX: Map<string, number>; span: number; routes: RoutedEdge[] } {
-    const items = MEMORIES.filter((m) => m.scope === scope)
-    const ids = new Set(items.map((m) => m.id))
+function orderScope(items: MemoryItem[], links: MemoryLink[]): Record<Level, MemoryItem[]> {
+    const byId = new Map(items.map((m) => [m.id, m]))
     const g = new dagre.graphlib.Graph()
-    g.setGraph({ rankdir: 'BT', nodesep: GAP, ranksep: 52, marginx: 0, marginy: 0 })
+    g.setGraph({ rankdir: 'BT', nodesep: COL_GAP, ranksep: LEVEL_GAP, marginx: 0, marginy: 0 })
     g.setDefaultEdgeLabel(() => ({}))
     for (const m of items) g.setNode(m.id, { width: NODE_W, height: NODE_H })
-
     const linked = new Set<string>()
     for (const m of items) {
-        for (const childId of m.evidence ?? []) {
-            const child = findMemory(childId)
-            if (!child || !ids.has(childId)) continue
-            g.setEdge(childId, m.id, { minlen: RANK[m.level] - RANK[child.level], weight: 2 })
+        for (const childId of evidenceOf(m.id, links)) {
+            const child = byId.get(childId)
+            if (!child || RANK[m.level] <= RANK[child.level]) continue
+            g.setEdge(child.id, m.id, { minlen: RANK[m.level] - RANK[child.level], weight: 2 })
+            linked.add(child.id)
             linked.add(m.id)
-            linked.add(childId)
         }
     }
     for (const m of items) {
@@ -57,96 +55,102 @@ function orderScope(scope: string): { items: Memory[]; centerX: Map<string, numb
     }
     dagre.layout(g)
 
-    // Left-to-right order per level from dagre; a pending rewrite goes right after what it would replace.
-    const centerX = new Map<string, number>()
-    for (const level of ['fact', 'experience', 'principle'] as const) {
+    const order = {} as Record<Level, MemoryItem[]>
+    for (const level of LEVELS) {
         const row = items.filter((m) => m.level === level)
         const rewrites = row.filter((m) => m.replaces && row.some((r) => r.id === m.replaces))
-        const ordered = row.filter((m) => !rewrites.includes(m)).sort((a, b) => (g.node(a.id).x ?? 0) - (g.node(b.id).x ?? 0))
+        const ordered = row
+            .filter((m) => !rewrites.includes(m))
+            .sort((a, b) => Number(linked.has(b.id)) - Number(linked.has(a.id)) || (g.node(a.id).x ?? 0) - (g.node(b.id).x ?? 0))
         for (const rewrite of rewrites) ordered.splice(ordered.findIndex((m) => m.id === rewrite.replaces) + 1, 0, rewrite)
-        let prev = -Infinity
-        for (const m of ordered) {
-            const wanted = m.replaces && rewrites.includes(m) ? prev : g.node(m.id).x ?? 0
-            const x = Math.max(wanted, prev + NODE_W + GAP)
-            centerX.set(m.id, x)
-            prev = x
-        }
+        order[level] = ordered
     }
-    let min = Infinity
-    let max = -Infinity
-    for (const x of centerX.values()) {
-        min = Math.min(min, x)
-        max = Math.max(max, x)
-    }
-    for (const [id, x] of centerX) centerX.set(id, x - min)
-
-    // A link that skips a level passes the middle level through the gap dagre kept for it.
-    const routes: RoutedEdge[] = []
-    for (const m of items) {
-        for (const childId of m.evidence ?? []) {
-            const child = findMemory(childId)
-            if (!child || !ids.has(childId)) continue
-            const points: Point[] = (g.edge(childId, m.id)?.points ?? []).map((p: Point) => ({ x: p.x - min, y: p.y }))
-            const skips = RANK[m.level] - RANK[child.level] > 1 && points.length > 2
-            let via: Point | null = null
-            if (skips) {
-                const middleY = (points[0].y + points[points.length - 1].y) / 2
-                via = points.reduce((best, p) => Math.abs(p.y - middleY) < Math.abs(best.y - middleY) ? p : best)
-            }
-            routes.push({ child: childId, parent: m.id, points: via ? [via] : [] })
-        }
-    }
-    return { items, centerX, span: Math.max(0, max - min), routes }
+    return order
 }
 
-/** One box per scope, packed into rows no wider than the widest box; inside: principles, experiences, facts. */
-export function layoutGraph(): { nodes: PlacedMemory[]; boxes: ScopeBox[]; edges: RoutedEdge[] } {
-    const ordered = scopesInOrder().map((scope) => ({ scope, ...orderScope(scope) }))
-    const widthOf = (span: number) => LABEL_COL + BOX_PAD_X * 2 + span + NODE_W
-    const maxWidth = Math.max(...ordered.map((o) => widthOf(o.span)))
-    const height = TITLE_H + ROW * 2 + NODE_H + 24
+const rowsOf = (count: number) => Math.max(1, Math.ceil(count / PER_ROW))
+const levelHeight = (count: number) => rowsOf(count) * NODE_H + (rowsOf(count) - 1) * ROW_GAP
+
+/**
+ * One box per scope, packed into rows no wider than ~the widest box. Inside a box: principles,
+ * experiences, facts; a level with many memories wraps after PER_ROW so the box stays readable.
+ */
+export function layoutGraph(memories: MemoryItem[], links: MemoryLink[]): { nodes: PlacedMemory[]; boxes: ScopeBox[]; edges: RoutedEdge[] } {
+    const scopes = scopesInOrder(memories).map((scope) => {
+        const items = memories.filter((m) => m.scope === scope)
+        const order = orderScope(items, links)
+        const cols = Math.max(1, ...LEVELS.map((level) => Math.min(PER_ROW, order[level].length)))
+        const top = {} as Record<Level, number>
+        let cursor = TITLE_H
+        for (const level of LEVELS) {
+            top[level] = cursor
+            cursor += levelHeight(order[level].length) + LEVEL_GAP
+        }
+        return {
+            scope,
+            items,
+            order,
+            cols,
+            top,
+            width: LABEL_COL + BOX_PAD_X * 2 + cols * SLOT - COL_GAP,
+            height: cursor - LEVEL_GAP + 24
+        }
+    })
+    const maxWidth = Math.max(0, ...scopes.map((s) => s.width))
     const nodes: PlacedMemory[] = []
     const boxes: ScopeBox[] = []
     const edges: RoutedEdge[] = []
     let x = 0
     let y = 0
-    for (const o of ordered) {
-        const width = widthOf(o.span)
-        if (x > 0 && x + width > maxWidth * 1.25) {
+    let shelf = 0
+    for (const s of scopes) {
+        if (x > 0 && x + s.width > maxWidth * 1.25) {
             x = 0
-            y += height + BOX_GAP
+            y += shelf + BOX_GAP
+            shelf = 0
         }
-        const rowY: Record<Level, number> = { principle: y + TITLE_H, experience: y + TITLE_H + ROW, fact: y + TITLE_H + ROW * 2 }
-        const left = x + LABEL_COL + BOX_PAD_X + NODE_W / 2
-        for (const memory of o.items) {
-            nodes.push({ memory, x: left + (o.centerX.get(memory.id) ?? 0), y: rowY[memory.level] })
+        const rowY = {} as Record<Level, number>
+        for (const level of LEVELS) {
+            rowY[level] = y + s.top[level]
+            const list = s.order[level]
+            list.forEach((memory, index) => {
+                const row = Math.floor(index / PER_ROW)
+                const inRow = Math.min(PER_ROW, list.length - row * PER_ROW)
+                const offset = (s.cols - inRow) * SLOT / 2
+                nodes.push({
+                    memory,
+                    x: x + LABEL_COL + BOX_PAD_X + offset + (index % PER_ROW) * SLOT + NODE_W / 2,
+                    y: rowY[level] + row * (NODE_H + ROW_GAP)
+                })
+            })
         }
-        for (const route of o.routes) {
-            edges.push({ ...route, points: route.points.map((p) => ({ x: left + p.x, y: y + TITLE_H + p.y })) })
+        for (const m of s.items) {
+            for (const childId of evidenceOf(m.id, links)) {
+                if (s.items.some((item) => item.id === childId)) edges.push({ child: childId, parent: m.id, points: [] })
+            }
         }
-        boxes.push({ scope: o.scope, count: o.items.length, x, y, width, height, rowY })
-        x += width + BOX_GAP
+        boxes.push({ scope: s.scope, label: scopeLabel(s.scope), count: s.items.length, x, y, width: s.width, height: s.height, rowY })
+        shelf = Math.max(shelf, s.height)
+        x += s.width + BOX_GAP
     }
     return { nodes, boxes, edges }
 }
 
 /** Everything a memory stands on and everything it holds up. */
-export function lineage(id: string): Set<string> {
+export function lineage(id: string, memories: MemoryItem[], links: MemoryLink[]): Set<string> {
     const seen = new Set<string>([id])
-    const down = (current: string) => {
-        for (const childId of findMemory(current)?.evidence ?? []) {
-            if (!seen.has(childId)) { seen.add(childId); down(childId) }
+    const walk = (current: string, next: (from: string) => string[]) => {
+        for (const other of next(current)) {
+            if (!seen.has(other)) {
+                seen.add(other)
+                walk(other, next)
+            }
         }
     }
-    const up = (current: string) => {
-        for (const parent of MEMORIES.filter((m) => m.evidence?.includes(current))) {
-            if (!seen.has(parent.id)) { seen.add(parent.id); up(parent.id) }
-        }
-    }
-    down(id)
-    up(id)
-    const self = findMemory(id)
+    walk(id, (from) => evidenceOf(from, links))
+    walk(id, (from) => links.filter((link) => link.fromId === from).map((link) => link.toId))
+    const self = memories.find((m) => m.id === id)
     if (self?.replaces) seen.add(self.replaces)
-    for (const m of MEMORIES) if (m.replaces === id) seen.add(m.id)
+    for (const m of memories) if (m.replaces === id) seen.add(m.id)
     return seen
 }

@@ -23,9 +23,10 @@ import { TextField } from '@/components/ui/TextField'
 import { cn } from '@/lib/utils'
 import { layoutGraph, lineage, NODE_H, NODE_W, type Point, type ScopeBox } from './graphLayout'
 import { LevelIcon } from './MemoryDetail'
-import { LEVEL_LABEL, MEMORIES, SHORT, type Level, type Memory } from './mock'
+import type { MemoryItem, MemoryLink } from '@/types/api'
+import { LEVEL_LABEL, scopeLabel, shortLabel } from './model'
 
-type MemoryNodeData = { memory: Memory; dim: boolean; focus: boolean; tip: boolean }
+type MemoryNodeData = { memory: MemoryItem; dim: boolean; focus: boolean; tip: boolean }
 type BoxNodeData = { box: ScopeBox }
 type RouteEdgeData = { bends: Point[] }
 type MemoryFlowNode = Node<MemoryNodeData, 'memory'>
@@ -44,7 +45,7 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
                 <div className="w-[280px] rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3 shadow-[var(--shadow-float)]">
                     <p className="text-[13px] leading-relaxed text-[var(--social-fg)]">{memory.text}</p>
                     <p className="mt-1.5 text-[12px] text-[var(--social-fg-muted)]">
-                        {LEVEL_LABEL[memory.level]} · {memory.scope}{pending ? ' · 等你确认' : ''} · 点击编辑
+                        {LEVEL_LABEL[memory.level]} · {scopeLabel(memory.scope)}{pending ? ' · 等你确认' : ''} · 点击编辑
                     </p>
                 </div>
             </NodeToolbar>
@@ -65,7 +66,7 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
                 )}
             >
                 <LevelIcon level={memory.level} className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 truncate">{SHORT[memory.id] ?? memory.id}</span>
+                <span className="min-w-0 truncate">{shortLabel(memory.text)}</span>
             </div>
         </>
     )
@@ -76,7 +77,7 @@ function BoxNode(props: NodeProps<BoxFlowNode>) {
     return (
         <div style={{ width: box.width, height: box.height }} className="relative rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)]">
             <div className="flex items-baseline gap-2 px-6 pt-4">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg)]">{box.scope}</span>
+                <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg)]">{box.label}</span>
                 <span className="text-[12px] text-[var(--social-fg-muted)]">{box.count} 条</span>
             </div>
             {(['principle', 'experience', 'fact'] as const).map((level) => (
@@ -116,18 +117,18 @@ function Legend() {
     )
 }
 
-function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) {
+function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpen: (id: string) => void; mobile?: boolean }) {
     const flow = useReactFlow()
-    const layout = useMemo(layoutGraph, [])
+    const layout = useMemo(() => layoutGraph(props.memories, props.links), [props.memories, props.links])
     const canvasRef = useRef<HTMLDivElement | null>(null)
     const [hover, setHover] = useState<string | null>(null)
     const [focusId, setFocusId] = useState<string | null>(null)
     const [query, setQuery] = useState('')
     const active = hover ?? focusId
-    const lit = active ? lineage(active) : null
+    const lit = active ? lineage(active, props.memories, props.links) : null
 
     const needle = query.trim()
-    const matches = needle ? MEMORIES.filter((m) => m.text.includes(needle) || (SHORT[m.id] ?? '').includes(needle)) : []
+    const matches = needle ? props.memories.filter((m) => m.text.toLowerCase().includes(needle.toLowerCase())) : []
 
     const nodes: Array<MemoryFlowNode | BoxFlowNode> = [
         ...layout.boxes.map((box): BoxFlowNode => ({
@@ -150,7 +151,7 @@ function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) 
     ]
 
     const edges: Array<RouteFlowEdge | Edge> = layout.edges.map((route): RouteFlowEdge => {
-        const parent = MEMORIES.find((m) => m.id === route.parent)
+        const parent = props.memories.find((m) => m.id === route.parent)
         const on = Boolean(lit?.has(route.child) && lit.has(route.parent))
         const off = Boolean(lit && !on)
         const color = on ? 'var(--social-fg)' : 'var(--social-fg-subtle)'
@@ -166,8 +167,8 @@ function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) 
             markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color }
         }
     })
-    for (const m of MEMORIES) {
-        if (!m.replaces) continue
+    for (const m of props.memories) {
+        if (!m.replaces || !props.memories.some((other) => other.id === m.replaces)) continue
         const off = Boolean(lit && !(lit.has(m.id) && lit.has(m.replaces)))
         edges.push({
             id: `${m.id}-x-${m.replaces}`,
@@ -269,11 +270,11 @@ function GraphCanvas(props: { onOpen: (id: string) => void; mobile?: boolean }) 
 }
 
 /** Pan / zoom canvas of all memories: dagre orders and routes each level, React Flow draws and handles input. */
-export default function MemoryGraph(props: { onOpen: (id: string) => void; mobile?: boolean }) {
+export default function MemoryGraph(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpen: (id: string) => void; mobile?: boolean }) {
     return (
         <ReactFlowProvider>
             <div className="h-full w-full overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)]">
-                <GraphCanvas onOpen={props.onOpen} mobile={props.mobile} />
+                <GraphCanvas memories={props.memories} links={props.links} onOpen={props.onOpen} mobile={props.mobile} />
             </div>
         </ReactFlowProvider>
     )

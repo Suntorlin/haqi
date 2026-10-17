@@ -1,96 +1,155 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { MoreHorizontalIcon } from '@/components/mobile/icons'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ChoiceChips, FieldHint, SegmentedControl } from '@/components/ui/FormControls'
 import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { Switch } from '@/components/ui/Switch'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-import { MemoryDetail } from './MemoryDetail'
-import { findMemory, GLOBAL_SCOPE, LEVEL_LABEL, MEMORIES, RECENT, SKIPPED_TODAY, STATS, type Level, type Memory } from './mock'
+import { useAppContext } from '@/lib/app-context'
+import { queryKeys } from '@/lib/query-keys'
+import type { MemoriesResponse, MemoryItem } from '@/types/api'
+import { MemoryDetail, type MemoryEdit } from './MemoryDetail'
+import { ACTION_LABEL, evidenceOf, formatWhen, LEVEL_LABEL, recentRows, scopeLabel, scopesInOrder, sourceLabel, type Level } from './model'
 
 const MemoryGraph = lazy(() => import('./MemoryGraph'))
 
 type Tab = 'recent' | Level | 'graph'
-type Mode = 'off' | 'record' | 'auto'
 
-const MODE_LABEL: Record<Mode, string> = { off: '已关闭', record: '只记录', auto: '自动' }
-const MODE_HINT: Record<Mode, string> = {
+const MODE_HINT: Record<'off' | 'record', string> = {
     off: '不采集新记忆。',
-    record: 'Jev 判断后列在这里，你可以改；还不注入会话。',
-    auto: 'Jev 有把握的直接生效；原则仍要你确认。'
+    record: 'Jev 判断后列在这里，你可以改；还不注入会话。'
 }
 
-function scopesOf(list: Memory[]): string[] {
-    const projects = Array.from(new Set(list.map((m) => m.scope).filter((s) => s !== GLOBAL_SCOPE)))
-    return list.some((m) => m.scope === GLOBAL_SCOPE) ? [GLOBAL_SCOPE, ...projects] : projects
+/** Long sentences stay at three lines in lists; the edit sheet shows all of it. */
+function Clamp(props: { text: string }) {
+    return <span className="line-clamp-3">{props.text}</span>
 }
 
-/** Prototype memory page (mock data): recent captures with Jev's call, the three levels, a small graph. */
+function skippedSummary(reasons: Record<string, number>): string {
+    return Object.entries(reasons).map(([reason, count]) => `${reason} ${count} 条`).join('、')
+}
+
+/** Memories captured from sessions, judged by Jev: recent captures, the three levels, and a graph. */
 export function MemoryPage() {
     const isMobile = useIsMobileLayout()
-    const params = useMemo(() => new URLSearchParams(window.location.search), [])
-    const [tab, setTab] = useState<Tab>((params.get('tab') as Tab | null) ?? 'recent')
-    const [openId, setOpenId] = useState<string | null>(params.get('m'))
-    const [settingsOpen, setSettingsOpen] = useState(params.get('settings') === '1')
-    const [mode, setMode] = useState<Mode>('record')
+    const { api } = useAppContext()
+    const queryClient = useQueryClient()
+    const [tab, setTab] = useState<Tab>('recent')
+    const [openId, setOpenId] = useState<string | null>(null)
+    const [settingsOpen, setSettingsOpen] = useState(false)
+    const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [notice, setNotice] = useState<string | null>(null)
 
-    const pending = MEMORIES.filter((m) => m.status === 'pending')
-    const open = openId ? findMemory(openId) : undefined
-    const count = (level: Level) => MEMORIES.filter((m) => m.level === level && m.status === 'active').length
+    const query = useQuery({
+        queryKey: queryKeys.memories,
+        queryFn: async (): Promise<MemoriesResponse> => {
+            if (!api) throw new Error('API unavailable')
+            return await api.getMemories()
+        },
+        enabled: Boolean(api)
+    })
+    const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.memories })
+    const action = useMutation({
+        mutationFn: async (run: () => Promise<unknown>) => await run(),
+        onSettled: () => { void refresh() }
+    })
 
-    const recent = (
-        <div className="space-y-6">
-            <ListGroup title={`等你确认 · ${pending.length}`}>
-                {pending.map((m) => (
-                    <ListRow key={m.id} wrap title={m.text} subtitle={`${LEVEL_LABEL[m.level]} · ${m.reason}`} onClick={() => setOpenId(m.id)} />
-                ))}
-            </ListGroup>
-            <div className="space-y-2">
-                <ListGroup title="最近">
-                    {RECENT.filter(({ id }) => findMemory(id)?.status !== 'pending').map(({ id, action }) => {
-                        const m = findMemory(id)
-                        if (!m) return null
-                        return (
-                            <ListRow
-                                key={id}
-                                wrap
-                                title={m.text}
-                                subtitle={`${action} · ${LEVEL_LABEL[m.level]} · ${m.scope} · ${m.at}`}
-                                onClick={() => setOpenId(id)}
-                            />
-                        )
-                    })}
-                </ListGroup>
-                <p className="px-4 text-[13px] text-[var(--social-fg-muted)]">今天另有 {SKIPPED_TODAY.total} 条没记：{SKIPPED_TODAY.detail}。</p>
+    const data = query.data
+    const memories = data?.memories ?? []
+    const links = data?.links ?? []
+    const open = openId ? memories.find((m) => m.id === openId) : undefined
+    const pending = memories.filter((m) => m.status === 'pending')
+    const count = (level: Level) => memories.filter((m) => m.level === level && m.status === 'active').length
+    const mode = data?.settings.mode ?? 'record'
+
+    const run = (job: () => Promise<unknown>, after?: () => void) => {
+        if (!api) return
+        action.mutate(job, { onSuccess: () => after?.() })
+    }
+
+    const empty = (
+        <div className="space-y-4 rounded-2xl border border-dashed border-[var(--social-border)] px-5 py-8 text-center">
+            <p className="text-[15px] text-[var(--social-fg)]">还没有记忆</p>
+            <p className="text-[13px] leading-relaxed text-[var(--social-fg-muted)]">会话提交、导入 MEMORY.md 或收集 Claude 自带记忆后，会出现在这里。</p>
+            <div className="flex justify-center gap-2">
+                <Button variant="secondary" disabled={action.isPending} onClick={() => run(async () => {
+                    const result = await api!.importMemoryMd()
+                    setNotice(`MEMORY.md 里有 ${result.found} 条，交给 Jev 判断了 ${result.proposed} 条。`)
+                })}>导入 MEMORY.md</Button>
+                <Button variant="secondary" disabled={action.isPending} onClick={() => run(async () => {
+                    const result = await api!.harvestClaudeMemories()
+                    setNotice(`找到 ${result.checked} 个 Claude 记忆文件，新交给 Jev ${result.proposed} 条。`)
+                })}>收集 Claude 记忆</Button>
             </div>
         </div>
     )
 
-    const levelList = (level: Level) => {
-        const list = MEMORIES.filter((m) => m.level === level)
+    const recent = () => {
+        const rows = recentRows(data?.recent ?? [], memories)
+        const skipped = data?.stats.skippedToday ?? 0
+        if (memories.length === 0 && rows.length === 0) return empty
         return (
             <div className="space-y-6">
-                {scopesOf(list).map((scope) => (
-                    <ListGroup key={scope} title={scope}>
-                        {list.filter((m) => m.scope === scope).map((m) => (
-                            <ListRow
-                                key={m.id}
-                                wrap
-                                title={m.text}
-                                subtitle={level === 'fact' ? m.source : `${m.evidence?.length ? `依据 ${m.evidence.length} 条 · ` : ''}${m.source}`}
-                                trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : undefined}
-                                onClick={() => setOpenId(m.id)}
-                            />
+                {pending.length > 0 ? (
+                    <ListGroup title={`等你确认 · ${pending.length}`}>
+                        {pending.map((m) => (
+                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={`${LEVEL_LABEL[m.level]} · ${m.reason ?? '等你确认'}`} onClick={() => setOpenId(m.id)} />
                         ))}
+                    </ListGroup>
+                ) : null}
+                {rows.length > 0 ? (
+                    <div className="space-y-2">
+                        <ListGroup title="最近">
+                            {rows.map(({ event, memory }) => (
+                                <ListRow
+                                    key={event.id}
+                                    wrap
+                                    title={<Clamp text={memory?.text ?? event.text} />}
+                                    subtitle={[ACTION_LABEL[event.action], memory ? LEVEL_LABEL[memory.level] : null, memory ? scopeLabel(memory.scope) : null, formatWhen(event.createdAt)].filter(Boolean).join(' · ')}
+                                    onClick={memory ? () => setOpenId(memory.id) : undefined}
+                                />
+                            ))}
+                        </ListGroup>
+                        {skipped > 0 ? (
+                            <p className="px-4 text-[13px] text-[var(--social-fg-muted)]">今天另有 {skipped} 条没记：{skippedSummary(data?.stats.skippedReasons ?? {})}。</p>
+                        ) : null}
+                    </div>
+                ) : null}
+            </div>
+        )
+    }
+
+    const levelList = (level: Level) => {
+        const list = memories.filter((m) => m.level === level)
+        if (list.length === 0) return <p className="px-1 pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">还没有{LEVEL_LABEL[level]}。</p>
+        return (
+            <div className="space-y-6">
+                {scopesInOrder(list).map((scope) => (
+                    <ListGroup key={scope || 'global'} title={scopeLabel(scope)}>
+                        {list.filter((m) => m.scope === scope).map((m) => {
+                            const backing = evidenceOf(m.id, links).length
+                            return (
+                                <ListRow
+                                    key={m.id}
+                                    wrap
+                                    title={<Clamp text={m.text} />}
+                                    subtitle={[backing ? `依据 ${backing} 条` : null, m.support > 1 ? `被提到 ${m.support} 次` : null, sourceLabel(m)].filter(Boolean).join(' · ')}
+                                    trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : undefined}
+                                    onClick={() => setOpenId(m.id)}
+                                />
+                            )
+                        })}
                     </ListGroup>
                 ))}
             </div>
         )
     }
-
-    const body = tab === 'recent' ? recent : tab === 'graph' ? null : levelList(tab)
 
     const tabs: Array<{ value: Tab; label: string }> = [
         { value: 'recent', label: '最近' },
@@ -100,13 +159,12 @@ export function MemoryPage() {
         { value: 'graph', label: '图谱' }
     ]
 
-    const subtitle = `今天新记 ${STATS.addedToday} 条 · ${MODE_LABEL[mode]}`
+    const subtitle = data ? `今天新记 ${data.stats.addedToday} 条 · ${mode === 'off' ? '已关闭' : '只记录'}` : '加载中…'
     const settingsButton = (
         <IconButton label="记忆设置" onClick={() => setSettingsOpen(true)}>
             <MoreHorizontalIcon className="h-6 w-6" />
         </IconButton>
     )
-
     const desktopTitle = isMobile ? null : (
         <div className="flex items-center gap-2 pb-2 pt-6">
             <div className="min-w-0 flex-1">
@@ -116,29 +174,54 @@ export function MemoryPage() {
             {settingsButton}
         </div>
     )
+    const chips = (sticky: boolean) => (
+        <ChoiceChips
+            label="视图"
+            value={tab}
+            options={tabs}
+            onChange={setTab}
+            className={sticky
+                ? 'sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]'
+                : '-mx-4 flex-nowrap overflow-x-auto px-4 py-2 [scrollbar-width:none]'}
+        />
+    )
 
-    const page = (
+    const body = query.isLoading
+        ? <p className="pt-10 text-center text-[13px] text-[var(--social-fg-muted)]">加载中…</p>
+        : query.error
+            ? <p className="pt-10 text-center text-[13px] text-[var(--social-danger)]">记忆加载失败：{query.error instanceof Error ? query.error.message : '未知错误'}</p>
+            : tab === 'recent' ? recent() : tab === 'graph' ? null : levelList(tab)
+
+    const saveThen = (memory: MemoryItem, patch: MemoryEdit, then?: () => Promise<unknown>) => run(async () => {
+        if (Object.keys(patch).length > 0) await api!.editMemoryItem(memory.id, patch)
+        if (then) await then()
+    }, () => setOpenId(null))
+
+    const projects = data?.settings.projects ?? []
+
+    return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
-            {isMobile ? (
-                <MobilePageHeader title="记忆" subtitle={subtitle} actions={settingsButton} />
-            ) : null}
+            {isMobile ? <MobilePageHeader title="记忆" subtitle={subtitle} actions={settingsButton} /> : null}
             {tab === 'graph' ? (
                 <div className="flex min-h-0 flex-1 flex-col">
                     <div className="mx-auto w-full max-w-content px-4">
                         {desktopTitle}
-                        <ChoiceChips label="视图" value={tab} options={tabs} onChange={setTab} className="-mx-4 flex-nowrap overflow-x-auto px-4 py-2 [scrollbar-width:none]" />
+                        {chips(false)}
                     </div>
                     <div className="min-h-0 flex-1 px-4 pb-4 pt-1">
-                        <Suspense fallback={<div className="flex h-full items-center justify-center text-[13px] text-[var(--social-fg-muted)]">正在加载图谱…</div>}>
-                            <MemoryGraph onOpen={setOpenId} mobile={isMobile} />
-                        </Suspense>
+                        {memories.length === 0 ? empty : (
+                            <Suspense fallback={<div className="flex h-full items-center justify-center text-[13px] text-[var(--social-fg-muted)]">正在加载图谱…</div>}>
+                                <MemoryGraph memories={memories} links={links} onOpen={setOpenId} mobile={isMobile} />
+                            </Suspense>
+                        )}
                     </div>
                 </div>
             ) : (
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     <div className="mx-auto max-w-content px-4 pb-8">
                         {desktopTitle}
-                        <ChoiceChips label="视图" value={tab} options={tabs} onChange={setTab} className="sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]" />
+                        {chips(true)}
+                        {notice ? <p className="px-1 pt-2 text-[13px] text-[var(--social-fg-muted)]">{notice}</p> : null}
                         <div className="pt-3">{body}</div>
                     </div>
                 </div>
@@ -146,8 +229,40 @@ export function MemoryPage() {
             {isMobile ? <MobileTabBar active="memory" /> : null}
 
             <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open?.status === 'pending' ? '等你确认' : '编辑记忆'}>
-                {open ? <MemoryDetail key={open.id} memory={open} onOpen={setOpenId} onDone={() => setOpenId(null)} /> : null}
+                {open ? (
+                    <MemoryDetail
+                        key={`${open.id}:${open.updatedAt}`}
+                        memory={open}
+                        all={memories}
+                        links={links}
+                        projects={projects}
+                        busy={action.isPending}
+                        onOpen={setOpenId}
+                        onSave={(patch) => saveThen(open, patch)}
+                        onConfirm={(patch) => saveThen(open, patch, () => api!.confirmMemoryItem(open.id))}
+                        onDismiss={() => run(() => api!.dismissMemoryItem(open.id), () => setOpenId(null))}
+                        onDelete={() => setDeleteId(open.id)}
+                    />
+                ) : null}
             </BottomSheet>
+
+            <ConfirmDialog
+                isOpen={Boolean(deleteId)}
+                onClose={() => setDeleteId(null)}
+                title="删除这条记忆？"
+                description="删除后不能恢复。它的关联也会一起去掉。"
+                confirmLabel="删除"
+                confirmingLabel="正在删除…"
+                destructive
+                isPending={action.isPending}
+                onConfirm={async () => {
+                    if (!deleteId || !api) return
+                    await api.deleteMemoryItem(deleteId)
+                    setDeleteId(null)
+                    setOpenId(null)
+                    await refresh()
+                }}
+            />
 
             <BottomSheet open={settingsOpen} onOpenChange={setSettingsOpen} title="记忆设置">
                 <div className="space-y-5 px-4 pb-6">
@@ -155,20 +270,42 @@ export function MemoryPage() {
                         <SegmentedControl
                             label="模式"
                             value={mode}
-                            options={[{ value: 'off', label: '关' }, { value: 'record', label: '只记录' }, { value: 'auto', label: '自动' }]}
-                            onChange={setMode}
+                            options={[{ value: 'off', label: '关' }, { value: 'record', label: '只记录' }]}
+                            onChange={(next) => run(() => api!.updateMemoryCapture({ mode: next }))}
                         />
-                        <FieldHint>{MODE_HINT[mode]}</FieldHint>
+                        <FieldHint>{MODE_HINT[mode]} 注入会话放在第二期。</FieldHint>
                     </div>
-                    <ListGroup>
-                        <ListRow title="Jev 准确率" trailing={`最近 ${STATS.jevRecent} 次，你改了 ${STATS.corrected} 次`} />
-                        <ListRow title="发给 Jev 的内容" trailing="今天 38 条" onClick={() => {}} />
-                        <ListRow title="导入现有记忆" subtitle="MEMORY.md、各账号的 Claude 记忆" wrap onClick={() => {}} />
+                    <ListGroup title="采集的项目">
+                        {(data?.settings.knownProjects ?? []).map((project) => (
+                            <ListRow
+                                key={project}
+                                title={project}
+                                trailing={(
+                                    <Switch
+                                        checked={projects.includes(project)}
+                                        ariaLabel={`采集 ${project}`}
+                                        onCheckedChange={(on) => run(() => api!.updateMemoryCapture({ projects: on ? [...projects, project] : projects.filter((p) => p !== project) }))}
+                                    />
+                                )}
+                            />
+                        ))}
                     </ListGroup>
+                    <FieldHint>只有这些项目的会话能提交记忆、会被收集 Claude 记忆。全局 MEMORY.md 不受这里限制。</FieldHint>
+                    <ListGroup>
+                        <ListRow title="Jev" trailing={data?.settings.jevReady ? '已连接' : '没有 key'} />
+                        <ListRow title="Jev 准确率" trailing={`近 30 天 ${data?.stats.judged ?? 0} 次，你改了 ${data?.stats.corrected ?? 0} 次`} />
+                        <ListRow title="导入 MEMORY.md" subtitle="把手写的全局记忆交给 Jev 判断" wrap disabled={action.isPending} onClick={() => run(async () => {
+                            const result = await api!.importMemoryMd()
+                            setNotice(`MEMORY.md 里有 ${result.found} 条，交给 Jev 判断了 ${result.proposed} 条。`)
+                        })} />
+                        <ListRow title="立即收集 Claude 记忆" subtitle="只收上面开启的项目，每 15 分钟也会自动收一次" wrap disabled={action.isPending} onClick={() => run(async () => {
+                            const result = await api!.harvestClaudeMemories()
+                            setNotice(`找到 ${result.checked} 个 Claude 记忆文件，新交给 Jev ${result.proposed} 条。`)
+                        })} />
+                    </ListGroup>
+                    {action.isPending ? <FieldHint>正在处理，Jev 每条约 0.4 秒…</FieldHint> : notice ? <FieldHint>{notice}</FieldHint> : null}
                 </div>
             </BottomSheet>
         </div>
     )
-
-    return page
 }

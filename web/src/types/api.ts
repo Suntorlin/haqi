@@ -450,6 +450,61 @@ export type UpdateMemoryResponse = {
     memory: GlobalMemory
 }
 
+export type MemoryLevel = 'fact' | 'experience' | 'principle'
+
+export type MemoryJevVerdict = {
+    keep: number
+    level: { choice: MemoryLevel; confidence: number }
+    scope: { choice: 'global' | 'project'; confidence: number }
+    project: string | null
+}
+
+/** One captured memory: a sentence + level + scope ('' = everywhere). */
+export type MemoryItem = {
+    id: string
+    text: string
+    level: MemoryLevel
+    scope: string
+    status: 'active' | 'pending' | 'archived'
+    reason: string | null
+    source: string
+    sourceLabel: string | null
+    sessionId: string | null
+    said: boolean
+    support: number
+    jev: MemoryJevVerdict | null
+    overridden: { level?: MemoryLevel; scope?: string } | null
+    replaces: string | null
+    version: number
+    createdAt: number
+    updatedAt: number
+}
+
+/** `fromId` backs (supports) `toId`. */
+export type MemoryLink = { fromId: string; toId: string; createdAt: number }
+
+export type MemoryEvent = {
+    id: string
+    memoryId: string | null
+    action: string
+    text: string
+    reason: string | null
+    source: string
+    sourceLabel: string | null
+    costUsd: number
+    createdAt: number
+}
+
+export type MemoryCaptureSettings = { mode: 'off' | 'record'; projects: string[] }
+
+export type MemoriesResponse = {
+    memories: MemoryItem[]
+    links: MemoryLink[]
+    recent: MemoryEvent[]
+    stats: { addedToday: number; skippedToday: number; skippedReasons: Record<string, number>; judged: number; corrected: number; costTodayUsd: number }
+    settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: string[] }
+}
+
 export type ExperimentalSettings = {
     claudeLoginShell: boolean
     codexReportPromptEnabled: boolean

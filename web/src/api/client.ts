@@ -1,6 +1,10 @@
 import type { ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
 import type {
     AttachmentMetadata,
+    MemoriesResponse,
+    MemoryCaptureSettings,
+    MemoryItem,
+    MemoryLevel,
     AuthResponse,
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
@@ -401,6 +405,38 @@ export class ApiClient {
             method: 'PATCH',
             body: JSON.stringify(payload)
         })
+    }
+
+    async getMemories(): Promise<MemoriesResponse> {
+        return await this.request<MemoriesResponse>('/api/memories')
+    }
+
+    async editMemoryItem(id: string, patch: { text?: string; level?: MemoryLevel; scope?: string }): Promise<{ memory: MemoryItem }> {
+        return await this.request<{ memory: MemoryItem }>(`/api/memories/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) })
+    }
+
+    async confirmMemoryItem(id: string): Promise<{ memory: MemoryItem }> {
+        return await this.request<{ memory: MemoryItem }>(`/api/memories/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) })
+    }
+
+    async dismissMemoryItem(id: string): Promise<{ ok: boolean }> {
+        return await this.request<{ ok: boolean }>(`/api/memories/${encodeURIComponent(id)}/dismiss`, { method: 'POST', body: JSON.stringify({}) })
+    }
+
+    async deleteMemoryItem(id: string): Promise<{ ok: boolean }> {
+        return await this.request<{ ok: boolean }>(`/api/memories/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    }
+
+    async updateMemoryCapture(patch: Partial<MemoryCaptureSettings>): Promise<{ settings: MemoryCaptureSettings }> {
+        return await this.request<{ settings: MemoryCaptureSettings }>('/api/memories/settings', { method: 'PATCH', body: JSON.stringify(patch) })
+    }
+
+    async importMemoryMd(): Promise<{ found: number; proposed: number }> {
+        return await this.request<{ found: number; proposed: number }>('/api/memories/import', { method: 'POST', body: JSON.stringify({}) })
+    }
+
+    async harvestClaudeMemories(): Promise<{ checked: number; proposed: number }> {
+        return await this.request<{ checked: number; proposed: number }>('/api/memories/harvest', { method: 'POST', body: JSON.stringify({}) })
     }
 
     async getExperimentalSettings(): Promise<ExperimentalSettingsResponse> {
