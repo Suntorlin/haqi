@@ -620,6 +620,9 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
         type: z.literal('review-loop-updated'),
         data: z.unknown().optional()
     }),
+    SessionEventBaseSchema.extend({
+        type: z.literal('memories-updated')
+    }),
     ReviewLoopChangedSchema.extend({
         type: z.literal('review-loop-removed')
     }),

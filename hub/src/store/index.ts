@@ -12,6 +12,8 @@ import { UserStore } from './userStore'
 import { GroupStore } from './groupStore'
 import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
+import { MemoryStore } from './memoryStore'
+import { MEMORY_SCHEMA_SQL } from './memories'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
 
@@ -24,6 +26,9 @@ export type {
     StoredGroupNote,
     StoredGroupTask,
     StoredMachine,
+    StoredMemory,
+    StoredMemoryEvent,
+    StoredMemoryLink,
     StoredConversationTurn,
     StoredMessage,
     StoredPushSubscription,
@@ -49,8 +54,9 @@ export { UserStore } from './userStore'
 export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
+export { MemoryStore } from './memoryStore'
 
-const SCHEMA_VERSION: number = 13
+const SCHEMA_VERSION: number = 14
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -70,7 +76,10 @@ const REQUIRED_TABLES = [
     'report_assets',
     'report_shares',
     'review_loops',
-    'review_rounds'
+    'review_rounds',
+    'memories',
+    'memory_links',
+    'memory_events'
 ] as const
 
 export class Store {
@@ -87,6 +96,7 @@ export class Store {
     readonly groups: GroupStore
     readonly reports: ReportStore
     readonly reviewLoops: ReviewLoopStore
+    readonly memories: MemoryStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -133,6 +143,7 @@ export class Store {
         this.groups = new GroupStore(this.db)
         this.reports = new ReportStore(this.db)
         this.reviewLoops = new ReviewLoopStore(this.db)
+        this.memories = new MemoryStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -234,6 +245,13 @@ export class Store {
         if (currentVersion === 12 && SCHEMA_VERSION >= 13) {
             this.migrateFromV12ToV13()
             this.setUserVersion(13)
+            this.initSchema()
+            return
+        }
+
+        if (currentVersion === 13 && SCHEMA_VERSION >= 14) {
+            this.migrateFromV13ToV14()
+            this.setUserVersion(14)
             this.initSchema()
             return
         }
@@ -581,6 +599,7 @@ export class Store {
             CREATE UNIQUE INDEX IF NOT EXISTS idx_review_rounds_loop_round
                 ON review_rounds(loop_id, round);
         `)
+        this.db.exec(MEMORY_SCHEMA_SQL)
     }
 
     private migrateLegacySchemaIfNeeded(): void {
@@ -1073,6 +1092,18 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite conversation preview refresh failed during v12->v13 migration: ${message}`)
+        }
+    }
+
+    private migrateFromV13ToV14(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(MEMORY_SCHEMA_SQL)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v13->v14 failed: ${message}`)
         }
     }
 

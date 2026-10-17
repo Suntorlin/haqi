@@ -12,6 +12,12 @@ export interface Settings {
     experimentalClaudeLoginShell?: boolean
     codexReportPromptEnabled?: boolean
     previewEnabled?: boolean
+    /** Memory capture: off, or record (Jev judges, nothing is injected yet); projects that may capture. */
+    memoryCapture?: {
+        mode?: 'off' | 'record'
+        projects?: string[]
+        jevApiKey?: string
+    }
     vapidKeys?: {
         publicKey: string
         privateKey: string
