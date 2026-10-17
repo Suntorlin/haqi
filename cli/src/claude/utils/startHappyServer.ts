@@ -15,6 +15,8 @@ import { configuration } from "@/configuration";
 import { getAuthToken } from "@/api/auth";
 import {
     changeTitleInputSchema,
+    MEMORY_PROPOSE_DESCRIPTION,
+    memoryProposeInputSchema,
     reportAddAssetInputSchema,
     reportCreateInputSchema,
     reportCreateShareInputSchema,
@@ -239,6 +241,24 @@ export async function startHappyServer(client: ApiSessionClient) {
             return buildToolResult(payload, summary);
         } catch (error) {
             return buildToolError('Failed to create report', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('memory_propose', {
+        description: MEMORY_PROPOSE_DESCRIPTION,
+        title: 'Propose Memory',
+        inputSchema: memoryProposeInputSchema
+    }, async (args: { text: string; said_by_user?: boolean }) => {
+        try {
+            const payload = await requestHubJson('/api/memories/propose', {
+                method: 'POST',
+                body: JSON.stringify({ text: args.text, said: args.said_by_user ?? false, sessionId: client.sessionId })
+            });
+            const result = payload.result as JsonObject | undefined;
+            const message = typeof result?.message === 'string' ? result.message : 'Memory proposed.';
+            return { content: [{ type: 'text' as const, text: message }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to propose memory', error);
         }
     });
 
@@ -478,6 +498,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         url: baseUrl.toString(),
         toolNames: [
             'change_title',
+            'memory_propose',
             'report_create',
             'report_update',
             'report_get',
