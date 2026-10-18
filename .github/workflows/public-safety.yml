@@ -14,6 +14,9 @@ permissions:
 jobs:
     scan:
         runs-on: ubuntu-24.04
+        env:
+            # Private names to block, kept out of the public repo (comma separated).
+            PUBLIC_SAFETY_PRIVATE_TERMS: ${{ secrets.PUBLIC_SAFETY_PRIVATE_TERMS }}
         steps:
             - uses: actions/checkout@v7
               with:
