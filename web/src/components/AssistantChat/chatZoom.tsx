@@ -1,6 +1,5 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { LeveledText, LeveledTextView, type ScrollAnchor, type SemanticZoomController } from '@/vendor/semantic-zoom'
-import { HIT_AREA_28_CLASS } from '@/components/AssistantChat/hitArea'
 import { cn } from '@/lib/utils'
 import { ZOOM_ALL, ZOOM_BRIEF, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 import { useTranslation } from '@/lib/use-translation'
@@ -116,58 +115,61 @@ export function ZoomMorphText(props: { controller: SemanticZoomController; brief
     )
 }
 
-/** Level switch shown while the chat is zoomed: pinch is not discoverable, buttons are. */
+const noSubscription = () => () => {}
+
+/** The committed chat zoom level, for controls outside the chat (the header); the reply level without a controller. */
+export function useChatZoomLevel(controller: SemanticZoomController | null | undefined): number {
+    return useSyncExternalStore(
+        controller ? controller.subscribe : noSubscription,
+        () => controller?.level ?? ZOOM_REPLY,
+        () => controller?.level ?? ZOOM_REPLY
+    )
+}
+
+/** Moves the chat to `level`, holding the message in the middle of the screen still (not the half-hidden one at the top). */
+export function setChatZoomLevel(
+    controller: SemanticZoomController,
+    level: number,
+    viewport: HTMLElement | null = document.querySelector<HTMLElement>('.social-chat')
+): void {
+    if (!viewport) {
+        void controller.setLevel(level)
+        return
+    }
+    const box = viewport.getBoundingClientRect()
+    controller.anchorAt(box.left + box.width / 2, box.top + box.height / 2)
+    void controller.animateToLevel(level, { anchor: false })
+}
+
+/**
+ * Shows which level a pinch is heading for, only while the chat zooms; at rest the header's
+ * view settings hold the switch, so nothing floats over the messages.
+ */
 export function ChatZoomBar() {
     const zoom = useChatZoom()
     const { t } = useTranslation()
-    const barRef = useRef<HTMLDivElement | null>(null)
-    if (!zoom || (!zoom.busy && zoom.snap === ZOOM_REPLY)) return null
-    // Hold the message in the middle of the screen, not the half-hidden one at the top.
-    const changeLevel = (value: string) => {
-        const viewport = barRef.current?.parentElement?.querySelector<HTMLElement>('.social-chat')
-        if (!viewport) {
-            void zoom.controller.setLevel(Number(value))
-            return
-        }
-        const box = viewport.getBoundingClientRect()
-        zoom.controller.anchorAt(box.left + box.width / 2, box.top + box.height / 2)
-        void zoom.controller.animateToLevel(Number(value), { anchor: false })
-    }
+    if (!zoom?.busy) return null
     const options = [
-        { value: String(ZOOM_BRIEF), label: t('chat.zoom.brief') },
-        { value: String(ZOOM_REPLY), label: t('chat.zoom.reply') },
-        { value: String(ZOOM_ALL), label: t('chat.zoom.all') }
+        { value: ZOOM_BRIEF, label: t('chat.zoom.brief') },
+        { value: ZOOM_REPLY, label: t('chat.zoom.reply') },
+        { value: ZOOM_ALL, label: t('chat.zoom.all') }
     ]
-    // A small pill: it stays out of the way of the messages it floats over. Opaque, so labels stay
-    // readable over dark bubbles.
     return (
-        <div ref={barRef} className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center px-4">
-            <div
-                role="radiogroup"
-                aria-label={t('chat.zoom.label')}
-                className="pointer-events-auto flex gap-0.5 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] p-0.5"
-            >
-                {options.map((option) => {
-                    const selected = option.value === String(zoom.snap)
-                    return (
-                        <button
-                            key={option.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={selected}
-                            onClick={() => changeLevel(option.value)}
-                            className={cn(
-                                'h-7 rounded-full px-3 text-[13px] transition-colors [-webkit-tap-highlight-color:transparent]',
-                                HIT_AREA_28_CLASS,
-                                selected
-                                    ? 'bg-[var(--social-muted)] font-semibold text-[var(--social-fg)]'
-                                    : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
-                            )}
-                        >
-                            {option.label}
-                        </button>
-                    )
-                })}
+        <div className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center px-4" aria-hidden="true">
+            <div className="flex gap-0.5 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] p-0.5">
+                {options.map((option) => (
+                    <span
+                        key={option.value}
+                        className={cn(
+                            'flex h-7 items-center rounded-full px-3 text-[13px] transition-colors',
+                            option.value === zoom.snap
+                                ? 'bg-[var(--social-muted)] font-semibold text-[var(--social-fg)]'
+                                : 'text-[var(--social-fg-muted)]'
+                        )}
+                    >
+                        {option.label}
+                    </span>
+                ))}
             </div>
         </div>
     )

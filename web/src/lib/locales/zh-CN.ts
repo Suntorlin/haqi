@@ -757,6 +757,7 @@ export default {
   'chat.zoom.brief': '结论',
   'chat.zoom.reply': '回复',
   'chat.zoom.all': '全部步骤',
+  'chat.zoom.hint': '在对话里双指捏合也能切换。',
   'mobile.turn.reasoning': '思考过程',
   'mobile.turn.working': '正在处理…',
   'mobile.turn.thinking': '思考中…',

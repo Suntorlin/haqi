@@ -755,6 +755,7 @@ export default {
   'chat.zoom.brief': 'Brief',
   'chat.zoom.reply': 'Reply',
   'chat.zoom.all': 'All steps',
+  'chat.zoom.hint': 'Pinch the chat with two fingers to switch too.',
   'mobile.turn.reasoning': 'Reasoning',
   'mobile.turn.working': 'Working…',
   'mobile.turn.thinking': 'Thinking…',
