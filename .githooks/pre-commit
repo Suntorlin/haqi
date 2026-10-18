@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# This repo is public: block secrets, private hosts, personal paths and
+# files that must not be committed. See scripts/safety/check-public-safety.ts.
+# Install once per clone: bun run safety:install-hooks
+set -euo pipefail
+if ! command -v bun >/dev/null 2>&1; then
+    echo "[public-safety] bun not found; skipping the pre-commit check." >&2
+    exit 0
+fi
+exec bun "$(git rev-parse --show-toplevel)/scripts/safety/check-public-safety.ts" --staged

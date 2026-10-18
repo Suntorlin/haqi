@@ -41,3 +41,21 @@ execplan/
 # Generated npm bundle output (local)
 cli/npm/main/
 .ace-tool/
+
+# Never commit (the repo is public; scripts/safety/check-public-safety.ts blocks these too)
+.playwright-mcp/
+.omx/
+test-results/
+playwright-report/
+artifacts/
+**/dist.prev-*/
+**/dist.new*/
+/*.png
+/*.jpg
+/*.webp
+/*.mp4
+/*.webm
+**/*.har
+
+# Private names for the public-safety check (never commit)
+.public-safety.local
