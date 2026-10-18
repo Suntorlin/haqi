@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useUnreadSessions } from '@/lib/unread-sessions'
 import type { SessionSummary } from '@/types/api'
+import { useEdgeBounce } from '@/hooks/useEdgeBounce'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { getSessionTitle } from '@/lib/session-title'
@@ -109,6 +110,9 @@ export function PinnedStoriesStrip(props: {
     const { skipArchiveConfirmation } = useArchiveConfirmation()
     const [archiveTarget, setArchiveTarget] = useState<SessionSummary | null>(null)
     const [archiving, setArchiving] = useState(false)
+    const scrollerRef = useRef<HTMLDivElement>(null)
+    const rowRef = useRef<HTMLDivElement>(null)
+    useEdgeBounce(scrollerRef, rowRef, stories.length > 0)
 
     // Same rule as the session menu: archive (stop) only applies to a running session.
     const archive = (session: SessionSummary) => {
@@ -141,35 +145,36 @@ export function PinnedStoriesStrip(props: {
 
     return (
         <div className="pb-1" role="group" aria-label={t('mobile.stories.pinned')}>
-            <div className="social-scroll-x flex gap-4 overflow-x-auto pb-3 pl-5 pt-1">
-                <button
-                    type="button"
-                    onClick={props.onNewSession}
-                    className="flex w-14 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
-                >
-                    <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]">
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                        </svg>
-                    </span>
-                    {/* mt-1.5 matches the story labels (they leave room for the status badge) so the row's captions line up */}
-                    <span className="mt-1.5 w-full truncate text-center text-[12px] text-[var(--social-fg-muted)]">
-                        {t('mobile.stories.new')}
-                    </span>
-                </button>
+            {/* The inner row carries the side padding (WebKit leaves a scroller's own end padding out of
+                its scroll width) and moves with the edge bounce. */}
+            <div ref={scrollerRef} className="social-scroll-x overflow-x-auto overscroll-x-none">
+                <div ref={rowRef} className="flex w-max gap-4 px-5 pb-3 pt-1">
+                    <button
+                        type="button"
+                        onClick={props.onNewSession}
+                        className="flex w-14 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
+                    >
+                        <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]">
+                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                            </svg>
+                        </span>
+                        {/* mt-1.5 matches the story labels (they leave room for the status badge) so the row's captions line up */}
+                        <span className="mt-1.5 w-full truncate text-center text-[12px] text-[var(--social-fg-muted)]">
+                            {t('mobile.stories.new')}
+                        </span>
+                    </button>
 
-                {stories.map((session) => (
-                    <PinnedStory
-                        key={session.id}
-                        session={session}
-                        onSelect={props.onSelect}
-                        onMenu={(target, point) => setMenu({ session: target, point })}
-                    />
-                ))}
-                {/* Blank room after the last story: a short swipe shows the row ends here. A spacer, not
-                    right padding, since WebKit leaves the padding out of the scroll width. */}
-                <span aria-hidden="true" className="w-8 shrink-0" />
+                    {stories.map((session) => (
+                        <PinnedStory
+                            key={session.id}
+                            session={session}
+                            onSelect={props.onSelect}
+                            onMenu={(target, point) => setMenu({ session: target, point })}
+                        />
+                    ))}
+                </div>
             </div>
             <ContextMenu open={menu !== null} anchorPoint={menu?.point ?? { x: 0, y: 0 }} onClose={closeMenu} label={t('session.more')}>
                 <ContextMenuItem
