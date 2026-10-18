@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { safeJsonParse } from './json'
 import type { StoredMemory, StoredMemoryEvent, StoredMemoryLink } from './types'
 
-/** Memories (one sentence + level + scope), "supports" links between them, and the capture log. */
+/** Memories (one sentence + level + scope), "supports" links between them, the capture log, and one embedding per memory for search. */
 export const MEMORY_SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS memories (
         id TEXT PRIMARY KEY,
@@ -59,6 +59,18 @@ export const MEMORY_SCHEMA_SQL = `
     );
     CREATE INDEX IF NOT EXISTS idx_memory_events_namespace_created ON memory_events(namespace, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_memory_events_hash ON memory_events(namespace, hash);
+    CREATE INDEX IF NOT EXISTS idx_memory_events_memory ON memory_events(memory_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS memory_vectors (
+        memory_id TEXT PRIMARY KEY,
+        namespace TEXT NOT NULL DEFAULT 'default',
+        model TEXT NOT NULL,
+        text_hash TEXT NOT NULL,
+        vector TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_vectors_namespace ON memory_vectors(namespace);
 `
 
 type DbMemoryRow = {
@@ -264,4 +276,36 @@ export function listMemoryEventsSince(db: Database, namespace: string, since: nu
 
 export function hasMemoryEventWithHash(db: Database, namespace: string, hash: string): boolean {
     return Boolean(db.prepare('SELECT 1 FROM memory_events WHERE namespace = ? AND hash = ? LIMIT 1').get(namespace, hash))
+}
+
+/** Events that count as "this came up again": the first capture, later mentions, and merged duplicates. */
+const MENTION_ACTIONS = ['added', 'pending', 'candidate', 'reinforced', 'merged'] as const
+
+export function mentionStats(db: Database, namespace: string, since: number): Map<string, { recent: number; lastAt: number }> {
+    const rows = db.prepare(`
+        SELECT memory_id, SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS recent, MAX(created_at) AS last_at
+        FROM memory_events
+        WHERE namespace = ? AND memory_id IS NOT NULL AND action IN (${MENTION_ACTIONS.map(() => '?').join(', ')})
+        GROUP BY memory_id
+    `).all(since, namespace, ...MENTION_ACTIONS) as Array<{ memory_id: string; recent: number; last_at: number }>
+    return new Map(rows.map((row) => [row.memory_id, { recent: row.recent, lastAt: row.last_at }]))
+}
+
+/** True when some memory, in any status, was ever proposed as a replacement of `id`. */
+export function hasReplacement(db: Database, namespace: string, id: string): boolean {
+    return Boolean(db.prepare('SELECT 1 FROM memories WHERE namespace = ? AND replaces = ? LIMIT 1').get(namespace, id))
+}
+
+export type StoredVector = { memoryId: string; model: string; textHash: string; vector: number[] }
+
+export function setMemoryVector(db: Database, namespace: string, input: StoredVector): void {
+    db.prepare(`
+        INSERT INTO memory_vectors (memory_id, namespace, model, text_hash, vector, created_at) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(memory_id) DO UPDATE SET model = excluded.model, text_hash = excluded.text_hash, vector = excluded.vector, created_at = excluded.created_at
+    `).run(input.memoryId, namespace, input.model, input.textHash, JSON.stringify(input.vector), Date.now())
+}
+
+export function listMemoryVectors(db: Database, namespace: string): StoredVector[] {
+    const rows = db.prepare('SELECT memory_id, model, text_hash, vector FROM memory_vectors WHERE namespace = ?').all(namespace) as Array<{ memory_id: string; model: string; text_hash: string; vector: string }>
+    return rows.map((row) => ({ memoryId: row.memory_id, model: row.model, textHash: row.text_hash, vector: JSON.parse(row.vector) as number[] }))
 }

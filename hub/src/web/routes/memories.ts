@@ -20,6 +20,13 @@ const editSchema = z.object({
     scope: z.string().trim().max(255).optional()
 }).refine((value) => value.text !== undefined || value.level !== undefined || value.scope !== undefined, 'Nothing to change')
 
+const searchSchema = z.object({
+    q: z.string().trim().min(1).max(500),
+    limit: z.coerce.number().int().min(1).max(30).optional()
+})
+
+const mergeSchema = z.object({ into: z.string().trim().min(1).max(64) })
+
 const settingsSchema = z.object({
     mode: z.enum(['off', 'record']).optional(),
     projects: z.array(z.string().trim().min(1).max(255)).max(50).optional()
@@ -82,6 +89,37 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) return engine
         return c.json(await engine.getMemoryService().harvestClaude(c.get('namespace')))
+    })
+
+    app.get('/memories/search', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const parsed = searchSchema.safeParse({ q: c.req.query('q'), limit: c.req.query('limit') })
+        if (!parsed.success) return c.json({ error: 'Invalid query' }, 400)
+        const hits = await engine.getMemoryService().search(c.get('namespace'), parsed.data.q, parsed.data.limit)
+        return c.json({ hits: hits.map((hit) => ({ ...hit.memory, score: hit.score })) })
+    })
+
+    app.post('/memories/maintain', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        return c.json(await engine.getMemoryService().maintain(c.get('namespace')))
+    })
+
+    app.get('/memories/:id/related', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const hits = engine.getMemoryService().related(c.get('namespace'), c.req.param('id'))
+        return c.json({ hits: hits.map((hit) => ({ ...hit.memory, score: hit.score })) })
+    })
+
+    app.post('/memories/:id/merge', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const parsed = mergeSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+        const memory = engine.getMemoryService().merge(c.get('namespace'), c.req.param('id'), parsed.data.into)
+        return memory ? c.json({ memory }) : c.json({ error: 'Memory not found' }, 404)
     })
 
     app.patch('/memories/:id', async (c) => {

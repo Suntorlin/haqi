@@ -23,15 +23,17 @@ describe('decide', () => {
         expect(decide({ verdict: verdict({ keep: 0.1 }), said: true }).kind).toBe('skip')
     })
 
-    it('waits for the user when Jev is unsure, and names the doubt', () => {
+    it('puts a fact or experience Jev is unsure about on trial, and names the doubt', () => {
         const result = decide({ verdict: verdict({ scope: { choice: 'global', confidence: 0.24 } }), said: false })
-        expect(result).toMatchObject({ kind: 'add', status: 'pending', reason: 'Jev 拿不准：范围 0.24' })
+        expect(result).toMatchObject({ kind: 'add', status: 'candidate', reason: 'Jev 拿不准：范围 0.24' })
     })
 
-    it('makes principles wait unless the user said them', () => {
+    it('makes principles wait for the user unless the user said them and Jev is sure', () => {
         const principle = verdict({ level: { choice: 'principle', confidence: 0.9 } })
         expect(decide({ verdict: principle, said: false })).toMatchObject({ status: 'pending', reason: '原则要你确认' })
         expect(decide({ verdict: principle, said: true })).toMatchObject({ status: 'active', reason: null })
+        expect(decide({ verdict: { ...principle, keep: 0.5 }, said: true })).toMatchObject({ status: 'pending' })
+        expect(decide({ verdict: { ...principle, scope: { choice: 'global', confidence: 0.3 } }, said: true })).toMatchObject({ status: 'active', scope: 'project' })
     })
 
     it('reinforces a sure match at the same level and links across levels', () => {

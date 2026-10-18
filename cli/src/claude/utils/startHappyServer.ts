@@ -16,7 +16,9 @@ import { getAuthToken } from "@/api/auth";
 import {
     changeTitleInputSchema,
     MEMORY_PROPOSE_DESCRIPTION,
+    MEMORY_SEARCH_DESCRIPTION,
     memoryProposeInputSchema,
+    memorySearchInputSchema,
     reportAddAssetInputSchema,
     reportCreateInputSchema,
     reportCreateShareInputSchema,
@@ -262,6 +264,22 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool<any, any>('memory_search', {
+        description: MEMORY_SEARCH_DESCRIPTION,
+        title: 'Search Memory',
+        inputSchema: memorySearchInputSchema
+    }, async (args: { query: string; limit?: number }) => {
+        try {
+            const query = new URLSearchParams({ q: args.query, limit: String(args.limit ?? 8) });
+            const payload = await requestHubJson(`/api/memories/search?${query.toString()}`);
+            const hits = Array.isArray(payload.hits) ? payload.hits as JsonObject[] : [];
+            const lines = hits.map((hit) => `- [${String(hit.level)} · ${hit.scope ? String(hit.scope) : 'global'} · ${String(hit.status)}] ${String(hit.text)}`);
+            return { content: [{ type: 'text' as const, text: lines.length > 0 ? lines.join('\n') : 'No matching memory.' }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to search memory', error);
+        }
+    });
+
     mcp.registerTool<any, any>('report_update', {
         description: 'Update report title/status/markdown/metadata',
         title: 'Update Report',
@@ -499,6 +517,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         toolNames: [
             'change_title',
             'memory_propose',
+            'memory_search',
             'report_create',
             'report_update',
             'report_get',

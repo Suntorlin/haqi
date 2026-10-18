@@ -59,6 +59,10 @@ export function formatWhen(timestamp: number, now = Date.now()): string {
 export const ACTION_LABEL: Record<string, string> = {
     added: '新记下',
     pending: '等你确认',
+    candidate: '观察中',
+    promoted: '观察期满，生效',
+    expired: '30 天没再出现，没转正',
+    merged: '合并了重复',
     reinforced: '被加强',
     edited: '你改过',
     confirmed: '你确认了',
@@ -66,18 +70,27 @@ export const ACTION_LABEL: Record<string, string> = {
     deleted: '你删了'
 }
 
-/** Recent events worth a row: one per memory, newest first, skipping the ones still waiting. */
+export const TRIAL = { windowDays: 30, promote: 3 } as const
+
+/** "30 天内被提到 1/3 次 · 还剩 29 天" for a memory on trial. */
+export function trialLabel(state: { recent: number; lastAt: number } | undefined, now = Date.now()): string {
+    if (!state) return '观察中'
+    const left = Math.max(0, Math.ceil((state.lastAt + TRIAL.windowDays * 24 * 3600 * 1000 - now) / (24 * 3600 * 1000)))
+    return `${TRIAL.windowDays} 天内被提到 ${state.recent}/${TRIAL.promote} 次 · 还剩 ${left} 天`
+}
+
+/** Recent events worth a row: one per memory, newest first, skipping the ones still waiting or on trial. */
 export function recentRows(events: MemoryEvent[], memories: MemoryItem[], limit = 12): Array<{ event: MemoryEvent; memory: MemoryItem | null }> {
     const byId = new Map(memories.map((m) => [m.id, m]))
     const seen = new Set<string>()
     const rows: Array<{ event: MemoryEvent; memory: MemoryItem | null }> = []
     for (const event of events) {
-        if (!ACTION_LABEL[event.action] || event.action === 'pending') continue
+        if (!ACTION_LABEL[event.action] || event.action === 'pending' || event.action === 'candidate') continue
         const key = event.memoryId ?? event.id
         if (seen.has(key)) continue
         seen.add(key)
         const memory = event.memoryId ? byId.get(event.memoryId) ?? null : null
-        if (memory?.status === 'pending') continue
+        if (memory?.status === 'pending' || memory?.status === 'candidate') continue
         rows.push({ event, memory })
         if (rows.length >= limit) break
     }

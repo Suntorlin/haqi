@@ -6,15 +6,20 @@ import {
     deleteMemory,
     getMemory,
     hasMemoryEventWithHash,
+    hasReplacement,
     insertMemory,
     listMemories,
     listMemoryEvents,
     listMemoryEventsSince,
     listMemoryLinks,
+    listMemoryVectors,
+    mentionStats,
+    setMemoryVector,
     updateMemory,
     type MemoryPatch,
     type NewMemory,
-    type NewMemoryEvent
+    type NewMemoryEvent,
+    type StoredVector
 } from './memories'
 import type { StoredMemory, StoredMemoryEvent, StoredMemoryLink } from './types'
 
@@ -32,4 +37,8 @@ export class MemoryStore {
     events(namespace: string, limit: number): StoredMemoryEvent[] { return listMemoryEvents(this.db, namespace, limit) }
     eventsSince(namespace: string, since: number): StoredMemoryEvent[] { return listMemoryEventsSince(this.db, namespace, since) }
     hasEventHash(namespace: string, hash: string): boolean { return hasMemoryEventWithHash(this.db, namespace, hash) }
+    mentions(namespace: string, since: number): Map<string, { recent: number; lastAt: number }> { return mentionStats(this.db, namespace, since) }
+    hasReplacement(namespace: string, id: string): boolean { return hasReplacement(this.db, namespace, id) }
+    setVector(namespace: string, vector: StoredVector): void { setMemoryVector(this.db, namespace, vector) }
+    vectors(namespace: string): StoredVector[] { return listMemoryVectors(this.db, namespace) }
 }

@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { MoreHorizontalIcon } from '@/components/mobile/icons'
+import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import type { MemoriesResponse, MemoryItem } from '@/types/api'
 import { MemoryDetail, type MemoryEdit } from './MemoryDetail'
-import { ACTION_LABEL, evidenceOf, formatWhen, LEVEL_LABEL, recentRows, scopeLabel, scopesInOrder, sourceLabel, type Level } from './model'
+import { ACTION_LABEL, evidenceOf, formatWhen, LEVEL_LABEL, recentRows, scopeLabel, scopesInOrder, sourceLabel, trialLabel, type Level } from './model'
 
 const MemoryGraph = lazy(() => import('./MemoryGraph'))
 
@@ -23,7 +24,17 @@ type Tab = 'recent' | Level | 'graph'
 
 const MODE_HINT: Record<'off' | 'record', string> = {
     off: '不采集新记忆。',
-    record: 'Jev 判断后列在这里，你可以改；还不注入会话。'
+    record: 'Jev 判断后列在这里，你可以改；还不注入会话。只有原则等你确认，拿不准的事实和经验先观察：30 天内被提到 3 次就生效，30 天没再出现就不记。'
+}
+
+/** The search box waits for a pause in typing before it asks the hub. */
+function useDebounced(value: string, ms: number): string {
+    const [settled, setSettled] = useState(value)
+    useEffect(() => {
+        const timer = setTimeout(() => setSettled(value), ms)
+        return () => clearTimeout(timer)
+    }, [value, ms])
+    return settled
 }
 
 /** Long sentences stay at three lines in lists; the edit sheet shows all of it. */
@@ -45,6 +56,9 @@ export function MemoryPage() {
     const [settingsOpen, setSettingsOpen] = useState(false)
     const [deleteId, setDeleteId] = useState<string | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
+    const [search, setSearch] = useState('')
+    const [trialOpen, setTrialOpen] = useState(false)
+    const needle = useDebounced(search.trim(), 300)
 
     const query = useQuery({
         queryKey: queryKeys.memories,
@@ -53,6 +67,14 @@ export function MemoryPage() {
             return await api.getMemories()
         },
         enabled: Boolean(api)
+    })
+    const hits = useQuery({
+        queryKey: [...queryKeys.memories, 'search', needle],
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return (await api.searchMemories(needle)).hits
+        },
+        enabled: Boolean(api) && needle.length > 0
     })
     const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.memories })
     const action = useMutation({
@@ -65,6 +87,7 @@ export function MemoryPage() {
     const links = data?.links ?? []
     const open = openId ? memories.find((m) => m.id === openId) : undefined
     const pending = memories.filter((m) => m.status === 'pending')
+    const onTrial = memories.filter((m) => m.status === 'candidate')
     const count = (level: Level) => memories.filter((m) => m.level === level && m.status === 'active').length
     const mode = data?.settings.mode ?? 'record'
 
@@ -101,6 +124,19 @@ export function MemoryPage() {
                         {pending.map((m) => (
                             <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={`${LEVEL_LABEL[m.level]} · ${m.reason ?? '等你确认'}`} onClick={() => setOpenId(m.id)} />
                         ))}
+                    </ListGroup>
+                ) : null}
+                {onTrial.length > 0 ? (
+                    <ListGroup title={`观察中 · ${onTrial.length}`}>
+                        {trialOpen ? onTrial.map((m) => (
+                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={`${LEVEL_LABEL[m.level]} · ${trialLabel(data?.trial[m.id])}`} onClick={() => setOpenId(m.id)} />
+                        )) : null}
+                        <ListRow
+                            title={trialOpen ? '收起' : '展开'}
+                            subtitle={trialOpen ? undefined : '不用你处理：被提到 3 次自动生效，30 天没再出现自动不记'}
+                            wrap
+                            onClick={() => setTrialOpen((value) => !value)}
+                        />
                     </ListGroup>
                 ) : null}
                 {rows.length > 0 ? (
@@ -140,7 +176,7 @@ export function MemoryPage() {
                                     wrap
                                     title={<Clamp text={m.text} />}
                                     subtitle={[backing ? `依据 ${backing} 条` : null, m.support > 1 ? `被提到 ${m.support} 次` : null, sourceLabel(m)].filter(Boolean).join(' · ')}
-                                    trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : undefined}
+                                    trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : m.status === 'candidate' ? <Badge>观察中</Badge> : undefined}
                                     onClick={() => setOpenId(m.id)}
                                 />
                             )
@@ -186,7 +222,29 @@ export function MemoryPage() {
         />
     )
 
-    const body = query.isLoading
+    const searchResults = () => {
+        if (hits.isLoading || needle !== search.trim()) return <p className="pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">正在搜索…</p>
+        if (hits.error) return <p className="pt-6 text-center text-[13px] text-[var(--social-danger)]">搜索失败：{hits.error instanceof Error ? hits.error.message : '未知错误'}</p>
+        const list = hits.data ?? []
+        if (list.length === 0) return <p className="pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">没有相关记忆。</p>
+        return (
+            <ListGroup title={`相关 · ${list.length}`}>
+                {list.map((m) => (
+                    <ListRow
+                        key={m.id}
+                        wrap
+                        title={<Clamp text={m.text} />}
+                        subtitle={[LEVEL_LABEL[m.level], scopeLabel(m.scope), m.status === 'pending' ? '等你确认' : m.status === 'candidate' ? '观察中' : null, `相关度 ${m.score.toFixed(2)}`].filter(Boolean).join(' · ')}
+                        onClick={() => setOpenId(m.id)}
+                    />
+                ))}
+            </ListGroup>
+        )
+    }
+
+    const body = search.trim()
+        ? searchResults()
+        : query.isLoading
         ? <p className="pt-10 text-center text-[13px] text-[var(--social-fg-muted)]">加载中…</p>
         : query.error
             ? <p className="pt-10 text-center text-[13px] text-[var(--social-danger)]">记忆加载失败：{query.error instanceof Error ? query.error.message : '未知错误'}</p>
@@ -220,7 +278,10 @@ export function MemoryPage() {
                 <div className="min-h-0 flex-1 overflow-y-auto">
                     <div className="mx-auto max-w-content px-4 pb-8">
                         {desktopTitle}
-                        {chips(true)}
+                        <div className="pt-2">
+                            <MobileSearchField value={search} onChange={setSearch} placeholder="搜记忆：按意思找，中英文都行" />
+                        </div>
+                        {search.trim() ? null : chips(true)}
                         {notice ? <p className="px-1 pt-2 text-[13px] text-[var(--social-fg-muted)]">{notice}</p> : null}
                         <div className="pt-3">{body}</div>
                     </div>
@@ -241,6 +302,8 @@ export function MemoryPage() {
                         onSave={(patch) => saveThen(open, patch)}
                         onConfirm={(patch) => saveThen(open, patch, () => api!.confirmMemoryItem(open.id))}
                         onDismiss={() => run(() => api!.dismissMemoryItem(open.id), () => setOpenId(null))}
+                        trial={data?.trial[open.id]}
+                        onMerge={(into) => run(() => api!.mergeMemoryItem(open.id, into), () => setOpenId(into))}
                         onDelete={() => setDeleteId(open.id)}
                     />
                 ) : null}
@@ -299,6 +362,10 @@ export function MemoryPage() {
                         <ListRow title="导入 MEMORY.md" subtitle="把手写的全局记忆交给 Jev 判断" wrap disabled={action.isPending} onClick={() => run(async () => {
                             const result = await api!.importMemoryMd()
                             setNotice(`MEMORY.md 里有 ${result.found} 条，交给 Jev 判断了 ${result.proposed} 条。`)
+                        })} />
+                        <ListRow title="立即整理" subtitle="合并重复、观察期满的转正或不记；每 15 分钟也会自动整理一次" wrap disabled={action.isPending} onClick={() => run(async () => {
+                            const r = await api!.maintainMemories()
+                            setNotice(`整理完：合并重复 ${r.merged} 条，转正 ${r.promoted} 条，不记 ${r.expired} 条，转入观察 ${r.moved} 条，建议升原则 ${r.offered} 条。`)
                         })} />
                         <ListRow title="立即收集 Claude 记忆" subtitle="只收上面开启的项目，每 15 分钟也会自动收一次" wrap disabled={action.isPending} onClick={() => run(async () => {
                             const result = await api!.harvestClaudeMemories()

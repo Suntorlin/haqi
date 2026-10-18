@@ -1,11 +1,14 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
 import { FormField, SegmentedControl } from '@/components/ui/FormControls'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { useAppContext } from '@/lib/app-context'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import type { MemoryItem, MemoryLink } from '@/types/api'
-import { evidenceOf, formatWhen, LEVEL_LABEL, scopeLabel, sourceLabel, supportsOf, type Level } from './model'
+import { evidenceOf, formatWhen, LEVEL_LABEL, scopeLabel, sourceLabel, supportsOf, trialLabel, type Level } from './model'
 
 /** Maturity as a filling circle: fact ○, experience ◐, principle ●. Used by the graph and its legend. */
 export function LevelIcon(props: { level: Level; className?: string }) {
@@ -47,8 +50,21 @@ export function MemoryDetail(props: {
     onConfirm: (patch: MemoryEdit) => void
     onDismiss: () => void
     onDelete: () => void
+    /** Mentions so far, for a memory on trial. */
+    trial?: { recent: number; lastAt: number }
+    /** Merge this memory into another one. */
+    onMerge: (intoId: string) => void
 }) {
     const { memory } = props
+    const { api } = useAppContext()
+    const related = useQuery({
+        queryKey: [...queryKeys.memories, 'related', memory.id, memory.updatedAt],
+        queryFn: async () => {
+            if (!api) throw new Error('API unavailable')
+            return (await api.relatedMemories(memory.id)).hits
+        },
+        enabled: Boolean(api)
+    })
     const byId = new Map(props.all.map((m) => [m.id, m]))
     const project = memory.scope || memory.jev?.project || props.projects[0] || 'haqi'
     const [text, setText] = useState(memory.text)
@@ -58,6 +74,7 @@ export function MemoryDetail(props: {
     const evidence = evidenceOf(memory.id, props.links).map((id) => byId.get(id)).filter((m): m is MemoryItem => Boolean(m))
     const replaced = memory.replaces ? byId.get(memory.replaces) : undefined
     const pending = memory.status === 'pending'
+    const onTrial = memory.status === 'candidate'
     const jev = memory.jev
     const changed = memory.overridden?.level ? '级别' : memory.overridden?.scope !== undefined ? '范围' : null
     const patch: MemoryEdit = {
@@ -72,6 +89,12 @@ export function MemoryDetail(props: {
                 <p className="text-[15px] leading-relaxed text-[var(--social-fg)]">
                     {memory.reason}
                     {replaced ? <span className="mt-1 block text-[13px] text-[var(--social-fg-muted)]">确认后会替换：{replaced.text}</span> : null}
+                </p>
+            ) : null}
+            {onTrial ? (
+                <p className="text-[15px] leading-relaxed text-[var(--social-fg)]">
+                    观察中：{trialLabel(props.trial)}
+                    {memory.reason ? <span className="mt-1 block text-[13px] text-[var(--social-fg-muted)]">{memory.reason}</span> : null}
                 </p>
             ) : null}
 
@@ -113,15 +136,33 @@ export function MemoryDetail(props: {
                 </ListGroup>
             ) : null}
 
+            {related.data && related.data.length > 0 ? (
+                <ListGroup title="相似记忆 · 并入后这条归档，被提到的次数加到那条上">
+                    {related.data.map((item) => (
+                        <ListRow
+                            key={item.id}
+                            wrap
+                            title={item.text}
+                            subtitle={`${LEVEL_LABEL[item.level]} · ${scopeLabel(item.scope)} · 相似度 ${item.score.toFixed(2)}`}
+                            trailing={(
+                                <Button variant="secondary" className="px-4" disabled={props.busy} onClick={() => props.onMerge(item.id)}>
+                                    并入
+                                </Button>
+                            )}
+                        />
+                    ))}
+                </ListGroup>
+            ) : null}
+
             <p className="px-1 text-[13px] text-[var(--social-fg-muted)]">
                 {sourceLabel(memory)} · {formatWhen(memory.createdAt)} · {scopeLabel(memory.scope)}
                 {memory.support > 1 ? ` · 被提到 ${memory.support} 次` : ''}
                 {memory.version > 1 ? ` · 第 ${memory.version} 版` : ''}
             </p>
 
-            {pending ? (
+            {pending || onTrial ? (
                 <div className="flex gap-2">
-                    <Button className="flex-1" disabled={props.busy} onClick={() => props.onConfirm(patch)}>确认</Button>
+                    <Button className="flex-1" disabled={props.busy} onClick={() => props.onConfirm(patch)}>{onTrial ? '直接生效' : '确认'}</Button>
                     <Button variant="secondary" className="flex-1" disabled={props.busy} onClick={props.onDismiss}>不记</Button>
                 </div>
             ) : (

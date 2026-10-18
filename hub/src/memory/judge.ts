@@ -1,12 +1,19 @@
 import { yesProbability, type JevAnswer, type JevQuestion } from './jev'
 
 export type MemoryLevel = 'fact' | 'experience' | 'principle'
-export type MemoryStatus = 'active' | 'pending' | 'archived'
+export type MemoryStatus = 'active' | 'pending' | 'candidate' | 'archived'
 
 export const LEVEL_RANK: Record<MemoryLevel, number> = { fact: 0, experience: 1, principle: 2 }
 
-/** Thresholds of the one rule: Jev must be sure (>= SURE) on every call, or the memory waits for the user. */
+/** Thresholds of the rule: Jev must be sure (>= SURE) on every call, or the memory goes on trial (principles wait for the user). */
 export const THRESHOLDS = { secret: 0.5, keepMin: 0.3, sure: 0.6, match: 0.8 } as const
+
+/**
+ * The trial of a memory Jev is not sure about: it becomes active once it comes up TRIAL.promote times
+ * within TRIAL.windowDays, and is let go when nothing mentions it for TRIAL.windowDays.
+ * An active experience mentioned TRIAL.principleAt times in all is offered to the user as a principle.
+ */
+export const TRIAL = { windowDays: 30, promote: 3, principleAt: 5 } as const
 
 const LEVEL_CRITERIA: Record<MemoryLevel, unknown> = {
     fact: {
@@ -60,17 +67,20 @@ export function buildQuestions(input: { hasProject: boolean; similar: Array<{ id
             }
         }
     }
-    if (input.similar.length > 0) {
-        const criteria: Record<string, unknown> = {}
-        for (const item of input.similar) criteria[item.id] = item.text
-        criteria.none = 'No entry is about the same rule, lesson or fact as `candidate`.'
-        questions.match = {
-            type: 'choice',
-            instructions: 'Which entry is about the same rule, lesson or fact as `candidate`?',
-            criteria
-        }
-    }
+    if (input.similar.length > 0) questions.match = matchQuestion(input.similar)
     return questions
+}
+
+/** "Is `candidate` the same memory as one of these?", alone when cleaning up and inside buildQuestions when capturing. */
+export function matchQuestion(similar: Array<{ id: string; text: string }>): JevQuestion {
+    const criteria: Record<string, unknown> = {}
+    for (const item of similar) criteria[item.id] = item.text
+    criteria.none = 'No entry is about the same rule, lesson or fact as `candidate`.'
+    return {
+        type: 'choice',
+        instructions: 'Which entry is about the same rule, lesson or fact as `candidate`? Two notes about the same topic that say different things do not count.',
+        criteria
+    }
 }
 
 export type JevVerdict = {
@@ -107,7 +117,7 @@ export type Decision =
     | { kind: 'reinforce'; targetId: string }
     | {
         kind: 'add'
-        status: 'active' | 'pending'
+        status: 'active' | 'pending' | 'candidate'
         reason: string | null
         level: MemoryLevel
         scope: 'global' | 'project'
@@ -118,8 +128,9 @@ export type Decision =
 const fmt = (value: number) => value.toFixed(2)
 
 /**
- * The one rule: Jev must be sure on "keep", "level" and "scope", otherwise the memory waits for the user.
- * Principles always wait unless the user said them. A sure match at the same level only reinforces.
+ * The rule: principles wait for the user unless the user said them and Jev is sure (an unsure scope alone narrows it to the project).
+ * Facts and experiences Jev is sure about are active; the rest go on trial (see TRIAL).
+ * A sure match at the same level only reinforces.
  */
 export function decide(input: { verdict: JevVerdict; said: boolean; matchedLevel?: MemoryLevel | null }): Decision {
     const { verdict } = input
@@ -135,12 +146,20 @@ export function decide(input: { verdict: JevVerdict; said: boolean; matchedLevel
     if (verdict.level.confidence < THRESHOLDS.sure) doubts.push(`级别 ${fmt(verdict.level.confidence)}`)
     if (verdict.scope.confidence < THRESHOLDS.sure) doubts.push(`范围 ${fmt(verdict.scope.confidence)}`)
 
+    // A principle the user said, with only the scope in doubt: keep it to the project, the narrower reading.
+    if (level === 'principle' && input.said && doubts.length === 1 && verdict.scope.confidence < THRESHOLDS.sure) {
+        return { kind: 'add', status: 'active', reason: null, level, scope: 'project', link: linkTo(matched, level, input.matchedLevel) }
+    }
+
     let reason: string | null = null
     if (doubts.length > 0) reason = `Jev 拿不准：${doubts.join('、')}`
     if (level === 'principle' && !input.said) reason = reason ? `原则要你确认；${reason}` : '原则要你确认'
+    const status = !reason ? 'active' : level === 'principle' ? 'pending' : 'candidate'
 
-    const link = matched && input.matchedLevel
-        ? { matchedId: matched, direction: LEVEL_RANK[level] < LEVEL_RANK[input.matchedLevel] ? 'supports-matched' as const : 'matched-supports' as const }
-        : null
-    return { kind: 'add', status: reason ? 'pending' : 'active', reason, level, scope: verdict.scope.choice, link }
+    return { kind: 'add', status, reason, level, scope: verdict.scope.choice, link: linkTo(matched, level, input.matchedLevel) }
+}
+
+function linkTo(matched: string | null, level: MemoryLevel, matchedLevel: MemoryLevel | null | undefined): Extract<Decision, { kind: 'add' }>['link'] {
+    if (!matched || !matchedLevel) return null
+    return { matchedId: matched, direction: LEVEL_RANK[level] < LEVEL_RANK[matchedLevel] ? 'supports-matched' : 'matched-supports' }
 }

@@ -37,7 +37,7 @@ const HIDDEN_HANDLE = '!h-px !w-px !min-h-0 !min-w-0 !border-0 !bg-transparent'
 
 function MemoryNode(props: NodeProps<MemoryFlowNode>) {
     const { memory, dim, focus, tip } = props.data
-    const pending = memory.status === 'pending'
+    const pending = memory.status === 'pending' || memory.status === 'candidate'
     const principle = memory.level === 'principle' && !pending
     return (
         <>
@@ -45,7 +45,7 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
                 <div className="w-[280px] rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3 shadow-[var(--shadow-float)]">
                     <p className="text-[13px] leading-relaxed text-[var(--social-fg)]">{memory.text}</p>
                     <p className="mt-1.5 text-[12px] text-[var(--social-fg-muted)]">
-                        {LEVEL_LABEL[memory.level]} · {scopeLabel(memory.scope)}{pending ? ' · 等你确认' : ''} · 点击编辑
+                        {LEVEL_LABEL[memory.level]} · {scopeLabel(memory.scope)}{memory.status === 'pending' ? ' · 等你确认' : memory.status === 'candidate' ? ' · 观察中' : ''} · 点击编辑
                     </p>
                 </div>
             </NodeToolbar>
@@ -170,7 +170,7 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
                 target: route.parent,
                 targetHandle: 'b',
                 data: { bends: route.points },
-                style: { stroke: color, strokeWidth: on ? 2 : 1.25, opacity: off ? 0.12 : 1, strokeDasharray: parent?.status === 'pending' ? '5 4' : undefined },
+                style: { stroke: color, strokeWidth: on ? 2 : 1.25, opacity: off ? 0.12 : 1, strokeDasharray: parent?.status === 'pending' || parent?.status === 'candidate' ? '5 4' : undefined },
                 markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color }
             }
         })

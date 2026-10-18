@@ -79,7 +79,8 @@ const REQUIRED_TABLES = [
     'review_rounds',
     'memories',
     'memory_links',
-    'memory_events'
+    'memory_events',
+    'memory_vectors'
 ] as const
 
 export class Store {

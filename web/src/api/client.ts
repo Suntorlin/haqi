@@ -3,7 +3,9 @@ import type {
     AttachmentMetadata,
     MemoriesResponse,
     MemoryCaptureSettings,
+    MemoryHit,
     MemoryItem,
+    MemoryMaintainResult,
     MemoryLevel,
     AuthResponse,
     CodexCredentialExportResponse,
@@ -421,6 +423,22 @@ export class ApiClient {
 
     async dismissMemoryItem(id: string): Promise<{ ok: boolean }> {
         return await this.request<{ ok: boolean }>(`/api/memories/${encodeURIComponent(id)}/dismiss`, { method: 'POST', body: JSON.stringify({}) })
+    }
+
+    async searchMemories(query: string): Promise<{ hits: MemoryHit[] }> {
+        return await this.request<{ hits: MemoryHit[] }>(`/api/memories/search?q=${encodeURIComponent(query)}&limit=20`)
+    }
+
+    async relatedMemories(id: string): Promise<{ hits: MemoryHit[] }> {
+        return await this.request<{ hits: MemoryHit[] }>(`/api/memories/${encodeURIComponent(id)}/related`)
+    }
+
+    async mergeMemoryItem(id: string, into: string): Promise<{ memory: MemoryItem }> {
+        return await this.request<{ memory: MemoryItem }>(`/api/memories/${encodeURIComponent(id)}/merge`, { method: 'POST', body: JSON.stringify({ into }) })
+    }
+
+    async maintainMemories(): Promise<MemoryMaintainResult> {
+        return await this.request<MemoryMaintainResult>('/api/memories/maintain', { method: 'POST', body: JSON.stringify({}) })
     }
 
     async deleteMemoryItem(id: string): Promise<{ ok: boolean }> {
