@@ -77,7 +77,7 @@ import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
-import { useSessionPin } from '@/hooks/mutations/useSessionPin'
+import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
 import { useArchiveSession } from '@/hooks/mutations/useArchiveSession'
 import FilesPage from '@/routes/sessions/files'
 import FilePage from '@/routes/sessions/file'
@@ -320,6 +320,7 @@ function SessionsPage() {
             })
         })
     }, [addToast, pinSession, t])
+    const snoozeSession = useSessionSnooze(api)
     const archiveSession = useArchiveSession(api)
     const archivePinnedSession = useCallback((session: SessionSummary) => archiveSession(session.id), [archiveSession])
 
@@ -494,6 +495,7 @@ function SessionsPage() {
                     onSelect={selectSession}
                     onNewSession={() => openNewSession()}
                     onUnpin={unpinSession}
+                    onSnooze={snoozeSession}
                     onArchive={archivePinnedSession}
                 />
             )}

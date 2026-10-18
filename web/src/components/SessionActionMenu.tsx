@@ -170,7 +170,7 @@ function FlyoutItem(props: {
 }
 
 /** Wake-time choices; `indent` lines them up under the parent row when shown inline on phones. */
-function SnoozeOptions(props: { onSnooze: (until: number) => void; onCustom?: () => void; indent?: boolean }) {
+export function SnoozeOptions(props: { onSnooze: (until: number) => void; onCustom?: () => void; indent?: boolean }) {
     const { t, locale } = useTranslation()
     const now = Date.now()
     const spacer = props.indent ? <span aria-hidden="true" /> : undefined
