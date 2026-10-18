@@ -51,7 +51,7 @@ import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
-import { formatSnoozeWake } from '@/lib/session-snooze'
+import { formatSnoozeStatus } from '@/lib/session-snooze'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
 
@@ -474,7 +474,7 @@ function SessionItem(props: {
     const sessionName = getSessionTitle(s)
     const pinned = isSessionPinned(s)
     const snoozeUntil = isSessionSnoozed(s) ? getSnoozeUntil(s) : null
-    const snoozeWakeLabel = snoozeUntil === null ? null : formatSnoozeWake(snoozeUntil, Date.now(), locale, t)
+    const snoozeStatus = snoozeUntil === null ? null : formatSnoozeStatus(snoozeUntil, Date.now(), locale, t)
     const updateSnooze = (until: number | null) => snoozeSession(s, until)
     const userTags = getUserTags(s)
     // Editing tags must not drop the pin or the snooze (both are stored as system tags).
@@ -555,9 +555,7 @@ function SessionItem(props: {
                                     {sessionName}
                                 </span>
                                 <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
-                                    {snoozeWakeLabel === null
-                                        ? formatRelativeTime(s.updatedAt, t)
-                                        : t('session.snooze.wakesAt', { time: snoozeWakeLabel })}
+                                    {snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
                                 </span>
                             </div>
                             <FeedPreview session={s} active={effectiveActive} thinking={effectiveThinking} />
@@ -692,12 +690,12 @@ function SessionItem(props: {
                 })
             }}
             onSnoozeCustom={() => setSnoozeOpen(true)}
-            onUnsnooze={snoozeWakeLabel === null ? undefined : () => {
+            onUnsnooze={snoozeStatus === null ? undefined : () => {
                 void updateSnooze(null).catch((error) => {
                     console.error('Failed to wake session', error)
                 })
             }}
-            snoozeWakeLabel={snoozeWakeLabel ?? undefined}
+            snoozeStatus={snoozeStatus ?? undefined}
             onRename={() => setRenameOpen(true)}
             onTags={() => setTagsOpen(true)}
             tags={userTags}

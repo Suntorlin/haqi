@@ -31,9 +31,9 @@ type SessionActionMenuProps = {
     onSnooze?: (until: number) => void
     /** "Custom time…" at the end of the snooze submenu. */
     onSnoozeCustom?: () => void
-    /** Set while snoozed: offers "wake up", with the wake time as its second line. */
+    /** Set while snoozed: offers "wake up", with `snoozeStatus` (when it comes back) as its second line. */
     onUnsnooze?: () => void
-    snoozeWakeLabel?: string
+    snoozeStatus?: string
     onRename: () => void
     onTags?: () => void
     tags?: string[]
@@ -244,7 +244,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         <ContextMenuItem
             icon={<SunIcon />}
             label={t('session.action.unsnooze')}
-            description={props.snoozeWakeLabel ? t('session.snooze.wakesAt', { time: props.snoozeWakeLabel }) : undefined}
+            description={props.snoozeStatus}
             onSelect={run(props.onUnsnooze)}
         />
     ) : !onSnooze ? null : isMobileLayout ? (

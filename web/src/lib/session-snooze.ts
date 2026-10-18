@@ -1,6 +1,6 @@
-import { SNOOZE_WAKE_HOUR, getNextSnoozeWake } from '@/lib/session-pins'
+import { SNOOZE_FOREVER, SNOOZE_WAKE_HOUR, getNextSnoozeWake } from '@/lib/session-pins'
 
-export type SnoozePresetKey = 'tomorrow' | 'day2' | 'day3' | 'nextWeek'
+export type SnoozePresetKey = 'tomorrow' | 'day2' | 'day3' | 'nextWeek' | 'forever'
 export type SnoozePreset = { key: SnoozePresetKey; until: number }
 
 const HOUR_MS = 60 * 60 * 1000
@@ -15,8 +15,8 @@ function wakeOnDay(now: Date, days: number): number {
 }
 
 /**
- * Quick choices in the snooze menu, all at SNOOZE_WAKE_HOUR: tomorrow, in two days, in three days,
- * next Monday. Next Monday is left out when it falls on one of the other days.
+ * Quick choices in the snooze menu: tomorrow, in two days, in three days and next Monday, all at
+ * SNOOZE_WAKE_HOUR, then no end. Next Monday is left out when it falls on one of the other days.
  */
 export function getSnoozePresets(now: Date = new Date()): SnoozePreset[] {
     const presets: SnoozePreset[] = [
@@ -28,6 +28,7 @@ export function getSnoozePresets(now: Date = new Date()): SnoozePreset[] {
     if (!presets.some((preset) => preset.until === nextMonday)) {
         presets.push({ key: 'nextWeek', until: nextMonday })
     }
+    presets.push({ key: 'forever', until: SNOOZE_FOREVER })
     return presets
 }
 
@@ -44,6 +45,7 @@ export function formatSnoozeWake(
     locale: string,
     t: (key: string, params?: Record<string, string | number>) => string
 ): string {
+    if (until === SNOOZE_FOREVER) return t('snooze.untilWoken')
     const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(until)
     const days = Math.round((startOfDay(until) - startOfDay(now)) / (24 * HOUR_MS))
     if (days <= 0) return t('snooze.day.today', { time })
@@ -52,6 +54,17 @@ export function formatSnoozeWake(
         ? new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(until)
         : new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(until)
     return `${day} ${time}`
+}
+
+/** Status of a snoozed session for its row and menus: "周二 06:00 回来", or "不限时" with no end. */
+export function formatSnoozeStatus(
+    until: number,
+    now: number,
+    locale: string,
+    t: (key: string, params?: Record<string, string | number>) => string
+): string {
+    if (until === SNOOZE_FOREVER) return t('session.snooze.indefinite')
+    return t('session.snooze.wakesAt', { time: formatSnoozeWake(until, now, locale, t) })
 }
 
 /** Value for an <input type="datetime-local">, in local time. */
