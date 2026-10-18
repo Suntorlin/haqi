@@ -18,9 +18,13 @@ import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
 import type { RunStats } from '@/components/mobile/chatTimeline'
 import { useTranslation } from '@/lib/use-translation'
+import { useSemanticZoomController, useSemanticZoomScroller } from '@/vendor/semantic-zoom'
+import { ChatZoomBar, ChatZoomProvider, useChatZoomState } from '@/components/AssistantChat/chatZoom'
+import { ZOOM_LEVEL_COUNT, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 
 const STICK_TO_BOTTOM_THRESHOLD_PX = 32
 const USER_INPUT_QUIET_MS = 250
+const LOAD_OLDER_AFTER_ZOOM_PX = 120
 
 /**
  * Social layout replaces assistant-ui's auto-scroll: stay pinned to the bottom while content grows,
@@ -191,6 +195,9 @@ export function HappyThread(props: {
     const isSocial = props.layout === 'social'
     const holdAutoScroll = useStickToBottom(isSocial, viewportRef, contentRef)
     useNestedScrollPassthrough(viewportRef)
+    const zoom = useSemanticZoomController({ levelCount: ZOOM_LEVEL_COUNT, initialLevel: ZOOM_REPLY })
+    const zoomAnchor = useSemanticZoomScroller(viewportRef, zoom, { bottomEdge: true, gestures: isSocial })
+    const zoomState = useChatZoomState(zoom, zoomAnchor, holdAutoScroll)
     const userMessageCount = useAssistantState(({ thread }) => thread.messages.reduce((count, message) => count + (message.role === 'user' ? 1 : 0), 0))
     const oldestRenderedKey = useAssistantState(({ thread }) => thread.messages[0]?.id ?? null)
     const olderStateRef = useRef({ userMessageCount, hasMore: props.hasMoreMessages })
@@ -202,6 +209,11 @@ export function HappyThread(props: {
     const [isPagingOlder, setIsPagingOlder] = useState(false)
     const pagingOlderRef = useRef(false)
     const loadOlder = useCallback(async () => {
+        // Older messages shift every message to a new slot, which would drop the message a pinch holds still.
+        // The scroll hook asks again on the next scroll near the top.
+        if (zoom.isGesturing || zoom.isAnimating) {
+            return
+        }
         if (!isSocial) {
             await onLoadMoreProp()
             return
@@ -232,8 +244,19 @@ export function HappyThread(props: {
             pagingOlderRef.current = false
             setIsPagingOlder(false)
         }
-    }, [isSocial, onLoadMoreProp])
+    }, [isSocial, onLoadMoreProp, zoom])
     const isLoadingOlder = props.isLoadingMoreMessages || isPagingOlder
+    // Loading older messages waits while the chat zooms; once it settles at the top, load them,
+    // so the overview reaches back further without another scroll.
+    const zoomBusy = zoomState.busy
+    const wasZoomBusyRef = useRef(false)
+    useEffect(() => {
+        const settled = wasZoomBusyRef.current && !zoomBusy
+        wasZoomBusyRef.current = zoomBusy
+        const viewport = viewportRef.current
+        if (!settled || !isSocial || !viewport || !props.hasMoreMessages) return
+        if (viewport.scrollTop <= LOAD_OLDER_AFTER_ZOOM_PX) void loadOlder()
+    }, [zoomBusy, isSocial, props.hasMoreMessages, loadOlder])
     const {
         isNearBottom,
         showJumpToLatest,
@@ -302,51 +325,56 @@ export function HappyThread(props: {
 
     return (
         <HappyChatProvider value={chatContext}>
-            <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
-                <ThreadPrimitive.Viewport
-                    ref={viewportRef}
-                    autoScroll={isSocial ? false : undefined}
-                    // assistant-ui arms a sticky scroll-to-bottom on run start / initialize / thread switch even
-                    // with autoScroll off, which re-pins the view on every resize (it fought users scrolling
-                    // up while an agent ran). The social layout positions itself through the two hooks above.
-                    scrollToBottomOnRunStart={isSocial ? false : undefined}
-                    scrollToBottomOnInitialize={isSocial ? false : undefined}
-                    scrollToBottomOnThreadSwitch={isSocial ? false : undefined}
-                    className={cn(
-                        'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
-                        isSocial ? 'social-chat' : ''
-                    )}
-                >
-                    <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-4 pb-5 pt-4' : isCompact ? 'p-2' : 'p-3'}`}>
-                        {showSkeleton ? (
-                            <MessageSkeleton />
-                        ) : (
-                            <>
-                                <HistoryLoadMoreControl
-                                    loading={isLoadingOlder}
-                                    hasMore={props.hasMoreMessages}
-                                    onLoadMore={() => { void loadOlder() }}
-                                />
-
-                                {props.messagesWarning ? (
-                                    <div className="mb-3 rounded-xl bg-[var(--app-badge-warning-bg)] p-2 text-xs">
-                                        {props.messagesWarning}
-                                    </div>
-                                ) : null}
-                            </>
+            <ChatZoomProvider value={isSocial ? zoomState : null}>
+                <ThreadPrimitive.Root className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col">
+                    <ThreadPrimitive.Viewport
+                        ref={viewportRef}
+                        autoScroll={isSocial ? false : undefined}
+                        // assistant-ui arms a sticky scroll-to-bottom on run start / initialize / thread switch even
+                        // with autoScroll off, which re-pins the view on every resize (it fought users scrolling
+                        // up while an agent ran). The social layout positions itself through the two hooks above.
+                        scrollToBottomOnRunStart={isSocial ? false : undefined}
+                        scrollToBottomOnInitialize={isSocial ? false : undefined}
+                        scrollToBottomOnThreadSwitch={isSocial ? false : undefined}
+                        className={cn(
+                            'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
+                            // The zoom makes the chat focusable for its keyboard shortcuts; no focus ring around the whole chat.
+                            isSocial ? 'social-chat outline-none' : ''
                         )}
-                        <div className={`flex flex-col ${isSocial ? 'gap-5' : isCompact ? 'gap-2' : 'gap-3'}`}>
-                            <ThreadMessagesList social={isSocial} />
+                    >
+                        {/* While zoomed, the level switch floats over the top: keep the first message clear of it. */}
+                        <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? `px-4 pb-5 ${zoomState.busy || zoomState.snap !== ZOOM_REPLY ? 'pt-[72px]' : 'pt-4'}` : isCompact ? 'p-2' : 'p-3'}`}>
+                            {showSkeleton ? (
+                                <MessageSkeleton />
+                            ) : (
+                                <>
+                                    <HistoryLoadMoreControl
+                                        loading={isLoadingOlder}
+                                        hasMore={props.hasMoreMessages}
+                                        onLoadMore={() => { void loadOlder() }}
+                                    />
+
+                                    {props.messagesWarning ? (
+                                        <div className="mb-3 rounded-xl bg-[var(--app-badge-warning-bg)] p-2 text-xs">
+                                            {props.messagesWarning}
+                                        </div>
+                                    ) : null}
+                                </>
+                            )}
+                            <div className={`flex flex-col ${isSocial ? 'gap-5' : isCompact ? 'gap-2' : 'gap-3'}`}>
+                                <ThreadMessagesList social={isSocial} />
+                            </div>
                         </div>
-                    </div>
-                </ThreadPrimitive.Viewport>
-                <JumpToLatestButton
-                    count={props.pendingCount}
-                    show={showJumpToLatest}
-                    onClick={scrollToBottom}
-                    raised={!isSocial}
-                />
-            </ThreadPrimitive.Root>
+                    </ThreadPrimitive.Viewport>
+                    <JumpToLatestButton
+                        count={props.pendingCount}
+                        show={showJumpToLatest}
+                        onClick={scrollToBottom}
+                        raised={!isSocial}
+                    />
+                    <ChatZoomBar />
+                </ThreadPrimitive.Root>
+            </ChatZoomProvider>
         </HappyChatProvider>
     )
 }
