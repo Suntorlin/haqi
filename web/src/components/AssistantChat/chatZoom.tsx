@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { LeveledText, LeveledTextView, type ScrollAnchor, type SemanticZoomController } from '@/vendor/semantic-zoom'
-import { SegmentedControl } from '@/components/ui/FormControls'
+import { HIT_AREA_28_CLASS } from '@/components/AssistantChat/hitArea'
+import { cn } from '@/lib/utils'
 import { ZOOM_ALL, ZOOM_BRIEF, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -137,16 +138,35 @@ export function ChatZoomBar() {
         { value: String(ZOOM_REPLY), label: t('chat.zoom.reply') },
         { value: String(ZOOM_ALL), label: t('chat.zoom.all') }
     ]
+    // A small translucent pill: it stays out of the way of the messages it floats over.
     return (
         <div ref={barRef} className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center px-4">
-            <div className="pointer-events-auto w-full max-w-[260px] overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-raised)]">
-                <SegmentedControl
-                    framed={false}
-                    label={t('chat.zoom.label')}
-                    value={String(zoom.snap)}
-                    options={options}
-                    onChange={changeLevel}
-                />
+            <div
+                role="radiogroup"
+                aria-label={t('chat.zoom.label')}
+                className="social-bar pointer-events-auto flex gap-0.5 rounded-full border border-[var(--social-border)] p-0.5"
+            >
+                {options.map((option) => {
+                    const selected = option.value === String(zoom.snap)
+                    return (
+                        <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            onClick={() => changeLevel(option.value)}
+                            className={cn(
+                                'h-7 rounded-full px-3 text-[13px] transition-colors [-webkit-tap-highlight-color:transparent]',
+                                HIT_AREA_28_CLASS,
+                                selected
+                                    ? 'bg-[var(--social-muted)] font-semibold text-[var(--social-fg)]'
+                                    : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
+                            )}
+                        >
+                            {option.label}
+                        </button>
+                    )
+                })}
             </div>
         </div>
     )
