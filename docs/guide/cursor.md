@@ -1,6 +1,6 @@
 # Cursor Agent
 
-HAPI supports [Cursor Agent CLI](https://cursor.com/docs/cli/using) for running Cursor's AI coding agent with remote control via web and phone.
+HAQI supports [Cursor Agent CLI](https://cursor.com/docs/cli/using) for running Cursor's AI coding agent with remote control via web and phone.
 
 ## Prerequisites
 
@@ -18,13 +18,13 @@ agent --version
 ## Usage
 
 ```bash
-hapi cursor                    # Start Cursor Agent session
-hapi cursor resume <chatId>    # Resume a specific chat
-hapi cursor --continue         # Resume the most recent chat
-hapi cursor --mode plan        # Start in Plan mode
-hapi cursor --mode ask         # Start in Ask mode
-hapi cursor --yolo             # Bypass approval prompts (--force)
-hapi cursor --model <model>    # Specify model
+haqi cursor                    # Start Cursor Agent session
+haqi cursor resume <chatId>    # Resume a specific chat
+haqi cursor --continue         # Resume the most recent chat
+haqi cursor --mode plan        # Start in Plan mode
+haqi cursor --mode ask         # Start in Ask mode
+haqi cursor --yolo             # Bypass approval prompts (--force)
+haqi cursor --model <model>    # Specify model
 ```
 
 ## Permission Modes
@@ -40,7 +40,7 @@ Set mode via `--mode` flag or change from the web UI during a session.
 
 ## Modes
 
-- **Local mode** - Run `hapi cursor` from terminal. Full interactive experience.
+- **Local mode** - Run `haqi cursor` from terminal. Full interactive experience.
 - **Remote mode** - Spawn from web/phone when no terminal. Uses `agent -p` with `--output-format stream-json` and `--trust`. Each user message spawns one agent process; session continues via `--resume`.
 
 ## Limitations
@@ -50,7 +50,7 @@ Set mode via `--mode` flag or change from the web UI during a session.
 
 ## Integration
 
-Once running, your Cursor session appears in the HAPI web app and Telegram Mini App. You can:
+Once running, your Cursor session appears in the HAQI web app and Telegram Mini App. You can:
 
 - Monitor session activity
 - Approve permissions from your phone
