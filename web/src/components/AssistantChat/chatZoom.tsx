@@ -138,13 +138,14 @@ export function ChatZoomBar() {
         { value: String(ZOOM_REPLY), label: t('chat.zoom.reply') },
         { value: String(ZOOM_ALL), label: t('chat.zoom.all') }
     ]
-    // A small translucent pill: it stays out of the way of the messages it floats over.
+    // A small pill: it stays out of the way of the messages it floats over. Opaque, so labels stay
+    // readable over dark bubbles.
     return (
         <div ref={barRef} className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center px-4">
             <div
                 role="radiogroup"
                 aria-label={t('chat.zoom.label')}
-                className="social-bar pointer-events-auto flex gap-0.5 rounded-full border border-[var(--social-border)] p-0.5"
+                className="pointer-events-auto flex gap-0.5 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] p-0.5"
             >
                 {options.map((option) => {
                     const selected = option.value === String(zoom.snap)
