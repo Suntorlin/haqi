@@ -278,19 +278,21 @@ export function MemoryPage() {
                     <ListGroup title="采集的项目">
                         {(data?.settings.knownProjects ?? []).map((project) => (
                             <ListRow
-                                key={project}
-                                title={project}
+                                key={project.name}
+                                wrap
+                                title={project.name}
+                                subtitle={[project.path ? project.path.replace(/^\/Users\/[^/]+/, '~') : null, project.sessions ? `${project.sessions} 个会话` : null].filter(Boolean).join(' · ') || undefined}
                                 trailing={(
                                     <Switch
-                                        checked={projects.includes(project)}
-                                        ariaLabel={`采集 ${project}`}
-                                        onCheckedChange={(on) => run(() => api!.updateMemoryCapture({ projects: on ? [...projects, project] : projects.filter((p) => p !== project) }))}
+                                        checked={projects.includes(project.name)}
+                                        ariaLabel={`采集 ${project.name}`}
+                                        onCheckedChange={(on) => run(() => api!.updateMemoryCapture({ projects: on ? [...projects, project.name] : projects.filter((p) => p !== project.name) }))}
                                     />
                                 )}
                             />
                         ))}
                     </ListGroup>
-                    <FieldHint>只有这些项目的会话能提交记忆、会被收集 Claude 记忆。全局 MEMORY.md 不受这里限制。</FieldHint>
+                    <FieldHint>打开的项目，会话能提交记忆、会自动收集 Claude 记忆，内容会发给 Jev（经 OpenRouter 到 TypeSafe）判断。全局 MEMORY.md 不受这里限制。</FieldHint>
                     <ListGroup>
                         <ListRow title="Jev" trailing={data?.settings.jevReady ? '已连接' : '没有 key'} />
                         <ListRow title="Jev 准确率" trailing={`近 30 天 ${data?.stats.judged ?? 0} 次，你改了 ${data?.stats.corrected ?? 0} 次`} />

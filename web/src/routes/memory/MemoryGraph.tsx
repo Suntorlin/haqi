@@ -125,16 +125,20 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
     const [focusId, setFocusId] = useState<string | null>(null)
     const [query, setQuery] = useState('')
     const active = hover ?? focusId
-    const lit = active ? lineage(active, props.memories, props.links) : null
+    const lit = useMemo(() => (active ? lineage(active, props.memories, props.links) : null), [active, props.memories, props.links])
 
     const needle = query.trim()
     const matches = needle ? props.memories.filter((m) => m.text.toLowerCase().includes(needle.toLowerCase())) : []
 
-    const nodes: Array<MemoryFlowNode | BoxFlowNode> = [
+    // Every node carries its size, so React Flow never hides it to re-measure: a hover that changes
+    // `dim` / `tip` must not make the whole graph blink.
+    const nodes = useMemo((): Array<MemoryFlowNode | BoxFlowNode> => [
         ...layout.boxes.map((box): BoxFlowNode => ({
             id: `box:${box.scope}`,
             type: 'box',
             position: { x: box.x, y: box.y },
+            width: box.width,
+            height: box.height,
             data: { box },
             draggable: false,
             selectable: false,
@@ -145,42 +149,47 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
             id: memory.id,
             type: 'memory',
             position: { x: x - NODE_W / 2, y },
+            width: NODE_W,
+            height: NODE_H,
             data: { memory, dim: Boolean(lit && !lit.has(memory.id)), focus: memory.id === focusId, tip: !props.mobile && memory.id === active },
             draggable: false
         }))
-    ]
+    ], [layout, lit, focusId, active, props.mobile])
 
-    const edges: Array<RouteFlowEdge | Edge> = layout.edges.map((route): RouteFlowEdge => {
-        const parent = props.memories.find((m) => m.id === route.parent)
-        const on = Boolean(lit?.has(route.child) && lit.has(route.parent))
-        const off = Boolean(lit && !on)
-        const color = on ? 'var(--social-fg)' : 'var(--social-fg-subtle)'
-        return {
-            id: `${route.child}->${route.parent}`,
-            type: 'route',
-            source: route.child,
-            sourceHandle: 't',
-            target: route.parent,
-            targetHandle: 'b',
-            data: { bends: route.points },
-            style: { stroke: color, strokeWidth: on ? 2 : 1.25, opacity: off ? 0.12 : 1, strokeDasharray: parent?.status === 'pending' ? '5 4' : undefined },
-            markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color }
-        }
-    })
-    for (const m of props.memories) {
-        if (!m.replaces || !props.memories.some((other) => other.id === m.replaces)) continue
-        const off = Boolean(lit && !(lit.has(m.id) && lit.has(m.replaces)))
-        edges.push({
-            id: `${m.id}-x-${m.replaces}`,
-            source: m.id,
-            sourceHandle: 'l',
-            target: m.replaces,
-            targetHandle: 'r',
-            type: 'straight',
-            animated: true,
-            style: { stroke: 'var(--social-danger)', strokeWidth: 1.5, opacity: off ? 0.12 : 1 }
+    const edges = useMemo(() => {
+        const list: Array<RouteFlowEdge | Edge> = layout.edges.map((route): RouteFlowEdge => {
+            const parent = props.memories.find((m) => m.id === route.parent)
+            const on = Boolean(lit?.has(route.child) && lit.has(route.parent))
+            const off = Boolean(lit && !on)
+            const color = on ? 'var(--social-fg)' : 'var(--social-fg-subtle)'
+            return {
+                id: `${route.child}->${route.parent}`,
+                type: 'route',
+                source: route.child,
+                sourceHandle: 't',
+                target: route.parent,
+                targetHandle: 'b',
+                data: { bends: route.points },
+                style: { stroke: color, strokeWidth: on ? 2 : 1.25, opacity: off ? 0.12 : 1, strokeDasharray: parent?.status === 'pending' ? '5 4' : undefined },
+                markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color }
+            }
         })
-    }
+        for (const m of props.memories) {
+            if (!m.replaces || !props.memories.some((other) => other.id === m.replaces)) continue
+            const off = Boolean(lit && !(lit.has(m.id) && lit.has(m.replaces)))
+            list.push({
+                id: `${m.id}-x-${m.replaces}`,
+                source: m.id,
+                sourceHandle: 'l',
+                target: m.replaces,
+                targetHandle: 'r',
+                type: 'straight',
+                animated: true,
+                style: { stroke: 'var(--social-danger)', strokeWidth: 1.5, opacity: off ? 0.12 : 1 }
+            })
+        }
+        return list
+    }, [layout, lit, props.memories])
 
     const focusOn = (id: string) => {
         const placed = layout.nodes.find((n) => n.memory.id === id)
