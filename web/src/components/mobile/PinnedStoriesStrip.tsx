@@ -170,7 +170,11 @@ export function PinnedStoriesStrip(props: {
                         <PinnedStory
                             key={session.id}
                             session={session}
-                            onSelect={props.onSelect}
+                            // Same rule as the list rows: iOS sends a click when the finger lifts after a
+                            // long press, and it must not open the session under the menu it just showed.
+                            onSelect={(sessionId) => {
+                                if (!menu) props.onSelect(sessionId)
+                            }}
                             onMenu={(target, point) => setMenu({ session: target, point })}
                         />
                     ))}
