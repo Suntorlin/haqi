@@ -15,6 +15,9 @@ jobs:
       !contains(github.event.issue.labels.*.name, 'spam') &&
       !contains(github.event.issue.labels.*.name, 'bot-skip')
     runs-on: ubuntu-latest
+    env:
+      # secrets can't be read in a step's if:, so expose only whether the key is set
+      HAS_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     permissions:
       contents: read
       issues: write
@@ -65,11 +68,11 @@ jobs:
           fetch-depth: 0
 
       - name: Skip when OPENAI_API_KEY is missing
-        if: steps.check_bot.outputs.has_bot != 'true' && secrets.OPENAI_API_KEY == ''
+        if: steps.check_bot.outputs.has_bot != 'true' && env.HAS_OPENAI_KEY != 'true'
         run: echo "::warning::OPENAI_API_KEY is not configured; skipping issue auto response."
 
       - name: Run Codex for Issue Auto Response
-        if: steps.check_bot.outputs.has_bot != 'true' && secrets.OPENAI_API_KEY != ''
+        if: steps.check_bot.outputs.has_bot != 'true' && env.HAS_OPENAI_KEY == 'true'
         uses: openai/codex-action@v1
         env:
           GH_TOKEN: ${{ github.token }}

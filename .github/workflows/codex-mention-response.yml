@@ -16,6 +16,9 @@ jobs:
       contains(github.event.comment.body, '@tiann') &&
       !endsWith(github.event.comment.user.login, '[bot]')
     runs-on: ubuntu-latest
+    env:
+      # secrets can't be read in a step's if:, so expose only whether the key is set
+      HAS_OPENAI_KEY: ${{ secrets.OPENAI_API_KEY != '' }}
     permissions:
       contents: write
       pull-requests: write
@@ -115,11 +118,11 @@ jobs:
         run: git fetch --all
 
       - name: Skip when OPENAI_API_KEY is missing
-        if: steps.check_skip.outputs.should_skip != 'true' && secrets.OPENAI_API_KEY == ''
+        if: steps.check_skip.outputs.should_skip != 'true' && env.HAS_OPENAI_KEY != 'true'
         run: echo "::warning::OPENAI_API_KEY is not configured; skipping mention response."
 
       - name: Run Codex for Mention Response
-        if: steps.check_skip.outputs.should_skip != 'true' && secrets.OPENAI_API_KEY != ''
+        if: steps.check_skip.outputs.should_skip != 'true' && env.HAS_OPENAI_KEY == 'true'
         uses: openai/codex-action@v1
         env:
           GH_TOKEN: ${{ github.token }}
