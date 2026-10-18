@@ -3,35 +3,52 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { SessionResponse, SessionsResponse } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
-import { getUserTags, withPinTag } from '@/lib/session-pins'
+import { withPinTag, withSnoozeTag } from '@/lib/session-pins'
 
-type PinnableSession = { id: string; metadata?: { tags?: string[] } | null }
+type TaggableSession = { id: string; metadata?: { tags?: string[] } | null }
 
-/** Pin / unpin a session; the pinned row updates right away, the server confirms after. */
-export function useSessionPin(api: ApiClient | null): (session: PinnableSession, pinned: boolean) => Promise<void> {
+/** Save a full tag list; the row updates right away, the server confirms after. */
+function useOptimisticSessionTags(api: ApiClient | null): (sessionId: string, tags: string[]) => Promise<void> {
     const queryClient = useQueryClient()
 
-    return useCallback(async (session, pinned) => {
+    return useCallback(async (sessionId, tags) => {
         if (!api) return
-        const tags = withPinTag(getUserTags(session), pinned)
         queryClient.setQueryData<SessionsResponse>(queryKeys.sessions, (previous) => previous ? {
             ...previous,
             sessions: previous.sessions.map((item) => (
-                item.id === session.id && item.metadata
+                item.id === sessionId && item.metadata
                     ? { ...item, metadata: { ...item.metadata, tags } }
                     : item
             ))
         } : previous)
-        queryClient.setQueryData<SessionResponse>(queryKeys.session(session.id), (previous) => (
+        queryClient.setQueryData<SessionResponse>(queryKeys.session(sessionId), (previous) => (
             previous?.session.metadata
                 ? { ...previous, session: { ...previous.session, metadata: { ...previous.session.metadata, tags } } }
                 : previous
         ))
         try {
-            await api.updateSessionTags(session.id, tags)
+            await api.updateSessionTags(sessionId, tags)
         } finally {
             void queryClient.invalidateQueries({ queryKey: queryKeys.sessions })
-            void queryClient.invalidateQueries({ queryKey: queryKeys.session(session.id) })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.session(sessionId) })
         }
     }, [api, queryClient])
+}
+
+/** Pin / unpin a session. */
+export function useSessionPin(api: ApiClient | null): (session: TaggableSession, pinned: boolean) => Promise<void> {
+    const saveTags = useOptimisticSessionTags(api)
+    return useCallback(
+        (session, pinned) => saveTags(session.id, withPinTag(session, pinned)),
+        [saveTags]
+    )
+}
+
+/** Snooze a session until `until` (epoch ms), or wake it now with null. */
+export function useSessionSnooze(api: ApiClient | null): (session: TaggableSession, until: number | null) => Promise<void> {
+    const saveTags = useOptimisticSessionTags(api)
+    return useCallback(
+        (session, until) => saveTags(session.id, withSnoozeTag(session, until)),
+        [saveTags]
+    )
 }

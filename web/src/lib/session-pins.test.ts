@@ -1,21 +1,71 @@
 import { describe, expect, it } from 'vitest'
-import { PINNED_TAG, getUserTags, isSessionPinned, withPinTag } from './session-pins'
+import {
+    PINNED_TAG,
+    getNextSnoozeWake,
+    getSnoozeUntil,
+    getUserTags,
+    isSessionPinned,
+    isSessionSnoozed,
+    withPinTag,
+    withSnoozeTag,
+    withUserTags
+} from './session-pins'
+
+const tagged = (...tags: string[]) => ({ metadata: { tags } })
 
 describe('session pins', () => {
-    it('hides the system tag from user tags', () => {
-        const session = { metadata: { tags: ['agent', PINNED_TAG, 'prod'] } }
+    it('hides the system tags from user tags', () => {
+        const session = tagged('agent', PINNED_TAG, 'snooze:1000', 'prod')
         expect(isSessionPinned(session)).toBe(true)
         expect(getUserTags(session)).toEqual(['agent', 'prod'])
     })
 
-    it('keeps the pin when user tags are edited, and drops it on unpin', () => {
-        expect(withPinTag(['agent'], true)).toEqual(['agent', PINNED_TAG])
-        expect(withPinTag(['agent', PINNED_TAG], true)).toEqual(['agent', PINNED_TAG])
-        expect(withPinTag(['agent', PINNED_TAG], false)).toEqual(['agent'])
+    it('keeps the pin and the snooze when user tags are edited', () => {
+        expect(withUserTags(tagged('agent', PINNED_TAG, 'snooze:1000'), ['ops'])).toEqual(['ops', PINNED_TAG, 'snooze:1000'])
+        expect(withUserTags(tagged('agent'), [])).toEqual([])
     })
 
-    it('treats sessions without metadata as unpinned', () => {
+    it('sets and clears the pin without touching other tags', () => {
+        expect(withPinTag(tagged('agent'), true)).toEqual(['agent', PINNED_TAG])
+        expect(withPinTag(tagged('agent', PINNED_TAG), true)).toEqual(['agent', PINNED_TAG])
+        expect(withPinTag(tagged('agent', PINNED_TAG, 'snooze:1000'), false)).toEqual(['agent', 'snooze:1000'])
+    })
+
+    it('treats sessions without metadata as unpinned and awake', () => {
         expect(isSessionPinned({ metadata: null })).toBe(false)
+        expect(isSessionSnoozed({ metadata: null })).toBe(false)
         expect(getUserTags({ metadata: null })).toEqual([])
+    })
+})
+
+describe('session snooze', () => {
+    it('is snoozed until the wake time passes', () => {
+        const session = tagged('agent', 'snooze:2000')
+        expect(getSnoozeUntil(session)).toBe(2000)
+        expect(isSessionSnoozed(session, 1999)).toBe(true)
+        expect(isSessionSnoozed(session, 2000)).toBe(false)
+    })
+
+    it('wakes early while a request waits for approval', () => {
+        const session = { ...tagged('snooze:2000'), active: true, pendingRequestsCount: 1 }
+        expect(isSessionSnoozed(session, 1000)).toBe(false)
+        expect(isSessionSnoozed({ ...session, active: false }, 1000)).toBe(true)
+    })
+
+    it('replaces the snooze tag on re-snooze and drops it on wake', () => {
+        expect(withSnoozeTag(tagged('agent', 'snooze:1000'), 3000)).toEqual(['agent', 'snooze:3000'])
+        expect(withSnoozeTag(tagged('agent', 'snooze:1000'), null)).toEqual(['agent'])
+    })
+
+    it('ignores a malformed snooze tag', () => {
+        expect(getSnoozeUntil(tagged('snooze:abc'))).toBeNull()
+        expect(isSessionSnoozed(tagged('snooze:abc'), 0)).toBe(false)
+    })
+
+    it('wakes at 6:00 the next morning, or the same morning after midnight', () => {
+        const evening = new Date(2026, 9, 18, 21, 30)
+        expect(new Date(getNextSnoozeWake(evening))).toEqual(new Date(2026, 9, 19, 6, 0))
+        const night = new Date(2026, 9, 19, 1, 15)
+        expect(new Date(getNextSnoozeWake(night))).toEqual(new Date(2026, 9, 19, 6, 0))
     })
 })

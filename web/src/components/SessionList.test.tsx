@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { I18nProvider } from '@/lib/i18n-context'
 import type { SessionSummary } from '@/types/api'
-import { SessionList } from './SessionList'
+import { SessionFeed, SessionList } from './SessionList'
 
 function renderWithProviders(ui: React.ReactElement) {
     const queryClient = new QueryClient({
@@ -375,5 +375,35 @@ describe('SessionList project quick-create action', () => {
         )
 
         expect(screen.getByRole('button', { name: /offline projects/i })).toBeInTheDocument()
+    })
+})
+
+describe('SessionFeed snoozed section', () => {
+    afterEach(() => {
+        cleanup()
+    })
+
+    it('folds snoozed sessions between the running and the offline ones', () => {
+        const until = Date.now() + 60_000
+        renderWithProviders(
+            <SessionFeed
+                sessions={[
+                    createSession({ id: 'live', active: true, metadata: { path: '/w/a', name: 'Live Session', machineId: 'm' } }),
+                    createSession({ id: 'old', metadata: { path: '/w/a', name: 'Old Session', machineId: 'm' } })
+                ]}
+                snoozedSessions={[
+                    createSession({ id: 'later', active: true, metadata: { path: '/w/a', name: 'Later Session', machineId: 'm', tags: [`snooze:${until}`] } })
+                ]}
+                onSelect={vi.fn()}
+                api={null}
+            />
+        )
+
+        const sections = screen.getAllByRole('button', { expanded: false }).map((button) => button.textContent)
+        expect(sections).toEqual(['Snoozed(1)', 'offline(1)'])
+        expect(screen.queryByText('Later Session')).not.toBeInTheDocument()
+
+        fireEvent.click(screen.getByRole('button', { name: /snoozed/i }))
+        expect(screen.getByText('Later Session')).toBeInTheDocument()
     })
 })
