@@ -17,6 +17,7 @@ import {
     ArchiveBoxIcon,
     DuplicateIcon,
     NewSessionIcon,
+    MoonIcon,
     PinIcon,
     TagIcon,
     ChevronLeftIcon,
@@ -33,8 +34,8 @@ import { cn } from '@/lib/utils'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
-import { useSessionPin } from '@/hooks/mutations/useSessionPin'
-import { getUserTags, isSessionPinned, withPinTag } from '@/lib/session-pins'
+import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
+import { getNextSnoozeWake, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -143,6 +144,8 @@ export function SessionHeader(props: {
     const { skipArchiveConfirmation } = useArchiveConfirmation()
     const pinSession = useSessionPin(api)
     const pinned = isSessionPinned(session)
+    const snoozeSession = useSessionSnooze(api)
+    const snoozed = isSessionSnoozed(session)
     const [tagsOpen, setTagsOpen] = useState(false)
     const { sessions: allSessions } = useSessions(api)
     const availableTags = useMemo(
@@ -215,7 +218,7 @@ export function SessionHeader(props: {
                 onClose={() => setTagsOpen(false)}
                 tags={getUserTags(session)}
                 availableTags={availableTags}
-                onSave={(tags) => setTags(withPinTag(tags, pinned))}
+                onSave={(tags) => setTags(withUserTags(session, tags))}
                 isPending={isPending}
             />
 
@@ -400,6 +403,16 @@ export function SessionHeader(props: {
                     onCheckedChange={(next) => {
                         void pinSession(session, next).catch((error) => {
                             console.error('Failed to update session pin', error)
+                        })
+                    }}
+                />
+                <SheetSwitchRow
+                    icon={<MoonIcon />}
+                    label={t('session.action.snooze')}
+                    checked={snoozed}
+                    onCheckedChange={(next) => {
+                        void snoozeSession(session, next ? getNextSnoozeWake() : null).catch((error) => {
+                            console.error('Failed to update session snooze', error)
                         })
                     }}
                 />

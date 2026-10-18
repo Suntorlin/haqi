@@ -8,10 +8,12 @@ import {
     ArchiveBoxIcon,
     ChevronRightIcon,
     DuplicateIcon,
+    MoonIcon,
     NewSessionIcon,
     PencilIcon,
     PinIcon,
     PinOffIcon,
+    SunIcon,
     TagIcon,
     TrashIcon
 } from '@/components/mobile/icons'
@@ -23,6 +25,9 @@ type SessionActionMenuProps = {
     /** Set to offer "pin to top" / "unpin" as the first action. */
     pinned?: boolean
     onTogglePin?: () => void
+    /** Set to offer "snooze until tomorrow" / "wake up" right after the pin action. */
+    snoozed?: boolean
+    onToggleSnooze?: () => void
     onRename: () => void
     onTags?: () => void
     tags?: string[]
@@ -183,6 +188,13 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     icon={props.pinned ? <PinOffIcon /> : <PinIcon />}
                     label={props.pinned ? t('session.action.unpin') : t('session.action.pin')}
                     onSelect={run(props.onTogglePin)}
+                />
+            ) : null}
+            {props.onToggleSnooze ? (
+                <ContextMenuItem
+                    icon={props.snoozed ? <SunIcon /> : <MoonIcon />}
+                    label={props.snoozed ? t('session.action.unsnooze') : t('session.action.snooze')}
+                    onSelect={run(props.onToggleSnooze)}
                 />
             ) : null}
             <ContextMenuItem icon={<PencilIcon />} label={t('session.action.rename')} onSelect={run(props.onRename)} />

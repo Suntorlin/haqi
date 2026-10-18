@@ -50,8 +50,8 @@ import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
-import { getUserTags, isSessionPinned, withPinTag } from '@/lib/session-pins'
-import { useSessionPin } from '@/hooks/mutations/useSessionPin'
+import { getNextSnoozeWake, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
+import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
 
 type SessionGroup = {
     directory: string
@@ -79,9 +79,15 @@ type SessionListRow =
         isCollapsed: boolean
     }
     | {
+        type: 'snoozed-section'
+        count: number
+        isCollapsed: boolean
+    }
+    | {
         type: 'session'
         session: SessionSummary
         forceOffline: boolean
+        snoozed?: boolean
     }
 
 export type NewSessionPreset = {
@@ -446,6 +452,7 @@ function SessionItem(props: {
     const { skipArchiveConfirmation } = useArchiveConfirmation()
     const { sessionQuickArchiveEnabled } = useSessionQuickArchive()
     const pinSession = useSessionPin(api)
+    const snoozeSession = useSessionSnooze(api)
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -463,9 +470,10 @@ function SessionItem(props: {
 
     const sessionName = getSessionTitle(s)
     const pinned = isSessionPinned(s)
+    const snoozed = isSessionSnoozed(s)
     const userTags = getUserTags(s)
-    // Editing tags must not drop the pin (it is stored as a system tag).
-    const saveUserTags = (tags: string[]) => setTags(withPinTag(tags, pinned))
+    // Editing tags must not drop the pin or the snooze (both are stored as system tags).
+    const saveUserTags = (tags: string[]) => setTags(withUserTags(s, tags))
     const effectiveActive = forceOffline ? false : s.active
     const effectiveThinking = forceOffline ? false : s.thinking
     const statusDotClass = effectiveActive
@@ -669,6 +677,12 @@ function SessionItem(props: {
             onTogglePin={() => {
                 void pinSession(s, !pinned).catch((error) => {
                     console.error('Failed to update session pin', error)
+                })
+            }}
+            snoozed={snoozed}
+            onToggleSnooze={() => {
+                void snoozeSession(s, snoozed ? null : getNextSnoozeWake()).catch((error) => {
+                    console.error('Failed to update session snooze', error)
                 })
             }}
             onRename={() => setRenameOpen(true)}
@@ -941,6 +955,8 @@ function OfflineSectionRow(props: {
 
 export function SessionList(props: {
     sessions: SessionSummary[]
+    /** Snoozed sessions, kept out of the groups and folded into one section above the offline projects. */
+    snoozedSessions?: SessionSummary[]
     availableTags?: string[]
     onSelect: (sessionId: string) => void
     onNewSession: (preset?: NewSessionPreset) => void
@@ -979,6 +995,8 @@ export function SessionList(props: {
         () => new Map()
     )
     const [isOfflineProjectsCollapsed, setIsOfflineProjectsCollapsed] = useState(true)
+    const snoozedSessions = useSnoozedSessions(props.snoozedSessions)
+    const [isSnoozedCollapsed, setIsSnoozedCollapsed] = useSnoozedCollapsed(snoozedSessions, selectedSessionId)
     const [sessionItemOrder, setSessionItemOrder] = useState<string[]>(() => loadSessionItemOrder())
     const groups = useMemo(
         () => applySessionGroupOrder(baseGroups, groupOrder).map((group) => ({
@@ -1098,18 +1116,35 @@ export function SessionList(props: {
     }
 
     const rows = useMemo(
-        () => flattenSessionRows(
-            groups,
-            isGroupCollapsed,
-            isOfflineCollapsed,
-            isProjectForcedOfflineGroup,
-            isOfflineProjectsCollapsed
-        ),
-        [groups, collapseOverrides, offlineCollapseOverrides, projectOfflineDirectories, isOfflineProjectsCollapsed]
+        () => {
+            const groupRows = flattenSessionRows(
+                groups,
+                isGroupCollapsed,
+                isOfflineCollapsed,
+                isProjectForcedOfflineGroup,
+                isOfflineProjectsCollapsed
+            )
+            if (snoozedSessions.length === 0) return groupRows
+            const snoozedRows: SessionListRow[] = [
+                { type: 'snoozed-section', count: snoozedSessions.length, isCollapsed: isSnoozedCollapsed },
+                ...(isSnoozedCollapsed ? [] : snoozedSessions.map((session): SessionListRow => ({
+                    type: 'session',
+                    session,
+                    forceOffline: false,
+                    snoozed: true
+                })))
+            ]
+            // Snoozed work comes back tomorrow, so it sits above the offline projects.
+            const offlineIndex = groupRows.findIndex((row) => row.type === 'projects-offline-section')
+            return offlineIndex === -1
+                ? [...groupRows, ...snoozedRows]
+                : [...groupRows.slice(0, offlineIndex), ...snoozedRows, ...groupRows.slice(offlineIndex)]
+        },
+        [groups, collapseOverrides, offlineCollapseOverrides, projectOfflineDirectories, isOfflineProjectsCollapsed, snoozedSessions, isSnoozedCollapsed]
     )
 
     const sortableSessionIds = useMemo(
-        () => rows.flatMap((row) => row.type === 'session' ? [row.session.id] : []),
+        () => rows.flatMap((row) => row.type === 'session' && !row.snoozed ? [row.session.id] : []),
         [rows]
     )
 
@@ -1162,6 +1197,8 @@ export function SessionList(props: {
                                         ? 'projects-offline'
                                     : row.type === 'offline-section'
                                         ? `offline:${row.group.directory}`
+                                    : row.type === 'snoozed-section'
+                                        ? 'snoozed'
                                     : `session:${row.session.id}`
                             )}
                             itemContent={(_, row) => {
@@ -1220,6 +1257,20 @@ export function SessionList(props: {
                                     )
                                 }
 
+                                if (row.type === 'snoozed-section') {
+                                    return (
+                                        <OfflineSectionRow
+                                            directory="__snoozed__"
+                                            count={row.count}
+                                            isCollapsed={row.isCollapsed}
+                                            density={density}
+                                            minimal={props.itemVariant === 'feed'}
+                                            label={t('sessions.snoozed.section')}
+                                            onToggleGroup={(_directory, isCollapsed) => setIsSnoozedCollapsed(!isCollapsed)}
+                                        />
+                                    )
+                                }
+
                                 return (
                                     <div className={props.itemVariant === 'feed' ? '' : 'border-b border-[var(--social-divider)]'}>
                                         <SessionItem
@@ -1232,6 +1283,7 @@ export function SessionList(props: {
                                             density={density}
                                             forceOffline={row.forceOffline}
                                             variant={props.itemVariant}
+                                            sortable={!row.snoozed}
                                         />
                                     </div>
                                 )
@@ -1245,7 +1297,28 @@ export function SessionList(props: {
     )
 }
 
-type FeedRow = { type: 'session'; session: SessionSummary } | { type: 'offline-section' }
+type FeedRow = { type: 'session'; session: SessionSummary } | { type: 'offline-section' } | { type: 'snoozed-section' }
+
+function sortByRecency(sessions: SessionSummary[]): SessionSummary[] {
+    return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id))
+}
+
+function useSnoozedSessions(sessions: SessionSummary[] | undefined): SessionSummary[] {
+    return useMemo(() => sortByRecency(sessions ?? []), [sessions])
+}
+
+/** The snoozed section starts folded; a selected snoozed session keeps it open so the row stays visible. */
+function useSnoozedCollapsed(
+    snoozedSessions: SessionSummary[],
+    selectedSessionId: string | null | undefined
+): [boolean, (collapsed: boolean) => void] {
+    const [collapsed, setCollapsed] = useState(true)
+    const selectedIsSnoozed = snoozedSessions.some((session) => session.id === selectedSessionId)
+    useEffect(() => {
+        if (selectedIsSnoozed) setCollapsed(false)
+    }, [selectedIsSnoozed])
+    return [collapsed, setCollapsed]
+}
 
 /**
  * Mobile chat-app style list: one flat, recency-sorted feed (like WeChat "Chats").
@@ -1253,6 +1326,8 @@ type FeedRow = { type: 'session'; session: SessionSummary } | { type: 'offline-s
  */
 export function SessionFeed(props: {
     sessions: SessionSummary[]
+    /** Snoozed sessions, folded into one section between the running and the offline ones. */
+    snoozedSessions?: SessionSummary[]
     availableTags?: string[]
     selectedSessionId?: string | null
     onSelect: (sessionId: string) => void
@@ -1263,6 +1338,8 @@ export function SessionFeed(props: {
     const { t } = useTranslation()
     const { api, availableTags = [] } = props
     const [offlineCollapsed, setOfflineCollapsed] = useState(true)
+    const snoozedSessions = useSnoozedSessions(props.snoozedSessions)
+    const [snoozedCollapsed, setSnoozedCollapsed] = useSnoozedCollapsed(snoozedSessions, props.selectedSessionId)
     const byRecency = (a: SessionSummary, b: SessionSummary) => {
         if (a.updatedAt !== b.updatedAt) return b.updatedAt - a.updatedAt
         return a.id.localeCompare(b.id)
@@ -1282,11 +1359,14 @@ export function SessionFeed(props: {
     useEffect(() => {
         if (selectedIsOffline) setOfflineCollapsed(false)
     }, [selectedIsOffline])
+    // Snoozed work comes back tomorrow, so it sits between the running and the offline sessions.
     const rows = useMemo<FeedRow[]>(() => [
         ...activeSessions.map((session): FeedRow => ({ type: 'session', session })),
+        ...(snoozedSessions.length > 0 ? [{ type: 'snoozed-section' } as const] : []),
+        ...(snoozedCollapsed ? [] : snoozedSessions.map((session): FeedRow => ({ type: 'session', session }))),
         ...(offlineSessions.length > 0 ? [{ type: 'offline-section' } as const] : []),
         ...(offlineCollapsed ? [] : offlineSessions.map((session): FeedRow => ({ type: 'session', session })))
-    ], [activeSessions, offlineSessions, offlineCollapsed])
+    ], [activeSessions, offlineSessions, offlineCollapsed, snoozedSessions, snoozedCollapsed])
     const listHeaderContext = useMemo<ListHeaderContext>(() => ({ header: props.listHeader }), [props.listHeader])
 
     return (
@@ -1307,8 +1387,18 @@ export function SessionFeed(props: {
                         </div>
                     )
                 }}
-                computeItemKey={(_, row) => row.type === 'session' ? row.session.id : '__offline__'}
-                itemContent={(_, row) => row.type === 'offline-section' ? (
+                computeItemKey={(_, row) => row.type === 'session' ? row.session.id : row.type === 'snoozed-section' ? '__snoozed__' : '__offline__'}
+                itemContent={(_, row) => row.type === 'snoozed-section' ? (
+                    <OfflineSectionRow
+                        directory="__feed_snoozed__"
+                        count={snoozedSessions.length}
+                        isCollapsed={snoozedCollapsed}
+                        density="comfortable"
+                        minimal
+                        label={t('sessions.snoozed.section')}
+                        onToggleGroup={(_directory, isCollapsed) => setSnoozedCollapsed(!isCollapsed)}
+                    />
+                ) : row.type === 'offline-section' ? (
                     <OfflineSectionRow
                         directory="__feed_offline__"
                         count={offlineSessions.length}

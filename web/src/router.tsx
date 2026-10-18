@@ -75,7 +75,8 @@ import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary } from '@/types/api'
 import { filterSessionsBySearch } from '@/lib/session-search'
-import { getUserTags, isSessionPinned } from '@/lib/session-pins'
+import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
+import { useMinuteClock } from '@/hooks/useMinuteClock'
 import { useSessionPin } from '@/hooks/mutations/useSessionPin'
 import { useArchiveSession } from '@/hooks/mutations/useArchiveSession'
 import FilesPage from '@/routes/sessions/files'
@@ -290,14 +291,24 @@ function SessionsPage() {
         }
     }, [selectedSessionTag, sessionTags])
 
+    // Snoozed sessions fold into their own section until the wake time; search still finds them.
     // Pinned sessions live in the row at the top; the list below only repeats them in search results.
-    const pinnedSessions = useMemo(() => sessions.filter(isSessionPinned), [sessions])
-    const visibleSessions = useMemo(() => {
+    const now = useMinuteClock()
+    const pinnedSessions = useMemo(
+        () => sessions.filter((session) => isSessionPinned(session) && !isSessionSnoozed(session, now)),
+        [sessions, now]
+    )
+    const { visibleSessions, snoozedSessions } = useMemo(() => {
         const searched = filterSessionsBySearch(sessions, sessionSearchQuery)
-        const listed = sessionSearchQuery ? searched : searched.filter((session) => !isSessionPinned(session))
-        if (!selectedSessionTag) return listed
-        return listed.filter((session) => session.metadata?.tags?.includes(selectedSessionTag))
-    }, [sessions, sessionSearchQuery, selectedSessionTag])
+        const tagged = selectedSessionTag
+            ? searched.filter((session) => session.metadata?.tags?.includes(selectedSessionTag))
+            : searched
+        if (sessionSearchQuery) return { visibleSessions: tagged, snoozedSessions: [] }
+        return {
+            visibleSessions: tagged.filter((session) => !isSessionPinned(session) && !isSessionSnoozed(session, now)),
+            snoozedSessions: tagged.filter((session) => isSessionSnoozed(session, now))
+        }
+    }, [sessions, sessionSearchQuery, selectedSessionTag, now])
     const pinSession = useSessionPin(api)
     const unpinSession = useCallback((session: SessionSummary) => {
         void pinSession(session, false).catch((pinError) => {
@@ -530,6 +541,7 @@ function SessionsPage() {
     const listBody = mobileListMode === 'recent' ? (
         <SessionFeed
             sessions={visibleSessions}
+            snoozedSessions={snoozedSessions}
             availableTags={orderedSessionTags}
             selectedSessionId={selectedSessionId}
             onSelect={selectSession}
@@ -540,6 +552,7 @@ function SessionsPage() {
     ) : (
         <SessionList
             sessions={visibleSessions}
+            snoozedSessions={snoozedSessions}
             availableTags={orderedSessionTags}
             selectedSessionId={selectedSessionId}
             onSelect={selectSession}
