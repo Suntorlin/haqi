@@ -502,7 +502,7 @@ export type MemoriesResponse = {
     links: MemoryLink[]
     recent: MemoryEvent[]
     stats: { addedToday: number; skippedToday: number; skippedReasons: Record<string, number>; judged: number; corrected: number; costTodayUsd: number }
-    settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: string[] }
+    settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: Array<{ name: string; path: string | null; sessions: number }> }
 }
 
 export type ExperimentalSettings = {

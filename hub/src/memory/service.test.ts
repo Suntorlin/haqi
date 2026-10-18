@@ -88,6 +88,26 @@ describe('MemoryService.propose', () => {
         ;(store as unknown as { db: Database }).db.close()
     })
 
+    it('lists every project the user has sessions in, busiest first', async () => {
+        const store = new Store(':memory:')
+        const busy = mkdtempSync(join(tmpdir(), 'proj-busy-'))
+        const quiet = mkdtempSync(join(tmpdir(), 'proj-quiet-'))
+        store.sessions.getOrCreateSession('a', { path: busy }, null, 'default')
+        store.sessions.getOrCreateSession('b', { path: busy }, null, 'default')
+        store.sessions.getOrCreateSession('c', { path: quiet }, null, 'default')
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: fakeJev([]) })
+        const known = (await service.snapshot('default')).settings.knownProjects
+        const names = known.map((p) => p.name)
+        const busyName = busy.split('/').pop()!
+        const quietName = quiet.split('/').pop()!
+        expect(names.indexOf(busyName)).toBeLessThan(names.indexOf(quietName))
+        expect(known.find((p) => p.name === busyName)).toMatchObject({ sessions: 2, path: busy })
+        expect(names).toContain('haqi')
+        rmSync(busy, { recursive: true, force: true })
+        rmSync(quiet, { recursive: true, force: true })
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
     it('turns capture off and limits projects from settings', async () => {
         const store = new Store(':memory:')
         const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: fakeJev([]) })

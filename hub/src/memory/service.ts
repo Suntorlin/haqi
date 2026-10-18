@@ -3,7 +3,7 @@ import { basename } from 'node:path'
 
 import { readSettings, writeSettings, type Settings } from '../config/settings'
 import type { Store, StoredMemory, StoredMemoryEvent, StoredMemoryLink } from '../store'
-import { listClaudeMemoryFiles, listMemoryMdBullets } from './harvest'
+import { listClaudeMemoryFiles, listMemoryMdBullets, projectNameFor } from './harvest'
 import { askJev, JevError, resolveJevApiKey } from './jev'
 import { buildQuestions, decide, parseVerdict, type JevVerdict, type MemoryLevel } from './judge'
 import { mostSimilar } from './similarity'
@@ -30,6 +30,8 @@ export type ProposeResult = {
     memoryId: string | null
     message: string
 }
+
+export type KnownProject = { name: string; path: string | null; sessions: number }
 
 export type StoredJev = JevVerdict & { project: string | null; costUsd: number; latencyMs: number; model: string }
 
@@ -252,7 +254,7 @@ export class MemoryService {
         links: StoredMemoryLink[]
         recent: StoredMemoryEvent[]
         stats: { addedToday: number; skippedToday: number; skippedReasons: Record<string, number>; judged: number; corrected: number; costTodayUsd: number }
-        settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: string[] }
+        settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: KnownProject[] }
     }> {
         const memories = this.store.memories.list(namespace)
         const today = this.store.memories.eventsSince(namespace, startOfToday())
@@ -262,7 +264,7 @@ export class MemoryService {
             if (event.action === 'skipped' || event.action === 'rejected') skippedReasons[event.reason ?? '其他'] = (skippedReasons[event.reason ?? '其他'] ?? 0) + 1
         }
         const settings = await this.getSettings()
-        const knownProjects = Array.from(new Set([...settings.projects, ...memories.map((m) => m.scope).filter(Boolean)])).sort()
+        const knownProjects = this.knownProjects(namespace, [...settings.projects, ...memories.map((m) => m.scope).filter(Boolean)])
         return {
             memories,
             links: this.store.memories.links(namespace),
@@ -277,6 +279,22 @@ export class MemoryService {
             },
             settings: { mode: settings.mode, projects: settings.projects, jevReady: Boolean(resolveJevApiKey(settings.jevApiKey)), knownProjects }
         }
+    }
+
+    /** Every project the user has sessions in (busiest first), plus enabled or already-used ones. */
+    private knownProjects(namespace: string, extra: string[]): KnownProject[] {
+        const stats = new Map<string, { path: string | null; sessions: number }>()
+        for (const session of this.store.sessions.getSessionsByNamespace(namespace)) {
+            const path = (session.metadata as { path?: unknown } | null)?.path
+            if (typeof path !== 'string' || path.startsWith('/tmp/') || path.startsWith('/private/')) continue
+            const name = projectNameFor(path)
+            if (!name) continue
+            const entry = stats.get(name) ?? { path, sessions: 0 }
+            entry.sessions += 1
+            stats.set(name, entry)
+        }
+        for (const name of extra) if (!stats.has(name)) stats.set(name, { path: null, sessions: 0 })
+        return [...stats].map(([name, s]) => ({ name, ...s })).sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name))
     }
 
     /** Claude Code's own memory files of the enabled projects, judged one by one; unchanged text is skipped. */
