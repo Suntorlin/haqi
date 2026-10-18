@@ -24,6 +24,7 @@ Concrete rules:
 6. **Prefer less.** If a label, hint or divider adds no information, delete it (see the simplified question overlay).
 7. **Dark mode is not optional.** Every screen is checked in light and dark.
 8. **Behaviour-preserving refactors.** Restyling never changes logic, i18n keys or APIs.
+9. **No visible scrollbars.** Every pane still scrolls (wheel, trackpad, touch, keyboard), but no scrollbar is ever drawn. A global rule in `web/src/index.css` hides them (`scrollbar-width: none` plus `::-webkit-scrollbar { display: none }`; Chrome 121+ needs both). Never re-enable one for a single pane; if position matters, show it in the content (e.g. a jump-to-latest button).
 
 ## 2. Tokens
 
@@ -54,7 +55,7 @@ Status tints (soft fill + text), used by `Badge` and notices: `--app-badge-{info
 ### 2.2 Aliases and domain tokens
 
 - The old `--app-*` aliases (`bg fg hint link border divider subtle-bg secondary-bg button banner-*`) are **removed**. Use `--social-*` only. If JS reads a token (e.g. the terminal theme) read the `--social-*` name.
-- Domain tokens, not part of the generic scale: `--app-code-bg`, `--app-inline-code-bg`, `--app-diff-*` (diff view), `--app-git-*` (git status colours), `--app-scrollbar-*`, `--cli-*` (terminal-style CLI messages), `--app-font-scale` (user font size, 0.8-1.2).
+- Domain tokens, not part of the generic scale: `--app-code-bg`, `--app-inline-code-bg`, `--app-diff-*` (diff view), `--app-git-*` (git status colours), `--cli-*` (terminal-style CLI messages), `--app-font-scale` (user font size, 0.8-1.2). `--app-scrollbar-*` and the `app-scrollbar` class are leftovers: scrollbars are hidden everywhere (rule 9), so they draw nothing.
 
 ### 2.2b Shadows, scrims, avatars, file types
 
@@ -140,6 +141,7 @@ Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new
 ## 5. Checklist for a UI change
 
 1. Uses primitives and tokens only (grep your diff for `#`, `-gray-`, `-red-`, `rounded-lg`, `font-medium`).
+1b. No scrollbar re-enabled (grep your diff for `scrollbar-width`, `scrollbar-gutter`, `::-webkit-scrollbar`).
 2. Phone (390px) and desktop (1200px), light and dark, screenshotted and looked at.
 3. Touch targets >= 44px on phone; inputs 16px.
 4. New primitive? Added to the showcase and to section 3 here.
