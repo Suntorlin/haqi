@@ -4,8 +4,11 @@
  * Tag UIs show getUserTags() instead of the raw list.
  */
 export const PINNED_TAG = 'pinned'
-/** `snooze:<epoch ms>`: the session is out of the way until that moment. */
+/** `snooze:<epoch ms>`: the session is out of the way until that moment; `snooze:forever` until woken by hand. */
 export const SNOOZE_TAG_PREFIX = 'snooze:'
+/** Wake time of a snooze with no end. */
+export const SNOOZE_FOREVER = Number.POSITIVE_INFINITY
+const SNOOZE_FOREVER_VALUE = 'forever'
 /** A snoozed session comes back at this local hour the next day. */
 export const SNOOZE_WAKE_HOUR = 6
 
@@ -42,7 +45,9 @@ export function withPinTag(session: TaggedSession, pinned: boolean): string[] {
 export function getSnoozeUntil(session: TaggedSession): number | null {
     const tag = session.metadata?.tags?.find((item) => item.startsWith(SNOOZE_TAG_PREFIX))
     if (!tag) return null
-    const until = Number(tag.slice(SNOOZE_TAG_PREFIX.length))
+    const value = tag.slice(SNOOZE_TAG_PREFIX.length)
+    if (value === SNOOZE_FOREVER_VALUE) return SNOOZE_FOREVER
+    const until = Number(value)
     return Number.isFinite(until) ? until : null
 }
 
@@ -56,10 +61,11 @@ export function isSessionSnoozed(session: TaggedSession, now: number = Date.now(
     return !(session.active && (session.pendingRequestsCount ?? 0) > 0)
 }
 
-/** Full tag list to save with the snooze set (wake time in epoch ms) or cleared (null). */
+/** Full tag list to save with the snooze set (wake time in epoch ms, or SNOOZE_FOREVER) or cleared (null). */
 export function withSnoozeTag(session: TaggedSession, until: number | null): string[] {
     const tags = (session.metadata?.tags ?? []).filter((tag) => !tag.startsWith(SNOOZE_TAG_PREFIX))
-    return until === null ? tags : [...tags, `${SNOOZE_TAG_PREFIX}${until}`]
+    if (until === null) return tags
+    return [...tags, `${SNOOZE_TAG_PREFIX}${until === SNOOZE_FOREVER ? SNOOZE_FOREVER_VALUE : until}`]
 }
 
 /** Next wake time: the next SNOOZE_WAKE_HOUR, local time (tomorrow, or today when snoozed after midnight). */

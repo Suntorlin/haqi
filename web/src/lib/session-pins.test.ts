@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
     PINNED_TAG,
+    SNOOZE_FOREVER,
     getNextSnoozeWake,
     getSnoozeUntil,
     getUserTags,
@@ -55,6 +56,14 @@ describe('session snooze', () => {
     it('replaces the snooze tag on re-snooze and drops it on wake', () => {
         expect(withSnoozeTag(tagged('agent', 'snooze:1000'), 3000)).toEqual(['agent', 'snooze:3000'])
         expect(withSnoozeTag(tagged('agent', 'snooze:1000'), null)).toEqual(['agent'])
+    })
+
+    it('stores a no-end snooze as snooze:forever and keeps it snoozed', () => {
+        const tags = withSnoozeTag(tagged('agent'), SNOOZE_FOREVER)
+        expect(tags).toEqual(['agent', 'snooze:forever'])
+        expect(getSnoozeUntil({ metadata: { tags } })).toBe(SNOOZE_FOREVER)
+        expect(isSessionSnoozed({ metadata: { tags } }, new Date(2099, 0, 1).getTime())).toBe(true)
+        expect(withSnoozeTag({ metadata: { tags } }, null)).toEqual(['agent'])
     })
 
     it('ignores a malformed snooze tag', () => {

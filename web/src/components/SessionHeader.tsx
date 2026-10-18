@@ -38,7 +38,7 @@ import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
 import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
-import { formatSnoozeWake, getSnoozePresets } from '@/lib/session-snooze'
+import { formatSnoozeStatus, formatSnoozeWake, getSnoozePresets } from '@/lib/session-snooze'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
@@ -454,7 +454,7 @@ export function SessionHeader(props: {
                     <SheetRow
                         icon={<SunIcon />}
                         label={t('session.action.unsnooze')}
-                        value={t('session.snooze.wakesAt', { time: formatSnoozeWake(snoozeUntil, Date.now(), locale, t) })}
+                        value={formatSnoozeStatus(snoozeUntil, Date.now(), locale, t)}
                         onClick={() => {
                             void snoozeSession(session, null).catch((error) => {
                                 console.error('Failed to wake session', error)
