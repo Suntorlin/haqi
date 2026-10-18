@@ -18,6 +18,7 @@ import {
     DuplicateIcon,
     NewSessionIcon,
     MoonIcon,
+    SunIcon,
     PinIcon,
     TagIcon,
     ChevronLeftIcon,
@@ -35,7 +36,9 @@ import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
-import { getNextSnoozeWake, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
+import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
+import { formatSnoozeWake } from '@/lib/session-snooze'
+import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -105,7 +108,7 @@ export function SessionHeader(props: {
     api: ApiClient | null
     onSessionDeleted?: () => void
 }) {
-    const { t } = useTranslation()
+    const { t, locale } = useTranslation()
     const { session, api, onSessionDeleted } = props
     const isMobileLayout = useIsMobileLayout()
     const [infoOpen, setInfoOpen] = useState(false)
@@ -145,7 +148,8 @@ export function SessionHeader(props: {
     const pinSession = useSessionPin(api)
     const pinned = isSessionPinned(session)
     const snoozeSession = useSessionSnooze(api)
-    const snoozed = isSessionSnoozed(session)
+    const snoozeUntil = isSessionSnoozed(session) ? getSnoozeUntil(session) : null
+    const [snoozeOpen, setSnoozeOpen] = useState(false)
     const [tagsOpen, setTagsOpen] = useState(false)
     const { sessions: allSessions } = useSessions(api)
     const availableTags = useMemo(
@@ -213,6 +217,12 @@ export function SessionHeader(props: {
 
     const dialogs = (
         <>
+            <SessionSnoozeDialog
+                isOpen={snoozeOpen}
+                onClose={() => setSnoozeOpen(false)}
+                onSnooze={(until) => snoozeSession(session, until)}
+            />
+
             <SessionTagsDialog
                 isOpen={tagsOpen}
                 onClose={() => setTagsOpen(false)}
@@ -406,16 +416,20 @@ export function SessionHeader(props: {
                         })
                     }}
                 />
-                <SheetSwitchRow
-                    icon={<MoonIcon />}
-                    label={t('session.action.snooze')}
-                    checked={snoozed}
-                    onCheckedChange={(next) => {
-                        void snoozeSession(session, next ? getNextSnoozeWake() : null).catch((error) => {
-                            console.error('Failed to update session snooze', error)
-                        })
-                    }}
-                />
+                {snoozeUntil === null ? (
+                    <SheetRow icon={<MoonIcon />} label={t('session.action.snooze')} chevron onClick={closeInfoThen(() => setSnoozeOpen(true))} />
+                ) : (
+                    <SheetRow
+                        icon={<SunIcon />}
+                        label={t('session.action.unsnooze')}
+                        value={t('session.snooze.wakesAt', { time: formatSnoozeWake(snoozeUntil, Date.now(), locale, t) })}
+                        onClick={() => {
+                            void snoozeSession(session, null).catch((error) => {
+                                console.error('Failed to wake session', error)
+                            })
+                        }}
+                    />
+                )}
                 <SheetRow icon={<PencilIcon />} label={t('session.action.rename')} chevron onClick={closeInfoThen(() => setRenameOpen(true))} />
                 <SheetRow icon={<TagIcon />} label={t('session.action.tags')} chevron onClick={closeInfoThen(() => setTagsOpen(true))} />
                 <SheetRow icon={<NewSessionIcon />} label={t('session.action.newSameConfig')} chevron onClick={closeInfoThen(handleSpawnSameConfig)} />

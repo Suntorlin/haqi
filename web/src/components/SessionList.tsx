@@ -50,7 +50,9 @@ import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
-import { getNextSnoozeWake, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
+import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
+import { formatSnoozeWake } from '@/lib/session-snooze'
+import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
 
 type SessionGroup = {
@@ -414,7 +416,7 @@ function SessionItem(props: {
     variant?: 'default' | 'feed'
     sortable?: boolean
 }) {
-    const { t } = useTranslation()
+    const { t, locale } = useTranslation()
     const { session: s, onSelect, showPath = true, api, availableTags = [], selected = false, density, forceOffline = false, variant = 'default', sortable = true } = props
     const isFeed = variant === 'feed'
     const unreadSessions = useUnreadSessions()
@@ -423,6 +425,7 @@ function SessionItem(props: {
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
     const [tagsOpen, setTagsOpen] = useState(false)
+    const [snoozeOpen, setSnoozeOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
@@ -470,7 +473,9 @@ function SessionItem(props: {
 
     const sessionName = getSessionTitle(s)
     const pinned = isSessionPinned(s)
-    const snoozed = isSessionSnoozed(s)
+    const snoozeUntil = isSessionSnoozed(s) ? getSnoozeUntil(s) : null
+    const snoozeWakeLabel = snoozeUntil === null ? null : formatSnoozeWake(snoozeUntil, Date.now(), locale, t)
+    const updateSnooze = (until: number | null) => snoozeSession(s, until)
     const userTags = getUserTags(s)
     // Editing tags must not drop the pin or the snooze (both are stored as system tags).
     const saveUserTags = (tags: string[]) => setTags(withUserTags(s, tags))
@@ -550,7 +555,9 @@ function SessionItem(props: {
                                     {sessionName}
                                 </span>
                                 <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
-                                    {formatRelativeTime(s.updatedAt, t)}
+                                    {snoozeWakeLabel === null
+                                        ? formatRelativeTime(s.updatedAt, t)
+                                        : t('session.snooze.wakesAt', { time: snoozeWakeLabel })}
                                 </span>
                             </div>
                             <FeedPreview session={s} active={effectiveActive} thinking={effectiveThinking} />
@@ -679,12 +686,13 @@ function SessionItem(props: {
                     console.error('Failed to update session pin', error)
                 })
             }}
-            snoozed={snoozed}
-            onToggleSnooze={() => {
-                void snoozeSession(s, snoozed ? null : getNextSnoozeWake()).catch((error) => {
-                    console.error('Failed to update session snooze', error)
+            onSnooze={() => setSnoozeOpen(true)}
+            onUnsnooze={snoozeWakeLabel === null ? undefined : () => {
+                void updateSnooze(null).catch((error) => {
+                    console.error('Failed to wake session', error)
                 })
             }}
+            snoozeWakeLabel={snoozeWakeLabel ?? undefined}
             onRename={() => setRenameOpen(true)}
             onTags={() => setTagsOpen(true)}
             tags={userTags}
@@ -704,6 +712,12 @@ function SessionItem(props: {
                 currentName={sessionName}
                 onRename={renameSession}
                 isPending={isPending}
+            />
+
+            <SessionSnoozeDialog
+                isOpen={snoozeOpen}
+                onClose={() => setSnoozeOpen(false)}
+                onSnooze={updateSnooze}
             />
 
             <SessionTagsDialog

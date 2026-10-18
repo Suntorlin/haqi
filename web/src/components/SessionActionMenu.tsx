@@ -25,9 +25,11 @@ type SessionActionMenuProps = {
     /** Set to offer "pin to top" / "unpin" as the first action. */
     pinned?: boolean
     onTogglePin?: () => void
-    /** Set to offer "snooze until tomorrow" / "wake up" right after the pin action. */
-    snoozed?: boolean
-    onToggleSnooze?: () => void
+    /** Set to offer "snooze…" right after the pin action. */
+    onSnooze?: () => void
+    /** Set while snoozed: offers "wake up", with the wake time as its second line. */
+    onUnsnooze?: () => void
+    snoozeWakeLabel?: string
     onRename: () => void
     onTags?: () => void
     tags?: string[]
@@ -190,12 +192,15 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     onSelect={run(props.onTogglePin)}
                 />
             ) : null}
-            {props.onToggleSnooze ? (
+            {props.onUnsnooze ? (
                 <ContextMenuItem
-                    icon={props.snoozed ? <SunIcon /> : <MoonIcon />}
-                    label={props.snoozed ? t('session.action.unsnooze') : t('session.action.snooze')}
-                    onSelect={run(props.onToggleSnooze)}
+                    icon={<SunIcon />}
+                    label={t('session.action.unsnooze')}
+                    description={props.snoozeWakeLabel ? t('session.snooze.wakesAt', { time: props.snoozeWakeLabel }) : undefined}
+                    onSelect={run(props.onUnsnooze)}
                 />
+            ) : props.onSnooze ? (
+                <ContextMenuItem icon={<MoonIcon />} label={t('session.action.snooze')} onSelect={run(props.onSnooze)} />
             ) : null}
             <ContextMenuItem icon={<PencilIcon />} label={t('session.action.rename')} onSelect={run(props.onRename)} />
             {tagsItem}
