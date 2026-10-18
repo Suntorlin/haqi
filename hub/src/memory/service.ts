@@ -222,11 +222,10 @@ export class MemoryService {
         }
         if (decision.kind === 'reinforce' && matched) {
             // The user saying what an agent noted is the evidence it was waiting for: it goes up for approval.
-            const backed = said && !matched.said
-            const lifted = backed && matched.status === 'candidate'
+            const lifted = said && matched.status === 'candidate'
             this.store.memories.update(matched.id, input.namespace, {
                 support: matched.support + 1,
-                ...(backed ? { said: true } : {}),
+                ...(said ? { said: true } : {}),
                 ...(lifted ? { status: 'pending', reason: '你说过（之前 agent 也记过）' } : {})
             })
             this.log({ ...base, memoryId: matched.id, action: 'reinforced', text, reason: null, jev, ...jevMeta })
@@ -528,8 +527,9 @@ export class MemoryService {
         this.maintaining = true
         try {
             const approved = this.store.memories.approved(namespace)
+            const backed = this.store.memories.backedByUser(namespace)
             for (const memory of this.store.memories.list(namespace)) {
-                const next = this.underRule(memory, approved)
+                const next = this.underRule(memory, approved, backed)
                 if (!next) continue
                 this.store.memories.update(memory.id, namespace, next)
                 result.moved += 1
@@ -571,12 +571,12 @@ export class MemoryService {
     }
 
     /**
-     * The current rule applied to what is already stored: an agent's label is not the user's word, and nothing becomes
-     * active without the user except what they wrote. Agents' memories go back to being watched.
+     * The current rule applied to what is already stored: an agent's label is not the user's word (only a message of
+     * theirs backing it is), and nothing becomes active without the user except what they wrote.
      */
-    private underRule(memory: StoredMemory, approved: Set<string>): { status?: StoredMemory['status']; reason?: string | null; said?: boolean } | null {
+    private underRule(memory: StoredMemory, approved: Set<string>, backed: Set<string>): { status?: StoredMemory['status']; reason?: string | null; said?: boolean } | null {
         const origin = originOf(memory.source as MemorySource)
-        const said = origin === 'agent' ? false : memory.said
+        const said = origin === 'agent' ? backed.has(memory.id) : memory.said
         const patch: { status?: StoredMemory['status']; reason?: string | null; said?: boolean } = {}
         if (said !== memory.said) patch.said = said
         const byUser = approved.has(memory.id) || origin === 'written' || memory.source === 'user_edit'
