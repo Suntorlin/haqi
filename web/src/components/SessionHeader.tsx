@@ -21,6 +21,7 @@ import {
     SunIcon,
     PinIcon,
     TagIcon,
+    ChevronDownIcon,
     ChevronLeftIcon,
     FileIcon,
     GlobeIcon,
@@ -37,7 +38,7 @@ import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
 import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
-import { formatSnoozeWake } from '@/lib/session-snooze'
+import { formatSnoozeWake, getSnoozePresets } from '@/lib/session-snooze'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
@@ -150,6 +151,12 @@ export function SessionHeader(props: {
     const snoozeSession = useSessionSnooze(api)
     const snoozeUntil = isSessionSnoozed(session) ? getSnoozeUntil(session) : null
     const [snoozeOpen, setSnoozeOpen] = useState(false)
+    const [snoozeExpanded, setSnoozeExpanded] = useState(false)
+    const snoozeTo = (until: number) => {
+        void snoozeSession(session, until).catch((error) => {
+            console.error('Failed to snooze session', error)
+        })
+    }
     const [tagsOpen, setTagsOpen] = useState(false)
     const { sessions: allSessions } = useSessions(api)
     const availableTags = useMemo(
@@ -417,7 +424,32 @@ export function SessionHeader(props: {
                     }}
                 />
                 {snoozeUntil === null ? (
-                    <SheetRow icon={<MoonIcon />} label={t('session.action.snooze')} chevron onClick={closeInfoThen(() => setSnoozeOpen(true))} />
+                    <>
+                        <SheetRow
+                            icon={<MoonIcon />}
+                            label={t('session.action.snooze')}
+                            value={<ChevronDownIcon className={cn('ml-auto h-4 w-4 text-[var(--social-fg-subtle)] transition-transform', snoozeExpanded ? 'rotate-180' : '')} />}
+                            onClick={() => setSnoozeExpanded((expanded) => !expanded)}
+                        />
+                        {snoozeExpanded ? (
+                            <>
+                                {getSnoozePresets().map((preset) => (
+                                    <SheetRow
+                                        key={preset.key}
+                                        icon={<span aria-hidden="true" />}
+                                        label={t(`dialog.snooze.${preset.key}`)}
+                                        value={formatSnoozeWake(preset.until, Date.now(), locale, t)}
+                                        onClick={closeInfoThen(() => snoozeTo(preset.until))}
+                                    />
+                                ))}
+                                <SheetRow
+                                    icon={<span aria-hidden="true" />}
+                                    label={t('dialog.snooze.custom')}
+                                    onClick={closeInfoThen(() => setSnoozeOpen(true))}
+                                />
+                            </>
+                        ) : null}
+                    </>
                 ) : (
                     <SheetRow
                         icon={<SunIcon />}

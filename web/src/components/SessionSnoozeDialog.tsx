@@ -3,18 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { TextField } from '@/components/ui/TextField'
 import { FormField } from '@/components/ui/FormControls'
-import { SheetOption } from '@/components/mobile/BottomSheet'
 import { getNextSnoozeWake } from '@/lib/session-pins'
-import { formatSnoozeWake, getSnoozePresets, toDateTimeLocalValue } from '@/lib/session-snooze'
+import { toDateTimeLocalValue } from '@/lib/session-snooze'
 import { useTranslation } from '@/lib/use-translation'
 
-/** Pick when a snoozed session comes back: a quick choice applies at once, or set a custom time. */
+/** Custom wake time for a snooze; the quick choices live in the session menu. */
 export function SessionSnoozeDialog(props: {
     isOpen: boolean
     onClose: () => void
     onSnooze: (until: number) => Promise<void>
 }) {
-    const { t, locale } = useTranslation()
+    const { t } = useTranslation()
     const { isOpen, onClose, onSnooze } = props
     const [now, setNow] = useState(() => Date.now())
     const [custom, setCustom] = useState('')
@@ -60,20 +59,8 @@ export function SessionSnoozeDialog(props: {
                     <DialogTitle>{t('dialog.snooze.title')}</DialogTitle>
                 </DialogHeader>
                 <div className="mt-4 flex flex-col gap-4">
-                    <div role="menu" className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
-                        {getSnoozePresets(new Date(now)).map((preset) => (
-                            <SheetOption
-                                key={preset.key}
-                                label={t(`dialog.snooze.${preset.key}`)}
-                                description={formatSnoozeWake(preset.until, now, locale, t)}
-                                selected={false}
-                                disabled={pending}
-                                onSelect={() => void apply(preset.until)}
-                            />
-                        ))}
-                    </div>
                     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-                        <FormField label={t('dialog.snooze.custom')} htmlFor="session-snooze-custom">
+                        <FormField label={t('dialog.snooze.wakeAt')} htmlFor="session-snooze-custom">
                             <TextField
                                 id="session-snooze-custom"
                                 type="datetime-local"

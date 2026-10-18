@@ -7,18 +7,29 @@ const zh = (key: string, params?: Record<string, string | number>) => ({
 }[key] ?? key)
 
 describe('snooze presets', () => {
-    it('offers tonight in the afternoon and next Monday mid-week', () => {
-        // Sunday 2026-10-18 is day 0; Wednesday 2026-10-21 at 14:30.
+    it('offers tomorrow, in two days, in three days and next Monday at 6:00', () => {
+        // Wednesday 2026-10-21 at 14:30.
         const presets = getSnoozePresets(new Date(2026, 9, 21, 14, 30))
-        expect(presets.map((preset) => preset.key)).toEqual(['hour1', 'hour3', 'tonight', 'tomorrow', 'nextWeek'])
-        expect(new Date(presets[2].until)).toEqual(new Date(2026, 9, 21, 20, 0))
-        expect(new Date(presets[3].until)).toEqual(new Date(2026, 9, 22, 6, 0))
-        expect(new Date(presets[4].until)).toEqual(new Date(2026, 9, 26, 6, 0))
+        expect(presets.map((preset) => preset.key)).toEqual(['tomorrow', 'day2', 'day3', 'nextWeek'])
+        expect(presets.map((preset) => new Date(preset.until))).toEqual([
+            new Date(2026, 9, 22, 6, 0),
+            new Date(2026, 9, 23, 6, 0),
+            new Date(2026, 9, 24, 6, 0),
+            new Date(2026, 9, 26, 6, 0)
+        ])
     })
 
-    it('drops tonight late in the day and next Monday on Sunday', () => {
-        const presets = getSnoozePresets(new Date(2026, 9, 18, 21, 0))
-        expect(presets.map((preset) => preset.key)).toEqual(['hour1', 'hour3', 'tomorrow'])
+    it('drops next Monday when it is one of the other days', () => {
+        // Friday: next Monday is in three days.
+        expect(getSnoozePresets(new Date(2026, 9, 23, 10, 0)).map((preset) => preset.key)).toEqual(['tomorrow', 'day2', 'day3'])
+        // Sunday: next Monday is tomorrow.
+        expect(getSnoozePresets(new Date(2026, 9, 18, 21, 0)).map((preset) => preset.key)).toEqual(['tomorrow', 'day2', 'day3'])
+    })
+
+    it('counts days from today after midnight', () => {
+        const presets = getSnoozePresets(new Date(2026, 9, 21, 1, 0))
+        expect(new Date(presets[0].until)).toEqual(new Date(2026, 9, 21, 6, 0))
+        expect(new Date(presets[1].until)).toEqual(new Date(2026, 9, 23, 6, 0))
     })
 })
 

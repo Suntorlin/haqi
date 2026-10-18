@@ -686,7 +686,12 @@ function SessionItem(props: {
                     console.error('Failed to update session pin', error)
                 })
             }}
-            onSnooze={() => setSnoozeOpen(true)}
+            onSnooze={(until) => {
+                void updateSnooze(until).catch((error) => {
+                    console.error('Failed to snooze session', error)
+                })
+            }}
+            onSnoozeCustom={() => setSnoozeOpen(true)}
             onUnsnooze={snoozeWakeLabel === null ? undefined : () => {
                 void updateSnooze(null).catch((error) => {
                     console.error('Failed to wake session', error)
