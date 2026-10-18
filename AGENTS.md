@@ -60,6 +60,7 @@ Bun workspaces; `shared` consumed by cli, hub, web.
 - Zod for runtime validation (schemas in `shared/src/schemas.ts`)
 - Write necessary tests ONLY.
 - Web UI: follow `web/DESIGN.md` (tokens + `components/ui` primitives only; 44px touch targets; light + dark)
+- The repo is public: no secrets, private hosts, personal paths, emails or internal IPs; no screenshots, recordings, logs or agent state (`.playwright-mcp/`, `.omx/`, `test-results/`). Use placeholders (`haqi.example.com`, `/Users/me`, `test@example.com`). Git hooks and CI run `scripts/safety/check-public-safety.ts`; install the hooks once with `bun run safety:install-hooks`
 
 ## Common commands (repo root)
 
@@ -67,6 +68,7 @@ Bun workspaces; `shared` consumed by cli, hub, web.
 bun typecheck           # All packages
 bun run test            # cli + hub tests
 bun run dev             # hub + web concurrently
+bun run safety:check    # Nothing private in the tracked files
 bun run build:single-exe # All-in-one binary
 ```
 

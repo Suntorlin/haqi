@@ -3,7 +3,7 @@ import { trimAutolinkUrl } from './remark-trim-autolinks'
 
 describe('trimAutolinkUrl', () => {
     it('cuts at full-width punctuation', () => {
-        expect(trimAutolinkUrl('https://haqi.suntorai.com/share/r/abc（链接已验证返回')).toBe('https://haqi.suntorai.com/share/r/abc')
+        expect(trimAutolinkUrl('https://haqi.example.com/share/r/abc（链接已验证返回')).toBe('https://haqi.example.com/share/r/abc')
     })
 
     it('cuts at CJK text without punctuation', () => {

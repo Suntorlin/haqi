@@ -24,6 +24,9 @@
         "test:web": "cd web && bun run test",
         "brand:apply": "bun run scripts/brand/apply-haqi-brand.ts",
         "brand:check": "bun run scripts/brand/check-haqi-brand.ts",
+        "safety:check": "bun run scripts/safety/check-public-safety.ts --tree",
+        "safety:self-test": "bun run scripts/safety/check-public-safety.ts --self-test",
+        "safety:install-hooks": "git config core.hooksPath .githooks && echo \"[public-safety] git hooks installed (.githooks)\"",
         "clean-session": "bun run hub/scripts/cleanup-sessions.ts",
         "release-all": "cd cli && bun run release-all"
     },

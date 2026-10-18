@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { extractReportLinks } from './reportLinks'
 
-const URL_A = 'https://haqi.suntorai.com/share/r/AbC_123-xyz'
-const URL_B = 'https://haqi.suntorai.com/share/r/Other-Token_9'
+const URL_A = 'https://haqi.example.com/share/r/AbC_123-xyz'
+const URL_B = 'https://haqi.example.com/share/r/Other-Token_9'
 
 describe('extractReportLinks', () => {
     it('finds links in text and tool results, distinct and in order', () => {
