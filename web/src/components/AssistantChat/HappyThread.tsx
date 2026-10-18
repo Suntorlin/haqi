@@ -343,7 +343,7 @@ export function HappyThread(props: {
                         )}
                     >
                         {/* While zoomed, the level switch floats over the top: keep the first message clear of it. */}
-                        <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? `px-4 pb-5 ${zoomState.busy || zoomState.snap !== ZOOM_REPLY ? 'pt-[72px]' : 'pt-4'}` : isCompact ? 'p-2' : 'p-3'}`}>
+                        <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? `px-4 pb-5 ${zoomState.busy || zoomState.snap !== ZOOM_REPLY ? 'pt-12' : 'pt-4'}` : isCompact ? 'p-2' : 'p-3'}`}>
                             {showSkeleton ? (
                                 <MessageSkeleton />
                             ) : (
