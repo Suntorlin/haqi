@@ -17,6 +17,11 @@ export interface Settings {
         mode?: 'off' | 'record'
         projects?: string[]
         jevApiKey?: string
+        /** The user's messages up to this time were read for memories. */
+        userCursor?: number
+        /** When the user was last told that memories wait for approval, and how many were waiting then. */
+        reviewNotifiedAt?: number
+        reviewNotifiedCount?: number
     }
     vapidKeys?: {
         publicKey: string

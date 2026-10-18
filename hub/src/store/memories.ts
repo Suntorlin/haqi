@@ -196,7 +196,7 @@ export function listMemories(db: Database, namespace: string): StoredMemory[] {
     return rows.map(toStoredMemory)
 }
 
-export type MemoryPatch = Partial<Pick<StoredMemory, 'text' | 'level' | 'scope' | 'status' | 'reason' | 'support' | 'overridden' | 'replaces'>> & { bumpVersion?: boolean }
+export type MemoryPatch = Partial<Pick<StoredMemory, 'text' | 'level' | 'scope' | 'status' | 'reason' | 'support' | 'said' | 'overridden' | 'replaces'>> & { bumpVersion?: boolean }
 
 export function updateMemory(db: Database, id: string, namespace: string, patch: MemoryPatch): StoredMemory | null {
     const current = getMemory(db, id, namespace)
@@ -204,7 +204,7 @@ export function updateMemory(db: Database, id: string, namespace: string, patch:
     const next = { ...current, ...patch }
     db.prepare(`
         UPDATE memories SET text = @text, level = @level, scope = @scope, status = @status, reason = @reason,
-            support = @support, overridden = @overridden, replaces = @replaces, version = @version, updated_at = @now
+            support = @support, said = @said, overridden = @overridden, replaces = @replaces, version = @version, updated_at = @now
         WHERE id = @id AND namespace = @namespace
     `).run({
         id,
@@ -215,6 +215,7 @@ export function updateMemory(db: Database, id: string, namespace: string, patch:
         status: next.status,
         reason: next.reason,
         support: next.support,
+        said: next.said ? 1 : 0,
         overridden: next.overridden === null ? null : JSON.stringify(next.overridden),
         replaces: next.replaces,
         version: current.version + (patch.bumpVersion ? 1 : 0),
@@ -289,6 +290,29 @@ export function mentionStats(db: Database, namespace: string, since: number): Ma
         GROUP BY memory_id
     `).all(since, namespace, ...MENTION_ACTIONS) as Array<{ memory_id: string; recent: number; last_at: number }>
     return new Map(rows.map((row) => [row.memory_id, { recent: row.recent, lastAt: row.last_at }]))
+}
+
+/** Memories the user approved by hand: confirmed, or edited. */
+export function approvedMemoryIds(db: Database, namespace: string): Set<string> {
+    const rows = db.prepare("SELECT DISTINCT memory_id FROM memory_events WHERE namespace = ? AND memory_id IS NOT NULL AND action IN ('confirmed', 'edited')").all(namespace) as Array<{ memory_id: string }>
+    return new Set(rows.map((row) => row.memory_id))
+}
+
+export type UserTurn = { messageId: string; sessionId: string; createdAt: number; content: string; sessionMetadata: string | null; before: string | null }
+
+/** Messages the user sent after `since`, oldest first, each with the end of the agent's reply before it. */
+export function listUserTurns(db: Database, namespace: string, since: number, limit: number): UserTurn[] {
+    const rows = db.prepare(`
+        SELECT t.user_message_id AS message_id, t.session_id, t.created_at, m.content, s.metadata,
+            (SELECT p.assistant_preview FROM conversation_turns p WHERE p.session_id = t.session_id AND p.turn_index = t.turn_index - 1) AS before
+        FROM conversation_turns t
+        JOIN messages m ON m.id = t.user_message_id
+        JOIN sessions s ON s.id = t.session_id
+        WHERE s.namespace = ? AND t.created_at > ?
+        ORDER BY t.created_at ASC
+        LIMIT ?
+    `).all(namespace, since, limit) as Array<{ message_id: string; session_id: string; created_at: number; content: string; metadata: string | null; before: string | null }>
+    return rows.map((row) => ({ messageId: row.message_id, sessionId: row.session_id, createdAt: row.created_at, content: row.content, sessionMetadata: row.metadata, before: row.before }))
 }
 
 /** True when some memory, in any status, was ever proposed as a replacement of `id`. */

@@ -5,15 +5,26 @@ export type MemoryStatus = 'active' | 'pending' | 'candidate' | 'archived'
 
 export const LEVEL_RANK: Record<MemoryLevel, number> = { fact: 0, experience: 1, principle: 2 }
 
-/** Thresholds of the rule: Jev must be sure (>= SURE) on every call, or the memory goes on trial (principles wait for the user). */
-export const THRESHOLDS = { secret: 0.5, keepMin: 0.3, sure: 0.6, match: 0.8 } as const
+/** Thresholds of the rule: below keepMin a candidate is not kept; Jev must be sure (>= SURE) about level and scope or it says so in the reason. */
+export const THRESHOLDS = { secret: 0.5, keepMin: 0.6, writtenKeepMin: 0.3, sure: 0.6, match: 0.8 } as const
 
 /**
- * The trial of a memory Jev is not sure about: it becomes active once it comes up TRIAL.promote times
- * within TRIAL.windowDays, and is let go when nothing mentions it for TRIAL.windowDays.
+ * Where a candidate comes from, which decides how far it can go on its own:
+ * - written: the user wrote it down (MEMORY.md); it is active.
+ * - said: the user's own words in a message; it waits for the user's approval.
+ * - agent: an agent's note or guess; it is watched, and waits for approval only once it keeps coming up.
+ */
+export type Origin = 'written' | 'said' | 'agent'
+
+/**
+ * Watching an agent's memory: it waits for approval once it comes up TRIAL.promote times within
+ * TRIAL.windowDays, and is let go when nothing mentions it for TRIAL.windowDays.
  * An active experience mentioned TRIAL.principleAt times in all is offered to the user as a principle.
  */
 export const TRIAL = { windowDays: 30, promote: 3, principleAt: 5 } as const
+
+/** Memories waiting for approval are offered in one go: the user hears about them once REVIEW.batch are waiting. */
+export const REVIEW = { batch: 10, quietHours: 24 } as const
 
 const LEVEL_CRITERIA: Record<MemoryLevel, unknown> = {
     fact: {
@@ -128,35 +139,30 @@ export type Decision =
 const fmt = (value: number) => value.toFixed(2)
 
 /**
- * The rule: principles wait for the user unless the user said them and Jev is sure (an unsure scope alone narrows it to the project).
- * Facts and experiences Jev is sure about are active; the rest go on trial (see TRIAL).
- * A sure match at the same level only reinforces.
+ * The rule: nothing an agent or a message brings becomes active without the user. What the user wrote is active;
+ * what the user said waits for approval; what an agent noted is watched. A sure match at the same level only reinforces.
  */
-export function decide(input: { verdict: JevVerdict; said: boolean; matchedLevel?: MemoryLevel | null }): Decision {
-    const { verdict } = input
+export function decide(input: { verdict: JevVerdict; origin: Origin; matchedLevel?: MemoryLevel | null }): Decision {
+    const { verdict, origin } = input
     if (verdict.secret >= THRESHOLDS.secret) return { kind: 'reject', reason: '含密钥' }
-    if (verdict.keep < THRESHOLDS.keepMin) return { kind: 'skip', reason: '不值得长期记' }
+    if (verdict.keep < (origin === 'written' ? THRESHOLDS.writtenKeepMin : THRESHOLDS.keepMin)) return { kind: 'skip', reason: '不值得长期记' }
 
     const level = verdict.level.choice
     const matched = verdict.match.id && verdict.match.confidence >= THRESHOLDS.match && input.matchedLevel ? verdict.match.id : null
     if (matched && input.matchedLevel === level) return { kind: 'reinforce', targetId: matched }
 
+    const link = linkTo(matched, level, input.matchedLevel)
+    if (origin === 'written') return { kind: 'add', status: 'active', reason: null, level, scope: verdict.scope.choice, link }
+
     const doubts: string[] = []
-    if (verdict.keep < THRESHOLDS.sure) doubts.push(`要不要记 ${fmt(verdict.keep)}`)
     if (verdict.level.confidence < THRESHOLDS.sure) doubts.push(`级别 ${fmt(verdict.level.confidence)}`)
     if (verdict.scope.confidence < THRESHOLDS.sure) doubts.push(`范围 ${fmt(verdict.scope.confidence)}`)
+    const doubt = doubts.length > 0 ? `；Jev 拿不准${doubts.join('、')}` : ''
+    // An unsure scope keeps it to the project, the narrower reading.
+    const scope = verdict.scope.confidence < THRESHOLDS.sure ? 'project' : verdict.scope.choice
 
-    // A principle the user said, with only the scope in doubt: keep it to the project, the narrower reading.
-    if (level === 'principle' && input.said && doubts.length === 1 && verdict.scope.confidence < THRESHOLDS.sure) {
-        return { kind: 'add', status: 'active', reason: null, level, scope: 'project', link: linkTo(matched, level, input.matchedLevel) }
-    }
-
-    let reason: string | null = null
-    if (doubts.length > 0) reason = `Jev 拿不准：${doubts.join('、')}`
-    if (level === 'principle' && !input.said) reason = reason ? `原则要你确认；${reason}` : '原则要你确认'
-    const status = !reason ? 'active' : level === 'principle' ? 'pending' : 'candidate'
-
-    return { kind: 'add', status, reason, level, scope: verdict.scope.choice, link: linkTo(matched, level, input.matchedLevel) }
+    if (origin === 'said') return { kind: 'add', status: 'pending', reason: `你说过${doubt}`, level, scope, link }
+    return { kind: 'add', status: 'candidate', reason: `agent 记的${doubt}`, level, scope, link }
 }
 
 function linkTo(matched: string | null, level: MemoryLevel, matchedLevel: MemoryLevel | null | undefined): Extract<Decision, { kind: 'add' }>['link'] {

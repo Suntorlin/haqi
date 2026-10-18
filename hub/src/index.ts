@@ -190,6 +190,14 @@ async function main() {
     })
 
     syncEngine = new SyncEngine(store, socketServer.io, socketServer.rpcRegistry, sseManager)
+    syncEngine.setMemoryNotifier(async (namespace, notice) => {
+        await pushService.sendToNamespace(namespace, {
+            title: notice.title,
+            body: notice.body,
+            tag: 'memory-review',
+            data: { type: 'memory-review', sessionId: '', url: notice.url }
+        })
+    })
 
     const notificationChannels: NotificationChannel[] = [
         new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.publicUrl)

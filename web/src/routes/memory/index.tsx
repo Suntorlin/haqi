@@ -24,7 +24,7 @@ type Tab = 'recent' | Level | 'graph'
 
 const MODE_HINT: Record<'off' | 'record', string> = {
     off: '不采集新记忆。',
-    record: 'Jev 判断后列在这里，你可以改；还不注入会话。只有原则等你确认，拿不准的事实和经验先观察：30 天内被提到 3 次就生效，30 天没再出现就不记。'
+    record: '从你自己的消息里提取，你说过的攒到 10 条通知你一次审批；agent 记的先观察，30 天内被提到 3 次才交给你，30 天没再出现就不记。只有你写的 MEMORY.md 和你通过的才生效；还不注入会话。'
 }
 
 /** The search box waits for a pause in typing before it asks the hub. */
@@ -120,10 +120,20 @@ export function MemoryPage() {
         return (
             <div className="space-y-6">
                 {pending.length > 0 ? (
-                    <ListGroup title={`等你确认 · ${pending.length}`}>
+                    <ListGroup title={`等你审批 · ${pending.length}`}>
                         {pending.map((m) => (
-                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={`${LEVEL_LABEL[m.level]} · ${m.reason ?? '等你确认'}`} onClick={() => setOpenId(m.id)} />
+                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={[LEVEL_LABEL[m.level], scopeLabel(m.scope), m.source === 'user_message' ? sourceLabel(m) : m.reason ?? '等你审批'].join(' · ')} onClick={() => setOpenId(m.id)} />
                         ))}
+                        <ListRow
+                            title="全部通过"
+                            subtitle="不想要的先点开选不记，剩下的一次通过"
+                            wrap
+                            disabled={action.isPending}
+                            onClick={() => run(async () => {
+                                const result = await api!.confirmAllMemoryItems(pending.map((m) => m.id))
+                                setNotice(`通过了 ${result.confirmed} 条。`)
+                            })}
+                        />
                     </ListGroup>
                 ) : null}
                 {onTrial.length > 0 ? (
@@ -133,7 +143,7 @@ export function MemoryPage() {
                         )) : null}
                         <ListRow
                             title={trialOpen ? '收起' : '展开'}
-                            subtitle={trialOpen ? undefined : '不用你处理：被提到 3 次自动生效，30 天没再出现自动不记'}
+                            subtitle={trialOpen ? undefined : '不用你处理：agent 记的，30 天内被提到 3 次或你说过才交给你，30 天没再出现自动不记'}
                             wrap
                             onClick={() => setTrialOpen((value) => !value)}
                         />
@@ -176,7 +186,7 @@ export function MemoryPage() {
                                     wrap
                                     title={<Clamp text={m.text} />}
                                     subtitle={[backing ? `依据 ${backing} 条` : null, m.support > 1 ? `被提到 ${m.support} 次` : null, sourceLabel(m)].filter(Boolean).join(' · ')}
-                                    trailing={m.status === 'pending' ? <Badge variant="warning">待确认</Badge> : m.status === 'candidate' ? <Badge>观察中</Badge> : undefined}
+                                    trailing={m.status === 'pending' ? <Badge variant="warning">待审批</Badge> : m.status === 'candidate' ? <Badge>观察中</Badge> : undefined}
                                     onClick={() => setOpenId(m.id)}
                                 />
                             )
@@ -234,7 +244,7 @@ export function MemoryPage() {
                         key={m.id}
                         wrap
                         title={<Clamp text={m.text} />}
-                        subtitle={[LEVEL_LABEL[m.level], scopeLabel(m.scope), m.status === 'pending' ? '等你确认' : m.status === 'candidate' ? '观察中' : null, `相关度 ${m.score.toFixed(2)}`].filter(Boolean).join(' · ')}
+                        subtitle={[LEVEL_LABEL[m.level], scopeLabel(m.scope), m.status === 'pending' ? '等你审批' : m.status === 'candidate' ? '观察中' : null, `相关度 ${m.score.toFixed(2)}`].filter(Boolean).join(' · ')}
                         onClick={() => setOpenId(m.id)}
                     />
                 ))}
@@ -289,7 +299,7 @@ export function MemoryPage() {
             )}
             {isMobile ? <MobileTabBar active="memory" /> : null}
 
-            <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open?.status === 'pending' ? '等你确认' : '编辑记忆'}>
+            <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open?.status === 'pending' ? '等你审批' : '编辑记忆'}>
                 {open ? (
                     <MemoryDetail
                         key={`${open.id}:${open.updatedAt}`}
@@ -363,11 +373,15 @@ export function MemoryPage() {
                             const result = await api!.importMemoryMd()
                             setNotice(`MEMORY.md 里有 ${result.found} 条，交给 Jev 判断了 ${result.proposed} 条。`)
                         })} />
-                        <ListRow title="立即整理" subtitle="合并重复、观察期满的转正或不记；每 15 分钟也会自动整理一次" wrap disabled={action.isPending} onClick={() => run(async () => {
+                        <ListRow title="立即整理" subtitle="合并重复、被提到够多次的交给你审批、过期的不记；每 15 分钟也会自动整理一次" wrap disabled={action.isPending} onClick={() => run(async () => {
                             const r = await api!.maintainMemories()
-                            setNotice(`整理完：合并重复 ${r.merged} 条，转正 ${r.promoted} 条，不记 ${r.expired} 条，转入观察 ${r.moved} 条，建议升原则 ${r.offered} 条。`)
+                            setNotice(`整理完：合并重复 ${r.merged} 条，交给你审批 ${r.promoted} 条，不记 ${r.expired} 条，按新规则调整 ${r.moved} 条，建议升原则 ${r.offered} 条。`)
                         })} />
-                        <ListRow title="立即收集 Claude 记忆" subtitle="只收上面开启的项目，每 15 分钟也会自动收一次" wrap disabled={action.isPending} onClick={() => run(async () => {
+                        <ListRow title="立即读我的消息" subtitle="从你在上面开启的项目里发的消息提取，每 15 分钟也会自动读一次" wrap disabled={action.isPending} onClick={() => run(async () => {
+                            const r = await api!.readUserMessagesForMemory()
+                            setNotice(`读了 ${r.read} 条消息，${r.passed} 条讲了长期规则，提取 ${r.proposed} 条，花了 $${r.costUsd.toFixed(3)}。`)
+                        })} />
+                        <ListRow title="立即收集 Claude 记忆" subtitle="agent 自己记的，只进观察；只收上面开启的项目，每 15 分钟也会自动收一次" wrap disabled={action.isPending} onClick={() => run(async () => {
                             const result = await api!.harvestClaudeMemories()
                             setNotice(`找到 ${result.checked} 个 Claude 记忆文件，新交给 Jev ${result.proposed} 条。`)
                         })} />

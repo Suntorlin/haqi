@@ -27,6 +27,8 @@ const searchSchema = z.object({
 
 const mergeSchema = z.object({ into: z.string().trim().min(1).max(64) })
 
+const confirmAllSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).max(500).optional() })
+
 const settingsSchema = z.object({
     mode: z.enum(['off', 'record']).optional(),
     projects: z.array(z.string().trim().min(1).max(255)).max(50).optional()
@@ -89,6 +91,22 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) return engine
         return c.json(await engine.getMemoryService().harvestClaude(c.get('namespace')))
+    })
+
+    app.post('/memories/read-messages', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        return c.json(await engine.getMemoryService().readUserMessages(c.get('namespace')))
+    })
+
+    app.post('/memories/confirm-all', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const parsed = confirmAllSchema.safeParse(await c.req.json().catch(() => ({})))
+        if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+        const namespace = c.get('namespace')
+        const confirmed = engine.getMemoryService().confirmAll(namespace, parsed.data.ids)
+        return c.json({ confirmed })
     })
 
     app.get('/memories/search', async (c) => {

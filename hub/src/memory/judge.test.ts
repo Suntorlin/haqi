@@ -14,40 +14,42 @@ function verdict(patch: Partial<JevVerdict> = {}): JevVerdict {
 }
 
 describe('decide', () => {
-    it('records a memory Jev is sure about', () => {
-        expect(decide({ verdict: verdict(), said: false })).toEqual({ kind: 'add', status: 'active', reason: null, level: 'experience', scope: 'project', link: null })
+    it('keeps what the user wrote active, sends what they said for approval and watches agents\' notes', () => {
+        expect(decide({ verdict: verdict(), origin: 'written' })).toEqual({ kind: 'add', status: 'active', reason: null, level: 'experience', scope: 'project', link: null })
+        expect(decide({ verdict: verdict(), origin: 'said' })).toEqual({ kind: 'add', status: 'pending', reason: '你说过', level: 'experience', scope: 'project', link: null })
+        expect(decide({ verdict: verdict(), origin: 'agent' })).toEqual({ kind: 'add', status: 'candidate', reason: 'agent 记的', level: 'experience', scope: 'project', link: null })
     })
 
-    it('rejects secrets and skips what is not worth keeping', () => {
-        expect(decide({ verdict: verdict({ secret: 0.97 }), said: true }).kind).toBe('reject')
-        expect(decide({ verdict: verdict({ keep: 0.1 }), said: true }).kind).toBe('skip')
+    it('rejects secrets and skips what is not worth keeping, with a lower bar for what the user wrote', () => {
+        expect(decide({ verdict: verdict({ secret: 0.97 }), origin: 'written' }).kind).toBe('reject')
+        expect(decide({ verdict: verdict({ keep: 0.5 }), origin: 'said' }).kind).toBe('skip')
+        expect(decide({ verdict: verdict({ keep: 0.5 }), origin: 'agent' }).kind).toBe('skip')
+        expect(decide({ verdict: verdict({ keep: 0.5 }), origin: 'written' }).kind).toBe('add')
     })
 
-    it('puts a fact or experience Jev is unsure about on trial, and names the doubt', () => {
-        const result = decide({ verdict: verdict({ scope: { choice: 'global', confidence: 0.24 } }), said: false })
-        expect(result).toMatchObject({ kind: 'add', status: 'candidate', reason: 'Jev 拿不准：范围 0.24' })
+    it('names Jev\'s doubts and keeps an unsure scope to the project', () => {
+        const result = decide({ verdict: verdict({ scope: { choice: 'global', confidence: 0.24 } }), origin: 'said' })
+        expect(result).toMatchObject({ kind: 'add', status: 'pending', reason: '你说过；Jev 拿不准范围 0.24', scope: 'project' })
     })
 
-    it('makes principles wait for the user unless the user said them and Jev is sure', () => {
+    it('never makes a principle active on its own, even one the user said', () => {
         const principle = verdict({ level: { choice: 'principle', confidence: 0.9 } })
-        expect(decide({ verdict: principle, said: false })).toMatchObject({ status: 'pending', reason: '原则要你确认' })
-        expect(decide({ verdict: principle, said: true })).toMatchObject({ status: 'active', reason: null })
-        expect(decide({ verdict: { ...principle, keep: 0.5 }, said: true })).toMatchObject({ status: 'pending' })
-        expect(decide({ verdict: { ...principle, scope: { choice: 'global', confidence: 0.3 } }, said: true })).toMatchObject({ status: 'active', scope: 'project' })
+        expect(decide({ verdict: principle, origin: 'said' })).toMatchObject({ status: 'pending' })
+        expect(decide({ verdict: principle, origin: 'agent' })).toMatchObject({ status: 'candidate' })
     })
 
     it('reinforces a sure match at the same level and links across levels', () => {
         const matched = verdict({ match: { id: 'm1', confidence: 0.95 } })
-        expect(decide({ verdict: matched, said: false, matchedLevel: 'experience' })).toEqual({ kind: 'reinforce', targetId: 'm1' })
-        expect(decide({ verdict: { ...matched, level: { choice: 'fact', confidence: 0.9 } }, said: false, matchedLevel: 'principle' }))
+        expect(decide({ verdict: matched, origin: 'agent', matchedLevel: 'experience' })).toEqual({ kind: 'reinforce', targetId: 'm1' })
+        expect(decide({ verdict: { ...matched, level: { choice: 'fact', confidence: 0.9 } }, origin: 'agent', matchedLevel: 'principle' }))
             .toMatchObject({ kind: 'add', link: { matchedId: 'm1', direction: 'supports-matched' } })
-        expect(decide({ verdict: matched, said: false, matchedLevel: 'fact' }))
+        expect(decide({ verdict: matched, origin: 'agent', matchedLevel: 'fact' }))
             .toMatchObject({ kind: 'add', link: { matchedId: 'm1', direction: 'matched-supports' } })
     })
 
     it('ignores a weak match', () => {
         const weak = verdict({ match: { id: 'm1', confidence: 0.5 } })
-        expect(decide({ verdict: weak, said: false, matchedLevel: 'experience' })).toMatchObject({ kind: 'add', link: null })
+        expect(decide({ verdict: weak, origin: 'agent', matchedLevel: 'experience' })).toMatchObject({ kind: 'add', link: null })
     })
 })
 
