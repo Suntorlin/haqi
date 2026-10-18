@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { formatSnoozeWake, getSnoozePresets } from '@/lib/session-snooze'
 import { CONTEXT_MENU_SURFACE, ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import {
     ArchiveBoxIcon,
+    ChevronDownIcon,
     ChevronRightIcon,
     DuplicateIcon,
     MoonIcon,
@@ -25,8 +27,10 @@ type SessionActionMenuProps = {
     /** Set to offer "pin to top" / "unpin" as the first action. */
     pinned?: boolean
     onTogglePin?: () => void
-    /** Set to offer "snooze…" right after the pin action. */
-    onSnooze?: () => void
+    /** Set to offer "snooze" (a submenu of wake times) right after the pin action. */
+    onSnooze?: (until: number) => void
+    /** "Custom time…" at the end of the snooze submenu. */
+    onSnoozeCustom?: () => void
     /** Set while snoozed: offers "wake up", with the wake time as its second line. */
     onUnsnooze?: () => void
     snoozeWakeLabel?: string
@@ -98,13 +102,17 @@ function TagsSubmenu(props: {
     )
 }
 
-export function SessionActionMenu(props: SessionActionMenuProps) {
-    const { t } = useTranslation()
-    const isMobileLayout = useIsMobileLayout()
-    const { isOpen, onClose, onTags } = props
-    const [tagsOpen, setTagsOpen] = useState(false)
-    const [submenuPos, setSubmenuPos] = useState<{ top: number; left?: number; right?: number } | null>(null)
-    const tagsWrapperRef = useRef<HTMLDivElement | null>(null)
+/** Desktop row that opens a side flyout on hover or click. */
+function FlyoutItem(props: {
+    icon: ReactNode
+    label: ReactNode
+    open: boolean
+    onOpenChange: (open: boolean) => void
+    children: ReactNode
+}) {
+    const { open, onOpenChange } = props
+    const [position, setPosition] = useState<{ top: number; left?: number; right?: number } | null>(null)
+    const wrapperRef = useRef<HTMLDivElement | null>(null)
     const closeTimer = useRef<number | null>(null)
 
     const cancelClose = useCallback(() => {
@@ -113,28 +121,99 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             closeTimer.current = null
         }
     }, [])
-
-    useEffect(() => {
-        if (!isOpen) {
-            setTagsOpen(false)
-            cancelClose()
-        }
-    }, [isOpen, cancelClose])
     useEffect(() => cancelClose, [cancelClose])
 
     // The flyout is portalled to the body: the menu itself scrolls when tall, which would clip a child
-    // positioned outside it. Placed beside the "tags" row, flipped to the left near the window edge.
+    // positioned outside it. Placed beside the row, flipped to the left near the window edge.
     useLayoutEffect(() => {
-        if (!tagsOpen || !tagsWrapperRef.current) {
-            setSubmenuPos(null)
+        if (!open || !wrapperRef.current) {
+            setPosition(null)
             return
         }
-        const rect = tagsWrapperRef.current.getBoundingClientRect()
+        const rect = wrapperRef.current.getBoundingClientRect()
         const top = Math.max(8, Math.min(rect.top - 6, window.innerHeight - 320))
-        setSubmenuPos(rect.right + 236 > window.innerWidth
+        setPosition(rect.right + 236 > window.innerWidth
             ? { top, right: window.innerWidth - rect.left + 8 }
             : { top, left: rect.right + 8 })
-    }, [tagsOpen])
+    }, [open])
+
+    return (
+        <div
+            ref={wrapperRef}
+            className="relative"
+            onMouseEnter={() => {
+                cancelClose()
+                onOpenChange(true)
+            }}
+            onMouseLeave={() => {
+                cancelClose()
+                closeTimer.current = window.setTimeout(() => onOpenChange(false), 200)
+            }}
+        >
+            <ContextMenuItem
+                icon={props.icon}
+                label={props.label}
+                hasPopup
+                expanded={open}
+                onSelect={() => onOpenChange(!open)}
+                onFocus={() => onOpenChange(true)}
+                trailing={<ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />}
+            />
+            {open && position ? createPortal(
+                <div data-context-submenu className="fixed z-[60]" style={position}>
+                    {props.children}
+                </div>,
+                document.body
+            ) : null}
+        </div>
+    )
+}
+
+/** Wake-time choices; `indent` lines them up under the parent row when shown inline on phones. */
+function SnoozeOptions(props: { onSnooze: (until: number) => void; onCustom?: () => void; indent?: boolean }) {
+    const { t, locale } = useTranslation()
+    const now = Date.now()
+    const spacer = props.indent ? <span aria-hidden="true" /> : undefined
+    return (
+        <>
+            {getSnoozePresets(new Date(now)).map((preset) => (
+                <ContextMenuItem
+                    key={preset.key}
+                    icon={spacer}
+                    label={t(`dialog.snooze.${preset.key}`)}
+                    trailing={(
+                        <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">
+                            {formatSnoozeWake(preset.until, now, locale, t)}
+                        </span>
+                    )}
+                    onSelect={() => props.onSnooze(preset.until)}
+                />
+            ))}
+            {props.onCustom ? (
+                <ContextMenuItem icon={spacer} label={t('dialog.snooze.custom')} onSelect={props.onCustom} />
+            ) : null}
+        </>
+    )
+}
+
+export function SessionActionMenu(props: SessionActionMenuProps) {
+    const { t } = useTranslation()
+    const isMobileLayout = useIsMobileLayout()
+    const { isOpen, onClose, onTags, onSnooze } = props
+    const [flyout, setFlyout] = useState<'tags' | 'snooze' | null>(null)
+    const [snoozeExpanded, setSnoozeExpanded] = useState(false)
+
+    useEffect(() => {
+        if (!isOpen) {
+            setFlyout(null)
+            setSnoozeExpanded(false)
+        }
+    }, [isOpen])
+
+    const flyoutProps = (id: 'tags' | 'snooze') => ({
+        open: flyout === id,
+        onOpenChange: (open: boolean) => setFlyout((current) => open ? id : current === id ? null : current)
+    })
 
     const run = (action?: () => void) => () => {
         if (!action) return
@@ -146,42 +225,55 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const tagsItem = onTags ? (isMobileLayout ? (
         <ContextMenuItem icon={<TagIcon />} label={t('session.action.tags')} onSelect={run(onTags)} />
     ) : (
-        <div
-            ref={tagsWrapperRef}
-            className="relative"
-            onMouseEnter={() => {
-                cancelClose()
-                setTagsOpen(true)
-            }}
-            onMouseLeave={() => {
-                cancelClose()
-                closeTimer.current = window.setTimeout(() => setTagsOpen(false), 200)
-            }}
-        >
-            <ContextMenuItem
-                icon={<TagIcon />}
-                label={t('session.action.tags')}
-                hasPopup
-                expanded={tagsOpen}
-                onSelect={() => setTagsOpen((open) => !open)}
-                onFocus={() => setTagsOpen(true)}
-                trailing={<ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />}
+        <FlyoutItem icon={<TagIcon />} label={t('session.action.tags')} {...flyoutProps('tags')}>
+            <TagsSubmenu
+                tags={props.tags ?? []}
+                availableTags={props.availableTags ?? []}
+                pending={props.tagsPending ?? false}
+                onTagsChange={props.onTagsChange}
+                onEdit={onTags}
+                onClose={onClose}
             />
-            {tagsOpen && submenuPos ? createPortal(
-                <div data-context-submenu className="fixed z-[60]" style={submenuPos}>
-                    <TagsSubmenu
-                        tags={props.tags ?? []}
-                        availableTags={props.availableTags ?? []}
-                        pending={props.tagsPending ?? false}
-                        onTagsChange={props.onTagsChange}
-                        onEdit={onTags}
-                        onClose={onClose}
-                    />
-                </div>,
-                document.body
-            ) : null}
-        </div>
+        </FlyoutItem>
     )) : null
+
+    const snooze = (until: number) => run(() => onSnooze?.(until))()
+    const snoozeCustom = props.onSnoozeCustom ? run(props.onSnoozeCustom) : undefined
+    // Phones expand the wake times in place, under the row; desktop shows them in a flyout.
+    const snoozeItem = props.onUnsnooze ? (
+        <ContextMenuItem
+            icon={<SunIcon />}
+            label={t('session.action.unsnooze')}
+            description={props.snoozeWakeLabel ? t('session.snooze.wakesAt', { time: props.snoozeWakeLabel }) : undefined}
+            onSelect={run(props.onUnsnooze)}
+        />
+    ) : !onSnooze ? null : isMobileLayout ? (
+        <>
+            <ContextMenuItem
+                icon={<MoonIcon />}
+                label={t('session.action.snooze')}
+                hasPopup
+                expanded={snoozeExpanded}
+                onSelect={() => setSnoozeExpanded((expanded) => !expanded)}
+                trailing={(
+                    <ChevronDownIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', snoozeExpanded ? 'rotate-180' : '')} />
+                )}
+            />
+            {snoozeExpanded ? <SnoozeOptions onSnooze={snooze} onCustom={snoozeCustom} indent /> : null}
+        </>
+    ) : (
+        <FlyoutItem icon={<MoonIcon />} label={t('session.action.snooze')} {...flyoutProps('snooze')}>
+            <div role="menu" aria-label={t('session.action.snooze')} className={cn('flex min-w-[240px] flex-col', CONTEXT_MENU_SURFACE)}>
+                <SnoozeOptions onSnooze={snooze} />
+                {snoozeCustom ? (
+                    <>
+                        <ContextMenuSeparator />
+                        <ContextMenuItem label={t('dialog.snooze.custom')} onSelect={snoozeCustom} />
+                    </>
+                ) : null}
+            </div>
+        </FlyoutItem>
+    )
 
     return (
         <ContextMenu open={isOpen} anchorPoint={props.anchorPoint} onClose={onClose} label={t('session.more')} menuId={props.menuId}>
@@ -192,16 +284,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     onSelect={run(props.onTogglePin)}
                 />
             ) : null}
-            {props.onUnsnooze ? (
-                <ContextMenuItem
-                    icon={<SunIcon />}
-                    label={t('session.action.unsnooze')}
-                    description={props.snoozeWakeLabel ? t('session.snooze.wakesAt', { time: props.snoozeWakeLabel }) : undefined}
-                    onSelect={run(props.onUnsnooze)}
-                />
-            ) : props.onSnooze ? (
-                <ContextMenuItem icon={<MoonIcon />} label={t('session.action.snooze')} onSelect={run(props.onSnooze)} />
-            ) : null}
+            {snoozeItem}
             <ContextMenuItem icon={<PencilIcon />} label={t('session.action.rename')} onSelect={run(props.onRename)} />
             {tagsItem}
             {props.onSpawnSameConfig ? (

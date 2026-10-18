@@ -1,35 +1,33 @@
 import { SNOOZE_WAKE_HOUR, getNextSnoozeWake } from '@/lib/session-pins'
 
-export type SnoozePresetKey = 'hour1' | 'hour3' | 'tonight' | 'tomorrow' | 'nextWeek'
+export type SnoozePresetKey = 'tomorrow' | 'day2' | 'day3' | 'nextWeek'
 export type SnoozePreset = { key: SnoozePresetKey; until: number }
 
 const HOUR_MS = 60 * 60 * 1000
-const TONIGHT_HOUR = 20
 const MONDAY = 1
 
-/** Quick choices in the snooze dialog. "Tonight" only before 19:00; "next Monday" only when it is not tomorrow. */
+/** SNOOZE_WAKE_HOUR on the day `days` after today, local time. */
+function wakeOnDay(now: Date, days: number): number {
+    const wake = new Date(now)
+    wake.setDate(wake.getDate() + days)
+    wake.setHours(SNOOZE_WAKE_HOUR, 0, 0, 0)
+    return wake.getTime()
+}
+
+/**
+ * Quick choices in the snooze menu, all at SNOOZE_WAKE_HOUR: tomorrow, in two days, in three days,
+ * next Monday. Next Monday is left out when it falls on one of the other days.
+ */
 export function getSnoozePresets(now: Date = new Date()): SnoozePreset[] {
     const presets: SnoozePreset[] = [
-        { key: 'hour1', until: now.getTime() + HOUR_MS },
-        { key: 'hour3', until: now.getTime() + 3 * HOUR_MS }
+        { key: 'tomorrow', until: getNextSnoozeWake(now) },
+        { key: 'day2', until: wakeOnDay(now, 2) },
+        { key: 'day3', until: wakeOnDay(now, 3) }
     ]
-
-    const tonight = new Date(now)
-    tonight.setHours(TONIGHT_HOUR, 0, 0, 0)
-    if (tonight.getTime() - now.getTime() >= HOUR_MS) {
-        presets.push({ key: 'tonight', until: tonight.getTime() })
+    const nextMonday = wakeOnDay(now, ((MONDAY - now.getDay() + 7) % 7) || 7)
+    if (!presets.some((preset) => preset.until === nextMonday)) {
+        presets.push({ key: 'nextWeek', until: nextMonday })
     }
-
-    const tomorrow = getNextSnoozeWake(now)
-    presets.push({ key: 'tomorrow', until: tomorrow })
-
-    const nextMonday = new Date(now)
-    nextMonday.setDate(nextMonday.getDate() + (((MONDAY - now.getDay() + 7) % 7) || 7))
-    nextMonday.setHours(SNOOZE_WAKE_HOUR, 0, 0, 0)
-    if (nextMonday.getTime() !== tomorrow) {
-        presets.push({ key: 'nextWeek', until: nextMonday.getTime() })
-    }
-
     return presets
 }
 
