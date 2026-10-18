@@ -18,7 +18,7 @@ import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import type { ToolProgressSignal } from '@/chat/toolProgress'
 import type { RunStats } from '@/components/mobile/chatTimeline'
 import { useTranslation } from '@/lib/use-translation'
-import { useSemanticZoomController, useSemanticZoomScroller } from '@/vendor/semantic-zoom'
+import { useSemanticZoomController, useSemanticZoomScroller, type SemanticZoomController } from '@/vendor/semantic-zoom'
 import { ChatZoomBar, ChatZoomProvider, useChatZoomState } from '@/components/AssistantChat/chatZoom'
 import { ZOOM_LEVEL_COUNT, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 
@@ -189,13 +189,16 @@ export function HappyThread(props: {
     layout?: 'classic' | 'social'
     timeSeparators?: ReadonlyMap<string, number> | null
     runStats?: ReadonlyMap<string, RunStats> | null
+    zoomController?: SemanticZoomController
 }) {
     const viewportRef = useRef<HTMLDivElement | null>(null)
     const contentRef = useRef<HTMLDivElement | null>(null)
     const isSocial = props.layout === 'social'
     const holdAutoScroll = useStickToBottom(isSocial, viewportRef, contentRef)
     useNestedScrollPassthrough(viewportRef)
-    const zoom = useSemanticZoomController({ levelCount: ZOOM_LEVEL_COUNT, initialLevel: ZOOM_REPLY })
+    // The session page owns the zoom when its header offers the level switch; otherwise the thread does.
+    const ownZoom = useSemanticZoomController({ levelCount: ZOOM_LEVEL_COUNT, initialLevel: ZOOM_REPLY })
+    const zoom = props.zoomController ?? ownZoom
     const zoomAnchor = useSemanticZoomScroller(viewportRef, zoom, { bottomEdge: true, gestures: isSocial })
     const zoomState = useChatZoomState(zoom, zoomAnchor, holdAutoScroll)
     const userMessageCount = useAssistantState(({ thread }) => thread.messages.reduce((count, message) => count + (message.role === 'user' ? 1 : 0), 0))
@@ -342,8 +345,7 @@ export function HappyThread(props: {
                             isSocial ? 'social-chat outline-none' : ''
                         )}
                     >
-                        {/* While zoomed, the level switch floats over the top: keep the first message clear of it. */}
-                        <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? `px-4 pb-5 ${zoomState.busy || zoomState.snap !== ZOOM_REPLY ? 'pt-12' : 'pt-4'}` : isCompact ? 'p-2' : 'p-3'}`}>
+                        <div ref={contentRef} className={`mx-auto w-full max-w-content min-w-0 ${isSocial ? 'px-4 pb-5 pt-4' : isCompact ? 'p-2' : 'p-3'}`}>
                             {showSkeleton ? (
                                 <MessageSkeleton />
                             ) : (

@@ -10,6 +10,9 @@ import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { BottomSheet, SheetRow, SheetSection, SheetSwitchRow } from '@/components/mobile/BottomSheet'
 import { ActionTile } from '@/components/mobile/ActionTile'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { setChatZoomLevel, useChatZoomLevel } from '@/components/AssistantChat/chatZoom'
+import { ZOOM_ALL, ZOOM_BRIEF, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
+import type { SemanticZoomController } from '@/vendor/semantic-zoom'
 import { IconButton } from '@/components/ui/IconButton'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
 import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
@@ -100,6 +103,8 @@ export function SessionHeader(props: {
     onViewTerminal?: () => void
     viewMode?: ChatViewMode
     onViewModeChange?: (mode: ChatViewMode) => void
+    /** Chat zoom of the conversation view; its level switch sits under the view modes. */
+    zoomController?: SemanticZoomController
     usage?: {
         contextSize?: number
         contextWindowTokens?: number
@@ -303,6 +308,16 @@ export function SessionHeader(props: {
         { value: 'brief', label: t('mobile.chat.view.brief') },
         { value: 'cli', label: t('mobile.chat.view.cli') }
     ]
+    const zoomLevel = useChatZoomLevel(props.zoomController)
+    const zoomLevels = [
+        { value: String(ZOOM_BRIEF), label: t('chat.zoom.brief') },
+        { value: String(ZOOM_REPLY), label: t('chat.zoom.reply') },
+        { value: String(ZOOM_ALL), label: t('chat.zoom.all') }
+    ]
+    // The status line names a zoomed level, since nothing floats over the chat to show it.
+    const zoomLevelLabel = props.zoomController && zoomLevel !== ZOOM_REPLY
+        ? zoomLevels.find((level) => level.value === String(zoomLevel))?.label ?? null
+        : null
     const modelValue = [
         shortModel,
         displayThinkEffort ? `${t('session.item.thinkLevel')} ${thinkEffortText(displayThinkEffort, displayThinkEffort, t)}` : null,
@@ -315,6 +330,7 @@ export function SessionHeader(props: {
             <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
             <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
             <span className="min-w-0 truncate">
+                {zoomLevelLabel ? <span className="text-[var(--social-fg)]">{`· ${zoomLevelLabel} `}</span> : null}
                 {shortModel ? `· ${shortModel}` : ''}
                 {permissionLabel ? (
                     <span className={permissionToneClass}>{` · ${permissionLabel}`}</span>
@@ -368,6 +384,22 @@ export function SessionHeader(props: {
                             setInfoOpen(false)
                         }}
                     />
+                </SheetSection>
+            ) : null}
+
+            {props.zoomController ? (
+                <SheetSection title={t('chat.zoom.label')}>
+                    <SegmentedControl
+                        framed={false}
+                        label={t('chat.zoom.label')}
+                        value={String(zoomLevel)}
+                        options={zoomLevels}
+                        onChange={(level) => {
+                            setInfoOpen(false)
+                            if (props.zoomController) setChatZoomLevel(props.zoomController, Number(level))
+                        }}
+                    />
+                    <div className="px-4 pb-3 pt-1 text-[12px] text-[var(--social-fg-muted)]">{t('chat.zoom.hint')}</div>
                 </SheetSection>
             ) : null}
 

@@ -57,6 +57,8 @@ import type { ChatViewMode } from '@/hooks/useChatViewMode'
 import { computeRunStats, computeTimeSeparators } from '@/components/mobile/chatTimeline'
 import { QueueSheet, QueueStatusSheet } from '@/components/AssistantChat/QueueSheets'
 import { getContextBudgetTokens } from '@/chat/modelConfig'
+import { useSemanticZoomController } from '@/vendor/semantic-zoom'
+import { ZOOM_LEVEL_COUNT, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 
 type CodexStatusRow = {
     label: string
@@ -389,6 +391,8 @@ export function SessionChat(props: {
     const normalizedCacheRef = useRef<Map<string, { source: DecryptedMessage; normalized: NormalizedMessage | null }>>(new Map())
     const blocksByIdRef = useRef<Map<string, ChatBlock>>(new Map())
     const [forceScrollToken, setForceScrollToken] = useState(0)
+    // Chat zoom (brief / reply / all steps): pinched in the thread, also switched from the header's view settings.
+    const chatZoom = useSemanticZoomController({ levelCount: ZOOM_LEVEL_COUNT, initialLevel: ZOOM_REPLY })
     const [isCodexStatusDialogOpen, setIsCodexStatusDialogOpen] = useState(false)
     const [isCodexStatusLoading, setIsCodexStatusLoading] = useState(false)
     const [codexStatusMessage, setCodexStatusMessage] = useState('')
@@ -1400,6 +1404,7 @@ export function SessionChat(props: {
                     onViewTerminal={props.session.active ? handleViewTerminal : undefined}
                     viewMode={props.viewMode}
                     onViewModeChange={props.onViewModeChange}
+                    zoomController={props.viewMode === 'normal' ? chatZoom : undefined}
                     usage={{
                         contextSize: latestContextSize,
                         contextWindowTokens: latestContextWindowTokens,
@@ -1550,6 +1555,7 @@ export function SessionChat(props: {
                                 layout="social"
                                 timeSeparators={timeSeparators}
                                 runStats={runStats}
+                                zoomController={chatZoom}
                             />
                         )}
 
