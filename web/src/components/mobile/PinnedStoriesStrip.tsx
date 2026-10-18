@@ -8,8 +8,10 @@ import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionAvatar } from '@/components/mobile/SessionAvatar'
-import { ArchiveBoxIcon, PinOffIcon } from '@/components/mobile/icons'
+import { ArchiveBoxIcon, ChevronDownIcon, MoonIcon, PinOffIcon } from '@/components/mobile/icons'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
+import { SnoozeOptions } from '@/components/SessionActionMenu'
+import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
@@ -82,8 +84,9 @@ function PinnedStory(props: {
 
 /**
  * Instagram-style row of the sessions the user pinned (WeChat "置顶"): they live here instead
- * of in the list below, with the same status rings. Long-press / right-click to unpin, or to
- * archive a running session (which unpins it too).
+ * of in the list below, with the same status rings. Long-press / right-click to unpin, to snooze
+ * (the session leaves the row until it wakes, still pinned), or to archive a running session
+ * (which unpins it too).
  * Nothing pinned → no row, the list starts right away (pin from a row's menu).
  */
 export function PinnedStoriesStrip(props: {
@@ -91,12 +94,18 @@ export function PinnedStoriesStrip(props: {
     onSelect: (sessionId: string) => void
     onNewSession: () => void
     onUnpin: (session: SessionSummary) => void
+    onSnooze?: (session: SessionSummary, until: number) => Promise<void>
     onArchive?: (session: SessionSummary) => Promise<void>
 }) {
     const { t } = useTranslation()
     const stories = useMemo(() => sortPinned(props.sessions), [props.sessions])
     const [menu, setMenu] = useState<{ session: SessionSummary; point: { x: number; y: number } } | null>(null)
-    const closeMenu = useCallback(() => setMenu(null), [])
+    const [snoozeExpanded, setSnoozeExpanded] = useState(false)
+    const closeMenu = useCallback(() => {
+        setMenu(null)
+        setSnoozeExpanded(false)
+    }, [])
+    const [snoozeTarget, setSnoozeTarget] = useState<SessionSummary | null>(null)
     const { skipArchiveConfirmation } = useArchiveConfirmation()
     const [archiveTarget, setArchiveTarget] = useState<SessionSummary | null>(null)
     const [archiving, setArchiving] = useState(false)
@@ -112,6 +121,12 @@ export function PinnedStoriesStrip(props: {
             console.error('Failed to archive session', error)
         })
     }
+    const snooze = (session: SessionSummary, until: number) => {
+        void props.onSnooze?.(session, until).catch((error) => {
+            console.error('Failed to snooze session', error)
+        })
+    }
+
     const confirmArchive = async () => {
         if (!archiveTarget || !props.onArchive) return
         setArchiving(true)
@@ -126,7 +141,7 @@ export function PinnedStoriesStrip(props: {
 
     return (
         <div className="pb-1" role="group" aria-label={t('mobile.stories.pinned')}>
-            <div className="social-scroll-x flex gap-4 overflow-x-auto px-5 pb-3 pt-1">
+            <div className="social-scroll-x flex gap-4 overflow-x-auto pb-3 pl-5 pt-1">
                 <button
                     type="button"
                     onClick={props.onNewSession}
@@ -152,6 +167,9 @@ export function PinnedStoriesStrip(props: {
                         onMenu={(target, point) => setMenu({ session: target, point })}
                     />
                 ))}
+                {/* Blank room after the last story: a short swipe shows the row ends here. A spacer, not
+                    right padding, since WebKit leaves the padding out of the scroll width. */}
+                <span aria-hidden="true" className="w-8 shrink-0" />
             </div>
             <ContextMenu open={menu !== null} anchorPoint={menu?.point ?? { x: 0, y: 0 }} onClose={closeMenu} label={t('session.more')}>
                 <ContextMenuItem
@@ -162,6 +180,33 @@ export function PinnedStoriesStrip(props: {
                         closeMenu()
                     }}
                 />
+                {menu && props.onSnooze ? (
+                    <>
+                        <ContextMenuItem
+                            icon={<MoonIcon />}
+                            label={t('session.action.snooze')}
+                            hasPopup
+                            expanded={snoozeExpanded}
+                            onSelect={() => setSnoozeExpanded((expanded) => !expanded)}
+                            trailing={(
+                                <ChevronDownIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', snoozeExpanded ? 'rotate-180' : '')} />
+                            )}
+                        />
+                        {snoozeExpanded ? (
+                            <SnoozeOptions
+                                indent
+                                onSnooze={(until) => {
+                                    snooze(menu.session, until)
+                                    closeMenu()
+                                }}
+                                onCustom={() => {
+                                    setSnoozeTarget(menu.session)
+                                    closeMenu()
+                                }}
+                            />
+                        ) : null}
+                    </>
+                ) : null}
                 {menu?.session.active && props.onArchive ? (
                     <>
                         <ContextMenuSeparator />
@@ -177,6 +222,13 @@ export function PinnedStoriesStrip(props: {
                     </>
                 ) : null}
             </ContextMenu>
+            <SessionSnoozeDialog
+                isOpen={snoozeTarget !== null}
+                onClose={() => setSnoozeTarget(null)}
+                onSnooze={async (until) => {
+                    if (snoozeTarget && props.onSnooze) await props.onSnooze(snoozeTarget, until)
+                }}
+            />
             <ConfirmDialog
                 isOpen={archiveTarget !== null}
                 onClose={() => setArchiveTarget(null)}
