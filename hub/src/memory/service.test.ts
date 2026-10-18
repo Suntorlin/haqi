@@ -17,7 +17,7 @@ function fakeVector(text: string): number[] {
 function fakeJev(calls: string[]): typeof fetch {
     return (async (url: string | URL | Request, init?: RequestInit) => {
         if (String(url).endsWith('/chat/completions')) {
-            const message = (JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> }).messages[1]!.content.split('message:\n')[1]!
+            const message = (JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> }).messages[1]!.content.split('message:\n')[1]!.split('\n\nWrite every')[0]!
             const rules = message.includes('以后') ? [{ text: `长期规则：${message.replace('以后', '')}`, quote: message }] : []
             return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ rules }) } }], usage: { cost: 0.0004 } }), { status: 200 })
         }
@@ -114,6 +114,15 @@ describe('MemoryService.propose', () => {
         expect(calls.filter((c) => c.startsWith('gate:'))).toEqual(['gate:以后汇报一律先写结论', 'gate:这个按钮改成绿色'])
         const [memory] = store.memories.list('default')
         expect(memory).toMatchObject({ status: 'pending', said: true, source: 'user_message', sourceLabel: '你说：「以后汇报一律先写结论」', sessionId: session.id })
+
+        // The user saying what an agent noted backs it: it goes up for approval and keeps the evidence under the rule.
+        const agentNote = store.memories.insert({
+            namespace: 'default', text: '部署前先备份 dist', level: 'experience', scope: '', status: 'active', reason: null, source: 'claude_auto', sourceLabel: null,
+            sessionId: null, said: true, support: 1, jev: null, overridden: null, replaces: null
+        })
+        expect(await service.propose({ namespace: 'default', text: '以后部署前记得备份 dist', said: true, source: 'user_message', sourceLabel: null, sessionId: null, project: 'haqi' })).toMatchObject({ action: 'reinforced', memoryId: agentNote.id })
+        await service.maintain('default')
+        expect(store.memories.get(agentNote.id, 'default')).toMatchObject({ status: 'pending', said: true, reason: '你说过' })
 
         // Read once: the next run starts after the last message.
         user('以后发布一律先备份')

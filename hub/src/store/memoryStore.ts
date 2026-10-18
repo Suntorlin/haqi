@@ -3,6 +3,7 @@ import type { Database } from 'bun:sqlite'
 import {
     addMemoryEvent,
     approvedMemoryIds,
+    memoryIdsBackedByUser,
     addMemoryLink,
     deleteMemory,
     getMemory,
@@ -42,6 +43,7 @@ export class MemoryStore {
     hasEventHash(namespace: string, hash: string): boolean { return hasMemoryEventWithHash(this.db, namespace, hash) }
     mentions(namespace: string, since: number): Map<string, { recent: number; lastAt: number }> { return mentionStats(this.db, namespace, since) }
     approved(namespace: string): Set<string> { return approvedMemoryIds(this.db, namespace) }
+    backedByUser(namespace: string): Set<string> { return memoryIdsBackedByUser(this.db, namespace) }
     userTurns(namespace: string, since: number, limit: number): UserTurn[] { return listUserTurns(this.db, namespace, since, limit) }
     hasReplacement(namespace: string, id: string): boolean { return hasReplacement(this.db, namespace, id) }
     setVector(namespace: string, vector: StoredVector): void { setMemoryVector(this.db, namespace, vector) }

@@ -78,7 +78,7 @@ export async function extractRules(options: { apiKey: string; message: string; b
                 usage: { include: true },
                 messages: [
                     { role: 'system', content: SYSTEM },
-                    { role: 'user', content: `agent_before:\n${options.before?.slice(-BEFORE_CHARS) ?? '(none)'}\n\nmessage:\n${options.message}` }
+                    { role: 'user', content: `agent_before:\n${options.before?.slice(-BEFORE_CHARS) ?? '(none)'}\n\nmessage:\n${options.message}\n\nWrite every "text" in ${/[\u4e00-\u9fff]/.test(options.message) ? 'Simplified Chinese' : 'the language of the message'}.` }
                 ]
             }),
             signal: AbortSignal.timeout(options.timeoutMs ?? 30_000)

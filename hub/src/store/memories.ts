@@ -298,6 +298,12 @@ export function approvedMemoryIds(db: Database, namespace: string): Set<string> 
     return new Set(rows.map((row) => row.memory_id))
 }
 
+/** Memories the user's own messages brought in or came back to. */
+export function memoryIdsBackedByUser(db: Database, namespace: string): Set<string> {
+    const rows = db.prepare("SELECT DISTINCT memory_id FROM memory_events WHERE namespace = ? AND memory_id IS NOT NULL AND source = 'user_message' AND action IN ('pending', 'reinforced')").all(namespace) as Array<{ memory_id: string }>
+    return new Set(rows.map((row) => row.memory_id))
+}
+
 export type UserTurn = { messageId: string; sessionId: string; createdAt: number; content: string; sessionMetadata: string | null; before: string | null }
 
 /** Messages the user sent after `since`, oldest first, each with the end of the agent's reply before it. */
