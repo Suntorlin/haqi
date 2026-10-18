@@ -87,6 +87,44 @@ const GENERIC_RULES: ContentRule[] = [
     { rule: 'JWT', kind: 'secret', re: /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g },
     { rule: 'webhook URL', kind: 'secret', re: /hooks\.slack\.com\/services\/\S+|open\.feishu\.cn\/open-apis\/bot\/v2\/hook\/\S+|discord(app)?\.com\/api\/webhooks\/\S+/g },
     { rule: 'mobile number', kind: 'privacy', re: /(?<![\d.\-+:/])1[3-9]\d{9}(?![\d.])/g },
+
+    // ── cloud and model providers ──
+    { rule: 'OpenRouter key', kind: 'secret', re: /\bsk-or-v1-[a-f0-9]{64}\b/g },
+    { rule: 'Vercel token', kind: 'secret', re: /\b(vc[a-z]_[A-Za-z0-9]{40,}|vercel_blob_rw_[A-Za-z0-9]{16}_[A-Za-z0-9]{30,})\b/g },
+    {
+        rule: 'Cloudflare credential',
+        kind: 'secret',
+        // Tunnel run token (base64 of {"a":"...), Origin CA key, tunnel cert.
+        re: /\beyJhIjoi[A-Za-z0-9+/=_-]{50,}|\bv1\.0-[a-f0-9]{24}-[a-f0-9]{146}\b|-----BEGIN ARGO TUNNEL TOKEN-{5}/g,
+    },
+    {
+        rule: 'Google Cloud credential',
+        kind: 'secret',
+        // OAuth client secret, access token, refresh token, service-account key file.
+        re: /\bGOCSPX-[A-Za-z0-9_-]{28}\b|\bya29\.[0-9A-Za-z_-]{20,}|(?<![\w/])1\/\/0[0-9A-Za-z_-]{30,}|"private_key_id"\s*:\s*"[a-f0-9]{40}"|"type"\s*:\s*"service_account"/g,
+    },
+    {
+        rule: 'credential in assignment',
+        kind: 'secret',
+        // NAME=value where NAME says it is a credential and value looks random.
+        re: /\b(OPENROUTER_API_KEY|VERCEL_(?:API_|OIDC_)?TOKEN|BLOB_READ_WRITE_TOKEN|CLOUDFLARE_API_(?:TOKEN|KEY)|CF_API_(?:TOKEN|KEY)|TUNNEL_TOKEN|R2_(?:SECRET_)?ACCESS_KEY(?:_ID)?|GOOGLE_(?:API_KEY|CLIENT_SECRET)|GCP_(?:SA|SERVICE_ACCOUNT)_KEY|[A-Z][A-Z0-9_]*_(?:API_KEY|SECRET_KEY|ACCESS_KEY|ACCESS_TOKEN|AUTH_TOKEN|SECRET))\b\s*[:=]\s*["'`]?([A-Za-z0-9_\-+/=]{20,})/g,
+        allow: (m) => {
+            const value = m.replace(/^[^:=]*[:=]\s*["'`]?/, '')
+            // Placeholders and values without both letters and digits are not keys.
+            return /your|xxx|example|placeholder|changeme|dummy|fake|test|sample/i.test(value) || !/\d/.test(value) || !/[A-Za-z]/.test(value)
+        },
+    },
+    {
+        rule: 'cloud account address',
+        kind: 'privacy',
+        re: /\b[a-f0-9]{32}\.r2\.cloudflarestorage\.com|dash\.cloudflare\.com\/[a-f0-9]{32}|console\.cloud\.google\.com\/[^\s"']*project=[a-z][a-z0-9-]{4,}/g,
+    },
+    {
+        rule: 'personal deployment URL',
+        kind: 'privacy',
+        re: /\b[a-z0-9-]+\.(vercel\.app|pages\.dev|workers\.dev|run\.app|trycloudflare\.com|cloudfunctions\.net|firebaseapp\.com|web\.app)\b/gi,
+        allow: (m) => /^(your|my|example|demo|app|project|<)/i.test(m),
+    },
 ]
 
 let CONTENT_RULES: ContentRule[] = [...GENERIC_RULES]
@@ -102,6 +140,10 @@ const PATH_RULES: { rule: string; re: RegExp }[] = [
     { rule: 'database', re: /\.(sqlite3?|db)(-wal|-shm)?$/i },
     { rule: 'key or certificate', re: /\.(pem|key|p12|pfx)$|(^|\/)id_(rsa|ed25519)(\.pub)?$/i },
     { rule: 'env file', re: /(^|\/)\.env(\.(?!example$)[^/]+)?$/ },
+    {
+        rule: 'cloud credentials file',
+        re: /(^|\/)(\.dev\.vars|\.vercel\/|\.wrangler\/|\.cloudflared\/|\.gcloud\/|application_default_credentials\.json$|[^/]*service[-_]?account[^/]*\.json$|[^/]*-sa-key[^/]*\.json$|client_secret[^/]*\.json$)/i,
+    },
 ]
 
 /** Content scanning skips generated and third-party files. */
@@ -212,6 +254,20 @@ function selfTest(): void {
         'sk-ant-api03-abcdefghijklmnopqrstuvwx', // public-safety: allow gitleaks:allow
         '123456789:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw1', // public-safety: allow gitleaks:allow
         'call 13812345678', // public-safety: allow
+        // Provider keys, built at runtime so this file holds no key-shaped literal.
+        'sk-or-v1-' + 'a1'.repeat(32),
+        'token ' + 'vcp_' + 'Ab3'.repeat(16),
+        'vercel_blob_rw_' + 'Ab3'.repeat(6).slice(0, 16) + '_' + 'Xy9'.repeat(12),
+        'cloudflared tunnel run --token ' + 'eyJhIjoi' + 'Q2'.repeat(40),
+        'v1.0-' + 'ab'.repeat(12) + '-' + 'cd'.repeat(73),
+        'client_secret=' + 'GOCSPX-' + 'Ab3d'.repeat(7),
+        'Authorization: Bearer ' + 'ya29.' + 'Ab3'.repeat(10),
+        'refresh_token=' + '1//0' + 'Ab3'.repeat(12),
+        '{"type": "' + 'service_account' + '"}',
+        'CLOUDFLARE_API_TOKEN=' + 'Ab3_'.repeat(10),
+        'R2_SECRET_ACCESS_KEY=' + 'a1'.repeat(32),
+        'endpoint https://' + 'f0'.repeat(16) + '.r2.cloudflarestorage.com',
+        'deployed at https://' + 'haqi-preview-x9' + '.vercel.app',
     ]
     const good = [
         'https://haqi.example.com/share/r/x',
@@ -220,6 +276,11 @@ function selfTest(): void {
         'test@example.com noreply@anthropic.com',
         'version 1.13.4567890',
         'see https://chat.corp-private.test // public-safety: allow',
+        'OPENROUTER_API_KEY=your-openrouter-key-here',
+        'CLOUDFLARE_API_TOKEN=${process.env.CF_TOKEN}',
+        'const token = process.env.VERCEL_TOKEN',
+        'https://your-app.vercel.app',
+        'const x = this.store.cloud.getSecretByNamespace',
     ]
     let ok = true
     for (const s of bad) {
@@ -247,6 +308,11 @@ function selfTest(): void {
         ['web/public/icon.png', false],
         ['cli/src/claude/utils/__fixtures__/a.jsonl', false],
         ['.env.example', false],
+        ['worker/.dev.vars', true],
+        ['.vercel/project.json', true],
+        ['keys/my-service-account.json', true],
+        ['app/client_secret_123.json', true],
+        ['wrangler.toml', false],
     ]
     for (const [p, blocked] of paths) {
         const out: Finding[] = []
