@@ -25,6 +25,8 @@ import { extractReportLinks } from '@/components/AssistantChat/reportLinks'
 import { FileIcon } from '@/components/mobile/icons'
 import { useOpenInPreview } from '@/lib/preview-link'
 import { setFollowingRunningTurn } from '@/lib/message-window-store'
+import { useChatZoom, ZoomMorphText } from '@/components/AssistantChat/chatZoom'
+import { replyZoomVersions, userZoomVersions, ZOOM_ALL, ZOOM_BRIEF, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 
 export function ChatTimeSeparator(props: { at: number }) {
     const { t, locale } = useTranslation()
@@ -333,6 +335,18 @@ export function SocialAssistantMessage() {
     const [expanded, setExpanded] = useState(false)
     // First step of the open list. It stays put while open, so a running turn's new steps only add at the end.
     const [processStart, setProcessStart] = useState<number | null>(null)
+    // Zooming the chat to "all" opens every finished turn's steps; leaving it closes them again.
+    // Set during render, so the steps open in the same commit the chat holds its anchor for.
+    const zoom = useChatZoom()
+    const zoomSnap = zoom?.snap ?? ZOOM_REPLY
+    const [syncedZoomSnap, setSyncedZoomSnap] = useState(zoomSnap)
+    if (zoomSnap !== syncedZoomSnap) {
+        setSyncedZoomSnap(zoomSnap)
+        if (!isRunning) {
+            setExpanded(zoomSnap === ZOOM_ALL)
+            setProcessStart(null)
+        }
+    }
     const rootRef = useRef<HTMLDivElement | null>(null)
     const footerRef = useRef<HTMLButtonElement | null>(null)
     const processRef = useRef<HTMLDivElement | null>(null)
@@ -456,6 +470,12 @@ export function SocialAssistantMessage() {
         .map((index) => content[index]?.text ?? '')
         .join('\n\n')
         .trim()
+    const zoomOn = zoom !== null
+    const zoomVersions = useMemo(() => (zoomOn && answerText ? replyZoomVersions(answerText) : null), [zoomOn, answerText])
+    // Brief level: the conclusion in place of the reply. Prose replies morph word by word on the way;
+    // replies with code or tables switch at the brief level instead.
+    const canZoomMorph = Boolean(zoomVersions?.brief && zoomVersions.brief !== zoomVersions.full)
+    const showZoomMorph = Boolean(zoom?.briefRange && canZoomMorph && (zoomVersions?.simple || zoomSnap === ZOOM_BRIEF))
     const partial = stats?.partial ?? false
     const footer = [
         layout.steps > 0 ? t('mobile.turn.steps', { n: partial ? `${layout.steps}+` : layout.steps }) : t('mobile.turn.reasoning'),
@@ -493,7 +513,7 @@ export function SocialAssistantMessage() {
     ) : null
 
     return (
-        <MessagePrimitive.Root ref={rootRef} className="group/turn flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
+        <MessagePrimitive.Root ref={rootRef} className="group/turn flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId} data-sz-item="">
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
             {/* One-to-one chat: no avatar beside replies, the header already shows who this is. */}
             <div className="flex min-w-0 flex-col gap-1.5 overflow-x-hidden">
@@ -518,9 +538,17 @@ export function SocialAssistantMessage() {
                         {layout.answerIndices.length > 0 ? (
                             <div
                                 {...pressProps}
-                                className={cn('social-card w-fit min-w-0 max-w-full rounded-2xl rounded-tl-md px-4 py-3 [&>*+*]:mt-3', pressClass)}
+                                className={cn(
+                                    'social-card min-w-0 max-w-full rounded-2xl rounded-tl-md px-4 py-3 [&>*+*]:mt-3',
+                                    // Words keep the width they were measured at while they move: a brief-width card would
+                                    // squeeze the longer text into a column. Only long replies morph, so the full row fits them.
+                                    showZoomMorph ? 'w-full' : 'w-fit',
+                                    pressClass
+                                )}
                             >
-                                {layout.answerIndices.map((index) => (
+                                {showZoomMorph && zoom && zoomVersions ? (
+                                    <ZoomMorphText controller={zoom.controller} brief={zoomVersions.brief} full={zoomVersions.full} />
+                                ) : layout.answerIndices.map((index) => (
                                     <MessagePrimitive.PartByIndex key={index} index={index} components={ANSWER_COMPONENTS} />
                                 ))}
                             </div>
@@ -533,7 +561,7 @@ export function SocialAssistantMessage() {
                             </div>
                         )}
 
-                        {hasProcess || reportLinks.length > 0 || (!isMobileLayout && answerText) ? (
+                        {zoomSnap !== ZOOM_BRIEF && (hasProcess || reportLinks.length > 0 || (!isMobileLayout && answerText)) ? (
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-[12px] text-[var(--social-fg-subtle)]">
                                 {hasProcess ? (
                                     <button
@@ -612,6 +640,10 @@ export function SocialUserMessage() {
         return custom?.kind === 'cli-output'
     })
     const separatorAt = useTimeSeparatorAt(messageId)
+    const zoom = useChatZoom()
+    const zoomOn = zoom !== null
+    const zoomVersions = useMemo(() => (zoomOn && text ? userZoomVersions(text) : null), [zoomOn, text])
+    const showZoomMorph = Boolean(zoom?.briefRange && zoomVersions?.brief && zoomVersions.brief !== zoomVersions.full)
 
     if (role !== 'user') return null
     const canRetry = status === 'failed' && typeof localId === 'string' && Boolean(ctx.onRetryMessage)
@@ -619,7 +651,7 @@ export function SocialUserMessage() {
     const hasAttachments = Boolean(attachments && attachments.length > 0)
 
     return (
-        <MessagePrimitive.Root className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId}>
+        <MessagePrimitive.Root className="flex min-w-0 max-w-full flex-col gap-2" data-happy-message-id={messageId} data-sz-item="">
             {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
             {isCliOutput ? (
                 <div className="ml-auto w-full max-w-[88%]">
@@ -632,8 +664,14 @@ export function SocialUserMessage() {
                             <MessageStatusIndicator status={status} onRetry={onRetry} />
                         </div>
                     ) : null}
-                    <div className="social-bubble-self min-w-0 max-w-full rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]">
-                        {text.length > 0 ? <LazyRainbowText text={text} /> : null}
+                    <div className={cn(
+                        'social-bubble-self min-w-0 max-w-full rounded-2xl rounded-br-md px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]',
+                        // Same reason as the reply card: moving words keep their measured width.
+                        showZoomMorph ? 'w-full' : ''
+                    )}>
+                        {showZoomMorph && zoom && zoomVersions ? (
+                            <ZoomMorphText controller={zoom.controller} brief={zoomVersions.brief} full={zoomVersions.full} />
+                        ) : text.length > 0 ? <LazyRainbowText text={text} /> : null}
                         {hasAttachments && attachments ? <MessageAttachments attachments={attachments} /> : null}
                     </div>
                 </div>
