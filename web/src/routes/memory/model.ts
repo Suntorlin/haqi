@@ -58,14 +58,14 @@ export function formatWhen(timestamp: number, now = Date.now()): string {
 
 export const ACTION_LABEL: Record<string, string> = {
     added: '新记下',
-    pending: '等你确认',
+    pending: '等你审批',
     candidate: '观察中',
-    promoted: '观察期满，生效',
-    expired: '30 天没再出现，没转正',
+    promoted: '被提到够多次，交给你审批',
+    expired: '30 天没再出现，不记了',
     merged: '合并了重复',
     reinforced: '被加强',
     edited: '你改过',
-    confirmed: '你确认了',
+    confirmed: '你通过了',
     dismissed: '你选了不记',
     deleted: '你删了'
 }

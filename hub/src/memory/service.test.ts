@@ -16,17 +16,27 @@ function fakeVector(text: string): number[] {
 /** A fake Jev: answers by keywords in the candidate, and matches anything containing "备份" or "推送". Embedding requests get fake vectors. */
 function fakeJev(calls: string[]): typeof fetch {
     return (async (url: string | URL | Request, init?: RequestInit) => {
+        if (String(url).endsWith('/chat/completions')) {
+            const message = (JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> }).messages[1]!.content.split('message:\n')[1]!
+            const rules = message.includes('以后') ? [{ text: `长期规则：${message.replace('以后', '')}`, quote: message }] : []
+            return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ rules }) } }], usage: { cost: 0.0004 } }), { status: 200 })
+        }
         if (String(url).endsWith('/embeddings')) {
             const input = (JSON.parse(String(init?.body)) as { input: string[] }).input
             return new Response(JSON.stringify({ data: input.map((text, index) => ({ index, embedding: fakeVector(text) })), usage: { cost: 0.000001 } }), { status: 200 })
         }
-        const body = JSON.parse(String(init?.body)) as { state: { candidate: string }; questions: Record<string, { criteria?: Record<string, unknown> }> }
+        const body = JSON.parse(String(init?.body)) as { state: { candidate: string; message?: string }; questions: Record<string, { criteria?: Record<string, unknown> }> }
+        if (body.questions.lasting) {
+            calls.push(`gate:${body.state.message}`)
+            const yes = body.state.message!.includes('以后') ? 0.9 : 0.1
+            return new Response(JSON.stringify({ answers: { lasting: { type: 'noul', noul: yes } }, usage: { cost: 0.00005 }, model: 'jev-test' }), { status: 200 })
+        }
         const text = body.state.candidate
         calls.push(text)
         const level = text.includes('一律') ? 'principle' : text.includes('10-') ? 'fact' : 'experience'
         const matchId = Object.keys(body.questions.match?.criteria ?? {}).find((id) => id !== 'none' && (text.includes('备份') || text.includes('推送')))
         const answers: Record<string, unknown> = {
-            keep: { type: 'noul', noul: text.includes('好的') ? 0.05 : text.includes('也许') ? 0.5 : 0.9 },
+            keep: { type: 'noul', noul: text.includes('好的') ? 0.05 : text.includes('下次') ? 0.5 : 0.9 },
             level: { type: 'choice', choice: level, probabilities: { [level]: 0.9 }, confidence: 0.85 },
             scope: { type: 'choice', choice: 'project', probabilities: { project: 0.9 }, confidence: 0.9 },
             secret: { type: 'noul', noul: 0.01 }
@@ -61,10 +71,11 @@ describe('MemoryService.propose', () => {
         const propose = (text: string, extra: Partial<Parameters<MemoryService['propose']>[0]> = {}) =>
             service.propose({ namespace: 'default', text, said: false, source: 'propose', sourceLabel: null, sessionId: null, project: 'haqi', ...extra })
 
-        expect(await propose('发正式站前先备份 dist，出问题直接拷回去')).toMatchObject({ action: 'added', message: '已记下：经验 · haqi。' })
-        expect(await propose('发布一律先备份再替换入口文件')).toMatchObject({ action: 'pending' })
+        expect(await propose('发正式站前先备份 dist，出问题直接拷回去', { said: true })).toMatchObject({ action: 'candidate', message: expect.stringContaining('agent 记的') })
+        expect(await propose('发布一律先备份再替换入口文件', { source: 'user_message' })).toMatchObject({ action: 'pending', message: expect.stringContaining('等你审批') })
         expect(await propose('部署前记得备份 dist 目录')).toMatchObject({ action: 'reinforced' })
         expect(await propose('好的，继续吧')).toMatchObject({ action: 'skipped' })
+        expect(await propose('也许下次可以换个思路')).toMatchObject({ action: 'skipped' })
         expect(await propose('测试库密码是 Tr0ub4dor&3')).toMatchObject({ action: 'rejected' })
         expect(await propose('fish 的工单规则', { project: 'fish' })).toMatchObject({ action: 'not-enabled' })
         expect(await propose('发正式站前先备份 dist，出问题直接拷回去')).toMatchObject({ action: 'duplicate' })
@@ -73,15 +84,99 @@ describe('MemoryService.propose', () => {
         expect(calls.some((text) => text.includes('fish'))).toBe(false)
 
         const snapshot = await service.snapshot('default')
-        expect(snapshot.memories.map((m) => [m.level, m.status, m.support]).sort()).toEqual([['experience', 'active', 2], ['principle', 'pending', 1]])
+        // The agent's claim that the user said it does not count.
+        expect(snapshot.memories.map((m) => [m.level, m.status, m.support, m.said]).sort()).toEqual([['experience', 'candidate', 2, false], ['principle', 'pending', 1, true]])
         expect(snapshot.links).toHaveLength(1)
-        expect(snapshot.stats).toMatchObject({ addedToday: 2, skippedToday: 2 })
+        expect(snapshot.stats).toMatchObject({ addedToday: 2, skippedToday: 3 })
         expect(snapshot.recent.find((e) => e.action === 'rejected')?.text).toBe('（含密钥，原文没有保存）')
         expect(changes.length).toBeGreaterThan(0)
 
         const pending = snapshot.memories.find((m) => m.status === 'pending')
         expect(service.edit('default', pending!.id, { level: 'experience' })).toMatchObject({ level: 'experience', overridden: { level: 'experience' } })
         expect(service.confirm('default', pending!.id)).toMatchObject({ status: 'active', reason: null })
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
+    it('reads the user\'s own messages, skips what they did not write, and sends the rules for approval', async () => {
+        const store = new Store(':memory:')
+        const calls: string[] = []
+        const settingsFile = join(dir, 'settings-read.json')
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile }), onChange: () => {}, fetchFn: fakeJev(calls) })
+        const session = store.sessions.getOrCreateSession('read', {}, null, 'default')
+        const user = (text: string) => store.messages.addMessage(session.id, { role: 'user', content: { type: 'text', text } })
+        user('以后汇报一律先写结论')
+        user('这个按钮改成绿色')
+        user('This session is being continued from a previous conversation that ran out of context. 以后')
+        user('<local-command-stdout>以后都这样</local-command-stdout>')
+        user('好')
+
+        expect(await service.readUserMessages('default')).toMatchObject({ read: 2, passed: 1, proposed: 1 })
+        expect(calls.filter((c) => c.startsWith('gate:'))).toEqual(['gate:以后汇报一律先写结论', 'gate:这个按钮改成绿色'])
+        const [memory] = store.memories.list('default')
+        expect(memory).toMatchObject({ status: 'pending', said: true, source: 'user_message', sourceLabel: '你说：「以后汇报一律先写结论」', sessionId: session.id })
+
+        // Read once: the next run starts after the last message.
+        user('以后发布一律先备份')
+        expect(await service.readUserMessages('default')).toMatchObject({ read: 1, proposed: 1 })
+        expect(calls.filter((c) => c.startsWith('gate:'))).toHaveLength(3)
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
+    it('applies the rule to what is already stored: agents\' memories are watched again, the user\'s stay', async () => {
+        const store = new Store(':memory:')
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings-rule.json') }), onChange: () => {}, fetchFn: fakeJev([]) })
+        const insert = (text: string, source: string, status: 'active' | 'pending', said: boolean) => store.memories.insert({
+            namespace: 'default', text, level: 'principle', scope: '', status, reason: null, source, sourceLabel: null,
+            sessionId: null, said, support: 1, jev: null, overridden: null, replaces: null
+        })
+        const agentActive = insert('agent 说用户喜欢短句', 'claude_auto', 'active', true)
+        const agentPending = insert('agent 觉得要先跑 lint', 'propose', 'pending', false)
+        const written = insert('回复用中文', 'import', 'active', true)
+        const approved = insert('agent 记的但你点过确认', 'claude_auto', 'pending', false)
+        service.confirm('default', approved.id)
+
+        expect(await service.maintain('default')).toMatchObject({ moved: 2 })
+        expect(store.memories.get(agentActive.id, 'default')).toMatchObject({ status: 'candidate', said: false })
+        expect(store.memories.get(agentPending.id, 'default')).toMatchObject({ status: 'candidate' })
+        expect(store.memories.get(written.id, 'default')).toMatchObject({ status: 'active', said: true })
+        expect(store.memories.get(approved.id, 'default')).toMatchObject({ status: 'active', said: false })
+        expect(await service.maintain('default')).toMatchObject({ moved: 0 })
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
+    it('tells the user once a batch waits for approval, and approves them in one go', async () => {
+        const store = new Store(':memory:')
+        const notices: string[] = []
+        const service = new MemoryService(store, {
+            paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings-notify.json') }),
+            onChange: () => {},
+            fetchFn: fakeJev([]),
+            notify: async (_namespace, notice) => { notices.push(notice.body) }
+        })
+        const add = (n: number) => {
+            for (let i = 0; i < n; i++) {
+                store.memories.insert({
+                    namespace: 'default', text: `你说的第 ${store.memories.list('default').length} 条`, level: 'principle', scope: '', status: 'pending', reason: '你说过',
+                    source: 'user_message', sourceLabel: null, sessionId: null, said: true, support: 1, jev: null, overridden: null, replaces: null
+                })
+            }
+        }
+        add(9)
+        await service.maintain('default')
+        expect(notices).toEqual([])
+        add(1)
+        await service.maintain('default')
+        await service.maintain('default')
+        expect(notices).toEqual(['攒了 10 条记忆，点开一次看完。'])
+        add(10)
+        await service.maintain('default')
+        expect(notices).toHaveLength(2)
+
+        expect(service.confirmAll('default')).toBe(20)
+        await service.maintain('default')
+        add(10)
+        await service.maintain('default')
+        expect(notices).toHaveLength(3)
         ;(store as unknown as { db: Database }).db.close()
     })
 
@@ -94,8 +189,9 @@ describe('MemoryService.propose', () => {
         expect(first).toMatchObject({ action: 'candidate' })
         expect(await propose('也许推送到 dev 前要等缓存热起来')).toMatchObject({ action: 'reinforced', memoryId: first.memoryId })
         expect(store.memories.get(first.memoryId!, 'default')?.status).toBe('candidate')
-        expect(await propose('也许推送前先预热缓存会快一些')).toMatchObject({ action: 'reinforced', message: expect.stringContaining('已生效') })
-        expect(store.memories.get(first.memoryId!, 'default')).toMatchObject({ status: 'active', support: 3 })
+        expect(await propose('也许推送前先预热缓存会快一些')).toMatchObject({ action: 'reinforced', message: expect.stringContaining('交给你审批') })
+        expect(store.memories.get(first.memoryId!, 'default')).toMatchObject({ status: 'pending', support: 3 })
+        service.confirm('default', first.memoryId!)
 
         const lonely = await propose('也许 lint 在 Node 26 上更慢')
         const db = (store as unknown as { db: Database }).db
@@ -116,7 +212,7 @@ describe('MemoryService.propose', () => {
         const store = new Store(':memory:')
         const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: fakeJev([]) })
         const insert = (text: string, status: 'active' | 'candidate', scope: string) => store.memories.insert({
-            namespace: 'default', text, level: 'experience', scope, status, reason: null, source: 'claude_auto', sourceLabel: null,
+            namespace: 'default', text, level: 'experience', scope, status, reason: null, source: status === 'active' ? 'import' : 'claude_auto', sourceLabel: null,
             sessionId: null, said: false, support: 1, jev: null, overridden: null, replaces: null
         })
         const kept = insert('禁止自动 push 到远程分支', 'active', '')

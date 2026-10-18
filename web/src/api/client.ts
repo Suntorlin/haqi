@@ -421,6 +421,14 @@ export class ApiClient {
         return await this.request<{ memory: MemoryItem }>(`/api/memories/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) })
     }
 
+    async confirmAllMemoryItems(ids?: string[]): Promise<{ confirmed: number }> {
+        return await this.request<{ confirmed: number }>('/api/memories/confirm-all', { method: 'POST', body: JSON.stringify(ids ? { ids } : {}) })
+    }
+
+    async readUserMessagesForMemory(): Promise<{ read: number; passed: number; proposed: number; costUsd: number }> {
+        return await this.request<{ read: number; passed: number; proposed: number; costUsd: number }>('/api/memories/read-messages', { method: 'POST', body: JSON.stringify({}) })
+    }
+
     async dismissMemoryItem(id: string): Promise<{ ok: boolean }> {
         return await this.request<{ ok: boolean }>(`/api/memories/${encodeURIComponent(id)}/dismiss`, { method: 'POST', body: JSON.stringify({}) })
     }

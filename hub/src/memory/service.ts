@@ -6,7 +6,8 @@ import type { Store, StoredMemory, StoredMemoryEvent, StoredMemoryLink } from '.
 import { cosine, embedTexts, EmbedError } from './embed'
 import { listClaudeMemoryFiles, listMemoryMdBullets, projectNameFor } from './harvest'
 import { askJev, JevError, resolveJevApiKey } from './jev'
-import { buildQuestions, decide, matchQuestion, parseVerdict, THRESHOLDS, TRIAL, type JevVerdict, type MemoryLevel } from './judge'
+import { extractRules, ExtractError, gate, GATE, userText } from './extract'
+import { buildQuestions, decide, matchQuestion, parseVerdict, REVIEW, THRESHOLDS, TRIAL, type JevVerdict, type MemoryLevel, type Origin } from './judge'
 import { mostSimilar, similarity } from './similarity'
 
 export type MemoryMode = 'off' | 'record'
@@ -17,6 +18,7 @@ export type MemoryCaptureSettings = { mode: MemoryMode; projects: string[] }
 export type ProposeInput = {
     namespace: string
     text: string
+    /** What the caller claims; only the source decides whether the user said it (see originOf). */
     said: boolean
     source: MemorySource
     sourceLabel: string | null
@@ -37,6 +39,10 @@ export type KnownProject = { name: string; path: string | null; sessions: number
 export type StoredJev = JevVerdict & { project: string | null; costUsd: number; latencyMs: number; model: string }
 
 export type MaintainResult = { moved: number; embedded: number; merged: number; promoted: number; expired: number; offered: number; costUsd: number }
+
+export type ReadMessagesResult = { read: number; passed: number; proposed: number; costUsd: number }
+
+export type MemoryNotice = { title: string; body: string; url: string }
 
 export type SearchHit = { memory: StoredMemory; score: number }
 
@@ -75,12 +81,24 @@ function startOfToday(): number {
 }
 
 function trialMessage(): string {
-    return `先观察：${TRIAL.windowDays} 天内被提到 ${TRIAL.promote} 次就生效，${TRIAL.windowDays} 天没再出现就不记。`
+    return `先观察：${TRIAL.windowDays} 天内被提到 ${TRIAL.promote} 次就交给你审批，${TRIAL.windowDays} 天没再出现就不记。`
 }
+
+/** Only what the user wrote or typed counts as theirs; whatever an agent passes on is the agent's. */
+function originOf(source: MemorySource): Origin {
+    if (source === 'import') return 'written'
+    if (source === 'user_message') return 'said'
+    return 'agent'
+}
+
+const MESSAGE_PAGE = 200
+const GATE_PARALLEL = 6
+const QUOTE_CHARS = 160
 
 export class MemoryService {
     private harvesting = false
     private maintaining = false
+    private reading = false
 
     constructor(
         private readonly store: Store,
@@ -88,17 +106,20 @@ export class MemoryService {
             /** Resolved lazily: the hub configuration is created after the engine in some tests. */
             paths: () => { dataDir: string; settingsFile: string }
             onChange: (namespace: string) => void
+            /** Tells the user that memories wait for approval (a push notification). */
+            notify?: (namespace: string, notice: MemoryNotice) => Promise<void>
             fetchFn?: typeof fetch
         }
     ) {}
 
-    async getSettings(): Promise<MemoryCaptureSettings & { jevApiKey: string | null }> {
+    async getSettings(): Promise<MemoryCaptureSettings & { jevApiKey: string | null; userCursor: number | null }> {
         const settings: Settings = (await readSettings(this.options.paths().settingsFile)) ?? {}
         const capture = settings.memoryCapture ?? {}
         return {
             mode: capture.mode === 'off' ? 'off' : 'record',
             projects: capture.projects ?? DEFAULT_PROJECTS,
-            jevApiKey: capture.jevApiKey ?? null
+            jevApiKey: capture.jevApiKey ?? null,
+            userCursor: capture.userCursor ?? null
         }
     }
 
@@ -128,6 +149,8 @@ export class MemoryService {
             return { action: 'not-enabled', memoryId: null, message: `项目 ${input.project} 没开记忆采集。` }
         }
 
+        const origin = originOf(input.source)
+        const said = origin !== 'agent'
         const text = normalize(input.text)
         if (text.length < 4) return { action: 'skipped', memoryId: null, message: '没记：内容太短。' }
         const hash = textHash(text)
@@ -159,7 +182,7 @@ export class MemoryService {
             try {
                 const result = await askJev({
                     apiKey,
-                    state: { candidate: text, said_by_user: input.said, project: input.project ?? 'none' },
+                    state: { candidate: text, said_by_user: said, project: input.project ?? 'none' },
                     questions: buildQuestions({ hasProject: Boolean(input.project), similar: similar.map((m) => ({ id: m.id, text: m.text })) }),
                     fetchFn: this.options.fetchFn
                 })
@@ -171,12 +194,12 @@ export class MemoryService {
         }
 
         if (!verdict) {
-            // Nothing judged: keep it for the user, with a neutral guess.
-            const status = input.said ? 'pending' : 'candidate'
+            // Nothing judged: what the user wrote or said waits for them, an agent's note is watched.
+            const status = said ? 'pending' : 'candidate'
             const memory = this.store.memories.insert({
-                namespace: input.namespace, text, level: input.said ? 'principle' : 'experience', scope: input.said ? '' : input.project ?? '',
+                namespace: input.namespace, text, level: said ? 'principle' : 'experience', scope: said ? '' : input.project ?? '',
                 status, reason: `Jev 没判断：${jevProblem}`, source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId,
-                said: input.said, support: 1, jev: null, overridden: null, replaces: null
+                said, support: 1, jev: null, overridden: null, replaces: null
             })
             this.saveVector(input.namespace, memory, vector)
             this.log({ ...base, memoryId: memory.id, action: status, text, reason: memory.reason, jev: null, costUsd: 0, latencyMs: 0 })
@@ -187,7 +210,7 @@ export class MemoryService {
 
         const jev: StoredJev = { ...verdict, project: input.project, ...jevMeta }
         const matched = verdict.match.id ? pool.find((m) => m.id === verdict.match.id) ?? null : null
-        const decision = decide({ verdict, said: input.said, matchedLevel: matched?.level ?? null })
+        const decision = decide({ verdict, origin, matchedLevel: matched?.level ?? null })
 
         if (decision.kind === 'reject') {
             this.log({ ...base, memoryId: null, action: 'rejected', text: '（含密钥，原文没有保存）', reason: decision.reason, jev, ...jevMeta })
@@ -198,18 +221,26 @@ export class MemoryService {
             return { action: 'skipped', memoryId: null, message: `没记：${decision.reason}。` }
         }
         if (decision.kind === 'reinforce' && matched) {
-            this.store.memories.update(matched.id, input.namespace, { support: matched.support + 1 })
+            // The user saying what an agent noted is the evidence it was waiting for: it goes up for approval.
+            const backed = said && !matched.said
+            const lifted = backed && matched.status === 'candidate'
+            this.store.memories.update(matched.id, input.namespace, {
+                support: matched.support + 1,
+                ...(backed ? { said: true } : {}),
+                ...(lifted ? { status: 'pending', reason: '你说过（之前 agent 也记过）' } : {})
+            })
             this.log({ ...base, memoryId: matched.id, action: 'reinforced', text, reason: null, jev, ...jevMeta })
-            const promoted = matched.status === 'candidate' && this.promoteIfDue(input.namespace, matched.id)
-            if (promoted) this.options.onChange(input.namespace)
-            return { action: 'reinforced', memoryId: matched.id, message: `和已有的一条是同一件事，已加强（被提到 ${matched.support + 1} 次${promoted ? '，观察期满，已生效' : ''}）。` }
+            const promoted = !lifted && matched.status === 'candidate' && this.promoteIfDue(input.namespace, matched.id)
+            if (promoted || lifted) this.options.onChange(input.namespace)
+            const tail = lifted ? '，你说过，交给你审批' : promoted ? '，被提到够多次，交给你审批' : ''
+            return { action: 'reinforced', memoryId: matched.id, message: `和已有的一条是同一件事，已加强（被提到 ${matched.support + 1} 次${tail}）。` }
         }
         if (decision.kind !== 'add') return { action: 'skipped', memoryId: null, message: '没记。' }
 
         const scope = decision.scope === 'project' && input.project ? input.project : ''
         const memory = this.store.memories.insert({
             namespace: input.namespace, text, level: decision.level, scope, status: decision.status, reason: decision.reason,
-            source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId, said: input.said, support: 1,
+            source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId, said, support: 1,
             jev, overridden: null, replaces: null
         })
         this.saveVector(input.namespace, memory, vector)
@@ -221,7 +252,7 @@ export class MemoryService {
         this.log({ ...base, memoryId: memory.id, action, text, reason: decision.reason, jev, ...jevMeta })
         const where = `${LEVEL_LABEL[decision.level]} · ${scope || '全局'}`
         if (decision.status === 'active') return { action: 'added', memoryId: memory.id, message: `已记下：${where}。` }
-        if (decision.status === 'pending') return { action: 'pending', memoryId: memory.id, message: `已放进“等你确认”（${where}）：${decision.reason}。` }
+        if (decision.status === 'pending') return { action: 'pending', memoryId: memory.id, message: `已放进“等你审批”（${where}）：${decision.reason}。` }
         return { action: 'candidate', memoryId: memory.id, message: `已记下（${where}），${decision.reason}。${trialMessage()}` }
     }
 
@@ -257,6 +288,17 @@ export class MemoryService {
         const updated = this.store.memories.update(id, namespace, { status: 'active', reason: null })
         this.log({ namespace, memoryId: id, action: 'confirmed', text: current.text, reason: null, source: 'user_edit', sourceLabel: '你', sourceRef: null, hash: null, sessionId: null, jev: null, costUsd: 0, latencyMs: 0 })
         return updated
+    }
+
+    /** Approves every memory waiting for approval, or the given ones. */
+    confirmAll(namespace: string, ids?: string[]): number {
+        const wanted = ids ? new Set(ids) : null
+        let confirmed = 0
+        for (const memory of this.store.memories.list(namespace)) {
+            if (memory.status !== 'pending' || (wanted && !wanted.has(memory.id))) continue
+            if (this.confirm(namespace, memory.id)) confirmed += 1
+        }
+        return confirmed
     }
 
     dismiss(namespace: string, id: string): boolean {
@@ -344,7 +386,8 @@ export class MemoryService {
                 await this.propose({
                     namespace,
                     text: file.text,
-                    said: file.kind === 'feedback' || file.kind === 'user',
+                    // The file's type is the agent's own label, not evidence that the user said it.
+                    said: false,
                     source: 'claude_auto',
                     sourceLabel: `Claude 自带记忆 · ${basename(file.path)}`,
                     sessionId: null,
@@ -359,7 +402,91 @@ export class MemoryService {
         }
     }
 
-    /** Bullets of the hand-written global MEMORY.md, as things the user said. */
+    /**
+     * The user's own messages since the last read (the past TRIAL.windowDays days the first time): local rules drop what
+     * the user did not write, Jev keeps messages that state a lasting rule, and the rules found go in with the user's words.
+     */
+    async readUserMessages(namespace = 'default'): Promise<ReadMessagesResult> {
+        const result: ReadMessagesResult = { read: 0, passed: 0, proposed: 0, costUsd: 0 }
+        if (this.reading) return result
+        this.reading = true
+        try {
+            const settings = await this.getSettings()
+            const apiKey = resolveJevApiKey(settings.jevApiKey)
+            if (settings.mode === 'off' || !apiKey) return result
+            let cursor = settings.userCursor ?? Date.now() - TRIAL.windowDays * DAY_MS
+            for (;;) {
+                const turns = this.store.memories.userTurns(namespace, cursor, MESSAGE_PAGE)
+                if (turns.length === 0) break
+                const items = turns.map((turn) => {
+                    const text = messageText(turn.content)
+                    const path = (parseJson(turn.sessionMetadata) as { path?: unknown } | null)?.path
+                    const project = typeof path === 'string' ? projectNameFor(path) : null
+                    const usable = text !== null && (!project || settings.projects.includes(project))
+                    return { turn, text, project, usable }
+                })
+                const gated: Array<{ yes: number } | null> = new Array(items.length).fill(null)
+                let failed = -1
+                for (let i = 0; i < items.length && failed < 0; i += GATE_PARALLEL) {
+                    await Promise.all(items.slice(i, i + GATE_PARALLEL).map(async (item, offset) => {
+                        if (!item.usable) return
+                        try {
+                            const answer = await gate({ apiKey, message: item.text!, before: item.turn.before, fetchFn: this.options.fetchFn })
+                            gated[i + offset] = { yes: answer.yes }
+                            result.costUsd += answer.costUsd
+                        } catch (error) {
+                            if (!(error instanceof JevError)) throw error
+                            failed = failed < 0 ? i + offset : Math.min(failed, i + offset)
+                        }
+                    }))
+                }
+                const done = failed < 0 ? items : items.slice(0, failed)
+                for (const [index, item] of done.entries()) {
+                    if (!item.usable) continue
+                    result.read += 1
+                    if ((gated[index]?.yes ?? 0) < GATE) continue
+                    result.passed += 1
+                    let rules: Awaited<ReturnType<typeof extractRules>>['rules'] = []
+                    try {
+                        const extracted = await extractRules({ apiKey, message: item.text!, before: item.turn.before, fetchFn: this.options.fetchFn })
+                        rules = extracted.rules
+                        result.costUsd += extracted.costUsd
+                    } catch (error) {
+                        if (!(error instanceof ExtractError)) throw error
+                        console.warn(`[MemoryService] Extract failed: ${error.message}`)
+                        failed = index
+                        break
+                    }
+                    for (const rule of rules) {
+                        const quote = rule.quote.length > QUOTE_CHARS ? `${rule.quote.slice(0, QUOTE_CHARS)}…` : rule.quote
+                        await this.propose({
+                            namespace, text: rule.text, said: true, source: 'user_message', sourceLabel: `你说：「${quote}」`,
+                            sessionId: item.turn.sessionId, project: item.project, sourceRef: item.turn.messageId
+                        })
+                        result.proposed += 1
+                    }
+                }
+                const last = failed < 0 ? turns[turns.length - 1] : failed > 0 ? turns[failed - 1] : null
+                if (last) {
+                    cursor = last.createdAt
+                    await this.saveCapture({ userCursor: cursor })
+                }
+                if (failed >= 0 || turns.length < MESSAGE_PAGE) break
+            }
+            if (result.read > 0) {
+                this.store.memories.addEvent({
+                    namespace, memoryId: null, action: 'scanned', text: `读了你的 ${result.read} 条消息，${result.passed} 条讲了长期规则，提取 ${result.proposed} 条`,
+                    reason: null, source: 'user_message', sourceLabel: '你的消息', sourceRef: null, hash: null, sessionId: null, jev: null,
+                    costUsd: result.costUsd, latencyMs: 0
+                })
+            }
+            return result
+        } finally {
+            this.reading = false
+        }
+    }
+
+    /** Bullets of the hand-written global MEMORY.md, as things the user wrote. */
     async importMemoryMd(namespace = 'default'): Promise<{ found: number; proposed: number }> {
         const bullets = listMemoryMdBullets(this.options.paths().dataDir)
         let proposed = 0
@@ -400,8 +527,9 @@ export class MemoryService {
         if (this.maintaining) return result
         this.maintaining = true
         try {
+            const approved = this.store.memories.approved(namespace)
             for (const memory of this.store.memories.list(namespace)) {
-                const next = this.waitingStatus(memory)
+                const next = this.underRule(memory, approved)
                 if (!next) continue
                 this.store.memories.update(memory.id, namespace, next)
                 result.moved += 1
@@ -435,29 +563,65 @@ export class MemoryService {
                 }
             }
             if (Object.entries(result).some(([key, value]) => key !== 'costUsd' && value > 0)) this.options.onChange(namespace)
+            await this.notifyIfDue(namespace)
             return result
         } finally {
             this.maintaining = false
         }
     }
 
-    /** The current rule applied to a memory still waiting for the user: facts and experiences go on trial; some principles the user said become active. */
-    private waitingStatus(memory: StoredMemory): { status: StoredMemory['status']; reason?: null; scope?: string } | null {
-        if (memory.status !== 'pending' || memory.replaces) return null
-        if (memory.level !== 'principle') return { status: 'candidate' }
-        const jev = memory.jev as StoredJev | null
-        if (!jev || memory.overridden) return null
-        const decision = decide({ verdict: jev, said: memory.said })
-        if (decision.kind !== 'add' || decision.status !== 'active') return null
-        return { status: 'active', reason: null, scope: decision.scope === 'project' && jev.project ? jev.project : '' }
+    /**
+     * The current rule applied to what is already stored: an agent's label is not the user's word, and nothing becomes
+     * active without the user except what they wrote. Agents' memories go back to being watched.
+     */
+    private underRule(memory: StoredMemory, approved: Set<string>): { status?: StoredMemory['status']; reason?: string | null; said?: boolean } | null {
+        const origin = originOf(memory.source as MemorySource)
+        const said = origin === 'agent' ? false : memory.said
+        const patch: { status?: StoredMemory['status']; reason?: string | null; said?: boolean } = {}
+        if (said !== memory.said) patch.said = said
+        const byUser = approved.has(memory.id) || origin === 'written' || memory.source === 'user_edit'
+        if (memory.status === 'active' && !byUser) {
+            Object.assign(patch, said ? { status: 'pending', reason: '你说过' } : { status: 'candidate', reason: 'agent 记的，等它再被提到' })
+        } else if (memory.status === 'pending' && !said && !memory.replaces) {
+            Object.assign(patch, { status: 'candidate', reason: 'agent 记的，等它再被提到' })
+        }
+        return Object.keys(patch).length > 0 ? patch : null
     }
 
-    /** A memory on trial becomes active once it came up often enough inside the window. */
+    /** One notice when REVIEW.batch memories wait for approval; again only when another batch piles up, or a day later with more. */
+    private async notifyIfDue(namespace: string): Promise<void> {
+        const settings: Settings = (await readSettings(this.options.paths().settingsFile)) ?? {}
+        const capture = settings.memoryCapture ?? {}
+        const waiting = this.store.memories.list(namespace).filter((m) => m.status === 'pending').length
+        const told = capture.reviewNotifiedCount ?? 0
+        if (waiting < REVIEW.batch) {
+            if (told > 0) await this.saveCapture({ reviewNotifiedCount: 0 })
+            return
+        }
+        const quiet = Date.now() - (capture.reviewNotifiedAt ?? 0) < REVIEW.quietHours * 3600 * 1000
+        if (told > 0 && waiting < told + REVIEW.batch && (quiet || waiting <= told)) return
+        await this.saveCapture({ reviewNotifiedAt: Date.now(), reviewNotifiedCount: waiting })
+        if (!this.options.notify) return
+        try {
+            await this.options.notify(namespace, { title: '记忆等你审批', body: `攒了 ${waiting} 条记忆，点开一次看完。`, url: '/memory' })
+        } catch (error) {
+            console.warn(`[MemoryService] Review notice failed: ${error instanceof Error ? error.message : String(error)}`)
+        }
+    }
+
+    private async saveCapture(patch: Partial<NonNullable<Settings['memoryCapture']>>): Promise<void> {
+        const settings: Settings = (await readSettings(this.options.paths().settingsFile)) ?? {}
+        settings.memoryCapture = { ...(settings.memoryCapture ?? {}), ...patch }
+        await writeSettings(this.options.paths().settingsFile, settings)
+    }
+
+    /** A watched memory goes up for approval once it came up often enough inside the window. */
     private promoteIfDue(namespace: string, id: string, state?: TrialState): boolean {
         const current = state ?? this.store.memories.mentions(namespace, Date.now() - TRIAL.windowDays * DAY_MS).get(id)
         if (!current || current.recent < TRIAL.promote) return false
-        const memory = this.store.memories.update(id, namespace, { status: 'active', reason: null })
-        if (memory) this.quietLog(namespace, id, 'promoted', memory.text, `${TRIAL.windowDays} 天内被提到 ${current.recent} 次，已生效`)
+        const reason = `${TRIAL.windowDays} 天内被提到 ${current.recent} 次，等你审批`
+        const memory = this.store.memories.update(id, namespace, { status: 'pending', reason })
+        if (memory) this.quietLog(namespace, id, 'promoted', memory.text, reason)
         return Boolean(memory)
     }
 
@@ -611,4 +775,20 @@ export class MemoryService {
         this.store.memories.addEvent(event)
         this.options.onChange(event.namespace)
     }
+}
+
+function parseJson(raw: string | null): unknown {
+    if (!raw) return null
+    try {
+        return JSON.parse(raw)
+    } catch {
+        return null
+    }
+}
+
+/** The text of a message the user typed, or null for anything else. */
+function messageText(content: string): string | null {
+    const message = parseJson(content) as { role?: unknown; content?: { type?: unknown; text?: unknown } } | null
+    if (message?.role !== 'user' || message.content?.type !== 'text' || typeof message.content.text !== 'string') return null
+    return userText(message.content.text)
 }

@@ -35,7 +35,7 @@ import {
     type RpcUploadFileResponse
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
-import { MemoryService } from '../memory/service'
+import { MemoryService, type MemoryNotice } from '../memory/service'
 import { configuration } from '../configuration'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
@@ -471,6 +471,7 @@ export class SyncEngine {
     private memoryHarvestTimer: NodeJS.Timeout | null = null
     private memoryHarvestKickoff: NodeJS.Timeout | null = null
     private readonly memoryService: MemoryService
+    private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
 
     constructor(
         store: Store,
@@ -513,7 +514,8 @@ export class SyncEngine {
         )
         this.memoryService = new MemoryService(store, {
             paths: () => ({ dataDir: configuration.dataDir, settingsFile: configuration.settingsFile }),
-            onChange: (namespace) => this.eventPublisher.emit({ type: 'memories-updated', namespace })
+            onChange: (namespace) => this.eventPublisher.emit({ type: 'memories-updated', namespace }),
+            notify: async (namespace, notice) => { await this.memoryNotifier?.(namespace, notice) }
         })
         if (store.getDatabasePath() !== ':memory:') {
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
@@ -525,11 +527,19 @@ export class SyncEngine {
         return this.memoryService
     }
 
+    /** The hub hands in push delivery once it exists; the engine is created first. */
+    setMemoryNotifier(notifier: (namespace: string, notice: MemoryNotice) => Promise<void>): void {
+        this.memoryNotifier = notifier
+    }
+
     private harvestMemories(): void {
-        void this.memoryService.harvestClaude().then(() => this.memoryService.maintain()).catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : String(error)
-            console.warn(`[SyncEngine] Memory harvest failed: ${message}`)
-        })
+        void this.memoryService.harvestClaude()
+            .then(() => this.memoryService.readUserMessages())
+            .then(() => this.memoryService.maintain())
+            .catch((error: unknown) => {
+                const message = error instanceof Error ? error.message : String(error)
+                console.warn(`[SyncEngine] Memory harvest failed: ${message}`)
+            })
     }
 
     stop(): void {

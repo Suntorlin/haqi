@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite'
 
 import {
     addMemoryEvent,
+    approvedMemoryIds,
     addMemoryLink,
     deleteMemory,
     getMemory,
@@ -13,13 +14,15 @@ import {
     listMemoryEventsSince,
     listMemoryLinks,
     listMemoryVectors,
+    listUserTurns,
     mentionStats,
     setMemoryVector,
     updateMemory,
     type MemoryPatch,
     type NewMemory,
     type NewMemoryEvent,
-    type StoredVector
+    type StoredVector,
+    type UserTurn
 } from './memories'
 import type { StoredMemory, StoredMemoryEvent, StoredMemoryLink } from './types'
 
@@ -38,6 +41,8 @@ export class MemoryStore {
     eventsSince(namespace: string, since: number): StoredMemoryEvent[] { return listMemoryEventsSince(this.db, namespace, since) }
     hasEventHash(namespace: string, hash: string): boolean { return hasMemoryEventWithHash(this.db, namespace, hash) }
     mentions(namespace: string, since: number): Map<string, { recent: number; lastAt: number }> { return mentionStats(this.db, namespace, since) }
+    approved(namespace: string): Set<string> { return approvedMemoryIds(this.db, namespace) }
+    userTurns(namespace: string, since: number, limit: number): UserTurn[] { return listUserTurns(this.db, namespace, since, limit) }
     hasReplacement(namespace: string, id: string): boolean { return hasReplacement(this.db, namespace, id) }
     setVector(namespace: string, vector: StoredVector): void { setMemoryVector(this.db, namespace, vector) }
     vectors(namespace: string): StoredVector[] { return listMemoryVectors(this.db, namespace) }
