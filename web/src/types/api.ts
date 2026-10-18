@@ -465,7 +465,8 @@ export type MemoryItem = {
     text: string
     level: MemoryLevel
     scope: string
-    status: 'active' | 'pending' | 'archived'
+    /** pending = waits for you (principles); candidate = on trial, promoted by mentions or let go after 30 quiet days. */
+    status: 'active' | 'pending' | 'candidate' | 'archived'
     reason: string | null
     source: string
     sourceLabel: string | null
@@ -501,9 +502,15 @@ export type MemoriesResponse = {
     memories: MemoryItem[]
     links: MemoryLink[]
     recent: MemoryEvent[]
+    /** For memories on trial: mentions in the last 30 days and when it last came up. */
+    trial: Record<string, { recent: number; lastAt: number }>
     stats: { addedToday: number; skippedToday: number; skippedReasons: Record<string, number>; judged: number; corrected: number; costTodayUsd: number }
     settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: Array<{ name: string; path: string | null; sessions: number }> }
 }
+
+export type MemoryHit = MemoryItem & { score: number }
+
+export type MemoryMaintainResult = { moved: number; embedded: number; merged: number; promoted: number; expired: number; offered: number; costUsd: number }
 
 export type ExperimentalSettings = {
     claudeLoginShell: boolean

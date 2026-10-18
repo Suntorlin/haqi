@@ -273,7 +273,8 @@ export type StoredMemory = {
     level: 'fact' | 'experience' | 'principle'
     /** '' = applies everywhere; otherwise a repository name. */
     scope: string
-    status: 'active' | 'pending' | 'archived'
+    /** pending = waits for the user (principles only); candidate = on trial, promoted by mentions or let go with time. */
+    status: 'active' | 'pending' | 'candidate' | 'archived'
     reason: string | null
     source: string
     sourceLabel: string | null

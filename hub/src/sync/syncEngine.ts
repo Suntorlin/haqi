@@ -526,7 +526,7 @@ export class SyncEngine {
     }
 
     private harvestMemories(): void {
-        void this.memoryService.harvestClaude().catch((error: unknown) => {
+        void this.memoryService.harvestClaude().then(() => this.memoryService.maintain()).catch((error: unknown) => {
             const message = error instanceof Error ? error.message : String(error)
             console.warn(`[SyncEngine] Memory harvest failed: ${message}`)
         })
