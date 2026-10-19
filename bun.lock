@@ -12,7 +12,7 @@
     },
     "cli": {
       "name": "@jasonczc/haqi",
-      "version": "0.15.5",
+      "version": "0.16.0",
       "bin": {
         "haqi": "bin/haqi.cjs",
         "hapi": "bin/hapi.cjs",
