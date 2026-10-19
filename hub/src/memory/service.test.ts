@@ -253,8 +253,9 @@ describe('MemoryService.propose', () => {
 
     it('lists every project the user has sessions in, busiest first', async () => {
         const store = new Store(':memory:')
-        const busy = mkdtempSync(join(tmpdir(), 'proj-busy-'))
-        const quiet = mkdtempSync(join(tmpdir(), 'proj-quiet-'))
+        // Not under /tmp (the Linux temp folder), which the project list leaves out on purpose, and not inside a git repository.
+        const busy = mkdtempSync(join('/var/tmp', 'proj-busy-'))
+        const quiet = mkdtempSync(join('/var/tmp', 'proj-quiet-'))
         store.sessions.getOrCreateSession('a', { path: busy }, null, 'default')
         store.sessions.getOrCreateSession('b', { path: busy }, null, 'default')
         store.sessions.getOrCreateSession('c', { path: quiet }, null, 'default')
