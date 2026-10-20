@@ -16,7 +16,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Virtuoso } from 'react-virtuoso'
-import type { SessionSummary } from '@/types/api'
+import type { SessionSummary, SessionTask } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
 import { cn } from '@/lib/utils'
@@ -26,6 +26,7 @@ import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ProjectActionMenu } from '@/components/ProjectActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
+import { SessionTaskSheet } from '@/components/SessionTaskSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -426,6 +427,7 @@ function SessionItem(props: {
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
     const [renameOpen, setRenameOpen] = useState(false)
     const [tagsOpen, setTagsOpen] = useState(false)
+    const [tasksOpen, setTasksOpen] = useState(false)
     const [snoozeOpen, setSnoozeOpen] = useState(false)
     const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
@@ -493,6 +495,12 @@ function SessionItem(props: {
         ? (effectiveThinking ? 'bg-[var(--app-badge-info-text)]' : 'bg-[var(--app-badge-success-text)]')
         : 'bg-[var(--social-fg-muted)]'
     const isCompact = density === 'compact'
+
+    const toggleTask = (task: SessionTask, linked: boolean) => {
+        void linkTask(s, task, linked).catch((error) => {
+            console.error('Failed to update session task', error)
+        })
+    }
 
     const handleArchive = () => {
         if (!skipArchiveConfirmation) {
@@ -712,11 +720,8 @@ function SessionItem(props: {
             tagsPending={isPending}
             tasks={menuTasks}
             taskIds={taskIds}
-            onTaskToggle={(task, linked) => {
-                void linkTask(s, task, linked).catch((error) => {
-                    console.error('Failed to update session task', error)
-                })
-            }}
+            onTaskToggle={toggleTask}
+            onTasks={() => setTasksOpen(true)}
             onSpawnSameConfig={handleSpawnSameConfig}
                 onDuplicate={handleDuplicate}
                 onArchive={handleArchive}
@@ -736,6 +741,14 @@ function SessionItem(props: {
                 isOpen={snoozeOpen}
                 onClose={() => setSnoozeOpen(false)}
                 onSnooze={updateSnooze}
+            />
+
+            <SessionTaskSheet
+                open={tasksOpen}
+                onOpenChange={setTasksOpen}
+                tasks={menuTasks}
+                taskIds={taskIds}
+                onToggle={toggleTask}
             />
 
             <SessionTagsDialog
