@@ -62,6 +62,9 @@ export function ContextMenu(props: {
         document.addEventListener('keydown', handleKeyDown)
         window.addEventListener('resize', updatePosition)
         window.addEventListener('scroll', updatePosition, true)
+        // A submenu expanded in place (snooze, task on phones) makes the menu taller: move it back on screen.
+        const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition)
+        if (menuRef.current) resizeObserver?.observe(menuRef.current)
         const frame = window.requestAnimationFrame(() => {
             menuRef.current?.querySelector<HTMLElement>('[role^="menuitem"]')?.focus()
         })
@@ -70,6 +73,7 @@ export function ContextMenu(props: {
             document.removeEventListener('keydown', handleKeyDown)
             window.removeEventListener('resize', updatePosition)
             window.removeEventListener('scroll', updatePosition, true)
+            resizeObserver?.disconnect()
             window.cancelAnimationFrame(frame)
         }
     }, [open, onClose, updatePosition])
