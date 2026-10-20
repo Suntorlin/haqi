@@ -373,10 +373,8 @@ html[data-theme="dark"] .shiki span {
   }
 }
 
-.social-glass {
-  background: color-mix(in srgb, var(--social-surface) 62%, transparent);
-  -webkit-backdrop-filter: blur(28px) saturate(1.8);
-  backdrop-filter: blur(28px) saturate(1.8);
+.social-float-card {
+  background: var(--social-surface);
   border: 1px solid color-mix(in srgb, var(--social-border) 80%, transparent);
   box-shadow: var(--shadow-float);
 }
