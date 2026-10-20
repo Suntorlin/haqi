@@ -20,7 +20,7 @@ Concrete rules:
 2. **44px on phones.** Every tappable target has a >= 44px hit area. Glyph may be smaller: use `IconButton` (44) or pad the hit area (`after:` pseudo-element, see `AssistantChat/hitArea.ts`). Dense desktop toolbars may use `size="sm"` (36).
 3. **Inputs are 16px.** Smaller makes iOS Safari zoom the page on focus.
 4. **Only the tokens below.** No raw `#hex`, no `bg-red-500` / `text-gray-600`. Need a new colour -> add a token first.
-5. **Only the radius / type scales below.** No `rounded-lg`, `rounded-[10px]`, `font-medium`, `text-[14.5px]`.
+5. **Only the radius / type scales below.** No `rounded-lg`, `rounded-[10px]`, `font-medium`, `text-[13px]` (use `text-footnote`).
 6. **Prefer less.** If a label, hint or divider adds no information, delete it (see the simplified question overlay).
 7. **Dark mode is not optional.** Every screen is checked in light and dark.
 8. **Behaviour-preserving refactors.** Restyling never changes logic, i18n keys or APIs.
@@ -88,7 +88,20 @@ Intentional exceptions: the single-line mobile composer input (`rounded-[22px]`,
 
 ### 2.4 Type
 
-Sizes (px): **12** captions / section titles (uppercase, tracking-wide), **13** secondary text / small buttons / chips, **15** body / list rows / default buttons, **16** page titles / inputs / question text, **20** section headings, **32** showcase hero only. Weights: **400** and **600** only (`font-semibold`). System font stack (SF / PingFang), set in `html.social-app`.
+Use the named sizes only. They are rem, so every size follows the font-size setting (`--app-font-scale` sets the `html` font size). A px size (`text-[13px]`) ignores that setting, and a rem size multiplied by the scale again (`calc(1rem * var(--app-font-scale))`) applies it twice: don't write either.
+
+| Class | px at 100% | Use |
+|---|---|---|
+| `text-caption` | 12 | Captions, section titles (uppercase, tracking-wide) |
+| `text-footnote` | 13 | Secondary text, small buttons, chips |
+| `text-body` | 15 | Body, list rows, default buttons |
+| `text-headline` | 16 | Page titles, inputs, question text |
+| `text-title` | 20 | Section headings |
+| `text-display` | 32 | Showcase hero only |
+
+Defined in `web/tailwind.config.ts` (`theme.extend.fontSize`). `cn()` (`web/src/lib/utils.ts`) teaches tailwind-merge these names; without that, `text-footnote` reads as a colour and drops `text-[var(--…)]`. Add a new size in both places. Tailwind's own `text-xs` (12) and `text-base` (16) are on the scale and allowed in existing code; prefer the names in new code.
+
+Weights: **400** and **600** only (`font-semibold`). System font stack (SF / PingFang), set in `html.social-app`.
 
 ### 2.5 Spacing, size, motion
 
@@ -140,7 +153,7 @@ Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new
 
 ## 5. Checklist for a UI change
 
-1. Uses primitives and tokens only (grep your diff for `#`, `-gray-`, `-red-`, `rounded-lg`, `font-medium`).
+1. Uses primitives and tokens only (grep your diff for `#`, `-gray-`, `-red-`, `rounded-lg`, `font-medium`, `text-[`…`px]`).
 1b. No scrollbar re-enabled (grep your diff for `scrollbar-width`, `scrollbar-gutter`, `::-webkit-scrollbar`).
 2. Phone (390px) and desktop (1200px), light and dark, screenshotted and looked at.
 3. Touch targets >= 44px on phone; inputs 16px.
