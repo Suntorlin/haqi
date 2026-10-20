@@ -23,7 +23,7 @@ import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } f
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { AllTasksView, TagTasksSection } from '@/components/SessionTasksPanel'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, QueueListIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -528,10 +528,12 @@ function SessionsPage() {
                             setSelectedSessionTag(null)
                             setShowAllTasks(true)
                         }}
-                        className={tagChipClass(showAllTasks)}
+                        className={`${tagChipClass(showAllTasks)} inline-flex items-center justify-center px-2.5`}
+                        aria-label={t('sessions.tags.allTasks')}
                         aria-pressed={showAllTasks}
+                        title={t('sessions.tags.allTasks')}
                     >
-                        {t('sessions.tags.allTasks')}
+                        <QueueListIcon className="h-4 w-4" />
                     </button>
                     {isMobileLayout ? orderedSessionTags.map((tag) => (
                         <button
