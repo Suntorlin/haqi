@@ -117,7 +117,7 @@ function StatusBadge(props: { status: GitFileStatus['status'] }) {
 
     return (
         <span
-            className="inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 text-[12px] font-semibold"
+            className="inline-flex items-center justify-center rounded-md border px-1.5 py-0.5 text-caption font-semibold"
             style={{ color, borderColor: color }}
         >
             {label}
@@ -129,7 +129,7 @@ function LineChanges(props: { added: number; removed: number }) {
     if (!props.added && !props.removed) return null
 
     return (
-        <span className="flex items-center gap-1 text-[12px] font-mono">
+        <span className="flex items-center gap-1 text-caption font-mono">
             {props.added ? (
                 <span className="text-[var(--app-diff-added-text)]">+{props.added}</span>
             ) : null}
@@ -155,7 +155,7 @@ function GitFileRow(props: {
         >
             <FileIcon fileName={props.file.fileName} size={22} />
             <div className="min-w-0 flex-1">
-                <div className="truncate text-[15px]">{props.file.fileName}</div>
+                <div className="truncate text-body">{props.file.fileName}</div>
                 <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--social-fg-muted)]">
                     {props.file.repo ? (
                         <Badge className="shrink-0">{props.file.repo}</Badge>
@@ -189,7 +189,7 @@ function SearchResultRow(props: {
         >
             {icon}
             <div className="min-w-0 flex-1">
-                <div className="truncate text-[15px]">{props.file.fileName}</div>
+                <div className="truncate text-body">{props.file.fileName}</div>
                 <div className="truncate text-xs text-[var(--social-fg-muted)]">{subtitle}</div>
             </div>
         </button>
@@ -386,7 +386,7 @@ export default function FilesPage() {
                         role="tab"
                         aria-selected={activeTab === 'changes'}
                         onClick={() => handleTabChange('changes')}
-                        className={`relative min-h-11 py-3 text-center text-[15px] font-semibold transition-colors hover:bg-[var(--social-hover)] ${activeTab === 'changes' ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}
+                        className={`relative min-h-11 py-3 text-center text-body font-semibold transition-colors hover:bg-[var(--social-hover)] ${activeTab === 'changes' ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}
                     >
                         {t('files.tab.changes')}
                         <span
@@ -398,7 +398,7 @@ export default function FilesPage() {
                         role="tab"
                         aria-selected={activeTab === 'directories'}
                         onClick={() => handleTabChange('directories')}
-                        className={`relative min-h-11 py-3 text-center text-[15px] font-semibold transition-colors hover:bg-[var(--social-hover)] ${activeTab === 'directories' ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}
+                        className={`relative min-h-11 py-3 text-center text-body font-semibold transition-colors hover:bg-[var(--social-hover)] ${activeTab === 'directories' ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}
                     >
                         {t('files.tab.directories')}
                         <span
@@ -411,7 +411,7 @@ export default function FilesPage() {
             {!gitLoading && gitStatus && !searchQuery && activeTab === 'changes' ? (
                 <div className="bg-[var(--social-surface)]">
                     <div className="mx-auto w-full max-w-content px-3 py-2 border-b border-[var(--social-divider)]">
-                        <div className="flex items-center gap-2 text-[13px]">
+                        <div className="flex items-center gap-2 text-footnote">
                             <GitBranchIcon className="text-[var(--social-fg-muted)]" />
                             <span className="font-semibold">{branchLabel}</span>
                         </div>
@@ -442,9 +442,9 @@ export default function FilesPage() {
                         searchResults.isLoading ? (
                             <FileListSkeleton label={t('files.loading')} />
                         ) : searchResults.error ? (
-                            <div className="p-6 text-[13px] text-[var(--social-fg-muted)]">{searchResults.error}</div>
+                            <div className="p-6 text-footnote text-[var(--social-fg-muted)]">{searchResults.error}</div>
                         ) : searchResults.files.length === 0 ? (
-                            <div className="p-6 text-[13px] text-[var(--social-fg-muted)]">
+                            <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
                                 {searchQuery ? t('files.empty.search') : t('files.empty.project')}
                             </div>
                         ) : (
@@ -478,7 +478,7 @@ export default function FilesPage() {
                                     {stagedGroups.map((group, groupIndex) => (
                                         <div key={`staged-group-${group.repo ?? 'root'}-${groupIndex}`}>
                                             {showRepoGroupHeaders ? (
-                                                <div className="border-b border-[var(--social-divider)] bg-[var(--social-hover)] px-3 py-1.5 text-[12px] font-semibold text-[var(--social-fg-muted)]">
+                                                <div className="border-b border-[var(--social-divider)] bg-[var(--social-hover)] px-3 py-1.5 text-caption font-semibold text-[var(--social-fg-muted)]">
                                                     {formatRepoGroupLabel(group.repo)} ({group.files.length})
                                                 </div>
                                             ) : null}
@@ -507,7 +507,7 @@ export default function FilesPage() {
                                     {unstagedGroups.map((group, groupIndex) => (
                                         <div key={`unstaged-group-${group.repo ?? 'root'}-${groupIndex}`}>
                                             {showRepoGroupHeaders ? (
-                                                <div className="border-b border-[var(--social-divider)] bg-[var(--social-hover)] px-3 py-1.5 text-[12px] font-semibold text-[var(--social-fg-muted)]">
+                                                <div className="border-b border-[var(--social-divider)] bg-[var(--social-hover)] px-3 py-1.5 text-caption font-semibold text-[var(--social-fg-muted)]">
                                                     {formatRepoGroupLabel(group.repo)} ({group.files.length})
                                                 </div>
                                             ) : null}
@@ -529,13 +529,13 @@ export default function FilesPage() {
                             ) : null}
 
                             {!gitStatus ? (
-                                <div className="p-6 text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
                                     {t('files.gitUnavailable')}
                                 </div>
                             ) : null}
 
                             {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
-                                <div className="p-6 text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
                                     {t('files.noChanges')}
                                 </div>
                             ) : null}

@@ -24,7 +24,7 @@ function formatTime(ts: number): string {
     })
 }
 
-const CAPTION_CLASS = 'text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]'
+const CAPTION_CLASS = 'text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]'
 
 export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: boolean }) {
     const actionCfg = round.verdict ? verdictActionConfig[round.verdict.action] : null
@@ -38,9 +38,9 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
         >
             {/* Header */}
             <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[var(--social-divider)] bg-[var(--social-muted)] px-4 py-2.5">
-                <span className="shrink-0 text-[15px] font-semibold text-[var(--social-fg)]">Round {round.round}</span>
+                <span className="shrink-0 text-body font-semibold text-[var(--social-fg)]">Round {round.round}</span>
                 <Badge variant={roundStatusVariant[round.status] ?? 'default'}>{roundStatusLabel(round.status)}</Badge>
-                <span className="shrink-0 text-[13px] tabular-nums text-[var(--social-fg-muted)]">{formatTime(round.startedAt)}</span>
+                <span className="shrink-0 text-footnote tabular-nums text-[var(--social-fg-muted)]">{formatTime(round.startedAt)}</span>
             </div>
 
             {/* Body */}
@@ -48,7 +48,7 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
                 {round.instruction && (
                     <div className="min-w-0">
                         <div className={cn(CAPTION_CLASS, 'mb-1')}>Instruction</div>
-                        <div className="whitespace-pre-wrap break-words text-[15px] text-[var(--social-fg)]">
+                        <div className="whitespace-pre-wrap break-words text-body text-[var(--social-fg)]">
                             {round.instruction}
                         </div>
                     </div>
@@ -61,12 +61,12 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
                 {round.verdict && (
                     <div className="flex min-w-0 flex-col gap-3 border-t border-[var(--social-divider)] pt-4">
                         <div className="flex min-w-0 items-center gap-2">
-                            <span className="text-[15px] font-semibold text-[var(--social-fg)]">Verdict</span>
+                            <span className="text-body font-semibold text-[var(--social-fg)]">Verdict</span>
                             {actionCfg && <Badge variant={actionCfg.variant}>{actionCfg.label}</Badge>}
                         </div>
 
                         {round.verdict.feedback && (
-                            <p className="whitespace-pre-wrap break-words text-[15px] text-[var(--social-fg)]">
+                            <p className="whitespace-pre-wrap break-words text-body text-[var(--social-fg)]">
                                 {round.verdict.feedback}
                             </p>
                         )}

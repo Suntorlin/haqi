@@ -188,9 +188,9 @@ function DesktopEmptyState(props: { title: string; subtitle?: string; action?: {
     return (
         <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             <Orb seed="haqi" size={76} />
-            <div className="mt-5 text-[16px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]">{props.title}</div>
+            <div className="mt-5 text-headline font-semibold tracking-[-0.01em] text-[var(--social-fg)]">{props.title}</div>
             {props.subtitle ? (
-                <div className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
+                <div className="mt-1.5 max-w-sm text-footnote leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
             ) : null}
             {props.action ? (
                 <Button type="button" onClick={props.action.onClick} className="mt-5">
@@ -635,7 +635,7 @@ function SessionsPage() {
         </>
     )
     const listError = error ? (
-        <div className="px-5 py-2 text-[13px] text-[var(--social-danger)]">{error}</div>
+        <div className="px-5 py-2 text-footnote text-[var(--social-danger)]">{error}</div>
     ) : null
 
     if (isMobileLayout) {
@@ -828,7 +828,7 @@ function SessionPage() {
         if (sessionError && !sessionFetching) {
             return (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-                    <div className="max-w-sm text-[13px] text-[var(--social-fg-muted)]">
+                    <div className="max-w-sm text-footnote text-[var(--social-fg-muted)]">
                         {sessionNotFound ? t('session.load.notFound') : t('session.load.failed')}
                     </div>
                     <div className="flex items-center gap-2">
@@ -846,7 +846,7 @@ function SessionPage() {
         }
         return (
             <div className="flex-1 flex items-center justify-center p-4">
-                <LoadingState label={t('loading.session')} className="text-[13px]" />
+                <LoadingState label={t('loading.session')} className="text-footnote" />
             </div>
         )
     }
@@ -950,7 +950,7 @@ function NewSessionPage() {
 
             <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
                 {machinesError ? (
-                    <div className="p-3 text-[13px] text-[var(--social-danger)]">
+                    <div className="p-3 text-footnote text-[var(--social-danger)]">
                         {machinesError}
                     </div>
                 ) : null}
@@ -1004,10 +1004,10 @@ function GroupRow(props: {
             <GroupAvatar seed={item.group.id} members={members} size={44} />
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em]">{item.group.name}</span>
-                    <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
+                    <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">{item.group.name}</span>
+                    <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
                     {hasLiveMember ? (
                         <span className="shrink-0 font-semibold text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
                     ) : null}
@@ -1207,7 +1207,7 @@ function GroupsLayout() {
                             placeholder={t('groups.dialog.description')}
                             aria-label={t('groups.dialog.description')}
                         />
-                        {createError ? <div className="text-[13px] text-[var(--social-danger)]">{createError}</div> : null}
+                        {createError ? <div className="text-footnote text-[var(--social-danger)]">{createError}</div> : null}
                         <div className="flex justify-end gap-2">
                             <Button type="button" variant="secondary" onClick={() => { setShowCreateModal(false); setCreateError(null) }}>
                                 {t('button.cancel')}
@@ -1285,9 +1285,9 @@ function GroupsLayout() {
                 />
             </div>
             {isLoading ? (
-                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
+                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
             ) : visibleGroups.length === 0 ? (
-                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.groups.empty')}</div>
+                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.groups.empty')}</div>
             ) : (
                 visibleGroups.map((item) => (
                     <GroupRow
@@ -1342,10 +1342,10 @@ function GroupsLayout() {
                                 <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} />
                             ) : null}
                             <div className="min-w-0 flex-1">
-                                <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                                <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                     {selectedGroup?.group.name ?? ''}
                                 </div>
-                                <div className="mt-[3px] truncate text-[12px] leading-tight text-[var(--social-fg-muted)]">
+                                <div className="mt-[3px] truncate text-caption leading-tight text-[var(--social-fg-muted)]">
                                     {groupSubtitle}
                                 </div>
                             </div>
@@ -1528,9 +1528,9 @@ function ReviewLoopsLayout() {
                 />
             </div>
             {isLoading ? (
-                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
+                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
             ) : visibleLoops.length === 0 ? (
-                <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">{t('mobile.loops.empty')}</div>
+                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.loops.empty')}</div>
             ) : (
                 visibleLoops.map((item) => (
                     <button
@@ -1543,14 +1543,14 @@ function ReviewLoopsLayout() {
                         {loopAvatar(item, 44)}
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className="min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em]">
+                                <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">
                                     {item.requirement}
                                 </span>
-                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
+                                <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">
                                     {formatRelativeTime(item.updatedAt, t)}
                                 </span>
                             </div>
-                            <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--social-fg-muted)]">
+                            <div className="mt-1 flex items-center gap-2 text-caption text-[var(--social-fg-muted)]">
                                 <ReviewLoopStatusBadge status={item.status} />
                                 <span>{t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}</span>
                             </div>
@@ -1597,11 +1597,11 @@ function ReviewLoopsLayout() {
                         </IconButton>
                         {selectedLoop ? loopAvatar(selectedLoop, 38) : null}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                            <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                 {selectedLoop?.requirement ?? ''}
                             </div>
                             {loopSubtitle ? (
-                                <div className="mt-[3px] truncate text-[12px] leading-tight text-[var(--social-fg-muted)]">
+                                <div className="mt-[3px] truncate text-caption leading-tight text-[var(--social-fg-muted)]">
                                     {loopSubtitle}
                                 </div>
                             ) : null}

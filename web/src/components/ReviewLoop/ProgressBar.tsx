@@ -22,7 +22,7 @@ export function ProgressBar({ progress }: { progress: number }) {
                     style={{ width: `${clamped}%`, backgroundColor: color }}
                 />
             </div>
-            <span className="w-10 shrink-0 text-right text-[13px] tabular-nums text-[var(--social-fg-muted)]">{clamped}%</span>
+            <span className="w-10 shrink-0 text-right text-footnote tabular-nums text-[var(--social-fg-muted)]">{clamped}%</span>
         </div>
     )
 }

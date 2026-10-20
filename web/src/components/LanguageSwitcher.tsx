@@ -113,7 +113,7 @@ export function LanguageSwitcher() {
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => handleLocaleChange(loc.value)}
-                className={`flex min-h-11 items-center justify-between w-full px-3 py-2 text-[15px] text-left transition-colors ${
+                className={`flex min-h-11 items-center justify-between w-full px-3 py-2 text-body text-left transition-colors ${
                   isSelected
                     ? 'text-[var(--social-fg)] bg-[var(--social-hover)]'
                     : 'text-[var(--social-fg)] hover:bg-[var(--social-hover)]'

@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SelectInput } from '@/components/ui/FormControls'
 import { TextField } from '@/components/ui/TextField'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import {
     SettingsBlock,
@@ -206,6 +207,15 @@ export default function SettingsPage() {
     const [experimentalSettingsLoading, setExperimentalSettingsLoading] = useState(false)
     const [experimentalStatusMessage, setExperimentalStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
+    const [pendingConfirm, setPendingConfirm] = useState<{
+        title: string
+        description: string
+        confirmLabel: string
+        confirmingLabel: string
+        destructive: boolean
+        run: () => Promise<void>
+    } | null>(null)
+    const [isConfirmPending, setIsConfirmPending] = useState(false)
     const [reportDomainDraft, setReportDomainDraft] = useState('')
     const [reportDomainSaved, setReportDomainSaved] = useState('')
     const [reportDomainSource, setReportDomainSource] = useState<'env' | 'file' | 'default'>('default')
@@ -588,11 +598,20 @@ export default function SettingsPage() {
 
     const handleReloadMemory = async () => {
         if (isMemoryDirty) {
-            const confirmed = window.confirm(t('settings.memory.confirmReload'))
-            if (!confirmed) {
-                return
-            }
+            setPendingConfirm({
+                title: t('settings.memory.confirmReloadTitle'),
+                description: t('settings.memory.confirmReload'),
+                confirmLabel: t('settings.memory.actions.reload'),
+                confirmingLabel: t('settings.memory.actions.reloading'),
+                destructive: true,
+                run: reloadMemory
+            })
+            return
         }
+        await reloadMemory()
+    }
+
+    const reloadMemory = async () => {
         const result = await refetchMemory()
         const nextMemory = result.data?.memory
         if (nextMemory) {
@@ -733,16 +752,22 @@ export default function SettingsPage() {
             return
         }
 
-        const confirmed = window.confirm(t('settings.codexCredentials.confirmDelete', { name: profile.name }))
-        if (!confirmed) {
-            return
-        }
+        setPendingConfirm({
+            title: t('settings.codexCredentials.confirmDeleteTitle'),
+            description: t('settings.codexCredentials.confirmDelete', { name: profile.name }),
+            confirmLabel: t('settings.codexCredentials.actions.delete'),
+            confirmingLabel: t('settings.codexCredentials.actions.deleting'),
+            destructive: true,
+            run: () => deleteCodexCredential(selectedCodexMachineId, profile)
+        })
+    }
 
+    const deleteCodexCredential = async (machineId: string, profile: CodexCredentialProfile) => {
         setCodexCredentialActionPendingId(profile.id)
         setCodexCredentialError(null)
         setCodexCredentialStatusMessage(null)
         try {
-            const result = await api.deleteMachineCodexCredential(selectedCodexMachineId, profile.id)
+            const result = await api.deleteMachineCodexCredential(machineId, profile.id)
             setCodexCredentialState(result)
             setCodexCredentialStatusMessage(t('settings.codexCredentials.status.deleted'))
         } catch (error) {
@@ -1075,7 +1100,7 @@ export default function SettingsPage() {
                                                                 label={t('settings.usage.last30DaysEstimatedCost')}
                                                                 value={`≈${formatUsd(provider.estimatedCost.last30DaysUsd)}`}
                                                             />
-                                                            <div className="text-[12px] text-[var(--social-fg-subtle)]">
+                                                            <div className="text-caption text-[var(--social-fg-subtle)]">
                                                                 {t('settings.usage.estimateHint')} {formatUsd(provider.estimatedCost.usdPerMillionTokens)}/1M tokens
                                                                 {' · '}
                                                                 {t(`settings.usage.rateSource.${provider.estimatedCost.rateSource}`)}
@@ -1091,19 +1116,19 @@ export default function SettingsPage() {
                                                     ) : null}
                                                 </div>
                                             ) : (
-                                                <div className="text-[13px] text-[var(--social-fg-muted)]">
+                                                <div className="text-footnote text-[var(--social-fg-muted)]">
                                                     {t('settings.usage.unavailable')}
                                                 </div>
                                             )}
 
                                             {provider.roots.length > 0 ? (
-                                                <div className="break-all text-[12px] text-[var(--social-fg-subtle)]">
+                                                <div className="break-all text-caption text-[var(--social-fg-subtle)]">
                                                     {provider.roots.join(', ')}
                                                 </div>
                                             ) : null}
                                         </SettingsCard>
                                     ))}
-                                    <div className="px-4 text-[12px] text-[var(--social-fg-subtle)]">
+                                    <div className="px-4 text-caption text-[var(--social-fg-subtle)]">
                                         {t('settings.usage.updatedAt')}: {formatDateTime(usageOverview.generatedAt)}
                                     </div>
                                 </>
@@ -1153,18 +1178,18 @@ export default function SettingsPage() {
                                         trailing={selectedCodexMachine?.metadata?.host ?? selectedCodexMachine?.id}
                                     >
                                         {codexCredentialState?.current.exists ? (
-                                            <div className="flex flex-col gap-1 text-[15px] text-[var(--social-fg)]">
+                                            <div className="flex flex-col gap-1 text-body text-[var(--social-fg)]">
                                                 {codexCurrentSummaryRows.map((row) => (
                                                     <div key={row}>{row}</div>
                                                 ))}
-                                                <div className="text-[12px] text-[var(--social-fg-subtle)]">
+                                                <div className="text-caption text-[var(--social-fg-subtle)]">
                                                     {codexCredentialState.current.activeProfileId
                                                         ? t('settings.codexCredentials.current.managed')
                                                         : t('settings.codexCredentials.current.unmanaged')}
                                                 </div>
                                             </div>
                                         ) : (
-                                            <div className="text-[13px] text-[var(--social-fg-muted)]">
+                                            <div className="text-footnote text-[var(--social-fg-muted)]">
                                                 {t('settings.codexCredentials.current.missing')}
                                             </div>
                                         )}
@@ -1198,7 +1223,7 @@ export default function SettingsPage() {
                                                 type="file"
                                                 accept="application/json,.json"
                                                 onChange={(event) => { void handleCodexCredentialFileChange(event) }}
-                                                className="block w-full text-[13px] text-[var(--social-fg-muted)] file:mr-3 file:h-11 file:cursor-pointer file:rounded-full file:border-0 file:bg-[var(--social-muted)] file:px-5 file:text-[15px] file:font-semibold file:text-[var(--social-fg)]"
+                                                className="block w-full text-footnote text-[var(--social-fg-muted)] file:mr-3 file:h-11 file:cursor-pointer file:rounded-full file:border-0 file:bg-[var(--social-muted)] file:px-5 file:text-body file:font-semibold file:text-[var(--social-fg)]"
                                             />
                                             <textarea
                                                 value={codexCredentialImportDraft}
@@ -1219,7 +1244,7 @@ export default function SettingsPage() {
                                     </div>
 
                                     <div className="flex flex-col gap-2">
-                                        <div className="px-1 text-[15px] font-semibold text-[var(--social-fg)]">
+                                        <div className="px-1 text-body font-semibold text-[var(--social-fg)]">
                                             {t('settings.codexCredentials.profiles.title')}
                                         </div>
                                         {codexCredentialState?.profiles.length ? (
@@ -1228,7 +1253,7 @@ export default function SettingsPage() {
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="truncate text-[15px] font-semibold text-[var(--social-fg)]">
+                                                                <span className="truncate text-body font-semibold text-[var(--social-fg)]">
                                                                     {profile.name}
                                                                 </span>
                                                                 {profile.isActive ? (
@@ -1237,7 +1262,7 @@ export default function SettingsPage() {
                                                                     </Badge>
                                                                 ) : null}
                                                             </div>
-                                                            <div className="mt-0.5 text-[12px] text-[var(--social-fg-subtle)]">
+                                                            <div className="mt-0.5 text-caption text-[var(--social-fg-subtle)]">
                                                                 {profile.importSource === 'current-auth'
                                                                     ? t('settings.codexCredentials.profile.sourceCurrent')
                                                                     : t('settings.codexCredentials.profile.sourceImported')}
@@ -1265,7 +1290,7 @@ export default function SettingsPage() {
                                                             </Button>
                                                         </div>
                                                     </div>
-                                                    <div className="flex flex-col gap-1 text-[13px] text-[var(--social-fg-muted)]">
+                                                    <div className="flex flex-col gap-1 text-footnote text-[var(--social-fg-muted)]">
                                                         {formatCodexCredentialSummary(profile.summary, t).map((row) => (
                                                             <div key={`${profile.id}:${row}`}>{row}</div>
                                                         ))}
@@ -1273,17 +1298,17 @@ export default function SettingsPage() {
                                                 </SettingsCard>
                                             ))
                                         ) : (
-                                            <div className="rounded-2xl border border-dashed border-[var(--social-border)] px-4 py-4 text-[13px] text-[var(--social-fg-muted)]">
+                                            <div className="rounded-2xl border border-dashed border-[var(--social-border)] px-4 py-4 text-footnote text-[var(--social-fg-muted)]">
                                                 {t('settings.codexCredentials.profiles.empty')}
                                             </div>
                                         )}
-                                        <div className="px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                        <div className="px-1 text-caption text-[var(--social-fg-subtle)]">
                                             {t('settings.codexCredentials.futureSessionsHint')}
                                         </div>
                                     </div>
                                 </>
                             ) : (
-                                <div className="px-4 text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="px-4 text-footnote text-[var(--social-fg-muted)]">
                                     {t('settings.codexCredentials.noMachines')}
                                 </div>
                             )}
@@ -1302,7 +1327,7 @@ export default function SettingsPage() {
                                 disabled={reportDomainLoading || reportDomainEnvOverride}
                             />
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="min-w-0 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                <div className="min-w-0 px-1 text-caption text-[var(--social-fg-subtle)]">
                                     {reportDomainEnvOverride
                                         ? t('settings.reportDomain.status.envLocked')
                                         : isReportDomainDirty
@@ -1367,7 +1392,7 @@ export default function SettingsPage() {
                                 spellCheck={false}
                             />
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                <span className="min-w-0 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                <span className="min-w-0 px-1 text-caption text-[var(--social-fg-subtle)]">
                                     {isMemoryDirty ? t('settings.memory.status.unsaved') : memoryStatusMessage ?? t('settings.memory.status.synced')}
                                 </span>
                                 <div className="flex items-center gap-2">
@@ -1416,6 +1441,25 @@ export default function SettingsPage() {
                 </div>
             </div>
             {isMobileLayout ? <MobileTabBar active="settings" /> : null}
+            <ConfirmDialog
+                isOpen={pendingConfirm !== null}
+                onClose={() => setPendingConfirm(null)}
+                title={pendingConfirm?.title ?? ''}
+                description={pendingConfirm?.description ?? ''}
+                confirmLabel={pendingConfirm?.confirmLabel ?? ''}
+                confirmingLabel={pendingConfirm?.confirmingLabel ?? ''}
+                destructive={pendingConfirm?.destructive}
+                isPending={isConfirmPending}
+                onConfirm={async () => {
+                    if (!pendingConfirm) return
+                    setIsConfirmPending(true)
+                    try {
+                        await pendingConfirm.run()
+                    } finally {
+                        setIsConfirmPending(false)
+                    }
+                }}
+            />
         </div>
     )
 }

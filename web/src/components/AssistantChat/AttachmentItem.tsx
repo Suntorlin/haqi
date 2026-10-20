@@ -41,7 +41,7 @@ export function AttachmentItem() {
     const isError = status.type === 'incomplete'
 
     return (
-        <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px] text-[var(--social-fg)]">
+        <AttachmentPrimitive.Root className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote text-[var(--social-fg)]">
             {isUploading ? <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" /> : null}
             {isError ? (
                 <span className="text-[var(--social-danger)]">

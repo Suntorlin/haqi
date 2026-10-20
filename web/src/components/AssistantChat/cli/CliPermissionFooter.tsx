@@ -34,7 +34,7 @@ function CliBtn(props: {
         <Button
             variant="outline"
             size="sm"
-            className={cn('h-9 gap-1 px-3 text-[13px]', HIT_AREA_CLASS, color)}
+            className={cn('h-9 gap-1 px-3 text-footnote', HIT_AREA_CLASS, color)}
             disabled={props.disabled}
             onClick={props.onClick}
         >

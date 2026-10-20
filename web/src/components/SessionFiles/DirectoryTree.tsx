@@ -155,7 +155,7 @@ function DirectoryNode(props: {
 
                         {directories.length === 0 && files.length === 0 ? (
                             <div
-                                className="px-3 py-2 text-[13px] text-[var(--social-fg-muted)]"
+                                className="px-3 py-2 text-footnote text-[var(--social-fg-muted)]"
                                 style={{ paddingLeft: childIndent }}
                             >
                                 Empty directory.

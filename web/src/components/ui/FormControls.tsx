@@ -4,7 +4,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { Chip } from '@/components/ui/Chip'
 import { cn } from '@/lib/utils'
 
-const CAPTION_CLASS = 'px-1 text-[12px] font-semibold text-[var(--social-fg-muted)]'
+const CAPTION_CLASS = 'px-1 text-caption font-semibold text-[var(--social-fg-muted)]'
 
 /** Caption above a form control (same look as sheet section titles), with an optional hint below. */
 export function FormField(props: {
@@ -39,7 +39,7 @@ export function FormField(props: {
 
 /** Small muted line under a control. */
 export function FieldHint(props: { children: ReactNode }) {
-    return <p className="px-1 text-[12px] leading-snug text-[var(--social-fg-subtle)]">{props.children}</p>
+    return <p className="px-1 text-caption leading-snug text-[var(--social-fg-subtle)]">{props.children}</p>
 }
 
 /** Native select dressed like the text inputs; phones keep the system picker. */
@@ -129,7 +129,7 @@ export function SegmentedControl<T extends string>(props: {
                         disabled={props.disabled}
                         onClick={() => props.onChange(option.value)}
                         className={cn(
-                            'min-h-11 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-[15px] transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                            'min-h-11 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-body transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                             selected
                                 ? 'bg-[var(--social-surface)] font-semibold text-[var(--social-fg)] shadow-[var(--shadow-raised)]'
                                 : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'

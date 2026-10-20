@@ -486,12 +486,12 @@ export function NewSession(props: {
             onSubmit={handleSubmit}
         >
             {runnerSpawnError ? (
-                <div className="px-1 text-[13px] text-[var(--social-danger)]">
+                <div className="px-1 text-footnote text-[var(--social-danger)]">
                     {t('newSession.runnerError', { error: runnerSpawnError })}
                 </div>
             ) : null}
             {!props.isLoading && props.machines.length === 0 ? (
-                <div className="rounded-2xl bg-[var(--app-badge-warning-bg)] px-4 py-3 text-[13px] text-[var(--app-badge-warning-text)]">
+                <div className="rounded-2xl bg-[var(--app-badge-warning-bg)] px-4 py-3 text-footnote text-[var(--app-badge-warning-text)]">
                     {t('misc.noMachines')}
                 </div>
             ) : null}
@@ -594,7 +594,7 @@ export function NewSession(props: {
             </div>
 
             {(error ?? spawnError) ? (
-                <div className="px-1 text-[13px] text-[var(--social-danger)]">
+                <div className="px-1 text-footnote text-[var(--social-danger)]">
                     {error ?? spawnError}
                 </div>
             ) : null}

@@ -437,7 +437,7 @@ html[data-theme="dark"] .shiki span {
 
 .cli-thread {
   font-family: var(--cli-font);
-  font-size: calc(0.8125rem * var(--app-font-scale, 1));
+  font-size: 0.8125rem;
   line-height: 1.6;
   min-width: 0;
   overflow-wrap: break-word;
@@ -515,7 +515,7 @@ html[data-theme="dark"] .shiki span {
 /* CLI composer — terminal-style input */
 .cli-composer {
   font-family: var(--cli-font);
-  font-size: calc(0.8125rem * var(--app-font-scale, 1));
+  font-size: 0.8125rem;
 }
 
 /* Composer buttons row: compact in CLI mode */
@@ -568,7 +568,7 @@ html.social-app {
 
 /* Chat text sized for phones: 15px body, roomy line height, compact headings. */
 .social-chat .aui-md {
-    font-size: calc(0.9375rem * var(--app-font-scale, 1));
+    font-size: 0.9375rem;
     line-height: 1.65;
 }
 
@@ -618,7 +618,7 @@ html.social-app {
 }
 
 .social-process .aui-md {
-    font-size: calc(0.875rem * var(--app-font-scale, 1));
+    font-size: 0.8125rem;
     line-height: 1.6;
     color: var(--social-fg-muted);
 }

@@ -9,14 +9,14 @@ import { cn } from '@/lib/utils'
 function Field(props: { label: string; htmlFor: string; children: React.ReactNode }) {
     return (
         <div className="flex min-w-0 flex-col gap-1.5">
-            <label htmlFor={props.htmlFor} className="px-1 text-[12px] font-semibold text-[var(--social-fg-muted)]">{props.label}</label>
+            <label htmlFor={props.htmlFor} className="px-1 text-caption font-semibold text-[var(--social-fg-muted)]">{props.label}</label>
             {props.children}
         </div>
     )
 }
 
 /** Compact pill whose touch target still reaches 44px (36px pill + 4px above and below). */
-const ROW_ACTION_CLASS = "relative h-8 px-3 text-[12px] before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
+const ROW_ACTION_CLASS = "relative h-8 px-3 text-caption before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
 
 function memberStatusDot(status?: string): string {
     if (status === 'active') return 'bg-[var(--app-badge-success-text)]'
@@ -225,7 +225,7 @@ export function TeamPanel(props: {
                 type="button"
                 onClick={() => setExpanded(!expanded)}
                 aria-expanded={expanded}
-                className="flex min-h-11 w-full items-center gap-2 rounded-2xl bg-[var(--social-muted)] px-4 py-2 text-left text-[15px] transition-colors hover:bg-[var(--social-border)] [-webkit-tap-highlight-color:transparent]"
+                className="flex min-h-11 w-full items-center gap-2 rounded-2xl bg-[var(--social-muted)] px-4 py-2 text-left text-body transition-colors hover:bg-[var(--social-border)] [-webkit-tap-highlight-color:transparent]"
             >
                 <svg className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -237,7 +237,7 @@ export function TeamPanel(props: {
                     <span className="block truncate font-semibold text-[var(--social-fg)]">
                         {teamState ? `Team: ${title}` : title}
                     </span>
-                    <span className="block truncate text-[12px] text-[var(--social-fg-muted)]">
+                    <span className="block truncate text-caption text-[var(--social-fg-muted)]">
                         {visibleMembers.length} member{visibleMembers.length !== 1 ? 's' : ''}
                         {activeMembers > 0 ? ` (${activeMembers} active)` : ''}
                         {runningAgents.length > 0 ? ` · ${runningAgents.length} running` : ''}
@@ -260,7 +260,7 @@ export function TeamPanel(props: {
             {expanded && (
                 <div className="mt-1.5 flex flex-col gap-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
                     {teamState?.description && (
-                        <p className="text-[13px] text-[var(--social-fg-muted)]">{teamState.description}</p>
+                        <p className="text-footnote text-[var(--social-fg-muted)]">{teamState.description}</p>
                     )}
 
                     {props.canControl && teamState && (
@@ -279,12 +279,12 @@ export function TeamPanel(props: {
 
                     {runningAgents.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Running Now</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Running Now</div>
                             <div className="flex flex-col gap-1.5">
                                 {runningAgents.map((agent, index) => (
                                     <div
                                         key={`${agent.name}:${agent.startedAt ?? index}`}
-                                        className="rounded-xl bg-[var(--social-muted)] px-3 py-2 text-[13px]"
+                                        className="rounded-xl bg-[var(--social-muted)] px-3 py-2 text-footnote"
                                     >
                                         <div className="font-semibold text-[var(--social-fg)]">{agent.name}</div>
                                         {agent.task ? (
@@ -298,12 +298,12 @@ export function TeamPanel(props: {
 
                     {visibleMembers.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Members</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Members</div>
                             <div className="flex flex-col gap-1.5">
                                 {visibleMembers.map((member) => (
                                     <div
                                         key={member.name}
-                                        className="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--social-muted)] px-3 py-2 text-[13px]"
+                                        className="flex flex-wrap items-center gap-2 rounded-xl bg-[var(--social-muted)] px-3 py-2 text-footnote"
                                     >
                                         <span className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${memberStatusDot(member.status)}`} />
                                         <span className="text-[var(--social-fg)]">{member.name}</span>
@@ -349,11 +349,11 @@ export function TeamPanel(props: {
 
                     {tasks.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Tasks</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Tasks</div>
                             <div className="flex flex-col gap-1.5">
                                 {tasks.map((task, idx) => (
                                     <div key={task.id ?? String(idx)} className="flex items-center gap-2 rounded-xl bg-[var(--social-muted)] px-3 py-2">
-                                        <div className={`min-w-0 flex-1 text-[13px] ${taskStatusColor(task.status)}`}>
+                                        <div className={`min-w-0 flex-1 text-footnote ${taskStatusColor(task.status)}`}>
                                             <span>{taskStatusIcon(task.status)}</span>{' '}
                                             <span>{task.title}</span>
                                             {task.owner && (
@@ -383,10 +383,10 @@ export function TeamPanel(props: {
                     {props.canControl && pendingControl && teamState ? (
                         <div className="flex flex-col gap-3 rounded-2xl border border-[var(--social-border)] p-4">
                             <div>
-                                <div className="text-[15px] font-semibold text-[var(--social-fg)]">
+                                <div className="text-body font-semibold text-[var(--social-fg)]">
                                     {actionLabel(pendingControl.action)}
                                 </div>
-                                <div className="mt-0.5 text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="mt-0.5 text-footnote text-[var(--social-fg-muted)]">
                                     {actionDescription(pendingControl.action)}
                                 </div>
                             </div>
@@ -447,7 +447,7 @@ export function TeamPanel(props: {
                             )}
 
                             {pendingControl.confirmRequired ? (
-                                <label className="flex min-h-11 items-start gap-3 rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2.5 text-[13px] text-[var(--social-fg)]">
+                                <label className="flex min-h-11 items-start gap-3 rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2.5 text-footnote text-[var(--social-fg)]">
                                     <input
                                         type="checkbox"
                                         className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--social-primary)]"
@@ -465,7 +465,7 @@ export function TeamPanel(props: {
                             ) : null}
 
                             {submitError ? (
-                                <div className="px-1 text-[13px] text-[var(--social-danger)]">{submitError}</div>
+                                <div className="px-1 text-footnote text-[var(--social-danger)]">{submitError}</div>
                             ) : null}
 
                             <div className="flex justify-end gap-2">
@@ -493,10 +493,10 @@ export function TeamPanel(props: {
 
                     {messages.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Recent Messages</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Recent Messages</div>
                             <div className="flex flex-col gap-1 px-1">
                                 {messages.slice(-5).map((msg, idx) => (
-                                    <div key={idx} className="text-[13px] text-[var(--social-fg-muted)]">
+                                    <div key={idx} className="text-footnote text-[var(--social-fg-muted)]">
                                         <span className="text-[var(--social-fg)]">{msg.from}</span>{' → '}
                                         <span className="text-[var(--social-fg)]">{msg.to}</span>
                                         {': '}

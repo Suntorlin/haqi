@@ -26,8 +26,8 @@ function Section(props: { title: string; note?: string; children: ReactNode }) {
     return (
         <section className="flex flex-col gap-4 border-t border-[var(--social-border)] pt-8">
             <div>
-                <h2 className="text-[20px] font-semibold tracking-[-0.01em]">{props.title}</h2>
-                {props.note ? <p className="mt-1 max-w-2xl text-[14px] text-[var(--social-fg-muted)]">{props.note}</p> : null}
+                <h2 className="text-title font-semibold tracking-[-0.01em]">{props.title}</h2>
+                {props.note ? <p className="mt-1 max-w-2xl text-footnote text-[var(--social-fg-muted)]">{props.note}</p> : null}
             </div>
             {props.children}
         </section>
@@ -37,7 +37,7 @@ function Section(props: { title: string; note?: string; children: ReactNode }) {
 function Spec(props: { label: string; children: ReactNode }) {
     return (
         <div className="flex flex-col gap-2">
-            <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{props.label}</div>
+            <div className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{props.label}</div>
             {props.children}
         </div>
     )
@@ -66,11 +66,11 @@ const RADII: Array<[string, string, string, string]> = [
 ]
 
 const TYPE: Array<[string, string, string]> = [
-    ['text-[20px] font-semibold', '20 / 600', '区块标题'],
-    ['text-[16px] font-semibold', '16 / 600', '页面标题 · 输入框文字'],
-    ['text-[15px]', '15 / 400', '正文 · 列表行标题'],
-    ['text-[13px]', '13 / 400', '次要说明 · 按钮(小) · 标签'],
-    ['text-[12px] font-semibold uppercase tracking-wide', '12 / 600', '分组标题 · 辅助']
+    ['text-title font-semibold', '20 / 600', '区块标题'],
+    ['text-headline font-semibold', '16 / 600', '页面标题 · 输入框文字'],
+    ['text-body', '15 / 400', '正文 · 列表行标题'],
+    ['text-footnote', '13 / 400', '次要说明 · 按钮(小) · 标签'],
+    ['text-caption font-semibold uppercase tracking-wide', '12 / 600', '分组标题 · 辅助']
 ]
 
 export function DesignShowcase() {
@@ -83,11 +83,11 @@ export function DesignShowcase() {
     return (
         <div className="mx-auto flex max-w-[1120px] flex-col gap-10 px-5 py-10 text-[var(--social-fg)]">
             <header>
-                <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">HAQI Design System · v1 草案</div>
-                <h1 className="mt-1 text-[32px] font-semibold tracking-[-0.02em]">视觉取 Instagram，交互守 Apple HIG</h1>
-                <p className="mt-2 max-w-2xl text-[15px] text-[var(--social-fg-muted)]">
+                <div className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">HAQI Design System · v1 草案</div>
+                <h1 className="mt-1 text-display font-semibold tracking-[-0.02em]">视觉取 Instagram，交互守 Apple HIG</h1>
+                <p className="mt-2 max-w-2xl text-body text-[var(--social-fg-muted)]">
                     黑白灰为底、胶囊与大圆角、克制的层级（Instagram）；44px 触控目标、16px 输入字号、4/8 间距、150–200ms 动效（Apple HIG）。
-                    所有业务页面只允许用下面这些基础件，不再手写 <code className="rounded-md bg-[var(--social-muted)] px-1.5 py-0.5 text-[13px]">rounded-xl border px-3</code>。
+                    所有业务页面只允许用下面这些基础件，不再手写 <code className="rounded-md bg-[var(--social-muted)] px-1.5 py-0.5 text-footnote">rounded-xl border px-3</code>。
                 </p>
             </header>
 
@@ -97,8 +97,8 @@ export function DesignShowcase() {
                         <div key={name} className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
                             <div className={`h-14 ${cls}`} />
                             <div className="px-3 py-2">
-                                <div className="text-[13px] font-semibold">{label}</div>
-                                <div className="truncate text-[11px] text-[var(--social-fg-muted)]">{name}</div>
+                                <div className="text-footnote font-semibold">{label}</div>
+                                <div className="truncate text-caption text-[var(--social-fg-muted)]">{name}</div>
                             </div>
                         </div>
                     ))}
@@ -113,8 +113,8 @@ export function DesignShowcase() {
                                 <div key={name} className="flex items-center gap-3">
                                     <div className={`h-11 w-16 shrink-0 border border-[var(--social-fg-subtle)] bg-[var(--social-muted)] ${cls}`} />
                                     <div className="min-w-0">
-                                        <div className="text-[14px] font-semibold">{name} <span className="font-normal text-[var(--social-fg-muted)]">{px}px</span></div>
-                                        <div className="truncate text-[12px] text-[var(--social-fg-muted)]">{use}</div>
+                                        <div className="text-footnote font-semibold">{name} <span className="font-normal text-[var(--social-fg-muted)]">{px}px</span></div>
+                                        <div className="truncate text-caption text-[var(--social-fg-muted)]">{use}</div>
                                     </div>
                                 </div>
                             ))}
@@ -125,7 +125,7 @@ export function DesignShowcase() {
                             {TYPE.map(([cls, spec, use]) => (
                                 <div key={spec} className="flex items-baseline justify-between gap-3 border-b border-[var(--social-divider)] pb-2">
                                     <span className={cls}>HAQI 远程协作 Aa</span>
-                                    <span className="shrink-0 text-[12px] text-[var(--social-fg-muted)]">{spec} · {use}</span>
+                                    <span className="shrink-0 text-caption text-[var(--social-fg-muted)]">{spec} · {use}</span>
                                 </div>
                             ))}
                         </div>
@@ -235,7 +235,7 @@ export function DesignShowcase() {
                         <div className="flex items-center gap-6">
                             {[3, 28, 120].map((n) => (
                                 <div key={n} className="relative">
-                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--social-muted)] text-[15px] font-semibold">AI</div>
+                                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--social-muted)] text-body font-semibold">AI</div>
                                     <CountBadge count={n} className="absolute -right-1 -top-1" />
                                 </div>
                             ))}
@@ -248,7 +248,7 @@ export function DesignShowcase() {
                     <Spec label="Switch">
                         <div className="flex items-center gap-3">
                             <Switch checked={on} onCheckedChange={setOn} ariaLabel="demo" />
-                            <span className="text-[14px] text-[var(--social-fg-muted)]">{on ? '开' : '关'}</span>
+                            <span className="text-footnote text-[var(--social-fg-muted)]">{on ? '开' : '关'}</span>
                         </div>
                     </Spec>
                 </div>
@@ -278,7 +278,7 @@ export function DesignShowcase() {
                         </div>
                     </Spec>
                     <Spec label="浮层卡片 .social-float-card">
-                        <div className="social-float-card max-w-xs rounded-3xl p-4 text-[13px] text-[var(--social-fg)]">
+                        <div className="social-float-card max-w-xs rounded-2xl p-4 text-footnote text-[var(--social-fg)]">
                             悬浮在内容之上，半透明加模糊；只用于锚在按钮下方的小卡片。
                         </div>
                     </Spec>

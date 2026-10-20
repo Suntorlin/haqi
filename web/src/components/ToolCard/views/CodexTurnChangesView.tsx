@@ -496,7 +496,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                 <div className="font-mono text-xs text-[var(--social-fg)] break-all">
                                     {file.displayPath}
                                 </div>
-                                <div className="mt-0.5 text-[12px] text-[var(--social-fg-muted)]">
+                                <div className="mt-0.5 text-caption text-[var(--social-fg-muted)]">
                                     +{file.additions} / -{file.deletions}
                                 </div>
                             </button>
@@ -516,7 +516,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                             <div className="min-w-0 font-mono text-xs text-[var(--social-fg)] break-all">
                                 {selectedFile.displayPath}
                             </div>
-                            <div className="shrink-0 text-[12px] text-[var(--social-fg-muted)]">
+                            <div className="shrink-0 text-caption text-[var(--social-fg-muted)]">
                                 +{selectedFile.additions} / -{selectedFile.deletions}
                             </div>
                         </div>

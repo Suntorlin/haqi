@@ -24,7 +24,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
 
-const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
+const tileClass = 'flex flex-col items-center gap-1.5 text-caption text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
 const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] transition-transform active:scale-95'
 
 function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; badge?: number }) {
@@ -55,7 +55,7 @@ export function MobileComposerToolPanel(props: {
     return (
         <div className="pb-3 pt-3">
             {props.settings ? (
-                <div className="social-scroll-x flex gap-2 overflow-x-auto px-5 pb-3 [&>button]:h-11 [&>button]:text-[13px]">
+                <div className="social-scroll-x flex gap-2 overflow-x-auto px-5 pb-3 [&>button]:h-11 [&>button]:text-footnote">
                     {props.settings}
                 </div>
             ) : null}
@@ -204,7 +204,7 @@ export function QueueStrip(props: {
     const entries = props.entries ?? []
     return (
         <div role="status">
-            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px]">
+            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
                 <QueueListIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
                 <span className="shrink-0 font-semibold text-[var(--social-fg)]">
                     {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
@@ -227,7 +227,7 @@ export function QueueStrip(props: {
             {entries.length > 0 ? (
                 <div className="mt-1.5 flex flex-col gap-1 px-3.5">
                     {entries.slice(0, 5).map((entry, index) => (
-                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[13px]">
+                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-footnote">
                             <span className="w-4 shrink-0 tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
                             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{entry.preview || t('queue.dialog.emptyMessage')}</span>
                             <span className="shrink-0 text-[var(--social-fg-subtle)]">
@@ -236,7 +236,7 @@ export function QueueStrip(props: {
                         </div>
                     ))}
                     {entries.length > 5 ? (
-                        <div className="text-[12px] text-[var(--social-fg-subtle)]">+{entries.length - 5}</div>
+                        <div className="text-caption text-[var(--social-fg-subtle)]">+{entries.length - 5}</div>
                     ) : null}
                 </div>
             ) : null}
@@ -260,7 +260,7 @@ export function VoiceCallBar(props: {
         ? t('voice.call.connecting')
         : props.micMuted ? t('voice.call.muted') : t('voice.call.active')
     return (
-        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px]">
+        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
             <DotBadge className={cn('h-2 w-2 shrink-0 ring-0', connecting ? 'opacity-50' : 'animate-pulse')} />
             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
             {props.onToggleMic && !connecting ? (
@@ -338,7 +338,7 @@ export function DesktopComposerToolbar(props: {
                 </IconButton>
             ) : null}
             {props.settings ? (
-                <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto [&>button]:text-[13px]">
+                <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto [&>button]:text-footnote">
                     {props.settings}
                 </div>
             ) : null}
@@ -366,7 +366,7 @@ export function DesktopComposerToolbar(props: {
                             label={t('composer.queue')}
                             disabled={queue.disabled}
                             onSelect={runThen(queue.onOpen)}
-                            trailing={pending > 0 ? <span className="text-[13px] text-[var(--social-fg-muted)]">{t('queue.inline.pending', { count: pending })}</span> : undefined}
+                            trailing={pending > 0 ? <span className="text-footnote text-[var(--social-fg-muted)]">{t('queue.inline.pending', { count: pending })}</span> : undefined}
                         />
                     ) : null}
                     {status ? (

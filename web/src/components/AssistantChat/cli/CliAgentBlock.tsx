@@ -28,7 +28,7 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
             {isMermaidLanguage(props.language)
                 ? <MermaidBlock code={props.code} language={props.language} />
                 : (
-                    <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--app-code-bg)] p-2 text-[13px] font-mono">
+                    <pre className="shiki m-0 w-max min-w-full overflow-x-auto bg-[var(--app-code-bg)] p-2 text-footnote font-mono">
                         <code className="block">{highlighted ?? props.code}</code>
                     </pre>
                 )}

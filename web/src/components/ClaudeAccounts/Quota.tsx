@@ -37,7 +37,7 @@ export function AccountQuota({ snapshot }: { snapshot?: ClaudeRateLimitSnapshot 
     const { t } = useTranslation()
     const usageLimits = snapshot?.usageLimits
     if (usageLimits?.length) {
-        return <div className="space-y-1 text-[12px]">
+        return <div className="space-y-1 text-caption">
             {usageLimits.map((limit, index) => {
                 const labelKey = usageKindLabelKeys[limit.kind]
                 const label = limit.kind === 'weekly_scoped' && limit.label
@@ -55,9 +55,9 @@ export function AccountQuota({ snapshot }: { snapshot?: ClaudeRateLimitSnapshot 
     const entries = Object.entries(snapshot ?? {}).filter((pair): pair is [string, ClaudeRateLimitEntry] =>
         pair[0] !== 'usageLimits' && Boolean(pair[1]))
     if (!entries.length) {
-        return <p className="text-[12px] text-[var(--social-fg-muted)]">{t('claudeAccounts.quota.unknown')}</p>
+        return <p className="text-caption text-[var(--social-fg-muted)]">{t('claudeAccounts.quota.unknown')}</p>
     }
-    return <div className="space-y-1 text-[12px]">
+    return <div className="space-y-1 text-caption">
         {entries.map(([key, entry]) => {
             const label = t(labelKeys[key] ?? key)
             const usage = entry.utilization === undefined

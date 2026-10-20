@@ -1431,10 +1431,10 @@ export function SessionChat(props: {
                             <div className="px-3 pt-2">
                                 <div className="mx-auto w-full max-w-content rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
+                                        <span className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                             {t('queuePlan.title')}
                                         </span>
-                                        <span className="text-[12px] text-[var(--social-fg-subtle)]">
+                                        <span className="text-caption text-[var(--social-fg-subtle)]">
                                             {t('queuePlan.updated', {
                                                 time: new Date(latestCodexPlan.updatedAt).toLocaleTimeString([], {
                                                     hour: '2-digit',
@@ -1467,13 +1467,13 @@ export function SessionChat(props: {
                                     {!isCodexPlanCollapsed ? (
                                         <div className="mt-2 space-y-1.5">
                                             {latestCodexPlan.explanation ? (
-                                                <div className="text-[13px] text-[var(--social-fg-muted)]">
+                                                <div className="text-footnote text-[var(--social-fg-muted)]">
                                                     {latestCodexPlan.explanation}
                                                 </div>
                                             ) : null}
                                             <div className="space-y-1">
                                                 {latestCodexPlan.entries.map((entry, index) => (
-                                                    <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-[13px]">
+                                                    <div key={`${entry.step}:${index}`} className="flex items-start gap-2 text-footnote">
                                                         <Badge variant={getCodexPlanStatusBadgeVariant(entry.status)}>
                                                             {entry.status === 'completed'
                                                                 ? t('queuePlan.status.completed')
@@ -1659,7 +1659,7 @@ export function SessionChat(props: {
                                 aria-expanded={isMcpGuideExpanded}
                             >
                                 <div className="flex items-center justify-between gap-2">
-                                    <div className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
+                                    <div className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                         {t('mcp.guide.title')}
                                     </div>
                                     <Button
@@ -1678,10 +1678,10 @@ export function SessionChat(props: {
                                                 key={guide.id}
                                                 className="rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3"
                                             >
-                                                <div className="text-[15px] font-semibold text-[var(--social-fg)]">
+                                                <div className="text-body font-semibold text-[var(--social-fg)]">
                                                     {guide.label}
                                                 </div>
-                                                <div className="mt-1 text-[13px] text-[var(--social-fg-muted)]">
+                                                <div className="mt-1 text-footnote text-[var(--social-fg-muted)]">
                                                     {t(guide.descriptionKey)}
                                                 </div>
                                                 <div className="mt-2 flex items-center gap-2">
@@ -1702,7 +1702,7 @@ export function SessionChat(props: {
                                             </div>
                                         ))}
                                         <div className="rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
-                                            <div className="text-[15px] font-semibold text-[var(--social-fg)]">
+                                            <div className="text-body font-semibold text-[var(--social-fg)]">
                                                 {t('mcp.guide.custom.title')}
                                             </div>
                                             <div className="mt-2 space-y-2">
@@ -1729,7 +1729,7 @@ export function SessionChat(props: {
                             </div>
 
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <div className="text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="text-footnote text-[var(--social-fg-muted)]">
                                     {mcpFlavor ? `${t('mcp.dialog.flavor')}: ${mcpFlavor}` : null}
                                     {mcpCheckedAt ? ` · ${new Date(mcpCheckedAt).toLocaleString()}` : null}
                                 </div>
@@ -1745,25 +1745,25 @@ export function SessionChat(props: {
                             </div>
 
                             {isMcpLoading ? (
-                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-footnote text-[var(--social-fg-muted)]">
                                     {t('mcp.dialog.loading')}
                                 </div>
                             ) : null}
 
                             {mcpError ? (
-                                <div className="rounded-2xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-[13px] text-[var(--app-badge-error-text)]">
+                                <div className="rounded-2xl border border-[var(--app-badge-error-border)] bg-[var(--app-badge-error-bg)] p-3 text-footnote text-[var(--app-badge-error-text)]">
                                     {mcpError}
                                 </div>
                             ) : null}
 
                             {mcpWarning ? (
-                                <div className="rounded-2xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] p-3 text-[13px] text-[var(--app-badge-warning-text)]">
+                                <div className="rounded-2xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] p-3 text-footnote text-[var(--app-badge-warning-text)]">
                                     {mcpWarning}
                                 </div>
                             ) : null}
 
                             {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
-                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-[13px] text-[var(--social-fg-muted)]">
+                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-footnote text-[var(--social-fg-muted)]">
                                     {t('mcp.dialog.empty')}
                                 </div>
                             ) : null}
@@ -1776,38 +1776,38 @@ export function SessionChat(props: {
                                             className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3"
                                         >
                                             <div className="flex items-center justify-between gap-2">
-                                                <div className="text-[15px] font-semibold text-[var(--social-fg)]">
+                                                <div className="text-body font-semibold text-[var(--social-fg)]">
                                                     {server.name}
                                                 </div>
                                                 <Badge variant={server.available ? 'success' : 'destructive'}>
                                                     {server.available ? t('mcp.server.available') : t('mcp.server.unavailable')}
                                                 </Badge>
                                             </div>
-                                            <div className="mt-2 grid grid-cols-1 gap-2 text-[13px] text-[var(--social-fg-muted)] sm:grid-cols-2">
+                                            <div className="mt-2 grid grid-cols-1 gap-2 text-footnote text-[var(--social-fg-muted)] sm:grid-cols-2">
                                                 <div>
-                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.status')}</span>
-                                                    <div className="mt-1 break-all text-[15px] text-[var(--social-fg)]">{server.status}</div>
+                                                    <span className="text-caption uppercase tracking-wide">{t('mcp.server.status')}</span>
+                                                    <div className="mt-1 break-all text-body text-[var(--social-fg)]">{server.status}</div>
                                                 </div>
                                                 <div>
-                                                    <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.transport')}</span>
-                                                    <div className="mt-1 text-[15px] text-[var(--social-fg)]">{server.transport ?? 'unknown'}</div>
+                                                    <span className="text-caption uppercase tracking-wide">{t('mcp.server.transport')}</span>
+                                                    <div className="mt-1 text-body text-[var(--social-fg)]">{server.transport ?? 'unknown'}</div>
                                                 </div>
                                                 {server.source ? (
                                                     <div>
-                                                        <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.source')}</span>
-                                                        <div className="mt-1 text-[15px] text-[var(--social-fg)]">{server.source}</div>
+                                                        <span className="text-caption uppercase tracking-wide">{t('mcp.server.source')}</span>
+                                                        <div className="mt-1 text-body text-[var(--social-fg)]">{server.source}</div>
                                                     </div>
                                                 ) : null}
                                                 {server.target ? (
                                                     <div>
-                                                        <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.target')}</span>
-                                                        <div className="mt-1 break-all text-[13px] font-mono text-[var(--social-fg)]">{server.target}</div>
+                                                        <span className="text-caption uppercase tracking-wide">{t('mcp.server.target')}</span>
+                                                        <div className="mt-1 break-all text-footnote font-mono text-[var(--social-fg)]">{server.target}</div>
                                                     </div>
                                                 ) : null}
                                                 {server.auth ? (
                                                     <div className="sm:col-span-2">
-                                                        <span className="text-[12px] uppercase tracking-wide">{t('mcp.server.auth')}</span>
-                                                        <div className="mt-1 break-all text-[15px] text-[var(--social-fg)]">{server.auth}</div>
+                                                        <span className="text-caption uppercase tracking-wide">{t('mcp.server.auth')}</span>
+                                                        <div className="mt-1 break-all text-body text-[var(--social-fg)]">{server.auth}</div>
                                                     </div>
                                                 ) : null}
                                             </div>

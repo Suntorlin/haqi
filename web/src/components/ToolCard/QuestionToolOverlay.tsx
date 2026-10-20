@@ -91,7 +91,7 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-body transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
                 props.checked ? 'bg-[var(--social-hover)]' : null
             )}
             disabled={props.disabled}
@@ -101,7 +101,7 @@ function OptionRow(props: {
             <span className="min-w-0 flex-1">
                 <div className="font-semibold text-[var(--social-fg)] break-words">{props.title}</div>
                 {props.description ? (
-                    <div className="mt-0.5 text-[13px] text-[var(--social-fg-muted)] break-words">
+                    <div className="mt-0.5 text-footnote text-[var(--social-fg-muted)] break-words">
                         {props.description}
                     </div>
                 ) : null}
@@ -349,10 +349,10 @@ export function QuestionToolOverlay(props: {
                 <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] p-3 shadow-[var(--shadow-float)]">
                     <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15px] font-semibold text-[var(--social-fg)]">
+                            <div className="truncate text-body font-semibold text-[var(--social-fg)]">
                                 {currentQuestion.header || t('tool.questionOverlay.title')}
                             </div>
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">
+                            <div className="text-footnote text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.minimizedDescription', { answeredCount, total })}
                             </div>
                         </div>
@@ -364,7 +364,7 @@ export function QuestionToolOverlay(props: {
                         </IconButton>
                     </div>
                     {error ? (
-                        <div className="rounded-xl bg-[var(--app-badge-error-bg)] px-3 py-2 text-[13px] text-[var(--social-danger)]">{error}</div>
+                        <div className="rounded-xl bg-[var(--app-badge-error-bg)] px-3 py-2 text-footnote text-[var(--social-danger)]">{error}</div>
                     ) : null}
                 </div>
             </div>
@@ -377,7 +377,7 @@ export function QuestionToolOverlay(props: {
             <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
                 <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] shadow-[var(--shadow-float)] sm:max-h-[min(88vh,860px)]">
                     <div className="flex shrink-0 items-center justify-between gap-2 py-1 pl-4 pr-2">
-                        <span className="min-w-0 truncate text-[13px] text-[var(--social-fg-muted)]">
+                        <span className="min-w-0 truncate text-footnote text-[var(--social-fg-muted)]">
                             {[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
                         </span>
                         <div className="flex shrink-0 items-center">
@@ -398,7 +398,7 @@ export function QuestionToolOverlay(props: {
                         ) : null}
 
                         {currentQuestion.question ? (
-                            <div className="text-[16px] font-semibold leading-snug text-[var(--social-fg)] break-words">
+                            <div className="text-headline font-semibold leading-snug text-[var(--social-fg)] break-words">
                                 {currentQuestion.question}
                             </div>
                         ) : null}
@@ -452,7 +452,7 @@ export function QuestionToolOverlay(props: {
                         ) : null}
 
                         {questionAnswered ? null : (
-                            <div className="mt-3 text-[13px] text-[var(--social-fg-muted)]">{t('tool.questionOverlay.skippedHint')}</div>
+                            <div className="mt-3 text-footnote text-[var(--social-fg-muted)]">{t('tool.questionOverlay.skippedHint')}</div>
                         )}
                     </div>
 

@@ -14,7 +14,7 @@ export function ActionTile(props: {
             disabled={!props.onClick}
             onClick={props.onClick}
             className={cn(
-                'flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[var(--social-border)] px-1 py-3 text-[12px] text-[var(--social-fg)] transition-[background-color,transform] duration-150 hover:bg-[var(--social-hover)] active:scale-[0.98] active:bg-[var(--social-muted)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
+                'flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[var(--social-border)] px-1 py-3 text-caption text-[var(--social-fg)] transition-[background-color,transform] duration-150 hover:bg-[var(--social-hover)] active:scale-[0.98] active:bg-[var(--social-muted)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
                 props.className
             )}
         >

@@ -337,7 +337,7 @@ export default function FilePage() {
                         </div>
                     ) : null}
                     {missingPath ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.noPath')}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.noPath')}</div>
                     ) : loading ? (
                         <FileContentSkeleton />
                     ) : displayMode === 'diff' && diffContent ? (
@@ -352,10 +352,10 @@ export default function FilePage() {
                             />
                         </Suspense>
                     ) : fileError ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{fileError}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{fileError}</div>
                     ) : imageMimeType && (displayMode === 'file' || !diffContent) ? (
                         fileContentResult?.truncated ? (
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">
+                            <div className="text-footnote text-[var(--social-fg-muted)]">
                                 Image preview unavailable because the file content is truncated.
                             </div>
                         ) : imagePreviewUrl ? (
@@ -369,16 +369,16 @@ export default function FilePage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">
+                            <div className="text-footnote text-[var(--social-fg-muted)]">
                                 Failed to render image preview.
                             </div>
                         )
                     ) : binaryFile ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">
+                        <div className="text-footnote text-[var(--social-fg-muted)]">
                             This looks like a binary file. It cannot be displayed.
                         </div>
                     ) : displayMode === 'diff' && diffError ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{diffError}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{diffError}</div>
                     ) : displayMode === 'file' ? (
                         decodedContent ? (
                             <div className="relative">
@@ -396,10 +396,10 @@ export default function FilePage() {
                                 </pre>
                             </div>
                         ) : (
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.empty')}</div>
+                            <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.empty')}</div>
                         )
                     ) : (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.noChanges')}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.noChanges')}</div>
                     )}
                 </div>
             </div>

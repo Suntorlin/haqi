@@ -27,10 +27,10 @@ export function RoundTimeline({ rounds }: { rounds: ReviewRound[] }) {
                             onClick={() => setExpandedId(isExpanded ? null : round.id)}
                         >
                             <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', isExpanded && 'rotate-90')} />
-                            <span className="shrink-0 text-[15px] font-semibold text-[var(--social-fg)]">Round {round.round}</span>
+                            <span className="shrink-0 text-body font-semibold text-[var(--social-fg)]">Round {round.round}</span>
                             <Badge variant={roundStatusVariant[round.status] ?? 'default'}>{roundStatusLabel(round.status)}</Badge>
                             {isLatest ? (
-                                <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">current</span>
+                                <span className="shrink-0 text-footnote text-[var(--social-fg-muted)]">current</span>
                             ) : null}
                         </button>
 

@@ -12,7 +12,7 @@ export function SyncingBanner({ isSyncing }: { isSyncing: boolean }) {
     }
 
     return (
-        <div className="fixed top-0 left-0 right-0 bg-[var(--social-muted)] text-[var(--social-fg)] text-center py-2 text-[13px] font-semibold z-50 flex items-center justify-center gap-2 border-b border-[var(--social-divider)]">
+        <div className="fixed top-0 left-0 right-0 bg-[var(--social-muted)] text-[var(--social-fg)] text-center py-2 text-footnote font-semibold z-50 flex items-center justify-center gap-2 border-b border-[var(--social-divider)]">
             <Spinner size="sm" label={null} className="text-[var(--social-fg)]" />
             {t('syncing.title')}
         </div>

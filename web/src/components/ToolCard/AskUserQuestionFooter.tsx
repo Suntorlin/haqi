@@ -33,7 +33,7 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-body transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
                 props.checked ? 'bg-[var(--social-hover)]' : null
             )}
             disabled={props.disabled}
@@ -281,7 +281,7 @@ export function AskUserQuestionFooter(props: {
 
             {questions.length === 0 ? (
                 <div className="mt-3">
-                    <div className="text-[15px] text-[var(--social-fg-muted)]">
+                    <div className="text-body text-[var(--social-fg-muted)]">
                         {t('tool.askUserQuestion.fallback')}
                     </div>
                     <textarea
@@ -305,7 +305,7 @@ export function AskUserQuestionFooter(props: {
                             ) : null}
                             {questions[clampedStep]?.question ? (
                                 <div className={cn(
-                                    "text-[15px] text-[var(--social-fg)] break-words",
+                                    "text-body text-[var(--social-fg)] break-words",
                                     questions[clampedStep]?.header ? "mt-2" : ""
                                 )}>
                                     {questions[clampedStep].question}

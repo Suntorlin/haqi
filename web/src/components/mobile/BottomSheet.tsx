@@ -34,7 +34,7 @@ export function BottomSheet(props: {
                     <DialogPrimitive.Content
                         aria-describedby={undefined}
                         className={cn(
-                            'social-float-card animate-menu-pop fixed z-[70] flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-3xl text-[var(--social-fg)] outline-none',
+                            'social-float-card animate-menu-pop fixed z-[70] flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-2xl text-[var(--social-fg)] outline-none',
                             props.className
                         )}
                         style={{
@@ -68,7 +68,7 @@ export function BottomSheet(props: {
                     >
                         <div className="flex h-14 shrink-0 items-center gap-2 pl-5 pr-3">
                             <DialogPrimitive.Title
-                                className={props.hideTitle ? 'sr-only' : 'min-w-0 flex-1 truncate text-[15px] font-semibold'}
+                                className={props.hideTitle ? 'sr-only' : 'min-w-0 flex-1 truncate text-body font-semibold'}
                             >
                                 {props.title}
                             </DialogPrimitive.Title>
@@ -106,7 +106,7 @@ export function BottomSheet(props: {
                         <span className="h-1 w-9 rounded-full bg-[var(--social-border)]" aria-hidden="true" />
                     </div>
                     <DialogPrimitive.Title
-                        className={props.hideTitle ? 'sr-only' : 'px-4 pb-2 text-center text-[15px] font-semibold'}
+                        className={props.hideTitle ? 'sr-only' : 'px-4 pb-2 text-center text-body font-semibold'}
                     >
                         {props.title}
                     </DialogPrimitive.Title>
@@ -122,7 +122,7 @@ export function BottomSheet(props: {
 /** Muted (or error) line of text between sheet sections: loading, empty and error states. */
 export function SheetNote(props: { children: ReactNode; tone?: 'error' }) {
     return (
-        <div className={cn('px-5 pb-3 text-[13px] leading-relaxed', props.tone === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-muted)]')}>
+        <div className={cn('px-5 pb-3 text-footnote leading-relaxed', props.tone === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-muted)]')}>
             {props.children}
         </div>
     )
@@ -133,7 +133,7 @@ export function SheetSection(props: { title?: string; children: ReactNode; class
     return (
         <section className={cn('px-4 pb-3', props.className)}>
             {props.title ? (
-                <div className="px-1 pb-2 text-[12px] font-semibold text-[var(--social-fg-muted)]">
+                <div className="px-1 pb-2 text-caption font-semibold text-[var(--social-fg-muted)]">
                     {props.title}
                 </div>
             ) : null}
@@ -170,10 +170,10 @@ export function SheetRow(props: {
     const content = (
         <>
             {props.icon ? <SheetRowIcon destructive={props.destructive}>{props.icon}</SheetRowIcon> : null}
-            <span className={cn('min-w-0 shrink-0 text-[15px]', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>
+            <span className={cn('min-w-0 shrink-0 text-body', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>
                 {props.label}
             </span>
-            <span className="min-w-0 flex-1 truncate text-right text-[13px] text-[var(--social-fg-muted)]">
+            <span className="min-w-0 flex-1 truncate text-right text-footnote text-[var(--social-fg-muted)]">
                 {props.value}
             </span>
             {props.chevron ? (
@@ -228,11 +228,11 @@ export function SheetOption(props: {
             className="social-pressable flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left disabled:opacity-50 [&+&]:border-t [&+&]:border-[var(--social-border)]"
         >
             <span className="min-w-0 flex-1">
-                <span className={cn('block text-[15px]', props.selected ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]')}>
+                <span className={cn('block text-body', props.selected ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]')}>
                     {props.label}
                 </span>
                 {props.description ? (
-                    <span className="mt-0.5 block text-[12px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
+                    <span className="mt-0.5 block text-caption leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
                 ) : null}
             </span>
             <span className={cn('shrink-0 text-[var(--social-fg)] transition-opacity', props.selected ? 'opacity-100' : 'opacity-0')}>
@@ -262,9 +262,9 @@ export function SheetSwitchRow(props: {
         >
             {props.icon ? <SheetRowIcon>{props.icon}</SheetRowIcon> : null}
             <span className="min-w-0 flex-1">
-                <span className="block text-[15px] text-[var(--social-fg)]">{props.label}</span>
+                <span className="block text-body text-[var(--social-fg)]">{props.label}</span>
                 {props.description ? (
-                    <span className="mt-0.5 block text-[12px] leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
+                    <span className="mt-0.5 block text-caption leading-snug text-[var(--social-fg-muted)]">{props.description}</span>
                 ) : null}
             </span>
             <SwitchTrack checked={props.checked} />

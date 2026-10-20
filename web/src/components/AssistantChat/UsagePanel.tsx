@@ -142,7 +142,7 @@ export function UsagePanel(props: UsagePanelProps) {
                 </div>
 
                 {!hasAnyRateLimit ? (
-                    <div className="text-[12px] text-[var(--social-fg-muted)]">{t('usage.noRateLimitData')}</div>
+                    <div className="text-caption text-[var(--social-fg-muted)]">{t('usage.noRateLimitData')}</div>
                 ) : usageLimits?.length ? (
                     usageLimits.map((limit, index) => {
                         const labelKey = USAGE_KIND_LABEL_KEYS[limit.kind]

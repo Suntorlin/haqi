@@ -207,12 +207,12 @@ function renderTaskStateBadge(taskStateSummaryText: string | null, runningAgentN
     return (
         <div className="flex flex-wrap gap-1">
             {taskStateSummaryText ? (
-                <span className="rounded-full bg-[var(--social-hover)] px-2 py-0.5 text-[12px] text-[var(--social-fg-muted)]">
+                <span className="rounded-full bg-[var(--social-hover)] px-2 py-0.5 text-caption text-[var(--social-fg-muted)]">
                     {taskStateSummaryText}
                 </span>
             ) : null}
             {runningAgentNames ? (
-                <span className="rounded-full bg-[var(--app-badge-info-bg)] px-2 py-0.5 text-[12px] text-[var(--app-badge-info-text)]">
+                <span className="rounded-full bg-[var(--app-badge-info-bg)] px-2 py-0.5 text-caption text-[var(--app-badge-info-text)]">
                     {runningAgentNames}
                 </span>
             ) : null}
@@ -650,7 +650,7 @@ function ToolCardInner(props: ToolCardProps) {
                     <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                 </div>
                 {compactDetail ? (
-                    <div className="mt-1 pl-4 text-[12px] text-[var(--social-fg-muted)]">
+                    <div className="mt-1 pl-4 text-caption text-[var(--social-fg-muted)]">
                         {compactDetail}
                     </div>
                 ) : null}
@@ -719,7 +719,7 @@ function ToolCardInner(props: ToolCardProps) {
                             <IconButton label="Back" onClick={closeTurnChangesDetail}>
                                 <BackIcon />
                             </IconButton>
-                            <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--social-fg)]">
+                            <div className="min-w-0 truncate text-footnote font-semibold text-[var(--social-fg)]">
                                 {toolTitle}
                             </div>
                         </div>
@@ -756,7 +756,7 @@ function ToolCardInner(props: ToolCardProps) {
                             <IconButton label="Back" onClick={closeDiffDetail}>
                                 <BackIcon />
                             </IconButton>
-                            <div className="min-w-0 truncate text-[13px] font-semibold text-[var(--social-fg)]">
+                            <div className="min-w-0 truncate text-footnote font-semibold text-[var(--social-fg)]">
                                 {toolTitle}
                             </div>
                         </div>
@@ -827,7 +827,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="truncate text-xs font-semibold leading-tight">
                                             {toolTitle}
                                             {compactSummary ? (
-                                                <span className="ml-1 font-mono text-[12px] text-[var(--social-fg-muted)]">
+                                                <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
                                                     - {compactSummary}
                                                 </span>
                                             ) : null}
@@ -867,7 +867,7 @@ function ToolCardInner(props: ToolCardProps) {
                                                 <div className="truncate text-xs font-semibold leading-tight">
                                                     {toolTitle}
                                                     {compactSummary ? (
-                                                        <span className="ml-1 font-mono text-[12px] text-[var(--social-fg-muted)]">
+                                                        <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
                                                             - {compactSummary}
                                                         </span>
                                                     ) : null}
@@ -911,7 +911,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <div className="truncate text-xs font-semibold leading-tight">
                                                 {toolTitle}
                                                 {compactSummary ? (
-                                                    <span className="ml-1 font-mono text-[12px] text-[var(--social-fg-muted)]">
+                                                    <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
                                                         - {compactSummary}
                                                     </span>
                                                 ) : null}
@@ -980,7 +980,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--social-fg-muted)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-footnote font-semibold leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1026,7 +1026,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--social-fg-muted)] leading-none">
                                             {presentation.icon}
                                         </div>
-                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-footnote font-semibold leading-tight break-words">
                                             {toolTitle}
                                         </CardTitle>
                                     </div>
@@ -1072,7 +1072,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <div className="shrink-0 flex h-3.5 w-3.5 items-center justify-center text-[var(--social-fg-muted)] leading-none">
                                                 {presentation.icon}
                                             </div>
-                                            <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
+                                            <CardTitle className="min-w-0 text-footnote font-semibold leading-tight break-words">
                                                 {toolTitle}
                                             </CardTitle>
                                         </div>
@@ -1095,7 +1095,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     ) : null}
                                     {toolName === 'Task' && taskStateSummaryText ? (
                                         <div className="flex flex-wrap gap-1">
-                                            <span className="rounded-full bg-[var(--social-hover)] px-2 py-0.5 text-[12px] text-[var(--social-fg-muted)]">
+                                            <span className="rounded-full bg-[var(--social-hover)] px-2 py-0.5 text-caption text-[var(--social-fg-muted)]">
                                                 {taskStateSummaryText}
                                             </span>
                                         </div>
@@ -1140,7 +1140,7 @@ function ToolCardInner(props: ToolCardProps) {
                             <div className="text-xs font-semibold text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>
-                            <div className="mt-1 text-[13px] text-[var(--social-fg)]">
+                            <div className="mt-1 text-footnote text-[var(--social-fg)]">
                                 {t('tool.questionOverlay.inlineDescription')}
                             </div>
                         </div>

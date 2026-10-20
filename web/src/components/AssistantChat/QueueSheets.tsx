@@ -64,7 +64,7 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
             label,
             value: (
                 <span className="flex w-36 flex-col items-end gap-1">
-                    <span className="text-[13px] tabular-nums text-[var(--social-fg)]">{`${rateLimit.usedPercent}% · ${rateLimit.resetAt}`}</span>
+                    <span className="text-footnote tabular-nums text-[var(--social-fg)]">{`${rateLimit.usedPercent}% · ${rateLimit.resetAt}`}</span>
                     <span className="h-1 w-full overflow-hidden rounded-full bg-[var(--social-muted)]">
                         <span className={cn('block h-full rounded-full', tone)} style={{ width: `${Math.max(0, Math.min(100, rateLimit.usedPercent))}%` }} />
                     </span>
@@ -76,7 +76,7 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
         return { label, value: permissionModeText(raw as PermissionMode, t) }
     }
     if (field === 'session' && raw.length > 12 && !STATUS_VALUE_KEYS[raw.toLowerCase()]) {
-        return { label, value: <span className="font-mono text-[13px]" title={raw}>{`${raw.slice(0, 8)}…`}</span> }
+        return { label, value: <span className="font-mono text-footnote" title={raw}>{`${raw.slice(0, 8)}…`}</span> }
     }
     const valueKey = STATUS_VALUE_KEYS[raw.toLowerCase()]
     return { label, value: valueKey ? t(valueKey) : raw || '—' }
@@ -169,12 +169,12 @@ function QueueEntryRow(props: {
     const { entry, index } = props
     return (
         <div className="flex items-center gap-3 px-4 py-1 [&+&]:border-t [&+&]:border-[var(--social-border)]">
-            <span className="w-5 shrink-0 text-[13px] tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
+            <span className="w-5 shrink-0 text-footnote tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
             <div className="min-w-0 flex-1 py-2">
-                <div className="line-clamp-3 break-words text-[15px] leading-snug text-[var(--social-fg)]">
+                <div className="line-clamp-3 break-words text-body leading-snug text-[var(--social-fg)]">
                     {entry.preview || t('queue.dialog.emptyMessage')}
                 </div>
-                <div className="mt-1 text-[12px] text-[var(--social-fg-subtle)]">
+                <div className="mt-1 text-caption text-[var(--social-fg-subtle)]">
                     {new Date(entry.enqueuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                 </div>
@@ -225,7 +225,7 @@ export function QueueSheet(props: {
                         onRemove={props.onRemove}
                     />
                 )) : (
-                    <div className="px-4 py-3 text-[15px] text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
+                    <div className="px-4 py-3 text-body text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
                 )}
             </SheetSection>
             <SheetSection>
