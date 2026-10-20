@@ -1,19 +1,12 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { AgentState, TeamControlAction, TeamControlRequest, TeamState } from '@hapi/protocol/types'
 import { Button } from '@/components/ui/button'
-import { SelectInput } from '@/components/ui/FormControls'
+import { FormField, SelectInput } from '@/components/ui/FormControls'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-/** Caption + control (FormField needs the i18n provider; this panel's copy is English-only). */
-function Field(props: { label: string; htmlFor: string; children: React.ReactNode }) {
-    return (
-        <div className="flex min-w-0 flex-col gap-1.5">
-            <label htmlFor={props.htmlFor} className="px-1 text-caption font-semibold text-[var(--social-fg-muted)]">{props.label}</label>
-            {props.children}
-        </div>
-    )
-}
+type Translate = (key: string, params?: Record<string, string | number>) => string
 
 /** Compact pill whose touch target still reaches 44px (36px pill + 4px above and below). */
 const ROW_ACTION_CLASS = "relative h-8 px-3 text-caption before:absolute before:-inset-y-2 before:inset-x-0 before:content-['']"
@@ -60,19 +53,8 @@ function buildInitialControlState(action: TeamControlAction, options?: {
     }
 }
 
-function actionLabel(action: TeamControlAction): string {
-    switch (action) {
-        case 'message':
-            return 'Message teammate'
-        case 'nudge_member':
-            return 'Nudge teammate'
-        case 'shutdown_member':
-            return 'Shut down teammate'
-        case 'assign_task':
-            return 'Assign task'
-        case 'cleanup_team':
-            return 'Clean up team'
-    }
+function actionLabel(action: TeamControlAction, t: Translate): string {
+    return action === 'cleanup_team' ? t('team.cleanup') : t(`team.action.${action}`)
 }
 
 function actionNeedsMessage(action: TeamControlAction): boolean {
@@ -90,19 +72,8 @@ function actionNeedsTask(action: TeamControlAction): boolean {
     return action === 'assign_task'
 }
 
-function actionDescription(action: TeamControlAction): string {
-    switch (action) {
-        case 'message':
-            return 'Send a direct instruction to one teammate through the team lead.'
-        case 'nudge_member':
-            return 'Ask the lead to check on a teammate and redirect them if they are idle or stuck.'
-        case 'shutdown_member':
-            return 'Have the lead stop one teammate gracefully after they summarize remaining work.'
-        case 'assign_task':
-            return 'Ask the lead to assign an existing task to a selected teammate.'
-        case 'cleanup_team':
-            return 'Have the lead stop active teammates if needed, then clean up shared team resources.'
-    }
+function actionDescription(action: TeamControlAction, t: Translate): string {
+    return t(`team.hint.${action}`)
 }
 
 export function TeamPanel(props: {
@@ -111,6 +82,7 @@ export function TeamPanel(props: {
     canControl?: boolean
     onControl?: (request: TeamControlRequest) => Promise<void>
 }) {
+    const { t } = useTranslation()
     const [expanded, setExpanded] = useState(false)
     const memberFieldId = useId()
     const taskFieldId = useId()
@@ -125,7 +97,7 @@ export function TeamPanel(props: {
     const runningAgents = agentState?.runningAgents ?? (agentState?.runningAgent ? [agentState.runningAgent] : [])
 
     const completedTasks = tasks.filter(t => t.status === 'completed').length
-    const title = teamState?.teamName ?? 'Running Agents'
+    const title = teamState?.teamName ?? t('team.runningAgents')
 
     const runningAgentMembers = useMemo(() => {
         const existing = new Set(members.map((member) => member.name))
@@ -140,6 +112,14 @@ export function TeamPanel(props: {
 
     const visibleMembers = [...members, ...runningAgentMembers]
     const activeMembers = visibleMembers.filter((member) => member.status === 'active').length
+    const memberCount = visibleMembers.length === 1
+        ? t('team.summary.memberOne')
+        : t('team.summary.members', { n: visibleMembers.length })
+    const summary = [
+        activeMembers > 0 ? t('team.summary.active', { members: memberCount, n: activeMembers }) : memberCount,
+        runningAgents.length > 0 ? t('team.summary.running', { n: runningAgents.length }) : null,
+        tasks.length > 0 ? t('team.summary.tasks', { done: completedTasks, total: tasks.length }) : null
+    ].filter(Boolean).join(' · ')
 
     useEffect(() => {
         if (!pendingControl) {
@@ -191,19 +171,19 @@ export function TeamPanel(props: {
         }
 
         if (actionNeedsMember(pendingControl.action) && !request.memberName) {
-            setSubmitError('Choose a teammate first.')
+            setSubmitError(t('team.error.noTeammate'))
             return
         }
         if (actionNeedsTask(pendingControl.action) && !request.taskId) {
-            setSubmitError('Choose a task first.')
+            setSubmitError(t('team.error.noTask'))
             return
         }
         if (actionNeedsMessage(pendingControl.action) && !request.message) {
-            setSubmitError('Add a message before sending.')
+            setSubmitError(t('team.error.noMessage'))
             return
         }
         if (pendingControl.confirmRequired) {
-            setSubmitError('Confirm this action before sending it to the lead.')
+            setSubmitError(t('team.error.confirm'))
             return
         }
 
@@ -213,7 +193,7 @@ export function TeamPanel(props: {
             await props.onControl(request)
             setPendingControl(null)
         } catch (error) {
-            setSubmitError(error instanceof Error ? error.message : 'Failed to send team control')
+            setSubmitError(error instanceof Error ? error.message : t('team.error.sendFailed'))
         } finally {
             setIsSubmitting(false)
         }
@@ -235,13 +215,10 @@ export function TeamPanel(props: {
                 </svg>
                 <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-[var(--social-fg)]">
-                        {teamState ? `Team: ${title}` : title}
+                        {teamState ? t('team.title', { name: title }) : title}
                     </span>
                     <span className="block truncate text-caption text-[var(--social-fg-muted)]">
-                        {visibleMembers.length} member{visibleMembers.length !== 1 ? 's' : ''}
-                        {activeMembers > 0 ? ` (${activeMembers} active)` : ''}
-                        {runningAgents.length > 0 ? ` · ${runningAgents.length} running` : ''}
-                        {tasks.length > 0 ? ` · ${completedTasks}/${tasks.length} tasks` : ''}
+                        {summary}
                     </span>
                 </span>
                 <svg
@@ -272,14 +249,14 @@ export function TeamPanel(props: {
                                 className={ROW_ACTION_CLASS}
                                 onClick={() => startControl('cleanup_team')}
                             >
-                                Clean up team
+                                {t('team.cleanup')}
                             </Button>
                         </div>
                     )}
 
                     {runningAgents.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Running Now</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{t('team.runningNow')}</div>
                             <div className="flex flex-col gap-1.5">
                                 {runningAgents.map((agent, index) => (
                                     <div
@@ -298,7 +275,7 @@ export function TeamPanel(props: {
 
                     {visibleMembers.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Members</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{t('team.members')}</div>
                             <div className="flex flex-col gap-1.5">
                                 {visibleMembers.map((member) => (
                                     <div
@@ -319,7 +296,7 @@ export function TeamPanel(props: {
                                                     className={ROW_ACTION_CLASS}
                                                     onClick={() => startControl('message', { memberName: member.name })}
                                                 >
-                                                    Message
+                                                    {t('team.message')}
                                                 </Button>
                                                 <Button
                                                     type="button"
@@ -328,7 +305,7 @@ export function TeamPanel(props: {
                                                     className={ROW_ACTION_CLASS}
                                                     onClick={() => startControl('nudge_member', { memberName: member.name })}
                                                 >
-                                                    Nudge
+                                                    {t('team.nudge')}
                                                 </Button>
                                                 <Button
                                                     type="button"
@@ -337,7 +314,7 @@ export function TeamPanel(props: {
                                                     className={ROW_ACTION_CLASS}
                                                     onClick={() => startControl('shutdown_member', { memberName: member.name })}
                                                 >
-                                                    Shutdown
+                                                    {t('team.shutdown')}
                                                 </Button>
                                             </div>
                                         ) : null}
@@ -349,7 +326,7 @@ export function TeamPanel(props: {
 
                     {tasks.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Tasks</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{t('team.tasks')}</div>
                             <div className="flex flex-col gap-1.5">
                                 {tasks.map((task, idx) => (
                                     <div key={task.id ?? String(idx)} className="flex items-center gap-2 rounded-xl bg-[var(--social-muted)] px-3 py-2">
@@ -371,7 +348,7 @@ export function TeamPanel(props: {
                                                     memberName: task.owner ?? visibleMembers[0]?.name
                                                 })}
                                             >
-                                                Assign
+                                                {t('team.assign')}
                                             </Button>
                                         ) : null}
                                     </div>
@@ -384,15 +361,15 @@ export function TeamPanel(props: {
                         <div className="flex flex-col gap-3 rounded-2xl border border-[var(--social-border)] p-4">
                             <div>
                                 <div className="text-body font-semibold text-[var(--social-fg)]">
-                                    {actionLabel(pendingControl.action)}
+                                    {actionLabel(pendingControl.action, t)}
                                 </div>
                                 <div className="mt-0.5 text-footnote text-[var(--social-fg-muted)]">
-                                    {actionDescription(pendingControl.action)}
+                                    {actionDescription(pendingControl.action, t)}
                                 </div>
                             </div>
 
                             {actionNeedsMember(pendingControl.action) && (
-                                <Field label="Teammate" htmlFor={memberFieldId}>
+                                <FormField label={t('team.teammate')} htmlFor={memberFieldId}>
                                     <SelectInput
                                         id={memberFieldId}
                                         value={pendingControl.memberName ?? ''}
@@ -400,16 +377,16 @@ export function TeamPanel(props: {
                                             ? { ...current, memberName: event.target.value }
                                             : current)}
                                     >
-                                        <option value="" disabled>Select teammate</option>
+                                        <option value="" disabled>{t('team.selectTeammate')}</option>
                                         {visibleMembers.map((member) => (
                                             <option key={member.name} value={member.name}>{member.name}</option>
                                         ))}
                                     </SelectInput>
-                                </Field>
+                                </FormField>
                             )}
 
                             {actionNeedsTask(pendingControl.action) && (
-                                <Field label="Task" htmlFor={taskFieldId}>
+                                <FormField label={t('team.task')} htmlFor={taskFieldId}>
                                     <SelectInput
                                         id={taskFieldId}
                                         value={pendingControl.taskId ?? ''}
@@ -417,17 +394,18 @@ export function TeamPanel(props: {
                                             ? { ...current, taskId: event.target.value }
                                             : current)}
                                     >
-                                        <option value="" disabled>Select task</option>
+                                        <option value="" disabled>{t('team.selectTask')}</option>
                                         {tasks.map((task) => (
                                             <option key={task.id} value={task.id}>{task.title}</option>
                                         ))}
                                     </SelectInput>
-                                </Field>
+                                </FormField>
                             )}
 
                             {(actionNeedsMessage(pendingControl.action) || pendingControl.action === 'assign_task') && (
-                                <Field
-                                    label={pendingControl.action === 'assign_task' ? 'Additional guidance (optional)' : 'Message'}
+                                <FormField
+                                    label={pendingControl.action === 'assign_task' ? t('team.guidance') : t('team.messageLabel')}
+                                    optional={pendingControl.action === 'assign_task'}
                                     htmlFor={messageFieldId}
                                 >
                                     <textarea
@@ -438,12 +416,12 @@ export function TeamPanel(props: {
                                             ? { ...current, message: event.target.value }
                                             : current)}
                                         placeholder={pendingControl.action === 'message'
-                                            ? 'Tell the teammate what you need.'
+                                            ? t('team.placeholder.message')
                                             : pendingControl.action === 'nudge_member'
-                                                ? 'Describe how to redirect or unblock them.'
-                                                : 'Optional extra context for the assignee.'}
+                                                ? t('team.placeholder.nudge_member')
+                                                : t('team.placeholder.assign_task')}
                                     />
-                                </Field>
+                                </FormField>
                             )}
 
                             {pendingControl.confirmRequired ? (
@@ -458,8 +436,8 @@ export function TeamPanel(props: {
                                     />
                                     <span>
                                         {pendingControl.action === 'cleanup_team'
-                                            ? 'I understand this asks the lead to stop active teammates if needed and remove team resources.'
-                                            : 'I understand this asks the lead to stop the selected teammate gracefully.'}
+                                            ? t('team.confirm.cleanup_team')
+                                            : t('team.confirm.shutdown_member')}
                                     </span>
                                 </label>
                             ) : null}
@@ -478,14 +456,14 @@ export function TeamPanel(props: {
                                     }}
                                     disabled={isSubmitting}
                                 >
-                                    Cancel
+                                    {t('button.cancel')}
                                 </Button>
                                 <Button
                                     type="button"
                                     onClick={() => void submitControl()}
                                     disabled={isSubmitting}
                                 >
-                                    {isSubmitting ? 'Sending…' : 'Send to lead'}
+                                    {isSubmitting ? t('button.sending') : t('team.sendToLead')}
                                 </Button>
                             </div>
                         </div>
@@ -493,7 +471,7 @@ export function TeamPanel(props: {
 
                     {messages.length > 0 && (
                         <div>
-                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">Recent Messages</div>
+                            <div className="mb-1.5 px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{t('team.recentMessages')}</div>
                             <div className="flex flex-col gap-1 px-1">
                                 {messages.slice(-5).map((msg, idx) => (
                                     <div key={idx} className="text-footnote text-[var(--social-fg-muted)]">

@@ -3,6 +3,7 @@ import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import type { ReviewLoopStatus } from '@/types/api'
 
@@ -15,12 +16,13 @@ type LoopControlsProps = {
 }
 
 function StatusIndicator({ status }: { status: ReviewLoopStatus }) {
+    const { t } = useTranslation()
     if (status === 'executing') {
-        return <Badge variant="warning" dot live>Executing...</Badge>
+        return <Badge variant="warning" dot live>{t('loops.controls.executing')}</Badge>
     }
 
     if (status === 'reviewing') {
-        return <Badge variant="info" dot live>Reviewing...</Badge>
+        return <Badge variant="info" dot live>{t('loops.controls.reviewing')}</Badge>
     }
 
     // Terminal states: accepted, aborted, canceled — show nothing
@@ -28,6 +30,7 @@ function StatusIndicator({ status }: { status: ReviewLoopStatus }) {
 }
 
 export function LoopControls({ status, onContinue, onPause, onCancel, isPending }: LoopControlsProps) {
+    const { t } = useTranslation()
     const [instruction, setInstruction] = useState('')
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
@@ -35,10 +38,10 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
         <ConfirmDialog
             isOpen={showCancelConfirm}
             onClose={() => setShowCancelConfirm(false)}
-            title="Cancel Review Loop"
-            description="Are you sure you want to cancel this review loop? This action cannot be undone."
-            confirmLabel="Cancel Loop"
-            confirmingLabel="Canceling..."
+            title={t('loops.cancel.title')}
+            description={t('loops.cancel.description')}
+            confirmLabel={t('loops.cancel.confirm')}
+            confirmingLabel={t('loops.cancel.confirming')}
             onConfirm={async () => {
                 onCancel()
             }}
@@ -54,7 +57,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                 <StatusIndicator status={status} />
                 <div className="flex flex-wrap items-center gap-2">
                     <Button type="button" variant="secondary" onClick={onPause} disabled={isPending}>
-                        {isPending ? 'Pausing...' : 'Pause'}
+                        {isPending ? t('loops.controls.pausing') : t('loops.controls.pause')}
                     </Button>
                     <Button
                         type="button"
@@ -63,7 +66,7 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                         onClick={() => setShowCancelConfirm(true)}
                         disabled={isPending}
                     >
-                        Cancel
+                        {t('button.cancel')}
                     </Button>
                 </div>
 
@@ -90,18 +93,18 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
             <>
                 <div className="flex min-w-0 flex-col gap-3">
                     <div className="text-body font-semibold text-[var(--social-fg)]">
-                        {status === 'paused' ? 'Paused — Add Instructions' : 'Action Required'}
+                        {status === 'paused' ? t('loops.controls.pausedTitle') : t('loops.controls.actionRequired')}
                     </div>
 
                     {status === 'paused' && (
                         <div className="rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-footnote text-[var(--app-badge-warning-text)]">
-                            Loop paused. Add your instructions for the reviewer below, then continue.
+                            {t('loops.controls.pausedHint')}
                         </div>
                     )}
 
                     <label className="flex min-w-0 flex-col gap-1.5">
                         <span className="px-1 text-footnote text-[var(--social-fg-muted)]">
-                            {status === 'paused' ? 'Instructions for reviewer:' : 'Additional instruction (optional):'}
+                            {status === 'paused' ? t('loops.controls.instructionLabel') : t('loops.controls.extraInstructionLabel')}
                         </span>
                         <textarea
                             value={instruction}
@@ -123,10 +126,10 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
                             onClick={() => setShowCancelConfirm(true)}
                             disabled={isPending}
                         >
-                            Cancel
+                            {t('button.cancel')}
                         </Button>
                         <Button type="button" onClick={handleContinue} disabled={isPending}>
-                            {isPending ? 'Sending...' : 'Continue'}
+                            {isPending ? t('button.sending') : t('loops.controls.continue')}
                         </Button>
                     </div>
                 </div>

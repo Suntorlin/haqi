@@ -117,26 +117,24 @@ function parseCodexStatusRows(message: string): CodexStatusRow[] {
         })
 }
 
-function describeTeamControlRequest(request: TeamControlRequest): string {
+function describeTeamControlRequest(
+    request: TeamControlRequest,
+    t: (key: string, params?: Record<string, string | number>) => string
+): string {
+    const name = request.memberName
     switch (request.action) {
         case 'message':
-            return request.memberName
-                ? `Sent a message request for ${request.memberName}.`
-                : 'Sent a teammate message request.'
+            return name ? t('team.toast.message', { name }) : t('team.toast.messageAny')
         case 'nudge_member':
-            return request.memberName
-                ? `Asked the lead to check on ${request.memberName}.`
-                : 'Asked the lead to nudge a teammate.'
+            return name ? t('team.toast.nudge', { name }) : t('team.toast.nudgeAny')
         case 'shutdown_member':
-            return request.memberName
-                ? `Asked the lead to shut down ${request.memberName} gracefully.`
-                : 'Asked the lead to shut down a teammate.'
+            return name ? t('team.toast.shutdown', { name }) : t('team.toast.shutdownAny')
         case 'assign_task':
-            return request.memberName && request.taskId
-                ? `Asked the lead to assign ${request.taskId} to ${request.memberName}.`
-                : 'Asked the lead to assign a task.'
+            return name && request.taskId
+                ? t('team.toast.assign', { task: request.taskId, name })
+                : t('team.toast.assignAny')
         case 'cleanup_team':
-            return 'Asked the lead to clean up the entire team.'
+            return t('team.toast.cleanup')
     }
 }
 
@@ -1348,7 +1346,7 @@ export function SessionChat(props: {
                 })
             }
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Resume failed'
+            const message = error instanceof Error ? error.message : t('session.resumeFailed')
             addToast({
                 title: t('session.resumeFailed'),
                 body: message,
@@ -1368,12 +1366,12 @@ export function SessionChat(props: {
     const handleTeamControl = useCallback(async (request: TeamControlRequest) => {
         await props.api.controlTeam(props.session.id, request)
         addToast({
-            title: 'Team lead notified',
-            body: describeTeamControlRequest(request),
+            title: t('team.toast.title'),
+            body: describeTeamControlRequest(request, t),
             sessionId: props.session.id,
             url: `/sessions/${props.session.id}`
         })
-    }, [addToast, props.api, props.session.id])
+    }, [addToast, props.api, props.session.id, t])
 
     const runtime = useHappyRuntime({
         session: props.session,

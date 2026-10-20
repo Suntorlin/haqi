@@ -8,7 +8,6 @@ export const roundStatusVariant: Record<ReviewRoundStatus, 'default' | 'info' | 
     user_pending: 'warning',
 }
 
-export function roundStatusLabel(status: ReviewRoundStatus): string {
-    const text = status.replace('_', ' ')
-    return text.charAt(0).toUpperCase() + text.slice(1)
+export function roundStatusLabel(status: ReviewRoundStatus, t: (key: string) => string): string {
+    return t(`loops.round.status.${status}`)
 }

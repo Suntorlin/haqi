@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTheme } from '@/hooks/useTheme'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
 const MERMAID_LANGUAGES = new Set(['mermaid', 'mmd'])
@@ -55,6 +56,7 @@ export function MermaidBlock(props: {
     className?: string
 }) {
     const { isDark } = useTheme()
+    const { t } = useTranslation()
     const reactId = useId()
     const containerRef = useRef<HTMLDivElement | null>(null)
     const renderKey = useMemo(() => reactId.replace(/[:]/g, '-'), [reactId])
@@ -106,7 +108,7 @@ export function MermaidBlock(props: {
     if (state.error) {
         return (
             <div className={cn('aui-md-mermaid-error rounded-b-md border border-[var(--social-border)] bg-[var(--app-code-bg)] p-3 text-footnote', props.className)}>
-                <div className="font-semibold text-[var(--social-danger)]">Mermaid render failed</div>
+                <div className="font-semibold text-[var(--social-danger)]">{t('code.mermaidFailed')}</div>
                 <div className="mt-1 whitespace-pre-wrap break-words text-[var(--social-fg-muted)]">{state.error}</div>
                 <pre className="mt-3 overflow-x-auto rounded-md bg-[var(--social-hover)] p-2 text-xs font-mono text-[var(--social-fg)]">
                     <code>{props.code}</code>
@@ -119,7 +121,7 @@ export function MermaidBlock(props: {
         <div className={cn('aui-md-mermaid min-w-0 w-full max-w-full overflow-x-auto rounded-b-md bg-[var(--app-code-bg)] p-3', props.className)}>
             {state.svg
                 ? <div ref={containerRef} className="aui-md-mermaid-svg min-w-max" dangerouslySetInnerHTML={{ __html: state.svg }} />
-                : <div className="text-footnote text-[var(--social-fg-muted)]">Rendering Mermaid…</div>}
+                : <div className="text-footnote text-[var(--social-fg-muted)]">{t('code.mermaidRendering')}</div>}
         </div>
     )
 }
