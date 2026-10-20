@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import type { SessionTask } from '@/types/api'
 import { formatSnoozeWake, getSnoozePresets } from '@/lib/session-snooze'
 import { CONTEXT_MENU_SURFACE, ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import {
@@ -15,6 +16,7 @@ import {
     PencilIcon,
     PinIcon,
     PinOffIcon,
+    QueueListIcon,
     SunIcon,
     TagIcon,
     TrashIcon
@@ -40,6 +42,10 @@ type SessionActionMenuProps = {
     availableTags?: string[]
     onTagsChange?: (tags: string[]) => Promise<void>
     tagsPending?: boolean
+    /** Open tasks offered under "Task"; the checked ones are those in `taskIds`. */
+    tasks?: SessionTask[]
+    taskIds?: string[]
+    onTaskToggle?: (task: SessionTask, linked: boolean) => void
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onArchive: () => void
@@ -99,6 +105,42 @@ function TagsSubmenu(props: {
                 }}
             />
         </div>
+    )
+}
+
+/** Task choices: tapping one joins the session to it, or takes it out. */
+function TaskOptions(props: {
+    tasks: SessionTask[]
+    taskIds: string[]
+    onToggle: (task: SessionTask, linked: boolean) => void
+    indent?: boolean
+}) {
+    const { t } = useTranslation()
+    const spacer = props.indent ? <span aria-hidden="true" /> : undefined
+    if (props.tasks.length === 0) {
+        return <div className="px-3 py-2.5 text-[15px] text-[var(--social-fg-muted)]">{t('session.action.noTasks')}</div>
+    }
+    return (
+        <>
+            {props.tasks.map((task) => {
+                const linked = props.taskIds.includes(task.id)
+                return (
+                    <ContextMenuItem
+                        key={task.id}
+                        icon={spacer}
+                        label={task.title}
+                        description={`#${task.tag}`}
+                        checked={linked}
+                        onSelect={() => props.onToggle(task, !linked)}
+                        trailing={(
+                            <span className={cn('text-[15px]', linked ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
+                                ✓
+                            </span>
+                        )}
+                    />
+                )
+            })}
+        </>
     )
 }
 
@@ -200,17 +242,19 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const { t } = useTranslation()
     const isMobileLayout = useIsMobileLayout()
     const { isOpen, onClose, onTags, onSnooze } = props
-    const [flyout, setFlyout] = useState<'tags' | 'snooze' | null>(null)
+    const [flyout, setFlyout] = useState<'tags' | 'snooze' | 'task' | null>(null)
     const [snoozeExpanded, setSnoozeExpanded] = useState(false)
+    const [taskExpanded, setTaskExpanded] = useState(false)
 
     useEffect(() => {
         if (!isOpen) {
             setFlyout(null)
             setSnoozeExpanded(false)
+            setTaskExpanded(false)
         }
     }, [isOpen])
 
-    const flyoutProps = (id: 'tags' | 'snooze') => ({
+    const flyoutProps = (id: 'tags' | 'snooze' | 'task') => ({
         open: flyout === id,
         onOpenChange: (open: boolean) => setFlyout((current) => open ? id : current === id ? null : current)
     })
@@ -275,6 +319,30 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         </FlyoutItem>
     )
 
+    // Same pattern as snooze: inline on phones, a flyout on desktop. The menu stays open so several tasks can be ticked.
+    const onTaskToggle = props.onTaskToggle
+    const taskItem = !onTaskToggle ? null : isMobileLayout ? (
+        <>
+            <ContextMenuItem
+                icon={<QueueListIcon />}
+                label={t('session.action.task')}
+                hasPopup
+                expanded={taskExpanded}
+                onSelect={() => setTaskExpanded((expanded) => !expanded)}
+                trailing={(
+                    <ChevronDownIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', taskExpanded ? 'rotate-180' : '')} />
+                )}
+            />
+            {taskExpanded ? <TaskOptions tasks={props.tasks ?? []} taskIds={props.taskIds ?? []} onToggle={onTaskToggle} indent /> : null}
+        </>
+    ) : (
+        <FlyoutItem icon={<QueueListIcon />} label={t('session.action.task')} {...flyoutProps('task')}>
+            <div role="menu" aria-label={t('session.action.task')} className={cn('flex min-w-[240px] max-w-[320px] flex-col', CONTEXT_MENU_SURFACE)}>
+                <TaskOptions tasks={props.tasks ?? []} taskIds={props.taskIds ?? []} onToggle={onTaskToggle} />
+            </div>
+        </FlyoutItem>
+    )
+
     return (
         <ContextMenu open={isOpen} anchorPoint={props.anchorPoint} onClose={onClose} label={t('session.more')} menuId={props.menuId}>
             {props.onTogglePin ? (
@@ -287,6 +355,7 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
             {snoozeItem}
             <ContextMenuItem icon={<PencilIcon />} label={t('session.action.rename')} onSelect={run(props.onRename)} />
             {tagsItem}
+            {taskItem}
             {props.onSpawnSameConfig ? (
                 <ContextMenuItem icon={<NewSessionIcon />} label={t('session.action.newSameConfig')} onSelect={run(props.onSpawnSameConfig)} />
             ) : null}

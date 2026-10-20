@@ -3,12 +3,14 @@ import {
     PINNED_TAG,
     SNOOZE_FOREVER,
     getNextSnoozeWake,
+    getSessionTaskIds,
     getSnoozeUntil,
     getUserTags,
     isSessionPinned,
     isSessionSnoozed,
     withPinTag,
     withSnoozeTag,
+    withTaskTag,
     withUserTags
 } from './session-pins'
 
@@ -76,5 +78,22 @@ describe('session snooze', () => {
         expect(new Date(getNextSnoozeWake(evening))).toEqual(new Date(2026, 9, 19, 6, 0))
         const night = new Date(2026, 9, 19, 1, 15)
         expect(new Date(getNextSnoozeWake(night))).toEqual(new Date(2026, 9, 19, 6, 0))
+    })
+})
+
+describe('session tasks', () => {
+    const task = { id: 'abc123', tag: 'haqi' }
+
+    it('joining a task adds its tag too, and leaving keeps every other tag', () => {
+        const session = tagged('fish', PINNED_TAG)
+        const joined = withTaskTag(session, task, true)
+        expect(joined).toEqual(['haqi', 'fish', PINNED_TAG, 'task:abc123'])
+        expect(getUserTags(tagged(...joined))).toEqual(['haqi', 'fish'])
+        expect(getSessionTaskIds(tagged(...joined))).toEqual(['abc123'])
+        expect(withTaskTag(tagged(...joined), task, false)).toEqual(['haqi', 'fish', PINNED_TAG])
+    })
+
+    it('editing user tags keeps the task membership', () => {
+        expect(withUserTags(tagged('haqi', 'task:abc123'), ['fish'])).toEqual(['fish', 'task:abc123'])
     })
 })

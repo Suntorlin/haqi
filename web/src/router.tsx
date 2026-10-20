@@ -21,6 +21,7 @@ import { MemoryPage } from '@/routes/memory'
 import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
+import { AllTasksView, TagTasksSection } from '@/components/SessionTasksPanel'
 import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
@@ -51,6 +52,7 @@ import { useConversationTurns } from '@/hooks/queries/useConversationTurns'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessions } from '@/hooks/queries/useSessions'
+import { useSessionTasks } from '@/hooks/queries/useSessionTasks'
 import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
@@ -227,6 +229,7 @@ function SessionsPage() {
     const { t } = useTranslation()
     const { addToast } = useToast()
     const { sessions, isLoading, error, refetch } = useSessions(api)
+    const { tasks: sessionTasks, isLoading: sessionTasksLoading } = useSessionTasks(api)
     const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
     const { density } = useSessionListDensity()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
@@ -235,6 +238,12 @@ function SessionsPage() {
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
     const [sessionSearchOpen, setSessionSearchOpen] = useState(false)
     const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
+    // "All tasks" replaces the session list with every task, grouped by tag.
+    const [showAllTasks, setShowAllTasks] = useState(false)
+    const selectTagView = useCallback((tag: string | null) => {
+        setSelectedSessionTag(tag)
+        setShowAllTasks(false)
+    }, [])
     const [sessionTagOrder, setSessionTagOrder] = useState<string[]>(loadSessionTagOrder)
     const tagSensors = useSensors(
         useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -264,9 +273,11 @@ function SessionsPage() {
         }
     }, [selectedSessionId, sessions])
 
-    const sessionTags = useMemo(() => Array.from(new Set(
-        sessions.flatMap((session) => getUserTags(session))
-    )).sort((a, b) => a.localeCompare(b)), [sessions])
+    // A tag with open tasks keeps its filter even when no session carries it any more.
+    const sessionTags = useMemo(() => Array.from(new Set([
+        ...sessions.flatMap((session) => getUserTags(session)),
+        ...sessionTasks.filter((task) => task.status === 'open').map((task) => task.tag)
+    ])).sort((a, b) => a.localeCompare(b)), [sessions, sessionTasks])
     const orderedSessionTags = useMemo(
         () => applySessionTagOrder(sessionTags, sessionTagOrder),
         [sessionTags, sessionTagOrder]
@@ -503,19 +514,30 @@ function SessionsPage() {
                 <div className="flex flex-wrap gap-2 px-5 pb-1 pt-0.5">
                     <button
                         type="button"
-                        onClick={() => setSelectedSessionTag(null)}
-                        className={`${tagChipClass(selectedSessionTag === null)} inline-flex items-center justify-center px-2.5`}
+                        onClick={() => selectTagView(null)}
+                        className={`${tagChipClass(selectedSessionTag === null && !showAllTasks)} inline-flex items-center justify-center px-2.5`}
                         aria-label={t('sessions.tags.all')}
-                        aria-pressed={selectedSessionTag === null}
+                        aria-pressed={selectedSessionTag === null && !showAllTasks}
                         title={t('sessions.tags.all')}
                     >
                         <TagIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setSelectedSessionTag(null)
+                            setShowAllTasks(true)
+                        }}
+                        className={tagChipClass(showAllTasks)}
+                        aria-pressed={showAllTasks}
+                    >
+                        {t('sessions.tags.allTasks')}
                     </button>
                     {isMobileLayout ? orderedSessionTags.map((tag) => (
                         <button
                             key={tag}
                             type="button"
-                            onClick={() => setSelectedSessionTag(tag)}
+                            onClick={() => selectTagView(tag)}
                             className={tagChipClass(selectedSessionTag === tag)}
                         >
                             #{tag}
@@ -529,7 +551,7 @@ function SessionsPage() {
                                         key={tag}
                                         tag={tag}
                                         selected={selectedSessionTag === tag}
-                                        onSelect={() => setSelectedSessionTag(tag)}
+                                        onSelect={() => selectTagView(tag)}
                                     />
                                 ))}
                             </SortableContext>
@@ -537,10 +559,32 @@ function SessionsPage() {
                     )}
                 </div>
             ) : null}
+            {selectedSessionTag && !sessionSearchQuery ? (
+                <TagTasksSection
+                    tag={selectedSessionTag}
+                    tasks={sessionTasks}
+                    sessions={sessions}
+                    selectedSessionId={selectedSessionId}
+                    onSelectSession={selectSession}
+                    api={api}
+                />
+            ) : null}
         </div>
     )
 
-    const listBody = mobileListMode === 'recent' ? (
+    const listBody = showAllTasks ? (
+        <AllTasksView
+            tasks={sessionTasks}
+            tagOrder={orderedSessionTags}
+            sessions={sessions}
+            selectedSessionId={selectedSessionId}
+            onSelectSession={selectSession}
+            onOpenTag={selectTagView}
+            api={api}
+            isLoading={sessionTasksLoading}
+            header={listHeader}
+        />
+    ) : mobileListMode === 'recent' ? (
         <SessionFeed
             sessions={visibleSessions}
             snoozedSessions={snoozedSessions}

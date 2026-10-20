@@ -1,11 +1,13 @@
 /**
- * Pinning and snoozing are stored as reserved system tags, so they ride on the existing tags API:
+ * Pinning, snoozing and task membership are stored as reserved system tags, so they ride on the existing tags API:
  * synced across devices and kept across resume / account switches like any tag.
  * Tag UIs show getUserTags() instead of the raw list.
  */
 export const PINNED_TAG = 'pinned'
 /** `snooze:<epoch ms>`: the session is out of the way until that moment; `snooze:forever` until woken by hand. */
 export const SNOOZE_TAG_PREFIX = 'snooze:'
+/** `task:<task id>`: the session works on that task (see SessionTask). */
+export const TASK_TAG_PREFIX = 'task:'
 /** Wake time of a snooze with no end. */
 export const SNOOZE_FOREVER = Number.POSITIVE_INFINITY
 const SNOOZE_FOREVER_VALUE = 'forever'
@@ -19,7 +21,7 @@ type TaggedSession = {
 }
 
 function isSystemTag(tag: string): boolean {
-    return tag === PINNED_TAG || tag.startsWith(SNOOZE_TAG_PREFIX)
+    return tag === PINNED_TAG || tag.startsWith(SNOOZE_TAG_PREFIX) || tag.startsWith(TASK_TAG_PREFIX)
 }
 
 export function isSessionPinned(session: TaggedSession): boolean {
@@ -76,4 +78,22 @@ export function getNextSnoozeWake(now: Date = new Date()): number {
         wake.setDate(wake.getDate() + 1)
     }
     return wake.getTime()
+}
+
+/** Ids of the tasks the session works on. */
+export function getSessionTaskIds(session: TaggedSession): string[] {
+    return (session.metadata?.tags ?? [])
+        .filter((tag) => tag.startsWith(TASK_TAG_PREFIX))
+        .map((tag) => tag.slice(TASK_TAG_PREFIX.length))
+}
+
+/**
+ * Full tag list to save with the session joined to (or taken out of) a task.
+ * Joining also adds the task's own tag, so the session shows in that tag's view.
+ */
+export function withTaskTag(session: TaggedSession, task: { id: string; tag: string }, linked: boolean): string[] {
+    const taskTag = `${TASK_TAG_PREFIX}${task.id}`
+    const tags = (session.metadata?.tags ?? []).filter((tag) => tag !== taskTag)
+    if (!linked) return tags
+    return [...(tags.includes(task.tag) ? tags : [task.tag, ...tags]), taskTag]
 }
