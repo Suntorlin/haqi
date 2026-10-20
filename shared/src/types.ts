@@ -18,6 +18,7 @@ export type {
     DecryptedMessage,
     Metadata,
     Session,
+    SessionTask,
     SyncEvent,
     TeamControlAction,
     TeamControlRequest,

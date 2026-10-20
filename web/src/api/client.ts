@@ -37,6 +37,8 @@ import type {
     ExperimentalSettingsResponse,
     ReportDomainResponse,
     ProjectOfflineSettingsResponse,
+    SessionTask,
+    SessionTasksResponse,
     NewSessionDefaults,
     NewSessionDefaultsResponse,
     UpdateMemoryResponse,
@@ -1061,6 +1063,30 @@ export class ApiClient {
             method: 'PATCH',
             body: JSON.stringify({ name })
         })
+    }
+
+    async getSessionTasks(): Promise<SessionTasksResponse> {
+        return await this.request<SessionTasksResponse>('/api/session-tasks')
+    }
+
+    async createSessionTask(input: { tag: string; title: string }): Promise<SessionTask> {
+        const result = await this.request<{ task: SessionTask }>('/api/session-tasks', {
+            method: 'POST',
+            body: JSON.stringify(input)
+        })
+        return result.task
+    }
+
+    async updateSessionTask(taskId: string, patch: { title?: string; status?: SessionTask['status'] }): Promise<SessionTask> {
+        const result = await this.request<{ task: SessionTask }>(`/api/session-tasks/${encodeURIComponent(taskId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch)
+        })
+        return result.task
+    }
+
+    async deleteSessionTask(taskId: string): Promise<void> {
+        await this.request(`/api/session-tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' })
     }
 
     async updateSessionTags(sessionId: string, tags: string[]): Promise<string[]> {

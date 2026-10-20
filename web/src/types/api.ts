@@ -2,6 +2,7 @@ import type {
     DecryptedMessage as ProtocolDecryptedMessage,
     Session,
     SessionSummary,
+    SessionTask,
     SyncEvent as ProtocolSyncEvent,
     WorktreeMetadata
 } from '@hapi/protocol/types'
@@ -21,6 +22,7 @@ export type {
     Session,
     SessionSummary,
     SessionSummaryMetadata,
+    SessionTask,
     TeamControlAction,
     TeamControlRequest,
     TeamControlResponse,
@@ -534,6 +536,10 @@ export type ReportDomainResponse = {
 
 export type ProjectOfflineSettingsResponse = {
     directories: string[]
+}
+
+export type SessionTasksResponse = {
+    tasks: SessionTask[]
 }
 
 /** The model settings picked last (new-session form or a chat switch), shared by every device. */

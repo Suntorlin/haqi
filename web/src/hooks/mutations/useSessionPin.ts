@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
 import type { SessionResponse, SessionsResponse } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
-import { withPinTag, withSnoozeTag } from '@/lib/session-pins'
+import { withPinTag, withSnoozeTag, withTaskTag } from '@/lib/session-pins'
 
 type TaggableSession = { id: string; metadata?: { tags?: string[] } | null }
 
@@ -49,6 +49,19 @@ export function useSessionSnooze(api: ApiClient | null): (session: TaggableSessi
     const saveTags = useOptimisticSessionTags(api)
     return useCallback(
         (session, until) => saveTags(session.id, withSnoozeTag(session, until)),
+        [saveTags]
+    )
+}
+
+/** Join a session to a task, or take it out. */
+export function useSessionTaskLink(api: ApiClient | null): (
+    session: TaggableSession,
+    task: { id: string; tag: string },
+    linked: boolean
+) => Promise<void> {
+    const saveTags = useOptimisticSessionTags(api)
+    return useCallback(
+        (session, task, linked) => saveTags(session.id, withTaskTag(session, task, linked)),
         [saveTags]
     )
 }

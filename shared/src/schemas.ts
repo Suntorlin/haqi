@@ -241,6 +241,22 @@ export const TeamStateSchema = z.object({
 
 export type TeamState = z.infer<typeof TeamStateSchema>
 
+/**
+ * A piece of work under one session tag, done across one or more sessions.
+ * A session joins a task through the system tag `task:<id>`.
+ */
+export const SessionTaskSchema = z.object({
+    id: z.string(),
+    tag: z.string(),
+    title: z.string(),
+    status: z.enum(['open', 'done']),
+    createdAt: z.number(),
+    updatedAt: z.number(),
+    completedAt: z.number().nullable()
+})
+
+export type SessionTask = z.infer<typeof SessionTaskSchema>
+
 export const TeamControlActionSchema = z.enum([
     'message',
     'shutdown_member',

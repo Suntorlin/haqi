@@ -6,6 +6,7 @@ import { MachineStore } from './machineStore'
 import { MessageStore } from './messageStore'
 import { TurnStore } from './turnStore'
 import { ProjectPreferenceStore } from './projectPreferenceStore'
+import { SessionTaskStore } from './sessionTaskStore'
 import { PushStore } from './pushStore'
 import { SessionStore } from './sessionStore'
 import { UserStore } from './userStore'
@@ -48,6 +49,7 @@ export { MachineStore } from './machineStore'
 export { MessageStore } from './messageStore'
 export { TurnStore } from './turnStore'
 export { ProjectPreferenceStore } from './projectPreferenceStore'
+export { SessionTaskStore } from './sessionTaskStore'
 export { PushStore } from './pushStore'
 export { SessionStore } from './sessionStore'
 export { UserStore } from './userStore'
@@ -66,6 +68,7 @@ const REQUIRED_TABLES = [
     'push_subscriptions',
     'preview_url_history',
     'project_offline_preferences',
+    'session_tasks',
     'groups',
     'group_members',
     'group_messages',
@@ -94,6 +97,7 @@ export class Store {
     readonly users: UserStore
     readonly push: PushStore
     readonly projectPreferences: ProjectPreferenceStore
+    readonly sessionTasks: SessionTaskStore
     readonly groups: GroupStore
     readonly reports: ReportStore
     readonly reviewLoops: ReviewLoopStore
@@ -141,6 +145,7 @@ export class Store {
         this.users = new UserStore(this.db)
         this.push = new PushStore(this.db)
         this.projectPreferences = new ProjectPreferenceStore(this.db)
+        this.sessionTasks = new SessionTaskStore(this.db)
         this.groups = new GroupStore(this.db)
         this.reports = new ReportStore(this.db)
         this.reviewLoops = new ReviewLoopStore(this.db)
@@ -391,6 +396,21 @@ export class Store {
             );
             CREATE INDEX IF NOT EXISTS idx_project_offline_preferences_namespace_user
                 ON project_offline_preferences(namespace, user_id, updated_at DESC);
+
+            -- Added without a schema version bump: an existing database gets it from the
+            -- required-table repair, and an older build still opens the database.
+            CREATE TABLE IF NOT EXISTS session_tasks (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                tag TEXT NOT NULL,
+                title TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                completed_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_session_tasks_namespace
+                ON session_tasks(namespace, tag, created_at);
 
             CREATE TABLE IF NOT EXISTS groups (
                 id TEXT PRIMARY KEY,
