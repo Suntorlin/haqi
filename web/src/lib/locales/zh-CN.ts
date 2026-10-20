@@ -79,6 +79,8 @@ export default {
   'tasks.empty': '还没有 Task。在上面输入名称新建。',
   'session.action.task': 'Task',
   'session.action.noTasks': '没有进行中的 Task。去「所有 Task」新建。',
+  'session.action.searchTasks': '搜索 Task 或标签',
+  'session.action.noMatchingTasks': '没有匹配的 Task',
   'groups.search.placeholder': '搜索群组…',
   'sessions.sidebar.resize': '调整侧边栏宽度',
   'sessions.sidebar.open': '打开会话侧边栏',

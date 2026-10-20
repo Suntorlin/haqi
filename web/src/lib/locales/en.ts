@@ -79,6 +79,8 @@ export default {
   'tasks.empty': 'No tasks yet. Type a name above to add one.',
   'session.action.task': 'Task',
   'session.action.noTasks': 'No open tasks. Add one in All tasks.',
+  'session.action.searchTasks': 'Search tasks or tags',
+  'session.action.noMatchingTasks': 'No matching tasks',
   'groups.search.placeholder': 'Search groups…',
   'sessions.sidebar.resize': 'Resize sidebar',
   'sessions.sidebar.open': 'Open sessions sidebar',

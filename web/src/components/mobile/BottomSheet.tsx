@@ -19,6 +19,8 @@ export function BottomSheet(props: {
     className?: string
     /** Desktop only: open as a frosted card hanging under this point instead of the side panel. */
     popoverAnchor?: { right: number; bottom: number } | null
+    /** Keep focus off the first field on open, so a search box does not pop up the phone keyboard. */
+    noAutoFocus?: boolean
 }) {
     const isMobileLayout = useIsMobileLayout()
     const { t } = useTranslation()
@@ -94,6 +96,7 @@ export function BottomSheet(props: {
                 <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-[var(--scrim)]" />
                 <DialogPrimitive.Content
                     aria-describedby={undefined}
+                    onOpenAutoFocus={props.noAutoFocus ? (event) => event.preventDefault() : undefined}
                     className={cn(
                         'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border-t border-[var(--social-border)] bg-[var(--social-surface)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[var(--shadow-sheet)] outline-none',
                         props.className

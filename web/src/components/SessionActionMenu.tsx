@@ -46,6 +46,8 @@ type SessionActionMenuProps = {
     tasks?: SessionTask[]
     taskIds?: string[]
     onTaskToggle?: (task: SessionTask, linked: boolean) => void
+    /** Phones: "Task" closes the menu and calls this to open the task sheet. */
+    onTasks?: () => void
     onSpawnSameConfig?: () => void
     onDuplicate?: () => void
     onArchive: () => void
@@ -113,10 +115,8 @@ function TaskOptions(props: {
     tasks: SessionTask[]
     taskIds: string[]
     onToggle: (task: SessionTask, linked: boolean) => void
-    indent?: boolean
 }) {
     const { t } = useTranslation()
-    const spacer = props.indent ? <span aria-hidden="true" /> : undefined
     if (props.tasks.length === 0) {
         return <div className="px-3 py-2.5 text-[15px] text-[var(--social-fg-muted)]">{t('session.action.noTasks')}</div>
     }
@@ -127,7 +127,6 @@ function TaskOptions(props: {
                 return (
                     <ContextMenuItem
                         key={task.id}
-                        icon={spacer}
                         label={task.title}
                         description={`#${task.tag}`}
                         checked={linked}
@@ -244,13 +243,11 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const { isOpen, onClose, onTags, onSnooze } = props
     const [flyout, setFlyout] = useState<'tags' | 'snooze' | 'task' | null>(null)
     const [snoozeExpanded, setSnoozeExpanded] = useState(false)
-    const [taskExpanded, setTaskExpanded] = useState(false)
 
     useEffect(() => {
         if (!isOpen) {
             setFlyout(null)
             setSnoozeExpanded(false)
-            setTaskExpanded(false)
         }
     }, [isOpen])
 
@@ -319,22 +316,17 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         </FlyoutItem>
     )
 
-    // Same pattern as snooze: inline on phones, a flyout on desktop. The menu stays open so several tasks can be ticked.
+    // Tasks can be many: phones open a sheet (it scrolls and searches), desktop a flyout where several can be ticked.
     const onTaskToggle = props.onTaskToggle
     const taskItem = !onTaskToggle ? null : isMobileLayout ? (
-        <>
+        props.onTasks ? (
             <ContextMenuItem
                 icon={<QueueListIcon />}
                 label={t('session.action.task')}
-                hasPopup
-                expanded={taskExpanded}
-                onSelect={() => setTaskExpanded((expanded) => !expanded)}
-                trailing={(
-                    <ChevronDownIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', taskExpanded ? 'rotate-180' : '')} />
-                )}
+                onSelect={run(props.onTasks)}
+                trailing={<ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />}
             />
-            {taskExpanded ? <TaskOptions tasks={props.tasks ?? []} taskIds={props.taskIds ?? []} onToggle={onTaskToggle} indent /> : null}
-        </>
+        ) : null
     ) : (
         <FlyoutItem icon={<QueueListIcon />} label={t('session.action.task')} {...flyoutProps('task')}>
             <div role="menu" aria-label={t('session.action.task')} className={cn('flex min-w-[240px] max-w-[320px] flex-col', CONTEXT_MENU_SURFACE)}>
