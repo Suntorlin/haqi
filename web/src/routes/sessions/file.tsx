@@ -356,7 +356,7 @@ export default function FilePage() {
                     ) : imageMimeType && (displayMode === 'file' || !diffContent) ? (
                         fileContentResult?.truncated ? (
                             <div className="text-footnote text-[var(--social-fg-muted)]">
-                                Image preview unavailable because the file content is truncated.
+                                {t('file.imageTruncated')}
                             </div>
                         ) : imagePreviewUrl ? (
                             <div className="overflow-hidden rounded-xl border border-[var(--social-border)] bg-[var(--app-code-bg)] p-2">
@@ -370,12 +370,12 @@ export default function FilePage() {
                             </div>
                         ) : (
                             <div className="text-footnote text-[var(--social-fg-muted)]">
-                                Failed to render image preview.
+                                {t('file.imageRenderFailed')}
                             </div>
                         )
                     ) : binaryFile ? (
                         <div className="text-footnote text-[var(--social-fg-muted)]">
-                            This looks like a binary file. It cannot be displayed.
+                            {t('file.binary')}
                         </div>
                     ) : displayMode === 'diff' && diffError ? (
                         <div className="text-footnote text-[var(--social-fg-muted)]">{diffError}</div>

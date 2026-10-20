@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { I18nProvider } from '@/lib/i18n-context'
 import { CodexTurnChangesView } from './CodexTurnChangesView'
 import type { ToolViewProps } from './_all'
 
@@ -69,7 +70,8 @@ describe('CodexTurnChangesView', () => {
                     patch_apply: { total: 1, success: 1, failed: 0 },
                     diff_stats: { additions: 2, deletions: 2, available: true }
                 })}
-            />
+            />,
+            { wrapper: I18nProvider }
         )
 
         for (const node of screen.getAllByTestId('diff-view')) {

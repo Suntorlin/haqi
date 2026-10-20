@@ -1,4 +1,5 @@
 import { CheckIcon, CloseIcon } from '@/components/mobile/icons'
+import { useTranslation } from '@/lib/use-translation'
 import type { CriteriaItem } from '@/types/api'
 
 const statusIcon: Record<CriteriaItem['status'], { icon: React.ReactNode; className: string }> = {
@@ -17,6 +18,7 @@ const statusIcon: Record<CriteriaItem['status'], { icon: React.ReactNode; classN
 }
 
 export function CriteriaChecklist({ criteria }: { criteria: CriteriaItem[] }) {
+    const { t } = useTranslation()
     if (criteria.length === 0) return null
 
     return (
@@ -28,7 +30,7 @@ export function CriteriaChecklist({ criteria }: { criteria: CriteriaItem[] }) {
                         <span
                             className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${className}`}
                             role="img"
-                            aria-label={item.status.replace('_', ' ')}
+                            aria-label={t(`loops.criteria.${item.status}`)}
                         >
                             {icon}
                         </span>

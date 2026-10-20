@@ -1,6 +1,7 @@
 import { useCallback, type ReactNode } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useAppContext } from '@/lib/app-context'
+import { useTranslation } from '@/lib/use-translation'
 import { useReviewLoop } from '@/hooks/queries/useReviewLoop'
 import { useReviewLoopActions } from '@/hooks/mutations/useReviewLoopActions'
 import { LoadingState } from '@/components/LoadingState'
@@ -34,6 +35,7 @@ function Card({ children }: { children: ReactNode }) {
 
 export default function ReviewLoopDetailPage() {
     const { api } = useAppContext()
+    const { t } = useTranslation()
     const { loopId } = useParams({ from: '/review-loops/$loopId' })
     const { loop, rounds, isLoading, error } = useReviewLoop(api, loopId)
     const { continueLoop, cancelLoop, pauseLoop, updateLoop, isPending } = useReviewLoopActions(api, loopId)
@@ -61,7 +63,7 @@ export default function ReviewLoopDetailPage() {
     if (isLoading || !loop) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <LoadingState label="Loading..." className="text-body" />
+                <LoadingState label={t('loading')} className="text-body" />
             </div>
         )
     }
@@ -94,7 +96,7 @@ export default function ReviewLoopDetailPage() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                         <ReviewLoopStatusBadge status={loop.status} />
-                        <Badge>Round {loop.currentRound}/{loop.maxRounds}</Badge>
+                        <Badge>{t('mobile.loops.round', { n: loop.currentRound, max: loop.maxRounds })}</Badge>
                     </div>
                     <div className="mt-3">
                         <ProgressBar progress={latestProgress} />
@@ -102,20 +104,20 @@ export default function ReviewLoopDetailPage() {
                 </Card>
 
                 {loop.acceptanceCriteria && latestVerdict?.criteriaStatus && latestVerdict.criteriaStatus.length > 0 ? (
-                    <Section title="Acceptance Criteria">
+                    <Section title={t('loops.create.criteria')}>
                         <Card>
                             <CriteriaChecklist criteria={latestVerdict.criteriaStatus} />
                         </Card>
                     </Section>
                 ) : loop.acceptanceCriteria ? (
-                    <Section title="Acceptance Criteria">
+                    <Section title={t('loops.create.criteria')}>
                         <Card>
                             <div className="whitespace-pre-wrap text-body text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
                         </Card>
                     </Section>
                 ) : null}
 
-                <Section title="Settings">
+                <Section title={t('settings.title')}>
                     <Card>
                         <LoopSettingsPanel
                             userPreference={loop.userPreference}
@@ -129,7 +131,7 @@ export default function ReviewLoopDetailPage() {
                 </Section>
 
                 {isTerminal ? null : (
-                    <Section title="Controls">
+                    <Section title={t('loops.detail.controls')}>
                         <Card>
                             <LoopControls
                                 status={loop.status}
@@ -142,9 +144,9 @@ export default function ReviewLoopDetailPage() {
                     </Section>
                 )}
 
-                <Section title={`Timeline (${rounds.length} rounds)`}>
+                <Section title={t('loops.detail.timeline', { n: rounds.length })}>
                     {rounds.length === 0 ? (
-                        <div className="px-1 py-2 text-body text-[var(--social-fg-muted)]">No rounds yet.</div>
+                        <div className="px-1 py-2 text-body text-[var(--social-fg-muted)]">{t('loops.detail.noRounds')}</div>
                     ) : (
                         <RoundTimeline rounds={rounds} />
                     )}
