@@ -1,5 +1,6 @@
 import type { Machine } from '@/types/api'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useTranslation } from '@/lib/use-translation'
 
 function getMachineTitle(machine: Machine): string {
     if (machine.metadata?.displayName) return machine.metadata.displayName
@@ -11,10 +12,11 @@ export function MachineList(props: {
     machines: Machine[]
     onSelect: (machineId: string) => void
 }) {
+    const { t } = useTranslation()
     return (
         <div className="flex flex-col gap-3 p-3">
             <div className="text-xs text-[var(--social-fg-muted)]">
-                {props.machines.length} online
+                {t('machine.onlineCount', { n: props.machines.length })}
             </div>
 
             <div className="flex flex-col gap-3">
@@ -27,7 +29,7 @@ export function MachineList(props: {
                         <CardHeader className="pb-2">
                             <CardTitle className="truncate">{getMachineTitle(m)}</CardTitle>
                             <CardDescription className="truncate">
-                                {m.metadata?.platform ? m.metadata.platform : 'Unknown platform'}
+                                {m.metadata?.platform ? m.metadata.platform : t('machine.unknown')}
                             </CardDescription>
                         </CardHeader>
                     </Card>

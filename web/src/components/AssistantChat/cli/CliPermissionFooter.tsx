@@ -15,6 +15,7 @@ import {
 } from '@/components/ToolCard/requestUserInput'
 import { isCodexFamilyFlavor } from '@/lib/agentFlavorUtils'
 import { getInputStringAny } from '@/lib/toolInputUtils'
+import { useTranslation } from '@/lib/use-translation'
 
 /* ── tiny CLI-style button ── */
 function CliBtn(props: {
@@ -152,6 +153,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
     tool: ChatToolCall
     disabled: boolean
 }) {
+    const { t } = useTranslation()
     const ctx = useOptionalHappyChatContext()
     const permission = props.tool.permission
     const parsed = useMemo(() => parseAskUserQuestionInput(props.tool.input), [props.tool.input])
@@ -203,7 +205,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
 
         if (questions.length === 0) {
             const text = fallbackText.trim()
-            if (!text) { setError('Please enter a response'); return }
+            if (!text) { setError(t('tool.enterAnswer')); return }
             answers['0'] = [text]
         } else {
             for (let i = 0; i < questions.length; i++) {
@@ -214,7 +216,7 @@ export const CliAskUserQuestion = memo(function CliAskUserQuestion(props: {
                     if (label) parts.push(label)
                 }
                 if (otherSelectedByQ[i] && otherTextByQ[i]?.trim()) parts.push(otherTextByQ[i].trim())
-                if (parts.length === 0) { setError('Please select an option'); return }
+                if (parts.length === 0) { setError(t('tool.selectOption')); return }
                 answers[getAskUserQuestionAnswerKey(q, i)] = parts
             }
         }
@@ -299,6 +301,7 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
     tool: ChatToolCall
     disabled: boolean
 }) {
+    const { t } = useTranslation()
     const ctx = useOptionalHappyChatContext()
     const permission = props.tool.permission
     const parsed = useMemo(() => parseRequestUserInputInput(props.tool.input), [props.tool.input])
@@ -328,11 +331,11 @@ export const CliRequestUserInput = memo(function CliRequestUserInput(props: {
         for (const q of questions) {
             const s = stateByQ[q.id]
             if (q.options.length > 0 && !s?.selected && !s?.userNote.trim()) {
-                setError('Please select an option or enter a note')
+                setError(t('tool.selectOption'))
                 return
             }
             if (q.options.length === 0 && !s?.userNote.trim()) {
-                setError('Please enter a response')
+                setError(t('tool.enterAnswer'))
                 return
             }
         }

@@ -103,9 +103,10 @@ export function DiffView(props: {
 }
 
 function DiffFallback() {
+    const { t } = useTranslation()
     return (
         <div className="rounded-md border border-[var(--social-border)] bg-[var(--social-hover)] px-3 py-4 text-xs text-[var(--social-fg-muted)]">
-            Loading diff…
+            {t('diff.loading')}
         </div>
     )
 }

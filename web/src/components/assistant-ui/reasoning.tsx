@@ -2,6 +2,7 @@ import { useState, useEffect, type FC, type PropsWithChildren } from 'react'
 import { useMessage } from '@assistant-ui/react'
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 import { defaultComponents, MARKDOWN_PLUGINS } from '@/components/assistant-ui/markdown-text'
 import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 
@@ -52,6 +53,7 @@ export const Reasoning: FC = () => {
  * Shows shimmer effect while reasoning is streaming.
  */
 export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
+    const { t } = useTranslation()
     const [isOpen, setIsOpen] = useState(false)
 
     // Check if reasoning is still streaming
@@ -80,7 +82,7 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                 )}
             >
                 <ChevronIcon open={isOpen} />
-                <span>Reasoning</span>
+                <span>{t('mobile.turn.reasoning')}</span>
                 {isStreaming && (
                     <span className="flex items-center gap-1 ml-1 text-[var(--social-fg-muted)]">
                         <ShimmerDot />
