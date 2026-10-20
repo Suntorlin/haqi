@@ -171,55 +171,96 @@ function TaskRow(props: {
     )
 }
 
-function NewTaskField(props: { onCreate: (title: string) => Promise<void> }) {
+const LAST_TASK_TAG_KEY = 'hapi:lastTaskTag:v1'
+
+function loadLastTaskTag(): string | null {
+    try {
+        return window.localStorage.getItem(LAST_TASK_TAG_KEY)
+    } catch {
+        return null
+    }
+}
+
+/** One-line task composer: name on the left, the tag it goes under on the right, Enter adds it. */
+function TaskComposer(props: { tags: string[]; onCreate: (input: { tag: string; title: string }) => Promise<void> }) {
     const { t } = useTranslation()
-    const [editing, setEditing] = useState(false)
     const [title, setTitle] = useState('')
+    const [pickedTag, setPickedTag] = useState<string | null>(loadLastTaskTag)
     const [pending, setPending] = useState(false)
+    const [menuPoint, setMenuPoint] = useState<{ x: number; y: number } | null>(null)
+    // The tag picked last, while it still exists; else the first tag in the filter order.
+    const tag = pickedTag && props.tags.includes(pickedTag) ? pickedTag : (props.tags[0] ?? null)
+
+    const pickTag = (next: string) => {
+        setPickedTag(next)
+        setMenuPoint(null)
+        try {
+            window.localStorage.setItem(LAST_TASK_TAG_KEY, next)
+        } catch {
+        }
+    }
 
     const submit = (event: FormEvent) => {
         event.preventDefault()
         const trimmed = title.trim()
-        if (!trimmed || pending) return
+        if (!trimmed || !tag || pending) return
         setPending(true)
-        void props.onCreate(trimmed)
+        void props.onCreate({ tag, title: trimmed })
             .then(() => setTitle(''))
             .catch((error) => console.error('Failed to create task', error))
             .finally(() => setPending(false))
     }
 
-    if (!editing) {
-        return (
-            <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="flex min-h-11 w-full items-center gap-3 px-5 text-left text-[15px] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)] lg:px-4"
-            >
-                <PlusIcon className="h-4 w-4" />
-                {t('tasks.new')}
-            </button>
-        )
-    }
-
     return (
-        <form onSubmit={submit} className="px-5 py-1 lg:px-4">
+        <form onSubmit={submit} className="px-5 pb-1 pt-2 lg:px-4">
             <TextField
-                autoFocus
+                variant="pill"
                 value={title}
-                disabled={pending}
+                disabled={!tag}
+                readOnly={pending}
                 maxLength={200}
-                placeholder={t('tasks.newPlaceholder')}
+                enterKeyHint="done"
+                aria-label={t('tasks.new')}
+                placeholder={tag ? t('tasks.newPlaceholder') : t('tasks.needTag')}
                 onChange={(event) => setTitle(event.target.value)}
-                onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                        setTitle('')
-                        setEditing(false)
-                    }
-                }}
-                onBlur={() => {
-                    if (!title.trim()) setEditing(false)
-                }}
+                leading={<PlusIcon className="h-4 w-4" />}
+                trailing={tag ? (
+                    <button
+                        type="button"
+                        onClick={(event) => {
+                            const rect = event.currentTarget.getBoundingClientRect()
+                            setMenuPoint({ x: rect.left + rect.width / 2, y: rect.bottom })
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={menuPoint !== null}
+                        aria-label={t('tasks.pickTag')}
+                        className="relative flex h-8 max-w-40 shrink-0 items-center gap-1 rounded-full bg-[var(--social-surface)] pl-3 pr-2 text-[13px] text-[var(--social-fg)] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+                    >
+                        <span className="truncate">#{tag}</span>
+                        <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-[var(--social-fg-muted)]" />
+                    </button>
+                ) : null}
             />
+            <ContextMenu
+                open={menuPoint !== null}
+                anchorPoint={menuPoint ?? { x: 0, y: 0 }}
+                onClose={() => setMenuPoint(null)}
+                label={t('tasks.pickTag')}
+            >
+                {props.tags.map((item) => (
+                    <ContextMenuItem
+                        key={item}
+                        label={`#${item}`}
+                        checked={item === tag}
+                        onSelect={() => pickTag(item)}
+                        trailing={(
+                            <span className={cn('text-[15px]', item === tag ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
+                                ✓
+                            </span>
+                        )}
+                    />
+                ))}
+            </ContextMenu>
         </form>
     )
 }
@@ -310,7 +351,7 @@ function TaskList(props: {
     )
 }
 
-/** The "Task" section on top of one tag's view: its tasks, then a field to add one. */
+/** The "Task" section on top of one tag's view. Hidden while the tag has no task; tasks are added in "All tasks". */
 export function TagTasksSection(props: {
     tag: string
     tasks: SessionTask[]
@@ -320,11 +361,12 @@ export function TagTasksSection(props: {
     api: ApiClient | null
 }) {
     const { t } = useTranslation()
-    const { createTask } = useSessionTaskActions(props.api)
     const [collapsed, setCollapsed] = useState(false)
     const sessionsByTask = useSessionsByTask(props.sessions)
     const tagTasks = props.tasks.filter((task) => task.tag === props.tag)
     const openCount = tagTasks.filter((task) => task.status === 'open').length
+
+    if (tagTasks.length === 0) return null
 
     return (
         <section aria-label={t('tasks.section')} className="border-b border-[var(--social-divider)] pb-1">
@@ -335,22 +377,19 @@ export function TagTasksSection(props: {
                 onToggle={() => setCollapsed((value) => !value)}
             />
             {collapsed ? null : (
-                <>
-                    <TaskList
-                        tasks={tagTasks}
-                        sessionsByTask={sessionsByTask}
-                        selectedSessionId={props.selectedSessionId}
-                        onSelectSession={props.onSelectSession}
-                        api={props.api}
-                    />
-                    <NewTaskField onCreate={(title) => createTask({ tag: props.tag, title })} />
-                </>
+                <TaskList
+                    tasks={tagTasks}
+                    sessionsByTask={sessionsByTask}
+                    selectedSessionId={props.selectedSessionId}
+                    onSelectSession={props.onSelectSession}
+                    api={props.api}
+                />
             )}
         </section>
     )
 }
 
-/** Every task, grouped by tag in the tag-filter order. Tapping a tag name opens that tag's view. */
+/** Every task, grouped by tag in the tag-filter order, with the composer on top. Tapping a tag name opens that tag's view. */
 export function AllTasksView(props: {
     tasks: SessionTask[]
     tagOrder: string[]
@@ -363,6 +402,7 @@ export function AllTasksView(props: {
     header?: ReactNode
 }) {
     const { t } = useTranslation()
+    const { createTask } = useSessionTaskActions(props.api)
     const sessionsByTask = useSessionsByTask(props.sessions)
     const tags = useMemo(() => {
         const present = new Set(props.tasks.map((task) => task.tag))
@@ -374,6 +414,7 @@ export function AllTasksView(props: {
     return (
         <div className="h-full overflow-y-auto pb-6">
             {props.header}
+            <TaskComposer tags={props.tagOrder} onCreate={createTask} />
             {tags.length === 0 ? (
                 <div className="px-5 py-8 text-center text-[13px] text-[var(--social-fg-muted)]">
                     {props.isLoading ? t('mobile.feed.loading') : t('tasks.empty')}
