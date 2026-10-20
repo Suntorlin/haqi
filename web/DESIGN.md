@@ -117,7 +117,7 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `Toast`, `Card*` | `Toast.tsx`, `card.tsx` | Transient message; plain card. |
 | `BottomSheet`, `SheetSection/Row/Option/SwitchRow`, `ContextMenu` | `components/mobile/` | Phone sheets and long-press / right-click menus (>= 44px rows, scroll when tall). |
 | `InputHistory` | `ui/InputHistory.tsx` | Chevron on a text input that opens its history (recent paths, preview URLs) as a dropdown. Built on `CONTEXT_MENU_SURFACE` + `ContextMenuItem` (`components/mobile/ContextMenu.tsx`), the same surface and rows as menus. Never a row of chips. |
-| `.social-glass`, `BottomSheet popoverAnchor` | `index.css`, `components/mobile/BottomSheet.tsx` | Frosted card anchored under a button (desktop session info). Phones keep the sheet. |
+| `.social-float-card`, `BottomSheet popoverAnchor` | `index.css`, `components/mobile/BottomSheet.tsx` | Opaque floating card anchored under a button (desktop session info). Phones keep the sheet. No frosted glass: content behind it hurts reading. |
 | `SessionDockLayout`, `useSessionDock` | `components/`, `hooks/` | Desktop: terminal / preview docked left or right of the chat, resizable, open on the right by default. |
 | `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. |
 | Settings helpers | `components/settings/SettingsParts.tsx` | `SettingsGroup`, `SettingsBlock`, `SettingsSelectRow`, ... built on `ListGroup` / `ListRow`. |
