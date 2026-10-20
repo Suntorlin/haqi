@@ -17,7 +17,7 @@ export function BottomSheet(props: {
     hideTitle?: boolean
     children: ReactNode
     className?: string
-    /** Desktop only: open as a frosted card hanging under this point instead of the side panel. */
+    /** Desktop only: open as a floating card hanging under this point instead of the side panel. */
     popoverAnchor?: { right: number; bottom: number } | null
     /** Keep focus off the first field on open, so a search box does not pop up the phone keyboard. */
     noAutoFocus?: boolean
@@ -34,7 +34,7 @@ export function BottomSheet(props: {
                     <DialogPrimitive.Content
                         aria-describedby={undefined}
                         className={cn(
-                            'social-glass animate-menu-pop fixed z-[70] flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-3xl text-[var(--social-fg)] outline-none',
+                            'social-float-card animate-menu-pop fixed z-[70] flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-3xl text-[var(--social-fg)] outline-none',
                             props.className
                         )}
                         style={{

@@ -266,7 +266,7 @@ export function DesignShowcase() {
                 </div>
             </Section>
 
-            <Section title="7 · 浮层 · 一键切换 · 停靠面板" note="浮层只有两种：菜单（CONTEXT_MENU_SURFACE，下拉与右键菜单）和毛玻璃卡片（.social-glass，会话信息）。二选一的设置用 SwitchChip，点一下就切换。终端 / 预览在桌面端停靠在聊天左右，默认右侧。">
+            <Section title="7 · 浮层 · 一键切换 · 停靠面板" note="浮层只有两种：菜单（CONTEXT_MENU_SURFACE，下拉与右键菜单）和浮层卡片（.social-float-card，会话信息）。二选一的设置用 SwitchChip，点一下就切换。终端 / 预览在桌面端停靠在聊天左右，默认右侧。">
                 <div className="grid gap-6 md:grid-cols-3">
                     <Spec label="SwitchChip · 点一下切换">
                         <SwitchChip title="发送方式" valueLabel={`发送 · ${direct ? '直发' : '排队'}`} onToggle={() => setDirect((value) => !value)} />
@@ -277,8 +277,8 @@ export function DesignShowcase() {
                             <ContextMenuItem label="~/dev/fish" onSelect={() => undefined} />
                         </div>
                     </Spec>
-                    <Spec label="毛玻璃卡片 .social-glass">
-                        <div className="social-glass max-w-xs rounded-3xl p-4 text-[13px] text-[var(--social-fg)]">
+                    <Spec label="浮层卡片 .social-float-card">
+                        <div className="social-float-card max-w-xs rounded-3xl p-4 text-[13px] text-[var(--social-fg)]">
                             悬浮在内容之上，半透明加模糊；只用于锚在按钮下方的小卡片。
                         </div>
                     </Spec>

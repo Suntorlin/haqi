@@ -351,7 +351,7 @@ export function SessionHeader(props: {
         setInfoOpen(true)
     }
 
-    // Session info: bottom sheet on phones, frosted card under the "…" button on desktop.
+    // Session info: bottom sheet on phones, floating card under the "…" button on desktop.
     const infoSheet = (
         <BottomSheet open={infoOpen} onOpenChange={setInfoOpen} title={t('mobile.chat.info')} hideTitle popoverAnchor={isMobileLayout ? null : infoAnchor}>
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
