@@ -6,14 +6,16 @@ import { FormField, SegmentedControl } from '@/components/ui/FormControls'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import type { MemoryItem, MemoryLink } from '@/types/api'
-import { evidenceOf, formatWhen, LEVEL_LABEL, scopeLabel, sourceLabel, supportsOf, trialLabel, type Level } from './model'
+import { evidenceOf, formatWhen, levelLabel, scopeLabel, sourceLabel, supportsOf, trialLabel, type Level } from './model'
 
 /** Maturity as a filling circle: fact ○, experience ◐, principle ●. Used by the graph and its legend. */
 export function LevelIcon(props: { level: Level; className?: string }) {
+    const { t } = useTranslation()
     return (
-        <svg viewBox="0 0 24 24" className={cn('h-5 w-5', props.className)} aria-label={LEVEL_LABEL[props.level]} role="img">
+        <svg viewBox="0 0 24 24" className={cn('h-5 w-5', props.className)} aria-label={levelLabel(props.level, t)} role="img">
             <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" strokeWidth="1.8" />
             {props.level === 'experience' ? <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" /> : null}
             {props.level === 'principle' ? <circle cx="12" cy="12" r="8" fill="currentColor" /> : null}
@@ -30,11 +32,7 @@ function Score(props: { value: number }) {
     )
 }
 
-const LEVEL_OPTIONS: Array<{ value: Level; label: string }> = [
-    { value: 'fact', label: '事实' },
-    { value: 'experience', label: '经验' },
-    { value: 'principle', label: '原则' }
-]
+const LEVELS: Level[] = ['fact', 'experience', 'principle']
 
 export type MemoryEdit = { text?: string; level?: Level; scope?: string }
 
@@ -57,6 +55,7 @@ export function MemoryDetail(props: {
 }) {
     const { memory } = props
     const { api } = useAppContext()
+    const { t } = useTranslation()
     const related = useQuery({
         queryKey: [...queryKeys.memories, 'related', memory.id, memory.updatedAt],
         queryFn: async () => {
@@ -76,7 +75,7 @@ export function MemoryDetail(props: {
     const pending = memory.status === 'pending'
     const onTrial = memory.status === 'candidate'
     const jev = memory.jev
-    const changed = memory.overridden?.level ? '级别' : memory.overridden?.scope !== undefined ? '范围' : null
+    const changed = memory.overridden?.level ? t('memoryPage.detail.youChangedLevel') : memory.overridden?.scope !== undefined ? t('memoryPage.detail.youChangedScope') : null
     const patch: MemoryEdit = {
         ...(text.trim() !== memory.text ? { text: text.trim() } : {}),
         ...(level !== memory.level ? { level } : {}),
@@ -88,12 +87,12 @@ export function MemoryDetail(props: {
             {pending && memory.reason ? (
                 <p className="text-body leading-relaxed text-[var(--social-fg)]">
                     {memory.reason}
-                    {replaced ? <span className="mt-1 block text-footnote text-[var(--social-fg-muted)]">确认后会替换：{replaced.text}</span> : null}
+                    {replaced ? <span className="mt-1 block text-footnote text-[var(--social-fg-muted)]">{t('memoryPage.detail.replaces', { text: replaced.text })}</span> : null}
                 </p>
             ) : null}
             {onTrial ? (
                 <p className="text-body leading-relaxed text-[var(--social-fg)]">
-                    观察中：{trialLabel(props.trial)}
+                    {t('memoryPage.detail.onTrial', { trial: trialLabel(props.trial, t) })}
                     {memory.reason ? <span className="mt-1 block text-footnote text-[var(--social-fg-muted)]">{memory.reason}</span> : null}
                 </p>
             ) : null}
@@ -102,51 +101,51 @@ export function MemoryDetail(props: {
                 value={text}
                 onChange={(event) => setText(event.target.value)}
                 rows={3}
-                aria-label="记忆内容"
+                aria-label={t('memoryPage.detail.textLabel')}
                 className={cn(DIALOG_INPUT_CLASS, 'resize-none leading-relaxed')}
             />
 
-            <FormField label="级别">
-                <SegmentedControl label="级别" value={level} options={LEVEL_OPTIONS} onChange={setLevel} />
+            <FormField label={t('memoryPage.detail.level')}>
+                <SegmentedControl label={t('memoryPage.detail.level')} value={level} options={LEVELS.map((value) => ({ value, label: levelLabel(value, t) }))} onChange={setLevel} />
             </FormField>
-            <FormField label="范围">
+            <FormField label={t('memoryPage.detail.scope')}>
                 <SegmentedControl
-                    label="范围"
+                    label={t('memoryPage.detail.scope')}
                     value={scope}
-                    options={[{ value: '', label: '全局' }, { value: project, label: project }]}
+                    options={[{ value: '', label: t('memoryPage.scope.global') }, { value: project, label: project }]}
                     onChange={setScope}
                 />
             </FormField>
 
             {jev ? (
                 <p className="px-1 text-footnote text-[var(--social-fg-muted)]">
-                    Jev：要记 <Score value={jev.keep} /> · {LEVEL_LABEL[jev.level.choice]} <Score value={jev.level.confidence} /> · {jev.scope.choice === 'project' && jev.project ? jev.project : '全局'} <Score value={jev.scope.confidence} />
-                    {changed ? ` · 你改过${changed}` : ''}
+                    {t('memoryPage.detail.jevKeep')} <Score value={jev.keep} /> · {levelLabel(jev.level.choice, t)} <Score value={jev.level.confidence} /> · {jev.scope.choice === 'project' && jev.project ? jev.project : t('memoryPage.scope.global')} <Score value={jev.scope.confidence} />
+                    {changed ? ` · ${changed}` : ''}
                 </p>
             ) : null}
 
             {supports.length + evidence.length > 0 ? (
-                <ListGroup title="关联">
+                <ListGroup title={t('memoryPage.detail.links')}>
                     {supports.map((item) => (
-                        <ListRow key={item.id} wrap title={item.text} subtitle={`它撑起的${LEVEL_LABEL[item.level]}`} onClick={() => props.onOpen(item.id)} />
+                        <ListRow key={item.id} wrap title={item.text} subtitle={t('memoryPage.detail.supports', { level: levelLabel(item.level, t) })} onClick={() => props.onOpen(item.id)} />
                     ))}
                     {evidence.map((item) => (
-                        <ListRow key={item.id} wrap title={item.text} subtitle={`依据 · ${LEVEL_LABEL[item.level]}`} onClick={() => props.onOpen(item.id)} />
+                        <ListRow key={item.id} wrap title={item.text} subtitle={t('memoryPage.detail.evidence', { level: levelLabel(item.level, t) })} onClick={() => props.onOpen(item.id)} />
                     ))}
                 </ListGroup>
             ) : null}
 
             {related.data && related.data.length > 0 ? (
-                <ListGroup title="相似记忆 · 并入后这条归档，被提到的次数加到那条上">
+                <ListGroup title={t('memoryPage.detail.similar')}>
                     {related.data.map((item) => (
                         <ListRow
                             key={item.id}
                             wrap
                             title={item.text}
-                            subtitle={`${LEVEL_LABEL[item.level]} · ${scopeLabel(item.scope)} · 相似度 ${item.score.toFixed(2)}`}
+                            subtitle={`${levelLabel(item.level, t)} · ${scopeLabel(item.scope, t)} · ${t('memoryPage.detail.similarity', { score: item.score.toFixed(2) })}`}
                             trailing={(
                                 <Button variant="secondary" className="px-4" disabled={props.busy} onClick={() => props.onMerge(item.id)}>
-                                    并入
+                                    {t('memoryPage.detail.merge')}
                                 </Button>
                             )}
                         />
@@ -155,20 +154,20 @@ export function MemoryDetail(props: {
             ) : null}
 
             <p className="px-1 text-footnote text-[var(--social-fg-muted)]">
-                {sourceLabel(memory)} · {formatWhen(memory.createdAt)} · {scopeLabel(memory.scope)}
-                {memory.support > 1 ? ` · 被提到 ${memory.support} 次` : ''}
-                {memory.version > 1 ? ` · 第 ${memory.version} 版` : ''}
+                {sourceLabel(memory, t)} · {formatWhen(memory.createdAt, t)} · {scopeLabel(memory.scope, t)}
+                {memory.support > 1 ? ` · ${t('memoryPage.mentioned', { count: memory.support })}` : ''}
+                {memory.version > 1 ? ` · ${t('memoryPage.detail.version', { version: memory.version })}` : ''}
             </p>
 
             {pending || onTrial ? (
                 <div className="flex gap-2">
-                    <Button className="flex-1" disabled={props.busy} onClick={() => props.onConfirm(patch)}>{onTrial ? '直接生效' : '确认'}</Button>
-                    <Button variant="secondary" className="flex-1" disabled={props.busy} onClick={props.onDismiss}>不记</Button>
+                    <Button className="flex-1" disabled={props.busy} onClick={() => props.onConfirm(patch)}>{onTrial ? t('memoryPage.detail.applyNow') : t('memoryPage.detail.approve')}</Button>
+                    <Button variant="secondary" className="flex-1" disabled={props.busy} onClick={props.onDismiss}>{t('memoryPage.detail.dismiss')}</Button>
                 </div>
             ) : (
                 <div className="flex items-center gap-2">
-                    <Button className="flex-1" disabled={props.busy || Object.keys(patch).length === 0} onClick={() => props.onSave(patch)}>保存</Button>
-                    <Button variant="ghost" className="text-[var(--social-danger)] hover:text-[var(--social-danger)]" disabled={props.busy} onClick={props.onDelete}>删除</Button>
+                    <Button className="flex-1" disabled={props.busy || Object.keys(patch).length === 0} onClick={() => props.onSave(patch)}>{t('memoryPage.detail.save')}</Button>
+                    <Button variant="ghost" className="text-[var(--social-danger)] hover:text-[var(--social-danger)]" disabled={props.busy} onClick={props.onDelete}>{t('memoryPage.delete')}</Button>
                 </div>
             )}
         </div>
