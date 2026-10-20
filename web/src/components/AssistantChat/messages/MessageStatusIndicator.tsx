@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import type { MessageStatus } from '@/types/api'
 
@@ -16,6 +17,7 @@ export function MessageStatusIndicator(props: {
     status?: MessageStatus
     onRetry?: () => void
 }) {
+    const { t } = useTranslation()
     if (props.status !== 'failed') {
         return null
     }
@@ -31,7 +33,7 @@ export function MessageStatusIndicator(props: {
                     onClick={props.onRetry}
                     className={cn('text-xs text-[var(--social-fg)] underline', TEXT_HIT_AREA_CLASS)}
                 >
-                    Retry
+                    {t('button.retry')}
                 </button>
             ) : null}
         </span>
