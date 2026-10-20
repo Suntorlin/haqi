@@ -154,7 +154,7 @@ function QuickKeyButton(props: {
             onPointerDown={handlePointerDown}
             disabled={disabled}
             aria-pressed={modifier ? isActive : undefined}
-            className={`min-h-11 flex-1 border-l border-[var(--social-border)] px-2 py-1.5 text-[13px] text-[var(--social-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-primary)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--social-hover)] sm:px-3 ${
+            className={`min-h-11 flex-1 border-l border-[var(--social-border)] px-2 py-1.5 text-footnote text-[var(--social-fg)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--social-primary)] focus-visible:ring-inset disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent first:border-l-0 active:bg-[var(--social-hover)] sm:px-3 ${
                 isActive ? 'bg-[var(--social-fg)] text-[var(--social-surface)]' : 'hover:bg-[var(--social-hover)]'
             }`}
             aria-label={description}
@@ -398,7 +398,7 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
     if (!session) {
         return (
             <div className="flex h-full items-center justify-center">
-                <LoadingState label={t('loading.session')} className="text-[13px]" />
+                <LoadingState label={t('loading.session')} className="text-footnote" />
             </div>
         )
     }
@@ -423,7 +423,7 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
 
             {session.active ? null : (
                 <div className="px-3 pt-3">
-                    <div className="mx-auto w-full max-w-content rounded-xl bg-[var(--social-hover)] p-3 text-[13px] text-[var(--social-fg-muted)]">
+                    <div className="mx-auto w-full max-w-content rounded-xl bg-[var(--social-hover)] p-3 text-footnote text-[var(--social-fg-muted)]">
                         {t('terminal.inactive')}
                     </div>
                 </div>

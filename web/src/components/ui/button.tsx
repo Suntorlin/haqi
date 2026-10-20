@@ -19,9 +19,9 @@ export const buttonVariants = cva(
                 destructive: 'bg-[var(--social-danger)] text-[var(--social-on-accent)] hover:opacity-90'
             },
             size: {
-                default: 'h-11 px-5 text-[15px]',
-                sm: 'h-9 px-4 text-[13px]',
-                lg: 'h-12 px-6 text-[16px]'
+                default: 'h-11 px-5 text-body',
+                sm: 'h-9 px-4 text-footnote',
+                lg: 'h-12 px-6 text-headline'
             }
         },
         defaultVariants: {

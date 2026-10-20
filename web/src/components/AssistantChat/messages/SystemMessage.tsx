@@ -35,7 +35,7 @@ function ProminentEventCard({ event, text }: { event: AgentEvent; text: string }
                 <span>{text}</span>
             </div>
             {resetsAt ? (
-                <div className={`mt-1 text-[12px] opacity-75 ${textClass}`}>
+                <div className={`mt-1 text-caption opacity-75 ${textClass}`}>
                     {t('event.resetsAt', { time: formatUnixTimestamp(resetsAt) })}
                 </div>
             ) : null}
@@ -81,7 +81,7 @@ export function HappySystemMessage() {
             <div className="flex flex-col gap-2" data-happy-message-id={messageId}>
                 {separatorAt !== undefined ? <ChatTimeSeparator at={separatorAt} /> : null}
                 <div className="flex justify-center">
-                    <span className="inline-flex max-w-[85%] items-center gap-1 rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-[12px] leading-snug text-[var(--social-fg-muted)]">
+                    <span className="inline-flex max-w-[85%] items-center gap-1 rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-caption leading-snug text-[var(--social-fg-muted)]">
                         {icon ? <span aria-hidden="true">{icon}</span> : null}
                         <span>{label}</span>
                     </span>

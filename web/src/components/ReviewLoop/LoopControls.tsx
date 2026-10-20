@@ -89,18 +89,18 @@ export function LoopControls({ status, onContinue, onPause, onCancel, isPending 
         return (
             <>
                 <div className="flex min-w-0 flex-col gap-3">
-                    <div className="text-[15px] font-semibold text-[var(--social-fg)]">
+                    <div className="text-body font-semibold text-[var(--social-fg)]">
                         {status === 'paused' ? 'Paused — Add Instructions' : 'Action Required'}
                     </div>
 
                     {status === 'paused' && (
-                        <div className="rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-[13px] text-[var(--app-badge-warning-text)]">
+                        <div className="rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-footnote text-[var(--app-badge-warning-text)]">
                             Loop paused. Add your instructions for the reviewer below, then continue.
                         </div>
                     )}
 
                     <label className="flex min-w-0 flex-col gap-1.5">
-                        <span className="px-1 text-[13px] text-[var(--social-fg-muted)]">
+                        <span className="px-1 text-footnote text-[var(--social-fg-muted)]">
                             {status === 'paused' ? 'Instructions for reviewer:' : 'Additional instruction (optional):'}
                         </span>
                         <textarea

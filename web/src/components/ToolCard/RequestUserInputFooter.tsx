@@ -35,7 +35,7 @@ function OptionRow(props: {
         <button
             type="button"
             className={cn(
-                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-[15px] transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
+                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-body transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
                 props.checked ? 'bg-[var(--social-hover)]' : null
             )}
             disabled={props.disabled}
@@ -206,7 +206,7 @@ export function RequestUserInputFooter(props: {
             {currentQuestion ? (
                 <div className="mt-3">
                     {currentQuestion.question ? (
-                        <div className="text-[15px] text-[var(--social-fg)] break-words">
+                        <div className="text-body text-[var(--social-fg)] break-words">
                             {currentQuestion.question}
                         </div>
                     ) : null}

@@ -159,7 +159,7 @@ export function DesktopNavRail() {
             <button
                 type="button"
                 onClick={() => navigate({ to: '/sessions' })}
-                className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--social-primary)] text-[15px] font-semibold tracking-[-0.04em] text-[var(--social-primary-fg)] [-webkit-tap-highlight-color:transparent]"
+                className="mb-6 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--social-primary)] text-body font-semibold tracking-[-0.04em] text-[var(--social-primary-fg)] [-webkit-tap-highlight-color:transparent]"
                 aria-label="HAQI"
                 title="HAQI"
             >
@@ -187,11 +187,11 @@ export function MobilePageHeader(props: {
         <header className="social-bar relative z-20 shrink-0 pt-[env(safe-area-inset-top)]">
             <div className={cn('mx-auto flex h-[54px] items-center gap-2 pr-3 lg:h-[68px]', props.contentWidth ? 'max-w-content pl-3' : 'max-w-xl pl-5')}>
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-[20px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">
+                    <div className="truncate text-title font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">
                         {props.title}
                     </div>
                     {props.subtitle ? (
-                        <div className="mt-1 truncate text-[12px] leading-none text-[var(--social-fg-muted)]">
+                        <div className="mt-1 truncate text-caption leading-none text-[var(--social-fg-muted)]">
                             {props.subtitle}
                         </div>
                     ) : null}

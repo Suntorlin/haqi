@@ -7,7 +7,7 @@ export function ListGroup(props: { title?: ReactNode; children: ReactNode; class
     return (
         <section className={cn('flex flex-col gap-1.5', props.className)}>
             {props.title ? (
-                <h3 className="px-4 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{props.title}</h3>
+                <h3 className="px-4 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{props.title}</h3>
             ) : null}
             <div className="divide-y divide-[var(--social-divider)] overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)]">
                 {props.children}
@@ -38,10 +38,10 @@ export function ListRow(props: {
         <>
             {props.icon ? <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[var(--social-fg-muted)]">{props.icon}</span> : null}
             <span className="min-w-0 flex-1 text-left">
-                <span className={cn(text, 'text-[15px]', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>{props.title}</span>
-                {props.subtitle ? <span className={cn(text, 'mt-0.5 text-[13px] text-[var(--social-fg-muted)]')}>{props.subtitle}</span> : null}
+                <span className={cn(text, 'text-body', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>{props.title}</span>
+                {props.subtitle ? <span className={cn(text, 'mt-0.5 text-footnote text-[var(--social-fg-muted)]')}>{props.subtitle}</span> : null}
             </span>
-            {props.trailing ? <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">{props.trailing}</span> : null}
+            {props.trailing ? <span className="shrink-0 text-footnote text-[var(--social-fg-muted)]">{props.trailing}</span> : null}
             {(props.chevron ?? Boolean(props.onClick)) ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}
         </>
     )

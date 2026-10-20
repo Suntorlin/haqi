@@ -40,11 +40,11 @@ export function DesktopPaneHeader(props: {
         <>
             {props.avatar}
             <div className="min-w-0 flex-1">
-                <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                     {props.title}
                 </div>
                 {props.subtitle ? (
-                    <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-[12px] leading-tight text-[var(--social-fg-muted)]">
+                    <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-caption leading-tight text-[var(--social-fg-muted)]">
                         {props.subtitle}
                     </div>
                 ) : null}

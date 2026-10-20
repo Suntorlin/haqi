@@ -98,8 +98,8 @@ export function MemoryPage() {
 
     const empty = (
         <div className="space-y-4 rounded-2xl border border-dashed border-[var(--social-border)] px-5 py-8 text-center">
-            <p className="text-[15px] text-[var(--social-fg)]">还没有记忆</p>
-            <p className="text-[13px] leading-relaxed text-[var(--social-fg-muted)]">会话提交、导入 MEMORY.md 或收集 Claude 自带记忆后，会出现在这里。</p>
+            <p className="text-body text-[var(--social-fg)]">还没有记忆</p>
+            <p className="text-footnote leading-relaxed text-[var(--social-fg-muted)]">会话提交、导入 MEMORY.md 或收集 Claude 自带记忆后，会出现在这里。</p>
             <div className="flex justify-center gap-2">
                 <Button variant="secondary" disabled={action.isPending} onClick={() => run(async () => {
                     const result = await api!.importMemoryMd()
@@ -163,7 +163,7 @@ export function MemoryPage() {
                             ))}
                         </ListGroup>
                         {skipped > 0 ? (
-                            <p className="px-4 text-[13px] text-[var(--social-fg-muted)]">今天另有 {skipped} 条没记：{skippedSummary(data?.stats.skippedReasons ?? {})}。</p>
+                            <p className="px-4 text-footnote text-[var(--social-fg-muted)]">今天另有 {skipped} 条没记：{skippedSummary(data?.stats.skippedReasons ?? {})}。</p>
                         ) : null}
                     </div>
                 ) : null}
@@ -173,7 +173,7 @@ export function MemoryPage() {
 
     const levelList = (level: Level) => {
         const list = memories.filter((m) => m.level === level)
-        if (list.length === 0) return <p className="px-1 pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">还没有{LEVEL_LABEL[level]}。</p>
+        if (list.length === 0) return <p className="px-1 pt-6 text-center text-footnote text-[var(--social-fg-muted)]">还没有{LEVEL_LABEL[level]}。</p>
         return (
             <div className="space-y-6">
                 {scopesInOrder(list).map((scope) => (
@@ -214,8 +214,8 @@ export function MemoryPage() {
     const desktopTitle = isMobile ? null : (
         <div className="flex items-center gap-2 pb-2 pt-6">
             <div className="min-w-0 flex-1">
-                <h1 className="text-[20px] font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">记忆</h1>
-                <p className="mt-2 text-[12px] leading-none text-[var(--social-fg-muted)]">{subtitle}</p>
+                <h1 className="text-title font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">记忆</h1>
+                <p className="mt-2 text-caption leading-none text-[var(--social-fg-muted)]">{subtitle}</p>
             </div>
             {settingsButton}
         </div>
@@ -233,10 +233,10 @@ export function MemoryPage() {
     )
 
     const searchResults = () => {
-        if (hits.isLoading || needle !== search.trim()) return <p className="pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">正在搜索…</p>
-        if (hits.error) return <p className="pt-6 text-center text-[13px] text-[var(--social-danger)]">搜索失败：{hits.error instanceof Error ? hits.error.message : '未知错误'}</p>
+        if (hits.isLoading || needle !== search.trim()) return <p className="pt-6 text-center text-footnote text-[var(--social-fg-muted)]">正在搜索…</p>
+        if (hits.error) return <p className="pt-6 text-center text-footnote text-[var(--social-danger)]">搜索失败：{hits.error instanceof Error ? hits.error.message : '未知错误'}</p>
         const list = hits.data ?? []
-        if (list.length === 0) return <p className="pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">没有相关记忆。</p>
+        if (list.length === 0) return <p className="pt-6 text-center text-footnote text-[var(--social-fg-muted)]">没有相关记忆。</p>
         return (
             <ListGroup title={`相关 · ${list.length}`}>
                 {list.map((m) => (
@@ -255,9 +255,9 @@ export function MemoryPage() {
     const body = search.trim()
         ? searchResults()
         : query.isLoading
-        ? <p className="pt-10 text-center text-[13px] text-[var(--social-fg-muted)]">加载中…</p>
+        ? <p className="pt-10 text-center text-footnote text-[var(--social-fg-muted)]">加载中…</p>
         : query.error
-            ? <p className="pt-10 text-center text-[13px] text-[var(--social-danger)]">记忆加载失败：{query.error instanceof Error ? query.error.message : '未知错误'}</p>
+            ? <p className="pt-10 text-center text-footnote text-[var(--social-danger)]">记忆加载失败：{query.error instanceof Error ? query.error.message : '未知错误'}</p>
             : tab === 'recent' ? recent() : tab === 'graph' ? null : levelList(tab)
 
     const saveThen = (memory: MemoryItem, patch: MemoryEdit, then?: () => Promise<unknown>) => run(async () => {
@@ -278,7 +278,7 @@ export function MemoryPage() {
                     </div>
                     <div className="min-h-0 flex-1 px-4 pb-4 pt-1">
                         {memories.length === 0 ? empty : (
-                            <Suspense fallback={<div className="flex h-full items-center justify-center text-[13px] text-[var(--social-fg-muted)]">正在加载图谱…</div>}>
+                            <Suspense fallback={<div className="flex h-full items-center justify-center text-footnote text-[var(--social-fg-muted)]">正在加载图谱…</div>}>
                                 <MemoryGraph memories={memories} links={links} onOpen={setOpenId} mobile={isMobile} />
                             </Suspense>
                         )}
@@ -292,7 +292,7 @@ export function MemoryPage() {
                             <MobileSearchField value={search} onChange={setSearch} placeholder="搜记忆：按意思找，中英文都行" />
                         </div>
                         {search.trim() ? null : chips(true)}
-                        {notice ? <p className="px-1 pt-2 text-[13px] text-[var(--social-fg-muted)]">{notice}</p> : null}
+                        {notice ? <p className="px-1 pt-2 text-footnote text-[var(--social-fg-muted)]">{notice}</p> : null}
                         <div className="pt-3">{body}</div>
                     </div>
                 </div>

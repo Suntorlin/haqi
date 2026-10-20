@@ -46,7 +46,7 @@ function Pre(props: ComponentPropsWithoutRef<'pre'>) {
             <pre
                 {...rest}
                 className={cn(
-                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--app-code-bg)] p-2 text-[13px]',
+                    'aui-md-pre m-0 w-max min-w-full rounded-b-md rounded-t-none bg-[var(--app-code-bg)] p-2 text-footnote',
                     className
                 )}
             />

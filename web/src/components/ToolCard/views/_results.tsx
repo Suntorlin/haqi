@@ -166,7 +166,7 @@ function ResultNoteText(props: { kind: ResultNoteKind }) {
 /** Muted one-liner shown instead of a result body (done / no output / waiting / running). */
 function ResultNote(props: { kind: ResultNoteKind }) {
     const { t } = useTranslation()
-    return <div className="text-[13px] text-[var(--social-fg-muted)]">{t(`tool.result.${props.kind}`)}</div>
+    return <div className="text-footnote text-[var(--social-fg-muted)]">{t(`tool.result.${props.kind}`)}</div>
 }
 
 function RawJsonDevOnly(props: { value: unknown }) {
@@ -433,7 +433,7 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
         <>
             <div className="flex flex-col gap-1">
                 {lines.map((line) => (
-                    <div key={line} className="text-[13px] font-mono text-[var(--social-fg)] break-all">
+                    <div key={line} className="text-footnote font-mono text-[var(--social-fg)] break-all">
                         {line}
                     </div>
                 ))}
@@ -499,7 +499,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
         const className = state === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]'
         return (
             <>
-                <div className={`text-[13px] ${className}`}>
+                <div className={`text-footnote ${className}`}>
                     {renderText(text, { mode: state === 'error' ? 'code' : 'auto' })}
                 </div>
                 <RawJsonDevOnly value={result} />
@@ -509,7 +509,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-[13px] text-[var(--social-fg-muted)]">
+            <div className="text-footnote text-[var(--social-fg-muted)]">
                 <ResultNoteText kind={state === 'completed' ? 'done' : 'empty'} />
             </div>
             <RawJsonDevOnly value={result} />
@@ -963,9 +963,9 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
                     />
                 </div>
             ) : loading ? (
-                <div className="text-[13px] text-[var(--social-fg-muted)]">Loading image…</div>
+                <div className="text-footnote text-[var(--social-fg-muted)]">Loading image…</div>
             ) : errorMessage ? (
-                <div className="text-[13px] text-[var(--social-danger)]">{errorMessage}</div>
+                <div className="text-footnote text-[var(--social-danger)]">{errorMessage}</div>
             ) : (
                 <ResultNote kind={placeholderForState(props.block.tool.state)} />
             )}

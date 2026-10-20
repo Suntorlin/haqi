@@ -56,7 +56,7 @@ export function SessionTaskSheet(props: {
                                         onClick={() => props.onToggle(task, !linked)}
                                         className="social-pressable flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left [&+&]:border-t [&+&]:border-[var(--social-border)]"
                                     >
-                                        <span className={cn('min-w-0 flex-1 truncate text-[15px]', linked ? 'font-semibold' : '', task.status === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
+                                        <span className={cn('min-w-0 flex-1 truncate text-body', linked ? 'font-semibold' : '', task.status === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
                                             {task.title}
                                         </span>
                                         <svg

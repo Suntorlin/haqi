@@ -34,7 +34,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(
                 ref={ref}
                 aria-invalid={invalid || undefined}
                 className={cn(
-                    'h-full min-w-0 flex-1 truncate bg-transparent text-[16px] text-[var(--social-fg)] placeholder:text-[var(--social-fg-subtle)] focus:outline-none',
+                    'h-full min-w-0 flex-1 truncate bg-transparent text-headline text-[var(--social-fg)] placeholder:text-[var(--social-fg-subtle)] focus:outline-none',
                     !trailing && variant === 'field' && 'pr-2',
                     className
                 )}

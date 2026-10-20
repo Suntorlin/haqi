@@ -76,7 +76,7 @@ function PinnedStory(props: {
                     </Badge>
                 ) : null}
             </span>
-            <span className={cn('mt-1.5 w-full truncate text-center text-[12px]', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
+            <span className={cn('mt-1.5 w-full truncate text-center text-caption', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
                 {title}
             </span>
         </button>
@@ -161,7 +161,7 @@ export function PinnedStoriesStrip(props: {
                             </svg>
                         </span>
                         {/* mt-1.5 matches the story labels (they leave room for the status badge) so the row's captions line up */}
-                        <span className="mt-1.5 w-full truncate text-center text-[12px] text-[var(--social-fg-muted)]">
+                        <span className="mt-1.5 w-full truncate text-center text-caption text-[var(--social-fg-muted)]">
                             {t('mobile.stories.new')}
                         </span>
                     </button>

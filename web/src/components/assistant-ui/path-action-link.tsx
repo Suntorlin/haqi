@@ -281,7 +281,7 @@ export function PathActionLink(props: {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="text-[12px] text-[var(--social-fg-muted)]">...</span>
+                <span className="text-caption text-[var(--social-fg-muted)]">...</span>
             </span>
         )
     }
@@ -298,7 +298,7 @@ export function PathActionLink(props: {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-[12px] text-[var(--app-badge-warning-text)]" title={probeErrorMessage ?? 'Outside-workspace paths require YOLO mode'}>
+                <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-caption text-[var(--app-badge-warning-text)]" title={probeErrorMessage ?? 'Outside-workspace paths require YOLO mode'}>
                     YOLO
                 </span>
             </span>
@@ -323,7 +323,7 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handlePreview}
                     disabled={busyAction !== null}
-                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
+                    className={cn('shrink-0 rounded-md px-1 text-caption text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
                     title={canPreviewImage ? 'Preview image' : 'Open file preview'}
                 >
                     {busyAction === 'preview' ? '...' : '预览'}
@@ -332,18 +332,18 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handleDownload}
                     disabled={busyAction !== null}
-                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
+                    className={cn('shrink-0 rounded-md px-1 text-caption text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
                     title="Download file"
                 >
                     {busyAction === 'download' ? '...' : '下载'}
                 </button>
                 {blockedOutsidePath ? (
-                    <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-[12px] text-[var(--app-badge-warning-text)]" title="Outside-workspace paths require YOLO mode">
+                    <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-caption text-[var(--app-badge-warning-text)]" title="Outside-workspace paths require YOLO mode">
                         YOLO
                     </span>
                 ) : null}
                 {errorMessage ? (
-                    <span className="max-w-[8rem] truncate text-[12px] text-[var(--social-danger)]" title={errorMessage}>
+                    <span className="max-w-[8rem] truncate text-caption text-[var(--social-danger)]" title={errorMessage}>
                         !
                     </span>
                 ) : null}
@@ -359,7 +359,7 @@ export function PathActionLink(props: {
                             <img src={previewImageUrl} alt={path} className="mx-auto max-h-[70vh] max-w-full object-contain" />
                         </div>
                     ) : (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">Preview unavailable.</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">Preview unavailable.</div>
                     )}
                 </DialogContent>
             </Dialog>

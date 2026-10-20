@@ -33,7 +33,7 @@ export function Toast({ title, body, onClose, className, variant, ...props }: To
         <div className={cn(toastVariants({ variant }), className)} role="status" {...props}>
             <div className="flex items-start gap-3 p-3">
                 <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-semibold leading-5">{title}</div>
+                    <div className="text-body font-semibold leading-5">{title}</div>
                     <div className="mt-1 text-xs text-[var(--social-fg-muted)]">{body}</div>
                 </div>
                 {onClose ? (

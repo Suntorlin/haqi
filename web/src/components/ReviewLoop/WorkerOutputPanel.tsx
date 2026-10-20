@@ -4,7 +4,7 @@ import { ChevronRightIcon } from '@/components/mobile/icons'
 import { cn } from '@/lib/utils'
 import type { WorkerOutput } from '@/types/api'
 
-const CODE_BLOCK_CLASS = 'app-scrollbar min-w-0 overflow-auto rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-[12px] leading-relaxed text-[var(--social-fg)]'
+const CODE_BLOCK_CLASS = 'app-scrollbar min-w-0 overflow-auto rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-caption leading-relaxed text-[var(--social-fg)]'
 
 function Section({
     title,
@@ -27,8 +27,8 @@ function Section({
                 onClick={() => setOpen((v) => !v)}
             >
                 <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', open && 'rotate-90')} />
-                <span className="text-[15px] font-semibold text-[var(--social-fg)]">{title}</span>
-                {suffix && <span className="text-[13px]">{suffix}</span>}
+                <span className="text-body font-semibold text-[var(--social-fg)]">{title}</span>
+                {suffix && <span className="text-footnote">{suffix}</span>}
             </button>
             {open && (
                 <div className="min-w-0 overflow-hidden pb-1 pl-6">
@@ -48,7 +48,7 @@ function CommandEntry({ command, exitCode, stdout, stderr }: {
     return (
         <div className="flex min-w-0 flex-col gap-1.5">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="break-all font-mono text-[13px] text-[var(--social-fg)]">$ {command}</span>
+                <span className="break-all font-mono text-footnote text-[var(--social-fg)]">$ {command}</span>
                 <Badge variant={exitCode === 0 ? 'success' : 'destructive'}>exit {exitCode}</Badge>
             </div>
             {stdout && (
@@ -65,13 +65,13 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
     return (
         <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
             <div className="flex min-w-0 items-center gap-2">
-                <span className="text-[15px] font-semibold text-[var(--social-fg)]">Worker Output</span>
+                <span className="text-body font-semibold text-[var(--social-fg)]">Worker Output</span>
                 <Badge variant={output.exitStatus === 'success' ? 'success' : 'destructive'}>{output.exitStatus}</Badge>
             </div>
 
             {output.summary && (
                 <Section title="Summary" defaultOpen>
-                    <p className="whitespace-pre-wrap break-words text-[15px] text-[var(--social-fg)]">{output.summary}</p>
+                    <p className="whitespace-pre-wrap break-words text-body text-[var(--social-fg)]">{output.summary}</p>
                 </Section>
             )}
 
@@ -83,7 +83,7 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
                             const name = f.replace(/^[MAD]\s+/, '')
                             const prefixColor = prefix === 'D' ? 'var(--app-badge-error-text)' : prefix === 'A' ? 'var(--app-badge-success-text)' : 'var(--app-badge-info-text)'
                             return (
-                                <div key={i} className="min-w-0 truncate font-mono text-[13px]">
+                                <div key={i} className="min-w-0 truncate font-mono text-footnote">
                                     <span className="font-semibold" style={{ color: prefixColor }}>{prefix}</span>{' '}
                                     <span className="text-[var(--social-fg)]">{name}</span>
                                 </div>

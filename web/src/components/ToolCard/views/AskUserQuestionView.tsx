@@ -44,11 +44,11 @@ function renderOtherAnswers(
                     className="rounded-xl border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
-                        <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">
+                        <span className="shrink-0 text-footnote text-[var(--app-badge-success-text)]">
                             {isMulti ? '☑' : '●'}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-[13px] text-[var(--app-badge-success-text)] font-semibold break-words">
+                            <div className="text-footnote text-[var(--app-badge-success-text)] font-semibold break-words">
                                 {answer}
                             </div>
                             <div className="mt-0.5 text-xs text-[var(--social-fg-muted)]">
@@ -78,9 +78,9 @@ function renderFreeformAnswers(
                     className="rounded-xl border border-[var(--app-badge-success-border)] bg-[var(--app-badge-success-bg)] px-2 py-2"
                 >
                     <div className="flex items-start gap-2">
-                        <span className="shrink-0 text-[13px] text-[var(--app-badge-success-text)]">●</span>
+                        <span className="shrink-0 text-footnote text-[var(--app-badge-success-text)]">●</span>
                         <div className="min-w-0 flex-1">
-                            <div className="text-[13px] text-[var(--app-badge-success-text)] font-semibold break-words">
+                            <div className="text-footnote text-[var(--app-badge-success-text)] font-semibold break-words">
                                 {answer}
                             </div>
                         </div>
@@ -128,13 +128,13 @@ export function AskUserQuestionView(props: ToolViewProps) {
                         ) : null}
 
                         {q.question ? (
-                            <div className="text-[13px] text-[var(--social-fg)] break-words">
+                            <div className="text-footnote text-[var(--social-fg)] break-words">
                                 {q.question}
                             </div>
                         ) : null}
 
                         {isSkipped ? (
-                            <div className="mt-3 rounded-xl border border-[var(--social-border)] px-2 py-2 text-[13px] text-[var(--social-fg-muted)]">
+                            <div className="mt-3 rounded-xl border border-[var(--social-border)] px-2 py-2 text-footnote text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.skippedValue')}
                             </div>
                         ) : q.options.length > 0 ? (
@@ -154,7 +154,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                             <div className="flex items-start gap-2">
                                                 {hasAnswers && (
                                                     <span className={cn(
-                                                        "shrink-0 text-[13px]",
+                                                        "shrink-0 text-footnote",
                                                         isSelected
                                                             ? "text-[var(--app-badge-success-text)]"
                                                             : "text-[var(--social-fg-muted)]"
@@ -164,7 +164,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                                                 )}
                                                 <div className="min-w-0 flex-1">
                                                     <div className={cn(
-                                                        "text-[13px] break-words",
+                                                        "text-footnote break-words",
                                                         isSelected
                                                             ? "text-[var(--app-badge-success-text)] font-semibold"
                                                             : "text-[var(--social-fg)]"

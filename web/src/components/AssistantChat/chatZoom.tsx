@@ -96,7 +96,7 @@ export function useChatZoomState(
 }
 
 const MORPH_TEXT_STYLE = {
-    fontSize: 'calc(0.9375rem * var(--app-font-scale, 1))',
+    fontSize: '0.9375rem',
     lineHeight: 1.625,
     '--sz-paragraph-gap': '0.55em'
 } as React.CSSProperties
@@ -161,7 +161,7 @@ export function ChatZoomBar() {
                     <span
                         key={option.value}
                         className={cn(
-                            'flex h-7 items-center rounded-full px-3 text-[13px] transition-colors',
+                            'flex h-7 items-center rounded-full px-3 text-footnote transition-colors',
                             option.value === zoom.snap
                                 ? 'bg-[var(--social-muted)] font-semibold text-[var(--social-fg)]'
                                 : 'text-[var(--social-fg-muted)]'

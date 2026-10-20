@@ -317,7 +317,7 @@ function AppInner() {
     if (isAuthSourceLoading) {
         return (
             <div className="h-full flex items-center justify-center p-4">
-                <LoadingState label={t('loading')} className="text-[13px]" />
+                <LoadingState label={t('loading')} className="text-footnote" />
             </div>
         )
     }
@@ -355,7 +355,7 @@ function AppInner() {
     if (isAuthLoading || (authSource && !token && !authError)) {
         return (
             <div className="h-full flex items-center justify-center p-4">
-                <LoadingState label={t('authorizing')} className="text-[13px]" />
+                <LoadingState label={t('authorizing')} className="text-footnote" />
             </div>
         )
     }
@@ -381,7 +381,7 @@ function AppInner() {
             return (
                 <div className="p-4 space-y-3">
                     <div className="text-base font-semibold">{t('login.title')}</div>
-                    <div className="text-[13px] text-[var(--social-danger)]">
+                    <div className="text-footnote text-[var(--social-danger)]">
                         {authError ?? t('login.error.authFailed')}
                     </div>
                     <div className="text-xs text-[var(--social-fg-muted)]">
@@ -395,7 +395,7 @@ function AppInner() {
         return (
             <div className="p-4 space-y-3">
                 <div className="text-base font-semibold">{t('login.title')}</div>
-                <div className="text-[13px] text-[var(--social-danger)]">
+                <div className="text-footnote text-[var(--social-danger)]">
                     {authError ?? t('login.error.authFailed')}
                 </div>
                 <div className="text-xs text-[var(--social-fg-muted)]">

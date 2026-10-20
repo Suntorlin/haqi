@@ -383,7 +383,7 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
             {props.active && s.pendingRequestsCount > 0 ? (
                 <span className="shrink-0 font-semibold text-[var(--social-badge)]">
                     {t('mobile.feed.pending', { n: s.pendingRequestsCount })} ·
@@ -398,7 +398,7 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
             ) : null}
             <span className="min-w-0 truncate">{meta}</span>
             {progress ? (
-                <span className="ml-auto shrink-0 pl-1 text-[12px] tabular-nums text-[var(--social-fg-subtle)]">
+                <span className="ml-auto shrink-0 pl-1 text-caption tabular-nums text-[var(--social-fg-subtle)]">
                     {progress.completed}/{progress.total}
                 </span>
             ) : null}
@@ -567,10 +567,10 @@ function SessionItem(props: {
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className={`min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
+                                <span className={`min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
                                     {sessionName}
                                 </span>
-                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
+                                <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">
                                     {snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
                                 </span>
                             </div>
@@ -592,7 +592,7 @@ function SessionItem(props: {
                                         className={`h-2 w-2 rounded-full ${statusDotClass}`}
                                     />
                                 </span>
-                                <div className={`truncate font-semibold ${isCompact ? 'text-[15px]' : 'text-base'}`}>
+                                <div className={`truncate font-semibold ${isCompact ? 'text-body' : 'text-base'}`}>
                                     {sessionName}
                                 </div>
                             </div>
@@ -634,7 +634,7 @@ function SessionItem(props: {
                                 {userTags.map((tag) => (
                                     <span
                                         key={tag}
-                                        className="rounded-full bg-[var(--social-muted)] px-2 py-0.5 text-[12px] text-[var(--social-fg-muted)]"
+                                        className="rounded-full bg-[var(--social-muted)] px-2 py-0.5 text-caption text-[var(--social-fg-muted)]"
                                     >
                                         #{tag}
                                     </span>
@@ -925,14 +925,14 @@ function SessionGroupRow(props: {
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                     <span
                         className={minimal
-                            ? 'truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
-                            : `font-semibold break-words ${density === 'compact' ? 'text-[15px]' : 'text-base'}`}
+                            ? 'truncate text-footnote font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
+                            : `font-semibold break-words ${density === 'compact' ? 'text-body' : 'text-base'}`}
                         title={group.directory}
                     >
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
-                        <span className="shrink-0 rounded-md bg-[var(--social-hover)] px-1.5 py-0.5 text-[12px] uppercase tracking-wide text-[var(--social-fg-muted)]">
+                        <span className="shrink-0 rounded-md bg-[var(--social-hover)] px-1.5 py-0.5 text-caption uppercase tracking-wide text-[var(--social-fg-muted)]">
                             {t('misc.offline')}
                         </span>
                     ) : null}
@@ -1427,7 +1427,7 @@ export function SessionFeed(props: {
                     Scroller: SessionListScroller,
                     Header: ListHeader,
                     EmptyPlaceholder: () => (
-                        <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">
+                        <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">
                             {props.emptyLabel}
                         </div>
                     )

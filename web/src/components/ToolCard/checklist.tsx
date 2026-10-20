@@ -91,7 +91,7 @@ function checklistIcon(item: ChecklistItem): ReactNode {
 export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: string | null }) {
     if (props.items.length === 0) {
         return props.emptyLabel ? (
-            <div className="text-[13px] text-[var(--social-fg-muted)]">{props.emptyLabel}</div>
+            <div className="text-footnote text-[var(--social-fg-muted)]">{props.emptyLabel}</div>
         ) : null
     }
 
@@ -100,7 +100,7 @@ export function ChecklistList(props: { items: ChecklistItem[]; emptyLabel?: stri
             {props.items.map((item, idx) => {
                 const text = item.text.trim().length > 0 ? item.text.trim() : '(empty)'
                 return (
-                    <div key={item.id ?? String(idx)} className={`text-[13px] ${checklistTone(item)}`}>
+                    <div key={item.id ?? String(idx)} className={`text-footnote ${checklistTone(item)}`}>
                         {checklistIcon(item)} {text}
                     </div>
                 )

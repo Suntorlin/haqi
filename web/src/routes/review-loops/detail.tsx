@@ -20,7 +20,7 @@ import type { ReviewLoopUserPreference } from '@/types/api'
 function Section({ title, children }: { title: string; children: ReactNode }) {
     return (
         <section className="flex min-w-0 flex-col gap-1.5">
-            <h2 className="px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{title}</h2>
+            <h2 className="px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{title}</h2>
             {children}
         </section>
     )
@@ -61,7 +61,7 @@ export default function ReviewLoopDetailPage() {
     if (isLoading || !loop) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <LoadingState label="Loading..." className="text-[15px]" />
+                <LoadingState label="Loading..." className="text-body" />
             </div>
         )
     }
@@ -69,7 +69,7 @@ export default function ReviewLoopDetailPage() {
     if (error) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <div className="text-[15px] text-[var(--social-danger)]">{error}</div>
+                <div className="text-body text-[var(--social-danger)]">{error}</div>
             </div>
         )
     }
@@ -86,7 +86,7 @@ export default function ReviewLoopDetailPage() {
         <div className="flex h-full min-w-0 flex-col overflow-y-auto">
             <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
                 <Card>
-                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-[var(--social-fg)]">
+                    <div className="whitespace-pre-wrap text-body leading-relaxed text-[var(--social-fg)]">
                         {loop.requirement.length > 300
                             ? loop.requirement.slice(0, 300) + '...'
                             : loop.requirement}
@@ -110,7 +110,7 @@ export default function ReviewLoopDetailPage() {
                 ) : loop.acceptanceCriteria ? (
                     <Section title="Acceptance Criteria">
                         <Card>
-                            <div className="whitespace-pre-wrap text-[15px] text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
+                            <div className="whitespace-pre-wrap text-body text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
                         </Card>
                     </Section>
                 ) : null}
@@ -144,7 +144,7 @@ export default function ReviewLoopDetailPage() {
 
                 <Section title={`Timeline (${rounds.length} rounds)`}>
                     {rounds.length === 0 ? (
-                        <div className="px-1 py-2 text-[15px] text-[var(--social-fg-muted)]">No rounds yet.</div>
+                        <div className="px-1 py-2 text-body text-[var(--social-fg-muted)]">No rounds yet.</div>
                     ) : (
                         <RoundTimeline rounds={rounds} />
                     )}

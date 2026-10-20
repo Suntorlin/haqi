@@ -47,7 +47,7 @@ export function LoopSettingsPanel({
     return (
         <div className="flex min-w-0 flex-col gap-3">
             <div className="flex flex-col gap-1.5">
-                <div className="px-1 text-[13px] font-semibold text-[var(--social-fg-muted)]">Notify</div>
+                <div className="px-1 text-footnote font-semibold text-[var(--social-fg-muted)]">Notify</div>
                 <SegmentedControl
                     label="Notify"
                     value={userPreference}
@@ -56,12 +56,12 @@ export function LoopSettingsPanel({
                     disabled={disabled}
                 />
                 {activeOption ? (
-                    <p className="px-1 text-[12px] text-[var(--social-fg-subtle)]">{activeOption.description}</p>
+                    <p className="px-1 text-caption text-[var(--social-fg-subtle)]">{activeOption.description}</p>
                 ) : null}
             </div>
 
             <div className="flex items-center gap-2 border-t border-[var(--social-divider)] pt-3">
-                <span className="flex-1 px-1 text-[15px] text-[var(--social-fg)]">Rounds</span>
+                <span className="flex-1 px-1 text-body text-[var(--social-fg)]">Rounds</span>
                 <IconButton
                     variant="muted"
                                         label="Fewer rounds"
@@ -70,7 +70,7 @@ export function LoopSettingsPanel({
                 >
                     <MinusIcon className="h-4 w-4" />
                 </IconButton>
-                <span className="min-w-[4ch] text-center text-[15px] tabular-nums text-[var(--social-fg)]">
+                <span className="min-w-[4ch] text-center text-body tabular-nums text-[var(--social-fg)]">
                     {currentRound}/{maxRounds}
                 </span>
                 <IconButton

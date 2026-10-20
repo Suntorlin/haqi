@@ -86,15 +86,15 @@ export function MemoryDetail(props: {
     return (
         <div className="space-y-5 px-4 pb-6">
             {pending && memory.reason ? (
-                <p className="text-[15px] leading-relaxed text-[var(--social-fg)]">
+                <p className="text-body leading-relaxed text-[var(--social-fg)]">
                     {memory.reason}
-                    {replaced ? <span className="mt-1 block text-[13px] text-[var(--social-fg-muted)]">确认后会替换：{replaced.text}</span> : null}
+                    {replaced ? <span className="mt-1 block text-footnote text-[var(--social-fg-muted)]">确认后会替换：{replaced.text}</span> : null}
                 </p>
             ) : null}
             {onTrial ? (
-                <p className="text-[15px] leading-relaxed text-[var(--social-fg)]">
+                <p className="text-body leading-relaxed text-[var(--social-fg)]">
                     观察中：{trialLabel(props.trial)}
-                    {memory.reason ? <span className="mt-1 block text-[13px] text-[var(--social-fg-muted)]">{memory.reason}</span> : null}
+                    {memory.reason ? <span className="mt-1 block text-footnote text-[var(--social-fg-muted)]">{memory.reason}</span> : null}
                 </p>
             ) : null}
 
@@ -119,7 +119,7 @@ export function MemoryDetail(props: {
             </FormField>
 
             {jev ? (
-                <p className="px-1 text-[13px] text-[var(--social-fg-muted)]">
+                <p className="px-1 text-footnote text-[var(--social-fg-muted)]">
                     Jev：要记 <Score value={jev.keep} /> · {LEVEL_LABEL[jev.level.choice]} <Score value={jev.level.confidence} /> · {jev.scope.choice === 'project' && jev.project ? jev.project : '全局'} <Score value={jev.scope.confidence} />
                     {changed ? ` · 你改过${changed}` : ''}
                 </p>
@@ -154,7 +154,7 @@ export function MemoryDetail(props: {
                 </ListGroup>
             ) : null}
 
-            <p className="px-1 text-[13px] text-[var(--social-fg-muted)]">
+            <p className="px-1 text-footnote text-[var(--social-fg-muted)]">
                 {sourceLabel(memory)} · {formatWhen(memory.createdAt)} · {scopeLabel(memory.scope)}
                 {memory.support > 1 ? ` · 被提到 ${memory.support} 次` : ''}
                 {memory.version > 1 ? ` · 第 ${memory.version} 版` : ''}

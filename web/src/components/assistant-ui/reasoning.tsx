@@ -42,7 +42,7 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-[13px] text-[var(--social-fg-muted)]')}
+            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-footnote text-[var(--social-fg-muted)]')}
         />
     )
 }

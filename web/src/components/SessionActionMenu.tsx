@@ -89,13 +89,13 @@ function TagsSubmenu(props: {
                     disabled={!props.onTagsChange || props.pending}
                     onSelect={() => toggle(tag)}
                     trailing={(
-                        <span className={cn('text-[15px]', selected.includes(tag) ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
+                        <span className={cn('text-body', selected.includes(tag) ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
                             ✓
                         </span>
                     )}
                 />
             )) : (
-                <div className="px-3 py-2.5 text-[15px] text-[var(--social-fg-muted)]">{t('session.action.noTags')}</div>
+                <div className="px-3 py-2.5 text-body text-[var(--social-fg-muted)]">{t('session.action.noTags')}</div>
             )}
             <ContextMenuSeparator />
             <ContextMenuItem
@@ -118,7 +118,7 @@ function TaskOptions(props: {
 }) {
     const { t } = useTranslation()
     if (props.tasks.length === 0) {
-        return <div className="px-3 py-2.5 text-[15px] text-[var(--social-fg-muted)]">{t('session.action.noTasks')}</div>
+        return <div className="px-3 py-2.5 text-body text-[var(--social-fg-muted)]">{t('session.action.noTasks')}</div>
     }
     return (
         <>
@@ -132,7 +132,7 @@ function TaskOptions(props: {
                         checked={linked}
                         onSelect={() => props.onToggle(task, !linked)}
                         trailing={(
-                            <span className={cn('text-[15px]', linked ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
+                            <span className={cn('text-body', linked ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
                                 ✓
                             </span>
                         )}
@@ -223,7 +223,7 @@ export function SnoozeOptions(props: { onSnooze: (until: number) => void; onCust
                     icon={spacer}
                     label={t(`dialog.snooze.${preset.key}`)}
                     trailing={(
-                        <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">
+                        <span className="shrink-0 text-footnote text-[var(--social-fg-muted)]">
                             {formatSnoozeWake(preset.until, now, locale, t)}
                         </span>
                     )}

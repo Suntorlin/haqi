@@ -43,8 +43,8 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
         <>
             <NodeToolbar isVisible={tip} position={Position.Top} offset={10}>
                 <div className="w-[280px] rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3 shadow-[var(--shadow-float)]">
-                    <p className="text-[13px] leading-relaxed text-[var(--social-fg)]">{memory.text}</p>
-                    <p className="mt-1.5 text-[12px] text-[var(--social-fg-muted)]">
+                    <p className="text-footnote leading-relaxed text-[var(--social-fg)]">{memory.text}</p>
+                    <p className="mt-1.5 text-caption text-[var(--social-fg-muted)]">
                         {LEVEL_LABEL[memory.level]} · {scopeLabel(memory.scope)}{memory.status === 'pending' ? ' · 等你确认' : memory.status === 'candidate' ? ' · 观察中' : ''} · 点击编辑
                     </p>
                 </div>
@@ -56,7 +56,7 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
             <div
                 style={{ width: NODE_W, height: NODE_H }}
                 className={cn(
-                    'flex items-center gap-2 rounded-full border px-3 text-[13px] transition-opacity',
+                    'flex items-center gap-2 rounded-full border px-3 text-footnote transition-opacity',
                     principle && 'border-[var(--social-primary)] bg-[var(--social-primary)] font-semibold text-[var(--social-primary-fg)]',
                     memory.level === 'experience' && !pending && 'border-[var(--social-fg-subtle)] bg-[var(--social-surface)] text-[var(--social-fg)]',
                     memory.level === 'fact' && !pending && 'border-[var(--social-muted)] bg-[var(--social-muted)] text-[var(--social-fg-muted)]',
@@ -77,11 +77,11 @@ function BoxNode(props: NodeProps<BoxFlowNode>) {
     return (
         <div style={{ width: box.width, height: box.height }} className="relative rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)]">
             <div className="flex items-baseline gap-2 px-6 pt-4">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg)]">{box.label}</span>
-                <span className="text-[12px] text-[var(--social-fg-muted)]">{box.count} 条</span>
+                <span className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg)]">{box.label}</span>
+                <span className="text-caption text-[var(--social-fg-muted)]">{box.count} 条</span>
             </div>
             {(['principle', 'experience', 'fact'] as const).map((level) => (
-                <div key={level} className="absolute left-6 text-[12px] text-[var(--social-fg-muted)]" style={{ top: box.rowY[level] - box.y + NODE_H / 2 - 8 }}>
+                <div key={level} className="absolute left-6 text-caption text-[var(--social-fg-muted)]" style={{ top: box.rowY[level] - box.y + NODE_H / 2 - 8 }}>
                     {LEVEL_LABEL[level]}
                 </div>
             ))}
@@ -107,7 +107,7 @@ const EDGE_TYPES = { route: RouteEdge }
 
 function Legend() {
     return (
-        <div className="flex items-center gap-4 text-[12px] text-[var(--social-fg-muted)]">
+        <div className="flex items-center gap-4 text-caption text-[var(--social-fg-muted)]">
             <span className="flex items-center gap-1.5"><LevelIcon level="principle" className="h-3.5 w-3.5 text-[var(--social-fg)]" />原则</span>
             <span className="flex items-center gap-1.5"><LevelIcon level="experience" className="h-3.5 w-3.5 text-[var(--social-fg)]" />经验</span>
             <span className="flex items-center gap-1.5"><LevelIcon level="fact" className="h-3.5 w-3.5 text-[var(--social-fg)]" />事实</span>
@@ -233,7 +233,7 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
                         placeholder="搜索记忆，回车定位"
                         aria-label="搜索记忆"
                         leading={<SearchIcon className="h-[18px] w-[18px]" />}
-                        trailing={needle ? <span className="pr-3 text-[12px] text-[var(--social-fg-muted)]">{matches.length} 条</span> : undefined}
+                        trailing={needle ? <span className="pr-3 text-caption text-[var(--social-fg-muted)]">{matches.length} 条</span> : undefined}
                     />
                 </div>
                 {props.mobile ? null : <Legend />}
