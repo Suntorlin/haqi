@@ -739,13 +739,19 @@ export class MemoryService {
                 if (gone.has(item.memory.id)) continue
                 const twins = answer.same.filter((s) => s.yes >= THRESHOLDS.match && !gone.has(s.memory.id))
                 if (twins.length === 0) continue
-                const group = [this.store.memories.get(item.memory.id, namespace)!, ...twins.map((s) => this.store.memories.get(s.memory.id, namespace)!)]
+                // Read again: the user may have merged or archived some of them while Jev was answering.
+                const group = [item.memory, ...twins.map((s) => s.memory)]
+                    .map((m) => this.store.memories.get(m.id, namespace))
+                    .filter((m): m is StoredMemory => Boolean(m) && m!.status !== 'archived')
+                if (group.length < 2) continue
                 const sure = Math.min(...twins.map((s) => s.yes))
                 const merged = await this.combine(namespace, group, { apiKey, by: 'jev', reason: `Jev 认为 ${group.length} 条说的是同一件事（把握 ${sure.toFixed(2)}）` })
                 result.costUsd += merged.costUsd
                 for (const memory of group) if (memory.id !== merged.memory.id) gone.add(memory.id)
                 result.merged += group.length - 1
             }
+            // Jev is down: stop here and try the rest next time, instead of failing once per memory.
+            if (answers.includes(null)) break
         }
     }
 
@@ -757,7 +763,7 @@ export class MemoryService {
 
     /**
      * Several memories become one: the strongest stays (its status and level), the others are archived into it.
-     * Mentions add up, links move over, the scope is kept only when all share it, and the text is written again from all
+     * Mentions add up, links move over, a global one makes the result global, and the text is written again from all
      * of them. Jev's merges keep the stronger text when a weaker memory would add words the user has not approved.
      * What changed is kept on the event, so the merge can be undone.
      */
@@ -863,7 +869,8 @@ export class MemoryService {
         if (!event || event.action !== 'merged' || !detail?.keep) return null
         const { keep } = detail
         const current = this.store.memories.get(keep.id, namespace)
-        if (!current) return null
+        // Only the newest merge into a memory that is still there: an older one would throw away what came after it.
+        if (!current || current.status === 'archived' || this.store.memories.merges(namespace).find((e) => e.memoryId === keep.id)?.id !== eventId) return null
         for (const [from, to] of detail.links) this.store.memories.unlink(namespace, from, to)
         for (const drop of detail.drops) {
             if (this.store.memories.get(drop.id, namespace)?.status === 'archived') this.store.memories.update(drop.id, namespace, { status: drop.status, reason: drop.reason })
@@ -961,9 +968,9 @@ function mayMerge(a: StoredMemory, b: StoredMemory): boolean {
     return a.id !== b.id && a.replaces !== b.id && b.replaces !== a.id
 }
 
-/** One project when all share it; global when any is global or they come from different projects. */
+/** Global when any of them is global; otherwise the kept one's project, the narrower reading. */
 function mergedScope(group: StoredMemory[], keep: StoredMemory): string {
-    return group.every((m) => m.scope === keep.scope) ? keep.scope : ''
+    return group.every((m) => m.scope) ? keep.scope : ''
 }
 
 function parseJson(raw: string | null): unknown {

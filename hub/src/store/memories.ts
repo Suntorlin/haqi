@@ -291,7 +291,7 @@ export function setMemoryEventAction(db: Database, id: string, namespace: string
 
 /** Merges that can still be undone, newest first. */
 export function listMergeEvents(db: Database, namespace: string): StoredMemoryEvent[] {
-    const rows = db.prepare("SELECT * FROM memory_events WHERE namespace = ? AND action = 'merged' AND detail IS NOT NULL ORDER BY created_at DESC").all(namespace) as DbEventRow[]
+    const rows = db.prepare("SELECT * FROM memory_events WHERE namespace = ? AND action = 'merged' AND detail IS NOT NULL ORDER BY created_at DESC, rowid DESC").all(namespace) as DbEventRow[]
     return rows.map(toStoredEvent)
 }
 

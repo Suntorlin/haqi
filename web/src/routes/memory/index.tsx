@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { CheckIcon, MoreHorizontalIcon } from '@/components/mobile/icons'
@@ -78,6 +78,7 @@ export function MemoryPage() {
     const [archiveOpen, setArchiveOpen] = useState(false)
     /** The merge the notice can undo. */
     const [undoId, setUndoId] = useState<string | null>(null)
+    const scroller = useRef<HTMLDivElement>(null)
     const needle = useDebounced(search.trim(), 300)
 
     const query = useQuery({
@@ -318,7 +319,7 @@ export function MemoryPage() {
                     </div>
                 </div>
             ) : (
-                <div className="min-h-0 flex-1 overflow-y-auto">
+                <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
                     <div className="mx-auto max-w-content px-4 pb-8">
                         {desktopTitle}
                         <div className="pt-2">
@@ -346,7 +347,10 @@ export function MemoryPage() {
                         {selected && selected.size > 0 ? (
                             <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex gap-2 border-t border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3">
                                 <Button variant="secondary" className="flex-1" disabled={action.isPending} onClick={() => setArchiveOpen(true)}>{t('memoryPage.select.archive', { count: selected.size })}</Button>
-                                <Button className="flex-1" disabled={action.isPending || selected.size < 2} onClick={() => setMergeIds([...selected])}>{t('memoryPage.select.merge', { count: selected.size })}</Button>
+                                <Button className="flex-1" disabled={action.isPending || selected.size < 2} onClick={() => {
+                                    action.reset()
+                                    setMergeIds([...selected])
+                                }}>{t('memoryPage.select.merge', { count: selected.size })}</Button>
                             </div>
                         ) : null}
                     </div>
@@ -369,6 +373,7 @@ export function MemoryPage() {
                         onDismiss={() => run(() => api!.dismissMemoryItem(open.id), () => setOpenId(null))}
                         trial={data?.trial[open.id]}
                         onMerge={(other) => {
+                            action.reset()
                             setOpenId(null)
                             setMergeIds([open.id, other])
                         }}
@@ -388,6 +393,7 @@ export function MemoryPage() {
                         ids={mergeIds}
                         all={memories}
                         busy={action.isPending}
+                        error={!action.isPending && action.error instanceof Error ? action.error.message : null}
                         onCancel={() => setMergeIds(null)}
                         onMerge={(text) => run(async () => {
                             const result = await api!.mergeMemories(mergeIds, text)
@@ -395,6 +401,8 @@ export function MemoryPage() {
                         }, () => {
                             setMergeIds(null)
                             setSelected(null)
+                            // The notice with its undo sits at the top of the list.
+                            scroller.current?.scrollTo({ top: 0, behavior: 'smooth' })
                         })}
                     />
                 ) : null}
