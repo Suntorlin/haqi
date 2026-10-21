@@ -129,7 +129,7 @@ export function Checklist(props: { items: CheckItem[] }) {
                     <>
                         <CheckRing state={item.state} />
                         <span className="min-w-0 flex-1">
-                            <span className={cn('block text-body leading-snug', item.state === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
+                            <span className={cn('block text-body leading-snug', item.onClick && 'line-clamp-2', item.state === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
                                 {item.title}
                             </span>
                             {item.subtitle ? <span className="mt-0.5 block text-footnote leading-snug text-[var(--social-fg-muted)]">{item.subtitle}</span> : null}

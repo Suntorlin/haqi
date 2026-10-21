@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from '@/lib/use-translation'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/InfoTip'
 import { Switch } from '@/components/ui/Switch'
 
 export type NewTaskInput = { text: string; draft: boolean }
@@ -55,13 +56,13 @@ export function NewTaskForm(props: {
                 onChange={(event) => setText(event.target.value)}
                 onSubmitKey={() => void submit()}
             />
-            <label className="flex min-h-11 items-center gap-3">
-                <span className="min-w-0 flex-1">
-                    <span className="block text-body text-[var(--social-fg)]">{t('tasks.draftToggle')}</span>
-                    <span className="block text-footnote text-[var(--social-fg-muted)]">{draft ? t('tasks.newHint') : t('tasks.plainHint')}</span>
+            <div className="flex min-h-11 items-center gap-3">
+                <span className="flex min-w-0 flex-1 items-center gap-1.5 text-body text-[var(--social-fg)]">
+                    {t('tasks.draftToggle')}
+                    <InfoTip text={draft ? t('tasks.newHint') : t('tasks.plainHint')} />
                 </span>
                 <Switch checked={draft} onCheckedChange={setDraft} ariaLabel={t('tasks.draftToggle')} />
-            </label>
+            </div>
             {error ? <p className="text-footnote text-[var(--social-danger)]">{error}</p> : null}
             <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={props.onCancel}>{t('button.cancel')}</Button>
