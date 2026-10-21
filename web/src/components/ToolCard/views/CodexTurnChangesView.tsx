@@ -6,6 +6,7 @@ import { resolveDisplayPath } from '@/utils/path'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type ChangeFile = {
     path: string
@@ -474,9 +475,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                 {t('tool.turnChanges.files', { n: files.length })}
             </div>
             {files.length === 0 ? (
-                <div className="px-2 py-3 text-xs text-[var(--social-fg-muted)]">
-                    {t('tool.turnChanges.empty')}
-                </div>
+                <EmptyState title={t('tool.turnChanges.empty')} />
             ) : (
                 <div className="max-h-72 overflow-y-auto md:max-h-[28rem]">
                     {files.map((file) => {
@@ -539,9 +538,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     </div>
                 </>
             ) : (
-                <div className="px-2 py-3 text-xs text-[var(--social-fg-muted)]">
-                    {t('tool.turnChanges.noSelection')}
-                </div>
+                <EmptyState title={t('tool.turnChanges.noSelection')} />
             )}
 
             {mobile ? (
