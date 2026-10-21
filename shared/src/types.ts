@@ -63,5 +63,7 @@ export type {
     TaskSignal,
     CriterionVerdict,
     TaskReview,
-    TaskRun
+    TaskRun,
+    SubtaskLive,
+    TaskWatchEntry
 } from './tasks'

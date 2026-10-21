@@ -3,7 +3,7 @@
  * a report waits for the user. Every step is an event; the run state below is read back from the log, so the task
  * page and the report come from the same record.
  */
-import type { CriterionVerdict, SubtaskState, TaskDecision, TaskPhase, TaskRun, TaskSignal, TaskSubtask } from '@hapi/protocol/types'
+import type { CriterionVerdict, SubtaskState, TaskDecision, TaskPhase, TaskRun, TaskSignal, TaskSubtask, TaskWatchEntry } from '@hapi/protocol/types'
 import { z } from 'zod'
 import type { StoredTaskEvent } from '../../store/types'
 
@@ -17,12 +17,17 @@ export const RUN_EVENT = {
     decisionAsked: 'decision_asked',
     decisionAnswered: 'decision_answered',
     signal: 'signal',
+    /** A log-only observer entry, e.g. a read-only request it approved for the lead. */
+    watch: 'watch',
     integrated: 'integrated',
     reviewStarted: 'review_started',
     reviewSubmitted: 'review_submitted',
     reportReady: 'report_ready',
     verdict: 'verdict'
 } as const
+
+/** The task page shows the newest entries of the observer's log. */
+const WATCH_LOG_MAX = 50
 
 export const RUN_LIMITS = { subtasks: 5, concurrency: 3, reviewRounds: 2 } as const
 
@@ -83,6 +88,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
     const subtasks = new Map<string, TaskSubtask>()
     const decisions = new Map<string, TaskDecision>()
     const signals = new Map<string, TaskSignal>()
+    const log: TaskWatchEntry[] = []
     let integration: TaskRun['integration'] = null
     let review: TaskRun['review'] = null
     let report: TaskRun['report'] = null
@@ -153,14 +159,20 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
             }
             case RUN_EVENT.signal:
                 if (p.cleared) signals.delete(String(p.key))
-                else signals.set(String(p.key), {
-                    key: String(p.key),
-                    kind: p.kind as TaskSignal['kind'],
-                    text: String(p.text),
-                    sessionId: (p.sessionId as string | null) ?? null,
-                    at: event.createdAt,
-                    notified: Boolean(p.notified)
-                })
+                else {
+                    signals.set(String(p.key), {
+                        key: String(p.key),
+                        kind: p.kind as TaskSignal['kind'],
+                        text: String(p.text),
+                        sessionId: (p.sessionId as string | null) ?? null,
+                        at: event.createdAt,
+                        notified: Boolean(p.notified)
+                    })
+                    log.push({ at: event.createdAt, kind: p.kind as TaskSignal['kind'], text: String(p.text), notified: Boolean(p.notified) })
+                }
+                break
+            case RUN_EVENT.watch:
+                log.push({ at: event.createdAt, kind: p.kind as TaskWatchEntry['kind'], text: String(p.text), notified: false })
                 break
             case RUN_EVENT.integrated:
                 integration = { branch: String(p.branch), worktree: String(p.worktreePath), summary: (p.summary as string | null) ?? null }
@@ -185,7 +197,8 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
         signals: [...signals.values()],
         integration,
         review,
-        report
+        report,
+        watch: { checkedAt: null, log: log.slice(-WATCH_LOG_MAX) }
     }
 }
 

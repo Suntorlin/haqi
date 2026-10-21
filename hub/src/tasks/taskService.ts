@@ -1,4 +1,4 @@
-import type { TaskDraft, TaskGuideState, TaskLoad, TaskView } from '@hapi/protocol/types'
+import type { TaskDraft, TaskGuideState, TaskLoad, TaskRun, TaskView } from '@hapi/protocol/types'
 
 import { projectNameFor } from '../memory/harvest'
 import type { MemoryService } from '../memory/service'
@@ -432,7 +432,7 @@ export class TaskService {
             guide: { ...guideState(task, events), request },
             draft: task.status === 'guiding' ? (findLast(events, TASK_EVENT.draftSubmitted)?.payload as TaskDraft | undefined) ?? null : null,
             load: this.host.load?.(namespace, members.map((m) => m.sessionId), task.createdAt) ?? null,
-            run: task.status === 'guiding' ? null : readRun(events),
+            run: task.status === 'guiding' ? null : decorate(readRun(events), this.runs),
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             completedAt: task.completedAt
@@ -482,4 +482,9 @@ export function commonFolder(paths: string[]): string | null {
     // A single repository: its parent, so a sibling repository is readable too.
     if (paths.length === 1 || new Set(paths).size === 1) shared.pop()
     return shared.length > 0 ? `/${shared.join('/')}` : null
+}
+
+/** Adds what the observer saw, when the run service is wired in. */
+function decorate(run: TaskRun | null, runs: RunService | null): TaskRun | null {
+    return run && runs ? runs.decorate(run) : run
 }
