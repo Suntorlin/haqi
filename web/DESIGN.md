@@ -140,6 +140,7 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `SessionDockLayout`, `useSessionDock` | `components/`, `hooks/` | Desktop: terminal / preview docked left or right of the chat, resizable, open on the right by default. |
 | `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. Full-screen detail pages on phones (tool card, turn details) use `SubPageHeader` too; never draw a custom back row. |
 | Settings helpers | `components/settings/SettingsParts.tsx` | `SettingsGroup`, `SettingsBlock`, `SettingsSelectRow`, ... built on `ListGroup` / `ListRow`. |
+| Report kit | `components/report/` | The lead's live report: `ReportSummary` + `StatTiles` (conclusion first), `DecisionCard` / `DecisionPeek` / `DecisionConfirmation` (options with upside / cost, one primary answer), `ProgressList` (ring orb + one-line status per goal), `Checklist` (acceptance checks, live rows open detail), `RiskNotice`, `SectionCaption`, `LeadComposer` (latest message + pill input), `VerdictBar` (approve / needs changes), `ProgressOrb`, `CheckRing`. Presentational: business passes data; fixed labels via `report.*` i18n keys. |
 | `HIT_AREA_CLASS`, `TEXT_HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. For a 28px button use `size="xs"` instead. |
 
 Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new primitive there (light + dark) in the same change.

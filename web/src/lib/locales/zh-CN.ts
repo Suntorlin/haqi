@@ -1463,4 +1463,20 @@ export default {
   'brief.turn.changes': '本轮改动（+{additions} -{deletions}）',
   'brief.turn.loadOlder': '加载更早的轮次',
   'brief.turn.loadingOlder': '正在加载更早的轮次…',
+
+  // Report kit (components/report)
+  'report.option.recommended': '建议',
+  'report.option.good': '好处：{text}',
+  'report.option.cost': '代价：{text}',
+  'report.decision.pick': '就选「{label}」',
+  'report.decision.ask': '问一下',
+  'report.decision.confirmed': '好，按「{label}」办',
+  'report.check.waiting': '等你',
+  'report.composer.lead': '负责人',
+  'report.composer.me': '你',
+  'report.composer.allChats': '全部对话',
+  'report.composer.placeholder': '跟负责人说…',
+  'report.composer.send': '发送',
+  'report.verdict.approve': '通过',
+  'report.verdict.change': '要改',
 } as const
