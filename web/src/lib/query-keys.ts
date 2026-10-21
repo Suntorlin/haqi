@@ -1,6 +1,8 @@
 export const queryKeys = {
     sessions: ['sessions'] as const,
     tasks: ['tasks'] as const,
+    /** Under `tasks`, so a task-updated event refreshes it with the list. */
+    task: (taskId: string) => ['tasks', taskId] as const,
     session: (sessionId: string) => ['session', sessionId] as const,
     messages: (sessionId: string) => ['messages', sessionId] as const,
     turns: (sessionId: string) => ['turns', sessionId] as const,

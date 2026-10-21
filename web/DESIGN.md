@@ -118,12 +118,13 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `Button` | `button.tsx` | `variant`: default (primary) / secondary / outline / ghost / destructive; `size`: default 44 / sm 36 / lg 48 / xs 28 (keeps a 44px hit area); pill. `buttonVariants()` for link-as-button. |
 | `IconButton` | `IconButton.tsx` | Icon-only, `label` **required** (aria + tooltip); `variant` ghost / muted / filled; `size` default 44 / sm 36 / xs 28 (code blocks, attachments, card headers; keeps a 44px hit area). Never shrink it with `h-6`/`h-7`. |
 | `TextField` | `TextField.tsx` | 44px, 16px. `variant` field (bordered, 12px) / pill (borderless address / search bar); `leading`, `trailing`, `invalid`. Textareas: use `DIALOG_INPUT_CLASS` (`RenameSessionDialog.tsx`). |
+| `AutoTextarea` | `AutoTextarea.tsx` | Multi-line field that grows with its text (`minRows`, `maxRows`), dialog-field look. Enter is a new line; submit with a button or `onSubmitKey` (Cmd/Ctrl+Enter). New-task text and edits on a task card. |
 | `FormField`, `FieldHint`, `SelectInput`, `ChoiceChips`, `SegmentedControl` | `FormControls.tsx` | Caption + control + hint; native select skin; single-choice pills; 2-3 option segmented control. |
 | `Chip` | `Chip.tsx` | 32px pill, `selected` = filled. Filters, choices, shortcuts. `size="sm"` (24px, `text-caption`, 44px hit area) for a chip inside a line of text. `tagChipClass()` (`tagChip.ts`) = same look for session tags. |
 | `Badge` | `badge.tsx` | **State** pill (no border): default / solid / info / success / warning / destructive; `dot`, `live`. Never for actions. |
 | `CountBadge`, `DotBadge` | `badge.tsx` | **Unread** (brand red). Position with `absolute -right-1 -top-1` on a `relative` parent. |
 | `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows.; `className` for a row outside a group. `FEED_ROW_CLASS` (same file) = avatar + two-line rows in the session, group and loop lists. |
-| `CheckRow` | `CheckRow.tsx` | A row the user ticks on or off (44px checkbox, text, optional trailing `Badge`). Unticked stays visible, struck through; `onEdit` makes the text tappable to edit. Acceptance criteria in a task's guide step. |
+| `CheckRow` | `CheckRow.tsx` | A row the user ticks on or off: 44px checkbox, text, optional `subtitle` and `tag` (a source `Badge`), and with `onEdit` a pencil `IconButton` on the right. Unticked stays visible, struck through. Acceptance criteria on a task card. |
 | `Switch`, `SwitchTrack` | `Switch.tsx` | Monochrome toggle. |
 | `SettingChip`, `ToggleChip` | `SettingChip.tsx` | Composer-toolbar setting that opens a sheet (phone) or menu (desktop). |
 | `SwitchChip` | `SettingChip.tsx` | Two-state setting shown as its value; one tap flips it (send mode: direct / queue). |

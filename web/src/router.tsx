@@ -21,9 +21,8 @@ import { MemoryPage } from '@/routes/memory'
 import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
-import { AllTasksView, TagTasksSection } from '@/components/SessionTasksPanel'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, QueueListIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -52,8 +51,7 @@ import { useConversationTurns } from '@/hooks/queries/useConversationTurns'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessions } from '@/hooks/queries/useSessions'
-import { useTasks } from '@/hooks/queries/useTasks'
-import { isTaskOpen } from '@/lib/tasks'
+import { useTaskActions, useTasks } from '@/hooks/queries/useTasks'
 import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
@@ -78,7 +76,10 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
-import type { GroupDetail, SessionSummary } from '@/types/api'
+import type { GroupDetail, SessionSummary, TaskStatus, TaskView } from '@/types/api'
+import { Badge, DotBadge } from '@/components/ui/badge'
+import { SegmentedControl } from '@/components/ui/FormControls'
+import { NewTaskForm } from '@/components/tasks/NewTaskForm'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
@@ -229,7 +230,6 @@ function SessionsPage() {
     const { t } = useTranslation()
     const { addToast } = useToast()
     const { sessions, isLoading, error, refetch } = useSessions(api)
-    const { tasks: sessionTasks, isLoading: sessionTasksLoading } = useTasks(api)
     const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
     const { density } = useSessionListDensity()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
@@ -238,12 +238,7 @@ function SessionsPage() {
     const [sessionSearchQuery, setSessionSearchQuery] = useState('')
     const [sessionSearchOpen, setSessionSearchOpen] = useState(false)
     const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
-    // "All tasks" replaces the session list with every task, grouped by tag.
-    const [showAllTasks, setShowAllTasks] = useState(false)
-    const selectTagView = useCallback((tag: string | null) => {
-        setSelectedSessionTag(tag)
-        setShowAllTasks(false)
-    }, [])
+    const selectTagView = setSelectedSessionTag
     const [sessionTagOrder, setSessionTagOrder] = useState<string[]>(loadSessionTagOrder)
     const tagSensors = useSensors(
         useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -273,11 +268,10 @@ function SessionsPage() {
         }
     }, [selectedSessionId, sessions])
 
-    // A tag with open tasks keeps its filter even when no session carries it any more.
-    const sessionTags = useMemo(() => Array.from(new Set([
-        ...sessions.flatMap((session) => getUserTags(session)),
-        ...sessionTasks.filter(isTaskOpen).map((task) => task.tag)
-    ])).sort((a, b) => a.localeCompare(b)), [sessions, sessionTasks])
+    const sessionTags = useMemo(
+        () => Array.from(new Set(sessions.flatMap((session) => getUserTags(session)))).sort((a, b) => a.localeCompare(b)),
+        [sessions]
+    )
     const orderedSessionTags = useMemo(
         () => applySessionTagOrder(sessionTags, sessionTagOrder),
         [sessionTags, sessionTagOrder]
@@ -515,25 +509,12 @@ function SessionsPage() {
                     <button
                         type="button"
                         onClick={() => selectTagView(null)}
-                        className={`${tagChipClass(selectedSessionTag === null && !showAllTasks)} inline-flex items-center justify-center px-2.5`}
+                        className={`${tagChipClass(selectedSessionTag === null)} inline-flex items-center justify-center px-2.5`}
                         aria-label={t('sessions.tags.all')}
-                        aria-pressed={selectedSessionTag === null && !showAllTasks}
+                        aria-pressed={selectedSessionTag === null}
                         title={t('sessions.tags.all')}
                     >
                         <TagIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setSelectedSessionTag(null)
-                            setShowAllTasks(true)
-                        }}
-                        className={`${tagChipClass(showAllTasks)} inline-flex items-center justify-center px-2.5`}
-                        aria-label={t('sessions.tags.allTasks')}
-                        aria-pressed={showAllTasks}
-                        title={t('sessions.tags.allTasks')}
-                    >
-                        <QueueListIcon className="h-4 w-4" />
                     </button>
                     {isMobileLayout ? orderedSessionTags.map((tag) => (
                         <button
@@ -561,32 +542,10 @@ function SessionsPage() {
                     )}
                 </div>
             ) : null}
-            {selectedSessionTag && !sessionSearchQuery ? (
-                <TagTasksSection
-                    tag={selectedSessionTag}
-                    tasks={sessionTasks}
-                    sessions={sessions}
-                    selectedSessionId={selectedSessionId}
-                    onSelectSession={selectSession}
-                    api={api}
-                />
-            ) : null}
         </div>
     )
 
-    const listBody = showAllTasks ? (
-        <AllTasksView
-            tasks={sessionTasks}
-            tagOrder={orderedSessionTags}
-            sessions={sessions}
-            selectedSessionId={selectedSessionId}
-            onSelectSession={selectSession}
-            onOpenTag={selectTagView}
-            api={api}
-            isLoading={sessionTasksLoading}
-            header={listHeader}
-        />
-    ) : mobileListMode === 'recent' ? (
+    const listBody = mobileListMode === 'recent' ? (
         <SessionFeed
             sessions={visibleSessions}
             snoozedSessions={snoozedSessions}
@@ -975,8 +934,22 @@ function NewSessionPage() {
     )
 }
 
+/** The second line of a task group's row: where the guide step is, else the task's tag and goal. */
+function taskRowSubtitle(item: GroupDetail, task: TaskView | undefined, t: ReturnType<typeof useTranslation>['t']): string {
+    if (item.group.status === 'guiding' && task) {
+        if (task.guide.state === 'ready') return t('tasks.guideReady')
+        if (task.guide.state === 'failed') return t('tasks.guideFailed')
+        return t('tasks.guideWorking')
+    }
+    return [item.group.tag ? `#${item.group.tag}` : null, item.group.goal].filter(Boolean).join(' · ')
+}
+
+const TASK_STATUS_BADGE: Record<TaskStatus, 'warning' | 'info' | 'default'> = { guiding: 'warning', active: 'info', done: 'default', abandoned: 'default' }
+
 function GroupRow(props: {
     item: GroupDetail
+    /** Set for a task group. */
+    task?: TaskView
     members: SessionSummary[]
     selected?: boolean
     onSelect: (groupId: string) => void
@@ -994,6 +967,7 @@ function GroupRow(props: {
         threshold: 500
     })
     const hasLiveMember = members.some((member) => member.thinking)
+    const status = item.group.kind === 'task' ? item.group.status ?? null : null
 
     return (
         <button
@@ -1007,15 +981,23 @@ function GroupRow(props: {
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">{item.group.name}</span>
+                    {status ? <Badge variant={TASK_STATUS_BADGE[status]} className="shrink-0 self-center">{t(`tasks.status.${status}`)}</Badge> : null}
                     <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
                 </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
                     {hasLiveMember ? (
                         <span className="shrink-0 font-semibold text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
                     ) : null}
+                    {status && item.group.status === 'guiding' && props.task?.guide.state === 'ready' ? (
+                        <DotBadge className="shrink-0" />
+                    ) : null}
                     <span className="min-w-0 truncate">
-                        {t('mobile.groups.members', { n: item.members.length })}
-                        {item.group.description?.trim() ? ` · ${item.group.description}` : ''}
+                        {status ? taskRowSubtitle(item, props.task, t) : (
+                            <>
+                                {t('mobile.groups.members', { n: item.members.length })}
+                                {item.group.description?.trim() ? ` · ${item.group.description}` : ''}
+                            </>
+                        )}
                     </span>
                 </div>
             </div>
@@ -1047,6 +1029,8 @@ function GroupsLayout() {
     const { groups, isLoading } = useGroups(api)
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [showCreateModal, setShowCreateModal] = useState(false)
+    // One "+" for both: a task (the default) or a plain chat group.
+    const [createKind, setCreateKind] = useState<'task' | 'chat'>('task')
     const [groupSearchQuery, setGroupSearchQuery] = useState('')
     const [newGroupName, setNewGroupName] = useState('')
     const [newGroupDesc, setNewGroupDesc] = useState('')
@@ -1064,6 +1048,13 @@ function GroupsLayout() {
     const isMobileLayout = useIsMobileLayout()
     const { sessions: allSessions } = useSessions(api)
     const sessionsById = useMemo(() => new Map(allSessions.map((session) => [session.id, session])), [allSessions])
+    const { tasks } = useTasks(api)
+    const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
+    const { createTask } = useTaskActions(api)
+    const taskTags = useMemo(
+        () => applySessionTagOrder(Array.from(new Set(allSessions.flatMap((session) => getUserTags(session)))).sort((a, b) => a.localeCompare(b)), loadSessionTagOrder()),
+        [allSessions]
+    )
 
     const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
@@ -1185,10 +1176,31 @@ function GroupsLayout() {
                     }
                 }}
             >
-                <DialogContent className="max-w-sm">
+                <DialogContent className={createKind === 'task' ? 'max-w-md' : 'max-w-sm'}>
                     <DialogHeader>
                         <DialogTitle>{t('mobile.groups.new')}</DialogTitle>
                     </DialogHeader>
+                    <div className="mt-4">
+                        <SegmentedControl
+                            label={t('mobile.groups.new')}
+                            value={createKind}
+                            options={[{ value: 'task', label: t('groups.kind.task') }, { value: 'chat', label: t('groups.kind.chat') }]}
+                            onChange={setCreateKind}
+                        />
+                    </div>
+                    {createKind === 'task' ? (
+                        <div className="mt-4">
+                            <NewTaskForm
+                                tags={taskTags}
+                                onCancel={() => setShowCreateModal(false)}
+                                onCreate={async (input) => {
+                                    const task = await createTask(input)
+                                    setShowCreateModal(false)
+                                    navigate({ to: '/groups/$groupId', params: { groupId: task.id } })
+                                }}
+                            />
+                        </div>
+                    ) : (
                     <form
                         className="mt-4 flex flex-col gap-3"
                         onSubmit={(event) => {
@@ -1219,6 +1231,7 @@ function GroupsLayout() {
                             </Button>
                         </div>
                     </form>
+                    )}
                 </DialogContent>
             </Dialog>
 
@@ -1295,6 +1308,7 @@ function GroupsLayout() {
                     <GroupRow
                         key={item.group.id}
                         item={item}
+                        task={tasksById.get(item.group.id)}
                         members={membersOf(item)}
                         selected={selectedGroupId === item.group.id}
                         onSelect={openGroup}

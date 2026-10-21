@@ -3,6 +3,7 @@ import type {
     Session,
     SessionSummary,
     SyncEvent as ProtocolSyncEvent,
+    TaskStatus,
     TaskView,
     WorktreeMetadata
 } from '@hapi/protocol/types'
@@ -271,6 +272,11 @@ export type Group = {
     description: string | null
     noteSessionId: string | null
     notePrompt: string | null
+    /** "task": a task group (goal, acceptance list, planner); its details come from /api/tasks/:id. */
+    kind?: 'chat' | 'task'
+    tag?: string | null
+    status?: TaskStatus | null
+    goal?: string | null
     createdAt: number
     updatedAt: number
 }
@@ -556,6 +562,8 @@ export type TaskConfirmInput = {
     goal?: string
     nonGoals?: string[]
     criteria: Array<{ id: string; kept: boolean; text?: string }>
+    /** Criteria the user wrote in the guide step. */
+    added?: Array<{ text: string }>
     answers: Record<string, string>
 }
 

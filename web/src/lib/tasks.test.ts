@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TaskDraft, TaskView } from '@/types/api'
-import { confirmInputFrom, freshDraftEdits, isTaskOpen, taskIdsOfSession } from './tasks'
+import { carryOver, confirmInputFrom, freshDraftEdits, isTaskOpen, keptCount, taskIdsOfSession } from './tasks'
 
 const draft: TaskDraft = {
     version: 2,
@@ -35,6 +35,20 @@ describe('task guide edits', () => {
             criteria: [{ id: 'c1', kept: true }, { id: 'c2', kept: true, text: '结论先行，带数字' }, { id: 'c3', kept: false }],
             answers: { q1: 'b' }
         })
+    })
+
+    it('sends the non-goals only when changed, and the criteria the user wrote', () => {
+        const edits = { ...freshDraftEdits(draft), nonGoals: [' 不推送 ', ''], added: ['手机上能改', '  '], kept: { c1: false, c2: false, c3: false } }
+        expect(confirmInputFrom(draft, edits)).toMatchObject({ nonGoals: ['不推送'], added: [{ text: '手机上能改' }] })
+        expect(keptCount(draft, edits)).toBe(1)
+        expect(confirmInputFrom(draft, { ...freshDraftEdits(draft), nonGoals: [] })).not.toHaveProperty('nonGoals')
+    })
+
+    it('keeps the user\'s own criteria and still-valid answers on a new draft version', () => {
+        const previous = { ...freshDraftEdits(draft), added: ['手机上能改', ' '], answers: { q1: 'b', gone: 'x' }, kept: { c1: false } }
+        const next = carryOver({ ...draft, version: 3 }, previous)
+        expect([next.version, next.added, next.answers, next.kept.c1]).toEqual([3, ['手机上能改'], { q1: 'b' }, true])
+        expect(carryOver({ ...draft, version: 4, questions: [] }, previous).answers).toEqual({})
     })
 })
 

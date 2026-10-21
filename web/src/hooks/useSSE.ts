@@ -582,8 +582,14 @@ export function useSSE(options: {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.memories })
             }
 
+            // A task is a group: its row in the group list and its page change with it.
             if (event.type === 'task-updated') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.groups })
+                if (event.groupId) {
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.group(event.groupId) })
+                    void queryClient.invalidateQueries({ queryKey: queryKeys.groupNote(event.groupId) })
+                }
             }
 
             if (event.type === 'review-loop-updated') {

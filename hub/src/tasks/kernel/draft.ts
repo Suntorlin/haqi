@@ -61,15 +61,25 @@ export function toTaskDraft(input: DraftInput, version: number): TaskDraft {
     }
 }
 
-/** The user's answer to a draft: which criteria stay (edited or not), and one option per question. */
+/** What the user may add or rewrite on top of a draft; looser than the planner's limits. */
+export const USER_LIMITS = { goal: 300, nonGoals: 6, added: 4 } as const
+
+/**
+ * The user's answer to a draft: which criteria stay (edited or not), the criteria the user added, and one option per
+ * question.
+ */
 export const confirmInputSchema = z.object({
-    goal: z.string().trim().min(1).max(DRAFT_LIMITS.goal).optional(),
-    nonGoals: z.array(z.string().trim().min(1).max(200)).max(DRAFT_LIMITS.nonGoals).optional(),
+    goal: z.string().trim().min(1).max(USER_LIMITS.goal).optional(),
+    nonGoals: z.array(z.string().trim().min(1).max(200)).max(USER_LIMITS.nonGoals).optional(),
     criteria: z.array(z.object({
         id: z.string().trim().min(1).max(40),
         kept: z.boolean(),
         text: z.string().trim().min(1).max(300).optional()
     })).max(DRAFT_LIMITS.criteriaMax),
+    added: z.array(z.object({
+        text: z.string().trim().min(1).max(300),
+        verify: z.string().trim().max(300).optional()
+    })).max(USER_LIMITS.added).default([]),
     answers: z.record(z.string(), z.string()).default({})
 })
 

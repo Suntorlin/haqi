@@ -5,8 +5,11 @@
 
 export type TaskStatus = 'guiding' | 'active' | 'done' | 'abandoned'
 
-/** principle: from one of the user's principles; repo: from a repository convention file; inferred: the planner's guess. */
-export type CriterionSource = 'principle' | 'repo' | 'inferred'
+/**
+ * principle: from one of the user's principles; repo: from a repository convention file; inferred: the planner's guess;
+ * user: written or rewritten by the user in the guide step.
+ */
+export type CriterionSource = 'principle' | 'repo' | 'inferred' | 'user'
 
 export type AcceptanceCriterion = {
     id: string

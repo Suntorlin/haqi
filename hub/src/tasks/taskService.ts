@@ -28,6 +28,8 @@ export type TaskServiceHost = {
     machineOnline: (namespace: string, machineId: string) => boolean
     /** Called after a task changed. */
     changed: (namespace: string, taskId: string) => void
+    /** Posts a system line to the task group's timeline, where the user follows the guide step. */
+    timeline?: (namespace: string, taskId: string, text: string) => void
     /** How often the user stepped in, per task; null until messages are classified. */
     load?: (namespace: string, sessionIds: string[], since: number) => TaskLoad | null
 }
@@ -86,8 +88,9 @@ export class TaskService {
         })
         this.kernel.log(namespace, task.id, TASK_EVENT.guideStarted, { text: input.text, fromSessionId: from?.id ?? null })
         if (!place) {
-            this.kernel.log(namespace, task.id, TASK_EVENT.guideFailed, { error: '找不到在线机器上的仓库目录：先在这个 tag 下开一个会话，再重试。' })
+            this.fail(namespace, task.id, '找不到在线机器上的仓库目录：先在这个 tag 下开一个会话，再重试。')
         } else {
+            this.host.timeline?.(namespace, task.id, 'HAQI 正在读你的记忆和仓库约定，起草目标和验收标准。')
             this.startInBackground(namespace, task.id)
         }
         return this.get(namespace, task.id)!
@@ -114,6 +117,7 @@ export class TaskService {
         }
         const version = this.kernel.count(namespace, taskId, TASK_EVENT.draftSubmitted) + 1
         this.kernel.log(namespace, taskId, TASK_EVENT.draftSubmitted, toTaskDraft(parsed.data, version))
+        this.host.timeline?.(namespace, taskId, `第 ${version} 版草稿好了：在上面的任务卡里勾选、修改，再确认。要 HAQI 改，直接在这里说。`)
         return { version, message: `Draft ${version} submitted. Wait for the user to confirm it or ask for changes; do not start the work.` }
     }
 
@@ -148,8 +152,11 @@ export class TaskService {
             .map((criterion) => {
                 const text = edits.get(criterion.id)?.text ?? criterion.text
                 // A criterion the user rewrote is theirs now.
-                return text === criterion.text ? criterion : { ...criterion, text, source: 'inferred' as const, sourceRef: null }
+                return text === criterion.text ? criterion : { ...criterion, text, source: 'user' as const, sourceRef: null }
             })
+        input.added.forEach((added, index) => {
+            acceptance.push({ id: `u${index + 1}`, text: added.text, source: 'user', sourceRef: null, verify: added.verify ?? '' })
+        })
         if (acceptance.length === 0) throw new TaskError('Keep at least one acceptance criterion')
         const dropped = draft.criteria.filter((criterion) => criterion.source === 'inferred' && edits.get(criterion.id)?.kept === false)
 
@@ -231,7 +238,7 @@ export class TaskService {
         const started = this.kernel.latest(namespace, taskId, TASK_EVENT.guideStarted)?.payload as { text?: string; fromSessionId?: string | null } | null
         const text = started?.text ?? task.name
         if (!task.machineId || !task.repoPath) {
-            this.kernel.log(namespace, taskId, TASK_EVENT.guideFailed, { error: '找不到仓库目录：请选一个目录再重试。' })
+            this.fail(namespace, taskId, '找不到仓库目录：请选一个目录再重试。')
             return
         }
         try {
@@ -251,7 +258,7 @@ export class TaskService {
                 ...(resume ? { resume: { draft: this.latestDraft(namespace, taskId), feedback: resume.feedback } } : {})
             })
             if ('error' in result) {
-                this.kernel.log(namespace, taskId, TASK_EVENT.guideFailed, { error: result.error })
+                this.fail(namespace, taskId, result.error)
                 return
             }
             if (!this.kernel.get(namespace, taskId)) return
@@ -263,7 +270,7 @@ export class TaskService {
                 experienceIds: pack.experienceIds
             })
         } catch (error) {
-            this.kernel.log(namespace, taskId, TASK_EVENT.guideFailed, { error: error instanceof Error ? error.message : String(error) })
+            this.fail(namespace, taskId, error instanceof Error ? error.message : String(error))
         }
     }
 
@@ -309,16 +316,15 @@ export class TaskService {
             '## 目标', goal, '',
             ...(nonGoals.length ? ['## 不做什么', ...nonGoals.map((line) => `- ${line}`), ''] : []),
             '## 结论', '验收标准（你确认过的）：',
-            ...acceptance.map((c, index) => `${index + 1}. ${c.text}（验证：${c.verify}）`)
+            ...acceptance.map((c, index) => `${index + 1}. ${c.text}${c.verify ? `（验证：${c.verify}）` : ''}`)
         ].join('\n')
         this.store.groups.updateGroupNote({ groupId: taskId, namespace, content, updatedBy: 'system:task' })
-        this.store.groups.addGroupMessage({
-            groupId: taskId,
-            namespace,
-            type: 'system',
-            source: 'system:task',
-            payload: { text: `你确认了目标和 ${acceptance.length} 条验收标准。` }
-        })
+        this.host.timeline?.(namespace, taskId, `你确认了目标和 ${acceptance.length} 条验收标准。`)
+    }
+
+    private fail(namespace: string, taskId: string, error: string): void {
+        this.kernel.log(namespace, taskId, TASK_EVENT.guideFailed, { error })
+        this.host.timeline?.(namespace, taskId, `起草失败：${error}`)
     }
 
     private latestDraft(namespace: string, taskId: string): TaskDraft | null {

@@ -73,7 +73,7 @@ export type StoredAcceptanceCriterion = {
     id: string
     text: string
     /** principle: from a memory; repo: from a repository convention file; inferred: the planner's guess. */
-    source: 'principle' | 'repo' | 'inferred'
+    source: 'principle' | 'repo' | 'inferred' | 'user'
     sourceRef: string | null
     verify: string
 }
