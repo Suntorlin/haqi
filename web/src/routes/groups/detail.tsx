@@ -61,6 +61,7 @@ import { GroupAvatar, SessionAvatar, getProjectName, getSessionProjectPath, type
 import {
     AlertCircleIcon,
     ChatBubbleIcon,
+    ChevronLeftIcon,
     ChevronRightIcon,
     CloseIcon,
     DuplicateIcon,
@@ -79,7 +80,9 @@ import {
 import { useGroupInfoPanel } from './group-info'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
-import { TaskCard } from '@/components/tasks/TaskCard'
+import { TaskReport } from '@/components/tasks/TaskReport'
+import type { LatestMessage } from '@/components/report'
+import { formatRelativeTime } from '@/components/SessionList'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -2021,6 +2024,23 @@ export default function GroupDetailPage() {
         loadMore: loadMoreTurns
     } = useGroupConversationTurns(api, groupId, { enabled: viewMode === 'brief' })
     const { note, isLoading: noteLoading } = useGroupNote(api, groupId)
+    // A task with a goal or a guide step opens as the lead's report; "All chats" shows this timeline.
+    const [taskView, setTaskView] = useState<'report' | 'chat'>('report')
+    useEffect(() => { setTaskView('report') }, [groupId])
+    const hasTaskReport = group?.group.kind === 'task' && (group.group.status === 'guiding' || Boolean(group.group.goal))
+    const showTaskReport = hasTaskReport && taskView === 'report'
+    const latestTaskMessage = useMemo<LatestMessage | null>(() => {
+        for (let index = messages.length - 1; index >= 0; index -= 1) {
+            const message = messages[index]
+            const text = message && (message.type === 'chat' || message.type === 'system')
+                ? (message.payload as { text?: unknown } | null)?.text
+                : undefined
+            if (typeof text === 'string' && text.trim()) {
+                return { from: message.source.startsWith('user:') ? 'me' : 'lead', text, when: formatRelativeTime(message.createdAt, t) ?? '' }
+            }
+        }
+        return null
+    }, [messages, t])
     const { postMessage, updateNote, refreshNote, broadcastNote, addMember, removeMember, updateGroup, isPending } = useGroupActions(api, groupId)
     const { sessions } = useSessions(api)
     const [pendingQuickSessionId, setPendingQuickSessionId] = useState<string | null>(null)
@@ -3002,13 +3022,33 @@ export default function GroupDetailPage() {
                 <PendingBanner items={pendingMembers} onOpen={handleOpenPendingQuickModal} />
             ) : null}
 
-            {group?.group.kind === 'task' ? <TaskCard key={groupId} taskId={groupId} api={api} /> : null}
-
-            <div className="social-chat min-h-0 flex-1">
-                {timeline}
-            </div>
-
-            {composerArea}
+            {showTaskReport ? (
+                <TaskReport
+                    key={groupId}
+                    taskId={groupId}
+                    api={api}
+                    latest={latestTaskMessage}
+                    onSend={async (text) => { await postMessage({ type: 'chat', text, source: 'user:web' }) }}
+                    onAllChats={() => setTaskView('chat')}
+                />
+            ) : (
+                <>
+                    {hasTaskReport ? (
+                        <button
+                            type="button"
+                            onClick={() => setTaskView('report')}
+                            className="flex min-h-11 shrink-0 items-center gap-1 border-b border-[var(--social-divider)] px-4 text-left text-footnote font-semibold text-[var(--social-fg)]"
+                        >
+                            <ChevronLeftIcon className="h-4 w-4" />
+                            {t('taskReport.back')}
+                        </button>
+                    ) : null}
+                    <div className="social-chat min-h-0 flex-1">
+                        {timeline}
+                    </div>
+                    {composerArea}
+                </>
+            )}
 
             <GroupInfoSheet
                 open={infoOpen}

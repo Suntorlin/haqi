@@ -1077,7 +1077,7 @@ export class ApiClient {
     }
 
     /** Creates a task in the guide step; the planner starts in the background. */
-    async createTask(input: { text: string; tag: string; fromSessionId?: string; machineId?: string; directory?: string }): Promise<TaskView> {
+    async createTask(input: { text: string; tag?: string; draft?: boolean; fromSessionId?: string; machineId?: string; directory?: string }): Promise<TaskView> {
         const result = await this.request<{ task: TaskView }>('/api/tasks', { method: 'POST', body: JSON.stringify(input) })
         return result.task
     }

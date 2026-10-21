@@ -16,6 +16,10 @@ export function LeadComposer(props: {
     onSend: () => void
     /** Link to the full conversation list; omit to hide the link. */
     allChatsHref?: string
+    /** Same as `allChatsHref` for an in-page switch. */
+    onAllChats?: () => void
+    /** Overrides the input placeholder. */
+    placeholder?: string
     inputRef?: Ref<HTMLInputElement>
     /** Trailing control when the draft is empty (defaults to a mic glyph). */
     idleTrailing?: ReactNode
@@ -36,6 +40,11 @@ export function LeadComposer(props: {
                                 {t('report.composer.allChats')}
                                 <ChevronRightIcon className="h-3 w-3" />
                             </a>
+                        ) : props.onAllChats ? (
+                            <button type="button" onClick={props.onAllChats} className="relative -my-1 flex items-center gap-0.5 text-caption text-[var(--social-fg-muted)] after:absolute after:-inset-3 after:content-['']">
+                                {t('report.composer.allChats')}
+                                <ChevronRightIcon className="h-3 w-3" />
+                            </button>
                         ) : null}
                     </div>
                     <div className="mt-0.5 line-clamp-2 text-body leading-snug text-[var(--social-fg)]">{latest.text}</div>
@@ -45,7 +54,7 @@ export function LeadComposer(props: {
                 <TextField
                     ref={props.inputRef}
                     variant="pill"
-                    placeholder={t('report.composer.placeholder')}
+                    placeholder={props.placeholder ?? t('report.composer.placeholder')}
                     value={props.draft}
                     onChange={(event) => props.onDraft(event.target.value)}
                     trailing={props.draft.trim() ? (

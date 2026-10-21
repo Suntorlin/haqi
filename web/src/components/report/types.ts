@@ -10,9 +10,9 @@ export type CheckState = 'done' | 'live' | 'wait' | 'todo'
 
 export type DecisionOption = {
     label: string
-    /** What the user gains by picking this. */
+    /** What the user gains by picking this; empty hides the line. */
     good: string
-    /** What it costs. */
+    /** What it costs; empty hides the line. */
     cost: string
     recommended?: boolean
 }
@@ -54,6 +54,8 @@ export type ProgressItem = {
 
 export type CheckItem = {
     title: string
+    /** A second line under the title (how the check is verified). */
+    subtitle?: string
     state: CheckState
     /** Trailing text (a time, a count). Ignored when `waiting`. */
     trailing?: string

@@ -6,8 +6,13 @@ export const DRAFT_LIMITS = { goal: 120, nonGoals: 3, criteriaMin: 3, criteriaMa
 
 const optionSchema = z.object({
     id: z.string().trim().min(1).max(40),
-    label: z.string().trim().min(1).max(80)
+    label: z.string().trim().min(1).max(80),
+    good: z.string().trim().min(1).max(100).nullish(),
+    cost: z.string().trim().min(1).max(100).nullish()
 })
+
+/** Same rules as session tags: lowercase, 1-40 characters. */
+export const taskTagSchema = z.string().trim().toLowerCase().min(1).max(40)
 
 const questionSchema = z.object({
     id: z.string().trim().min(1).max(40),
@@ -22,6 +27,7 @@ const questionSchema = z.object({
 })
 
 export const draftInputSchema = z.object({
+    tag: taskTagSchema.nullish(),
     goal: z.string().trim().min(1).max(DRAFT_LIMITS.goal),
     nonGoals: z.array(z.string().trim().min(1).max(200)).max(DRAFT_LIMITS.nonGoals).default([]),
     criteria: z.array(z.object({
@@ -42,6 +48,7 @@ export type { TaskDraft }
 export function toTaskDraft(input: DraftInput, version: number): TaskDraft {
     return {
         version,
+        tag: input.tag ?? null,
         goal: input.goal,
         nonGoals: input.nonGoals,
         criteria: input.criteria.map((criterion, index) => ({
@@ -54,7 +61,7 @@ export function toTaskDraft(input: DraftInput, version: number): TaskDraft {
         questions: input.questions.map((question) => ({
             id: question.id,
             text: question.text,
-            options: question.options,
+            options: question.options.map((option) => ({ id: option.id, label: option.label, good: option.good ?? null, cost: option.cost ?? null })),
             default: question.default,
             precedentRef: question.precedentRef ?? null
         }))

@@ -3,50 +3,39 @@ import { useTranslation } from '@/lib/use-translation'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Button } from '@/components/ui/button'
 import { ChoiceChips } from '@/components/ui/FormControls'
+import { Switch } from '@/components/ui/Switch'
 
-const LAST_TASK_TAG_KEY = 'hapi:lastTaskTag:v1'
+/** A repository a task can run in: a directory on a machine that is online. */
+export type TaskPlace = { machineId: string; directory: string; label: string }
 
-function loadLastTag(): string | null {
-    try {
-        return window.localStorage.getItem(LAST_TASK_TAG_KEY)
-    } catch {
-        return null
-    }
-}
-
-function saveLastTag(tag: string): void {
-    try {
-        window.localStorage.setItem(LAST_TASK_TAG_KEY, tag)
-    } catch {
-        // Private mode: the next form starts from the first tag.
-    }
-}
+export type NewTaskInput = { text: string; draft: boolean; machineId?: string; directory?: string }
 
 /**
- * A new task: what should be done, in as many lines as it takes, and the tag it goes under. "Start drafting" creates
- * the task group; HAQI then drafts the goal and the acceptance criteria on the group's task card.
+ * A new task: what should be done, in as many lines as it takes, and the repository (the newest one is picked).
+ * HAQI then drafts the goal and the acceptance criteria and picks a tag; with "Skip drafting" the task starts as a
+ * plain discussion.
  */
 export function NewTaskForm(props: {
-    tags: string[]
-    onCreate: (input: { text: string; tag: string }) => Promise<void>
+    places: TaskPlace[]
+    onCreate: (input: NewTaskInput) => Promise<void>
     onCancel: () => void
 }) {
     const { t } = useTranslation()
     const [text, setText] = useState('')
-    const [picked, setPicked] = useState<string | null>(loadLastTag)
+    const [placeKey, setPlaceKey] = useState<string | null>(null)
+    const [draft, setDraft] = useState(true)
     const [pending, setPending] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    // The tag picked last, while it still exists; else the first tag.
-    const tag = picked && props.tags.includes(picked) ? picked : (props.tags[0] ?? null)
+    const keyOf = (place: TaskPlace) => `${place.machineId}:${place.directory}`
+    const place = props.places.find((item) => keyOf(item) === placeKey) ?? props.places[0] ?? null
 
     const submit = async () => {
         const trimmed = text.trim()
-        if (!trimmed || !tag || pending) return
+        if (!trimmed || pending) return
         setPending(true)
         setError(null)
         try {
-            saveLastTag(tag)
-            await props.onCreate({ text: trimmed, tag })
+            await props.onCreate({ text: trimmed, draft, ...(place ? { machineId: place.machineId, directory: place.directory } : {}) })
             setText('')
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : String(failure))
@@ -57,7 +46,7 @@ export function NewTaskForm(props: {
 
     return (
         <form
-            className="flex flex-col gap-3"
+            className="flex flex-col gap-4"
             onSubmit={(event) => {
                 event.preventDefault()
                 void submit()
@@ -75,25 +64,29 @@ export function NewTaskForm(props: {
                 onChange={(event) => setText(event.target.value)}
                 onSubmitKey={() => void submit()}
             />
-            {props.tags.length > 0 ? (
+            {draft && props.places.length > 0 ? (
                 <div className="space-y-1.5">
-                    <div className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{t('tasks.pickTag')}</div>
+                    <div className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{t('tasks.repo')}</div>
                     <ChoiceChips
-                        label={t('tasks.pickTag')}
-                        value={tag ?? ''}
-                        options={props.tags.map((item) => ({ value: item, label: `#${item}` }))}
-                        onChange={setPicked}
+                        label={t('tasks.repo')}
+                        value={place ? keyOf(place) : ''}
+                        options={props.places.map((item) => ({ value: keyOf(item), label: item.label }))}
+                        onChange={setPlaceKey}
                     />
                 </div>
-            ) : (
-                <p className="text-footnote text-[var(--social-fg-muted)]">{t('tasks.needTag')}</p>
-            )}
-            <p className="text-footnote text-[var(--social-fg-muted)]">{t('tasks.newHint')}</p>
+            ) : null}
+            <label className="flex min-h-11 items-center gap-3">
+                <span className="min-w-0 flex-1">
+                    <span className="block text-body text-[var(--social-fg)]">{t('tasks.draftToggle')}</span>
+                    <span className="block text-footnote text-[var(--social-fg-muted)]">{draft ? t('tasks.newHint') : t('tasks.plainHint')}</span>
+                </span>
+                <Switch checked={draft} onCheckedChange={setDraft} ariaLabel={t('tasks.draftToggle')} />
+            </label>
             {error ? <p className="text-footnote text-[var(--social-danger)]">{error}</p> : null}
             <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={props.onCancel}>{t('button.cancel')}</Button>
-                <Button type="submit" disabled={pending || !text.trim() || !tag}>
-                    {pending ? t('tasks.starting') : t('tasks.start')}
+                <Button type="submit" disabled={pending || !text.trim()}>
+                    {pending ? t('tasks.starting') : draft ? t('tasks.start') : t('tasks.startPlain')}
                 </Button>
             </div>
         </form>

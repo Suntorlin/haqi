@@ -555,6 +555,7 @@ export class SyncEngine {
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
+            stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
             timeline: (namespace, taskId, text) => {
                 void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text } })
                     .catch((error) => console.error('[Tasks] timeline line failed', error))

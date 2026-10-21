@@ -48,8 +48,12 @@ export function guidePrompt(request: GuideRequest): string {
         `3. 写 ${DRAFT_LIMITS.criteriaMin}–${DRAFT_LIMITS.criteriaMax} 条验收标准。每条要能验证，写清怎么验证（命令、页面、数据）。`,
         '   每条标出处：source=principle 时 source_ref 填原则的 id；source=repo 时填约定文件名；只有你自己推断的才用 inferred。',
         `4. 只问上下文包和仓库里确定不了的事，最多 ${DRAFT_LIMITS.questions} 个选择题，每题 ${DRAFT_LIMITS.optionsMin}–${DRAFT_LIMITS.optionsMax} 个选项，给一个默认选项。默认选项有先例时，precedent_ref 填那条经验的 id。能确定的就不要问。`,
-        `5. 调用 task_draft_submit 提交，task_id 填 "${request.taskId}"。工具报错就按报错改了再交。`,
-        '6. 提交后停下，等用户确认或要你修改。不要开始实现。',
+        '   每个选项写一句好处（good）和一句代价（cost），各不超过 40 字，让用户不用追问就能选。',
+        request.tag
+            ? '5. tag 用户已经定了，不用填。'
+            : '5. 给任务选一个 tag：从上下文包“已有的 tag”里选最贴切的；都不合适就新起一个（小写，不超过 20 个字符）。填进 tag。',
+        `6. 调用 task_draft_submit 提交，task_id 填 "${request.taskId}"。工具报错就按报错改了再交。`,
+        '7. 提交后停下，等用户确认或要你修改。不要开始实现。',
         '',
         '用中文写，句子短，一句话只说一件事。'
     ]
@@ -69,14 +73,6 @@ export function revisePrompt(taskId: string, feedback: string): string {
     ].join('\n')
 }
 
-export function confirmedPrompt(taskId: string, acceptance: string[]): string {
-    return [
-        `${GUIDE_MARKER} 任务 ${taskId}：用户已确认目标和验收标准。`,
-        ...acceptance.map((line, index) => `${index + 1}. ${line}`),
-        '你留在这个任务里当负责人。现在不要开始实现，等后续指令。'
-    ].join('\n')
-}
-
 export class Planner {
     constructor(private readonly host: PlannerHost) {}
 
@@ -85,7 +81,7 @@ export class Planner {
             machineId: request.machineId,
             directory: request.repoPath,
             name: `规划 · ${request.taskName}`,
-            tags: [request.tag],
+            tags: request.tag ? [request.tag] : [],
             text: guidePrompt(request),
             meta: meta(request.taskId, request.resume ? 'restart' : 'start')
         })
@@ -93,9 +89,5 @@ export class Planner {
 
     async revise(sessionId: string, taskId: string, feedback: string): Promise<boolean> {
         return await this.host.send(sessionId, revisePrompt(taskId, feedback), meta(taskId, 'revise'))
-    }
-
-    async confirmed(sessionId: string, taskId: string, acceptance: string[]): Promise<boolean> {
-        return await this.host.send(sessionId, confirmedPrompt(taskId, acceptance), meta(taskId, 'confirmed'))
     }
 }
