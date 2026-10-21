@@ -172,7 +172,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 }
                 break
             case RUN_EVENT.watch:
-                log.push({ at: event.createdAt, kind: p.kind as TaskWatchEntry['kind'], text: String(p.text), notified: false })
+                log.push({ at: event.createdAt, kind: p.kind as TaskWatchEntry['kind'], text: String(p.text), notified: Boolean(p.notified) })
                 break
             case RUN_EVENT.integrated:
                 integration = { branch: String(p.branch), worktree: String(p.worktreePath), summary: (p.summary as string | null) ?? null }

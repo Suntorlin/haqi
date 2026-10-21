@@ -6,15 +6,54 @@
 
 const READ_TOOLS = new Set(['Read', 'Glob', 'Grep', 'LS', 'NotebookRead', 'WebFetch', 'WebSearch'])
 
-/** Programs that only read. */
+/**
+ * Programs that only read. Not here on purpose: env and xargs (run any command), awk (system()), tee.
+ * Some read-only programs have options that write or run things; those are checked in UNSAFE_OPTIONS.
+ */
 const READ_PROGRAMS = new Set([
     'ls', 'cat', 'head', 'tail', 'wc', 'grep', 'rg', 'egrep', 'fgrep', 'find', 'fd', 'tree', 'pwd', 'echo', 'printf', 'file', 'stat',
-    'du', 'df', 'which', 'type', 'basename', 'dirname', 'realpath', 'sort', 'uniq', 'cut', 'tr', 'nl', 'less', 'more', 'jq', 'diff',
-    'true', 'test', '[', 'date', 'env', 'printenv', 'awk', 'sed'
+    'du', 'df', 'which', 'type', 'basename', 'dirname', 'realpath', 'sort', 'uniq', 'cut', 'tr', 'nl', 'jq', 'diff',
+    'true', 'test', '[', 'date', 'printenv', 'sed'
 ])
 
-/** git subcommands that only read. */
-const READ_GIT = new Set(['log', 'show', 'diff', 'status', 'branch', 'rev-parse', 'ls-files', 'blame', 'grep', 'remote', 'describe', 'shortlog', 'worktree', 'config', 'tag'])
+/** Options that make a reading program write a file or run a command. */
+const UNSAFE_OPTIONS: Record<string, RegExp> = {
+    find: /\s-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)\b/,
+    fd: /\s(-x|-X|--exec|--exec-batch)\b/,
+    rg: /\s--pre\b/,
+    sort: /\s(-o|--output)\b/,
+    tree: /\s-o\b/,
+    file: /\s-C\b/,
+    date: /\s(-s|--set)\b/
+}
+
+/** sed only to print lines: "sed -n '10,20p' file". Its scripts can write (w) or run (e) anything. */
+const SED_PRINT = /^sed\s+-n\s+(['"]?)(\d+|\$)(,(\d+|\$))?p\1(\s+[^\s'"]+)*$/
+
+/** git subcommands that only read, whatever their arguments. */
+const READ_GIT = new Set(['log', 'show', 'diff', 'status', 'rev-parse', 'ls-files', 'blame', 'grep', 'describe', 'shortlog'])
+/** git subcommands that read only with these options (with none, branch/tag/remote list; config needs one). */
+const LISTING_GIT: Record<string, Set<string>> = {
+    branch: new Set(['-a', '-r', '-v', '-vv', '-l', '--list', '--all', '--remotes', '--show-current', '--contains', '--merged', '--no-merged']),
+    tag: new Set(['-l', '--list', '-n', '--contains']),
+    remote: new Set(['-v', '--verbose']),
+    worktree: new Set(['list', '--porcelain']),
+    config: new Set(['--get', '--get-all', '--get-regexp', '--list', '-l', '--show-origin'])
+}
+
+function isReadOnlyGit(words: string[]): boolean {
+    const at = words.findIndex((word) => !word.startsWith('-'))
+    if (at < 0) return false
+    const sub = words[at]!
+    const rest = words.slice(at + 1)
+    if (READ_GIT.has(sub)) return true
+    const allowed = LISTING_GIT[sub]
+    if (!allowed) return false
+    if (sub === 'config') return allowed.has(rest[0] ?? '')
+    if (rest.length === 0 || rest.every((word) => allowed.has(word))) return true
+    // "git branch --list 'feat*'": a pattern after a listing option.
+    return (sub === 'branch' || sub === 'tag') && rest.some((word) => word === '--list' || word === '-l' || word === '--contains')
+}
 
 /** Shell keywords of loops and conditions; their bodies are checked as commands. */
 const KEYWORDS = new Set(['for', 'in', 'do', 'done', 'if', 'then', 'else', 'elif', 'fi', 'while', 'until'])
@@ -32,6 +71,9 @@ export function isReadOnlyCommand(raw: string): boolean {
     const command = raw.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""')
     // Writing to a file, substitution that could run anything, or background jobs: not a plain read.
     if (/(^|[^>&0-9])>(?!&)|>>|\$\(|`|<\(|&\s*$|\btee\b/.test(command.replace(/2>\/dev\/null|2>&1|>\/dev\/null/g, ''))) return false
+    // sed scripts sit in quotes, which are blanked below: check each sed call on the raw text.
+    const seds = raw.split(/&&|\|\||;|\||\n/).map((part) => part.trim()).filter((part) => /^sed\b/.test(part))
+    if (seds.some((part) => !SED_PRINT.test(part))) return false
     const segments = command.split(/&&|\|\||;|\||\n/).map((part) => part.trim()).filter(Boolean)
     if (segments.length === 0) return false
     return segments.every((segment) => {
@@ -45,14 +87,9 @@ export function isReadOnlyCommand(raw: string): boolean {
         const program = words[index]
         if (!program) return true
         if (program === 'cd') return true
-        if (program === 'git') {
-            const sub = words.slice(index + 1).find((word) => !word.startsWith('-') && !word.startsWith('/') && word !== 'C')
-            if (!sub || !READ_GIT.has(sub)) return false
-            // git worktree add / branch -D / config --set and the like change things.
-            return !/\b(add|remove|prune|move|-d|-D|--delete|--set|--unset|--add|-m|-M)\b/.test(words.slice(index + 2).join(' '))
-        }
-        if (program === 'sed') return !/\s-i\b|\s--in-place\b/.test(segment)
-        if (program === 'find') return !/\s-(delete|exec|execdir|ok)\b/.test(segment)
+        if (program === 'git') return isReadOnlyGit(words.slice(index + 1).filter((word) => word !== '-C' && !word.startsWith('/')))
+        if (program === 'uniq' && words.slice(index + 1).filter((word) => !word.startsWith('-')).length > 1) return false
+        if (UNSAFE_OPTIONS[program]?.test(` ${words.slice(index + 1).join(' ')}`)) return false
         return READ_PROGRAMS.has(program)
     })
 }
