@@ -145,6 +145,7 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         if (!this.claudeArgs) return;
 
         const filteredArgs: string[] = [];
+        let resumedSessionId: string | null = null;
         for (let i = 0; i < this.claudeArgs.length; i++) {
             if (this.claudeArgs[i] === '--resume') {
                 // Check if next arg looks like a UUID (contains dashes and alphanumeric)
@@ -154,6 +155,7 @@ export class Session extends AgentSessionBase<EnhancedMode> {
                     if (!nextArg.startsWith('-') && nextArg.includes('-')) {
                         // Skip both --resume and the UUID
                         i++; // Skip the UUID
+                        resumedSessionId = nextArg;
                         logger.debug(`[Session] Consumed --resume flag with session ID: ${nextArg}`);
                     } else {
                         // Just --resume without UUID
@@ -170,6 +172,14 @@ export class Session extends AgentSessionBase<EnhancedMode> {
 
         this.claudeArgs = filteredArgs.length > 0 ? filteredArgs : undefined;
         logger.debug(`[Session] Consumed one-time flags, remaining args:`, this.claudeArgs);
+
+        // A launch can end before Claude reports its session ID, e.g. the first
+        // queued message after a resume is isolated and forces a relaunch. Without
+        // this, the relaunch has neither --resume nor a session ID and silently
+        // starts a blank conversation.
+        if (resumedSessionId && !this.sessionId) {
+            this.onSessionFound(resumedSessionId);
+        }
     };
 
     setRunningAgent = (id: string, agent: AgentStateRunningAgent | null): void => {

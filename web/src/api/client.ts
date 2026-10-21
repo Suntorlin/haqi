@@ -1235,6 +1235,20 @@ export class ApiClient {
         })
     }
 
+    async getDictationStatus(): Promise<{ available: boolean; model?: string }> {
+        return await this.request('/api/voice/dictation')
+    }
+
+    async transcribeAudio(audio: Blob, options?: { hotwords?: string[] }): Promise<{ text: string; audioSeconds?: number }> {
+        const hotwords = options?.hotwords?.filter(Boolean) ?? []
+        const query = hotwords.length > 0 ? `?hotwords=${encodeURIComponent(hotwords.join(','))}` : ''
+        return await this.request(`/api/voice/transcribe${query}`, {
+            method: 'POST',
+            headers: { 'content-type': audio.type || 'application/octet-stream' },
+            body: audio
+        })
+    }
+
     async fetchVoiceToken(options?: { customAgentId?: string; customApiKey?: string }): Promise<{
         allowed: boolean
         token?: string

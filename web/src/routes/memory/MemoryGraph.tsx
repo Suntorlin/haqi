@@ -17,14 +17,16 @@ import {
     type Node,
     type NodeProps
 } from '@xyflow/react'
-import { SearchIcon } from '@/components/mobile/icons'
+import { FitViewIcon, MinusIcon, PlusIcon, SearchIcon } from '@/components/mobile/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { layoutGraph, lineage, NODE_H, NODE_W, type Point, type ScopeBox } from './graphLayout'
 import { LevelIcon } from './MemoryDetail'
 import type { MemoryItem, MemoryLink } from '@/types/api'
-import { LEVEL_LABEL, scopeLabel, shortLabel } from './model'
+import { levelLabel, scopeLabel, shortLabel } from './model'
+import { Card } from '@/components/ui/card'
 
 type MemoryNodeData = { memory: MemoryItem; dim: boolean; focus: boolean; tip: boolean }
 type BoxNodeData = { box: ScopeBox }
@@ -37,15 +39,16 @@ const HIDDEN_HANDLE = '!h-px !w-px !min-h-0 !min-w-0 !border-0 !bg-transparent'
 
 function MemoryNode(props: NodeProps<MemoryFlowNode>) {
     const { memory, dim, focus, tip } = props.data
+    const { t } = useTranslation()
     const pending = memory.status === 'pending' || memory.status === 'candidate'
     const principle = memory.level === 'principle' && !pending
     return (
         <>
             <NodeToolbar isVisible={tip} position={Position.Top} offset={10}>
                 <div className="w-[280px] rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3 shadow-[var(--shadow-float)]">
-                    <p className="text-[13px] leading-relaxed text-[var(--social-fg)]">{memory.text}</p>
-                    <p className="mt-1.5 text-[12px] text-[var(--social-fg-muted)]">
-                        {LEVEL_LABEL[memory.level]} · {scopeLabel(memory.scope)}{memory.status === 'pending' ? ' · 等你确认' : memory.status === 'candidate' ? ' · 观察中' : ''} · 点击编辑
+                    <p className="text-footnote leading-relaxed text-[var(--social-fg)]">{memory.text}</p>
+                    <p className="mt-1.5 text-caption text-[var(--social-fg-muted)]">
+                        {levelLabel(memory.level, t)} · {scopeLabel(memory.scope, t)}{memory.status === 'pending' ? ` · ${t('memoryPage.status.pending')}` : memory.status === 'candidate' ? ` · ${t('memoryPage.status.candidate')}` : ''} · {t('memoryPage.graph.clickToEdit')}
                     </p>
                 </div>
             </NodeToolbar>
@@ -56,7 +59,7 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
             <div
                 style={{ width: NODE_W, height: NODE_H }}
                 className={cn(
-                    'flex items-center gap-2 rounded-full border px-3 text-[13px] transition-opacity',
+                    'flex items-center gap-2 rounded-full border px-3 text-footnote transition-opacity',
                     principle && 'border-[var(--social-primary)] bg-[var(--social-primary)] font-semibold text-[var(--social-primary-fg)]',
                     memory.level === 'experience' && !pending && 'border-[var(--social-fg-subtle)] bg-[var(--social-surface)] text-[var(--social-fg)]',
                     memory.level === 'fact' && !pending && 'border-[var(--social-muted)] bg-[var(--social-muted)] text-[var(--social-fg-muted)]',
@@ -74,15 +77,16 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
 
 function BoxNode(props: NodeProps<BoxFlowNode>) {
     const { box } = props.data
+    const { t } = useTranslation()
     return (
         <div style={{ width: box.width, height: box.height }} className="relative rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)]">
             <div className="flex items-baseline gap-2 px-6 pt-4">
-                <span className="text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg)]">{box.label}</span>
-                <span className="text-[12px] text-[var(--social-fg-muted)]">{box.count} 条</span>
+                <span className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg)]">{scopeLabel(box.scope, t)}</span>
+                <span className="text-caption text-[var(--social-fg-muted)]">{t('memoryPage.graph.boxCount', { count: box.count })}</span>
             </div>
             {(['principle', 'experience', 'fact'] as const).map((level) => (
-                <div key={level} className="absolute left-6 text-[12px] text-[var(--social-fg-muted)]" style={{ top: box.rowY[level] - box.y + NODE_H / 2 - 8 }}>
-                    {LEVEL_LABEL[level]}
+                <div key={level} className="absolute left-6 text-caption text-[var(--social-fg-muted)]" style={{ top: box.rowY[level] - box.y + NODE_H / 2 - 8 }}>
+                    {levelLabel(level, t)}
                 </div>
             ))}
         </div>
@@ -106,19 +110,21 @@ const NODE_TYPES = { memory: MemoryNode, box: BoxNode }
 const EDGE_TYPES = { route: RouteEdge }
 
 function Legend() {
+    const { t } = useTranslation()
     return (
-        <div className="flex items-center gap-4 text-[12px] text-[var(--social-fg-muted)]">
-            <span className="flex items-center gap-1.5"><LevelIcon level="principle" className="h-3.5 w-3.5 text-[var(--social-fg)]" />原则</span>
-            <span className="flex items-center gap-1.5"><LevelIcon level="experience" className="h-3.5 w-3.5 text-[var(--social-fg)]" />经验</span>
-            <span className="flex items-center gap-1.5"><LevelIcon level="fact" className="h-3.5 w-3.5 text-[var(--social-fg)]" />事实</span>
-            <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-full border border-dashed border-[var(--social-warning)]" />等你确认</span>
-            <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-[var(--social-danger)]" />冲突</span>
+        <div className="flex items-center gap-4 text-caption text-[var(--social-fg-muted)]">
+            <span className="flex items-center gap-1.5"><LevelIcon level="principle" className="h-3.5 w-3.5 text-[var(--social-fg)]" />{levelLabel('principle', t)}</span>
+            <span className="flex items-center gap-1.5"><LevelIcon level="experience" className="h-3.5 w-3.5 text-[var(--social-fg)]" />{levelLabel('experience', t)}</span>
+            <span className="flex items-center gap-1.5"><LevelIcon level="fact" className="h-3.5 w-3.5 text-[var(--social-fg)]" />{levelLabel('fact', t)}</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-full border border-dashed border-[var(--social-warning)]" />{t('memoryPage.status.pending')}</span>
+            <span className="flex items-center gap-1.5"><span className="h-px w-5 bg-[var(--social-danger)]" />{t('memoryPage.graph.conflict')}</span>
         </div>
     )
 }
 
 function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpen: (id: string) => void; mobile?: boolean }) {
     const flow = useReactFlow()
+    const { t } = useTranslation()
     const layout = useMemo(() => layoutGraph(props.memories, props.links), [props.memories, props.links])
     const canvasRef = useRef<HTMLDivElement | null>(null)
     const [hover, setHover] = useState<string | null>(null)
@@ -209,7 +215,7 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
         void flow.setViewport({ x: (el.clientWidth - width * zoom) / 2, y: pad, zoom }, { duration })
     }
 
-    // Phones open at a readable zoom on the top-left of the first box; "看全部" shows everything.
+    // Phones open at a readable zoom on the top-left of the first box; "Show all" shows everything.
     const onInit = () => {
         const first = layout.boxes[0]
         if (!props.mobile) {
@@ -230,26 +236,26 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         onKeyDown={(event) => { if (event.key === 'Enter' && matches[0]) focusOn(matches[0].id) }}
-                        placeholder="搜索记忆，回车定位"
-                        aria-label="搜索记忆"
+                        placeholder={t('memoryPage.graph.searchPlaceholder')}
+                        aria-label={t('memoryPage.graph.searchLabel')}
                         leading={<SearchIcon className="h-[18px] w-[18px]" />}
-                        trailing={needle ? <span className="pr-3 text-[12px] text-[var(--social-fg-muted)]">{matches.length} 条</span> : undefined}
+                        trailing={needle ? <span className="pr-3 text-caption text-[var(--social-fg-muted)]">{t('memoryPage.graph.matches', { count: matches.length })}</span> : undefined}
                     />
                 </div>
                 {props.mobile ? null : <Legend />}
                 <div className="ml-auto flex items-center gap-1">
                     {props.mobile ? null : (
                         <>
-                            <IconButton size="sm" label="缩小" onClick={() => void flow.zoomOut({ duration: 200 })}>
-                                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+                            <IconButton size="sm" label={t('memoryPage.graph.zoomOut')} onClick={() => void flow.zoomOut({ duration: 200 })}>
+                                <MinusIcon className="h-5 w-5" />
                             </IconButton>
-                            <IconButton size="sm" label="放大" onClick={() => void flow.zoomIn({ duration: 200 })}>
-                                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                            <IconButton size="sm" label={t('memoryPage.graph.zoomIn')} onClick={() => void flow.zoomIn({ duration: 200 })}>
+                                <PlusIcon className="h-5 w-5" />
                             </IconButton>
                         </>
                     )}
-                    <IconButton size={props.mobile ? 'default' : 'sm'} label="看全部" onClick={() => { setFocusId(null); showAll(300) }}>
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+                    <IconButton size={props.mobile ? 'default' : 'sm'} label={t('memoryPage.graph.showAll')} onClick={() => { setFocusId(null); showAll(300) }}>
+                        <FitViewIcon className="h-5 w-5" />
                     </IconButton>
                 </div>
             </div>
@@ -282,9 +288,9 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
 export default function MemoryGraph(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpen: (id: string) => void; mobile?: boolean }) {
     return (
         <ReactFlowProvider>
-            <div className="h-full w-full overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)]">
+            <Card className="h-full w-full overflow-hidden">
                 <GraphCanvas memories={props.memories} links={props.links} onOpen={props.onOpen} mobile={props.mobile} />
-            </div>
+            </Card>
         </ReactFlowProvider>
     )
 }

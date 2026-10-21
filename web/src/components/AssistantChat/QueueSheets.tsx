@@ -6,6 +6,8 @@ import { permissionModeText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/IconButton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ArrowDownIcon, ArrowUpIcon, CloseIcon } from '@/components/mobile/icons'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -64,7 +66,7 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
             label,
             value: (
                 <span className="flex w-36 flex-col items-end gap-1">
-                    <span className="text-[13px] tabular-nums text-[var(--social-fg)]">{`${rateLimit.usedPercent}% · ${rateLimit.resetAt}`}</span>
+                    <span className="text-footnote tabular-nums text-[var(--social-fg)]">{`${rateLimit.usedPercent}% · ${rateLimit.resetAt}`}</span>
                     <span className="h-1 w-full overflow-hidden rounded-full bg-[var(--social-muted)]">
                         <span className={cn('block h-full rounded-full', tone)} style={{ width: `${Math.max(0, Math.min(100, rateLimit.usedPercent))}%` }} />
                     </span>
@@ -76,7 +78,7 @@ function describeStatusRow(row: StatusRow, t: Translate): { label: string; value
         return { label, value: permissionModeText(raw as PermissionMode, t) }
     }
     if (field === 'session' && raw.length > 12 && !STATUS_VALUE_KEYS[raw.toLowerCase()]) {
-        return { label, value: <span className="font-mono text-[13px]" title={raw}>{`${raw.slice(0, 8)}…`}</span> }
+        return { label, value: <span className="font-mono text-footnote" title={raw}>{`${raw.slice(0, 8)}…`}</span> }
     }
     const valueKey = STATUS_VALUE_KEYS[raw.toLowerCase()]
     return { label, value: valueKey ? t(valueKey) : raw || '—' }
@@ -169,20 +171,20 @@ function QueueEntryRow(props: {
     const { entry, index } = props
     return (
         <div className="flex items-center gap-3 px-4 py-1 [&+&]:border-t [&+&]:border-[var(--social-border)]">
-            <span className="w-5 shrink-0 text-[13px] tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
+            <span className="w-5 shrink-0 text-footnote tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
             <div className="min-w-0 flex-1 py-2">
-                <div className="line-clamp-3 break-words text-[15px] leading-snug text-[var(--social-fg)]">
+                <div className="line-clamp-3 break-words text-body leading-snug text-[var(--social-fg)]">
                     {entry.preview || t('queue.dialog.emptyMessage')}
                 </div>
-                <div className="mt-1 text-[12px] text-[var(--social-fg-subtle)]">
+                <div className="mt-1 text-caption text-[var(--social-fg-subtle)]">
                     {new Date(entry.enqueuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                 </div>
             </div>
             <div className="flex shrink-0 items-center">
-                <IconButton label={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}>↑</IconButton>
-                <IconButton label={t('queue.entry.moveDown')} disabled={props.disabled || index >= props.count - 1} onClick={() => props.onMove(entry.id, index + 1)}>↓</IconButton>
-                <IconButton label={t('queue.entry.remove')} className="hover:text-[var(--social-danger)]" disabled={props.disabled} onClick={() => props.onRemove(entry.id)}>✕</IconButton>
+                <IconButton label={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}><ArrowUpIcon className="h-[18px] w-[18px]" /></IconButton>
+                <IconButton label={t('queue.entry.moveDown')} disabled={props.disabled || index >= props.count - 1} onClick={() => props.onMove(entry.id, index + 1)}><ArrowDownIcon className="h-[18px] w-[18px]" /></IconButton>
+                <IconButton label={t('queue.entry.remove')} className="hover:text-[var(--social-danger)]" disabled={props.disabled} onClick={() => props.onRemove(entry.id)}><CloseIcon className="h-[18px] w-[18px]" /></IconButton>
             </div>
         </div>
     )
@@ -225,7 +227,7 @@ export function QueueSheet(props: {
                         onRemove={props.onRemove}
                     />
                 )) : (
-                    <div className="px-4 py-3 text-[15px] text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
+                    <EmptyState title={t('queue.dialog.empty')} />
                 )}
             </SheetSection>
             <SheetSection>

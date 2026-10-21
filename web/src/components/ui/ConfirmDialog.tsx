@@ -69,7 +69,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
                 </DialogHeader>
 
                 {error ? (
-                    <div className="mt-3 rounded-xl bg-[var(--app-badge-error-bg)] p-3 text-[13px] text-[var(--app-badge-error-text)]">
+                    <div className="mt-3 rounded-xl bg-[var(--app-badge-error-bg)] p-3 text-footnote text-[var(--app-badge-error-text)]">
                         {error}
                     </div>
                 ) : null}
@@ -85,7 +85,7 @@ export function ConfirmDialog(props: ConfirmDialogProps) {
                     </Button>
                     <Button
                         type="button"
-                        variant={destructive ? 'destructive' : 'secondary'}
+                        variant={destructive ? 'destructive' : 'default'}
                         onClick={handleConfirm}
                         disabled={isPending}
                     >

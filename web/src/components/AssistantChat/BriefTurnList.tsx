@@ -19,15 +19,17 @@ import { useNestedScrollPassthrough } from '@/components/AssistantChat/useNested
 import { Spinner } from '@/components/Spinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { IconButton } from '@/components/ui/IconButton'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useSessionReopenPositionPreference } from '@/hooks/useSessionReopenPositionPreference'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { readSessionScrollSnapshot, writeSessionScrollSnapshot } from '@/lib/sessionScrollState'
 import type { ConversationTurn, DecryptedMessage, Session } from '@/types/api'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type TurnDetailState = {
     isLoading: boolean
@@ -64,9 +66,9 @@ function isCodexPlanModeEnabled(session: Session): boolean {
     return session.metadata?.collaborationMode?.trim().toLowerCase() === 'plan'
 }
 
-function normalizePreview(value: string | null | undefined): string {
+function normalizePreview(value: string | null | undefined, emptyLabel: string): string {
     const text = value?.trim() ?? ''
-    return text.length > 0 ? text : '(empty)'
+    return text.length > 0 ? text : emptyLabel
 }
 
 function normalizeLivePreviewLine(line: string): string {
@@ -82,10 +84,10 @@ function normalizeLivePreviewLine(line: string): string {
     return cleaned
 }
 
-function extractLivePreviewLines(preview: string): string[] {
+function extractLivePreviewLines(preview: string, waitingLine: string): string[] {
     const text = preview.trim()
     if (text.length === 0) {
-        return ['Waiting for updates…']
+        return [waitingLine]
     }
 
     const normalizedLines = text
@@ -94,7 +96,7 @@ function extractLivePreviewLines(preview: string): string[] {
         .filter((line) => line.length > 0)
 
     if (normalizedLines.length === 0) {
-        return ['Waiting for updates…']
+        return [waitingLine]
     }
 
     return normalizedLines.slice(-3)
@@ -109,25 +111,6 @@ function buildDefaultTurnState(): TurnDetailState {
         nextBeforeSeq: null,
         hasMore: false
     }
-}
-
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
 }
 
 function readMobileBriefTurnId(search: string): string | null {
@@ -349,7 +332,9 @@ function LivePreviewCarousel(props: {
     preview: string
     liveActivity: string
 }) {
-    const lines = useMemo(() => extractLivePreviewLines(props.preview), [props.preview])
+    const { t } = useTranslation()
+    const waitingLine = t('brief.turn.waitingForUpdates')
+    const lines = useMemo(() => extractLivePreviewLines(props.preview, waitingLine), [props.preview, waitingLine])
     const [activeLineIndex, setActiveLineIndex] = useState(0)
     const [isVisible, setIsVisible] = useState(true)
     const fadeTimeoutRef = useRef<number | null>(null)
@@ -384,14 +369,14 @@ function LivePreviewCarousel(props: {
         }
     }, [lines])
 
-    const activeLine = lines[activeLineIndex] ?? 'Waiting for updates…'
+    const activeLine = lines[activeLineIndex] ?? waitingLine
 
     return (
         <div className="min-h-[3.6rem] py-0.5">
-            <div className={`whitespace-pre-wrap break-words text-[15px] leading-6 text-[var(--social-fg-muted)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
+            <div className={`whitespace-pre-wrap break-words text-body leading-6 text-[var(--social-fg-muted)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
                 {activeLine}
             </div>
-            <div className="truncate text-xs leading-5 text-[var(--social-fg-muted)]">
+            <div className="truncate text-caption leading-5 text-[var(--social-fg-muted)]">
                 {props.liveActivity}
             </div>
         </div>
@@ -497,6 +482,7 @@ export function BriefTurnList(props: {
     density: SessionListDensity
     onLoadMoreTurns: () => Promise<void>
 }) {
+    const { t } = useTranslation()
     const scrollerRef = useRef<HTMLDivElement | null>(null)
     useNestedScrollPassthrough(scrollerRef)
     const isAtBottomRef = useRef(true)
@@ -529,7 +515,11 @@ export function BriefTurnList(props: {
         [props.session]
     )
     const { sessionReopenPosition } = useSessionReopenPositionPreference()
-    const generatingBadgeText = codexPlanModeEnabled ? 'Generating (Plan mode)' : 'Generating'
+    const generatingBadgeText = codexPlanModeEnabled ? t('brief.turn.generatingPlan') : t('groups.brief.generating')
+    const turnTitle = activeTurn ? t('groups.brief.turnTitle', { n: activeTurn.turnIndex }) : t('groups.brief.turnDetails')
+    const turnSubtitle = activeTurn
+        ? t(activeTurn.messageCount === 1 ? 'groups.brief.messageOne' : 'groups.brief.messages', { n: activeTurn.messageCount })
+        : null
 
     const fetchTurnMessages = useCallback(async (
         turnId: string,
@@ -582,7 +572,7 @@ export function BriefTurnList(props: {
                 }
             })
         } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to load turn details'
+            const message = error instanceof Error ? error.message : t('groups.brief.loadFailed')
             setTurnDetailStateById((prev) => ({
                 ...prev,
                 [turnId]: {
@@ -593,7 +583,7 @@ export function BriefTurnList(props: {
                 }
             }))
         }
-    }, [props.api, props.session.id])
+    }, [props.api, props.session.id, t])
 
     const openTurnDetails = useCallback((turnId: string) => {
         setActiveTurnId(turnId)
@@ -905,13 +895,13 @@ export function BriefTurnList(props: {
     const renderTurnRow = useCallback((turn: ConversationTurn) => {
         const userPreview = turn.userPreview?.trim() ?? ''
         const assistantPreviewRaw = turn.assistantPreview?.trim() ?? ''
-        const assistantPreview = normalizePreview(turn.assistantPreview)
+        const assistantPreview = normalizePreview(turn.assistantPreview, t('groups.brief.emptyPreview'))
         const isLiveTurn = isBriefTurnLive({
             status: turn.status,
             thinking: props.thinking,
             isActiveStreamingTurn: activeTurnIdForStreaming === turn.id
         })
-        const liveActivity = liveActivityByTurnId[turn.id] ?? 'Waiting for Codex activity…'
+        const liveActivity = liveActivityByTurnId[turn.id] ?? t('brief.turn.waitingForActivity')
         const shouldShowFullLastBlock = shouldShowLatestBriefTurnAsFullContent({
             isLatestTurn: latestTurnId === turn.id,
             isLiveTurn
@@ -920,7 +910,7 @@ export function BriefTurnList(props: {
         const messageMeta = (
             <span className="inline-flex items-center gap-1">
                 <AnimatedCounter value={turn.messageCount} />
-                <span>message{turn.messageCount === 1 ? '' : 's'}</span>
+                <span>{t(turn.messageCount === 1 ? 'brief.turn.messageUnit' : 'brief.turn.messagesUnit')}</span>
             </span>
         )
 
@@ -928,8 +918,8 @@ export function BriefTurnList(props: {
             <div className="space-y-2">
                 {userPreview.length > 0 ? (
                     <div className="flex justify-end">
-                        <div className="max-w-[92%] rounded-2xl rounded-br-md border border-[var(--social-border)] bg-[var(--social-hover)]/60 px-3 py-2 text-[15px] text-[var(--social-fg)]">
-                            <BriefFullMarkdownContent content={userPreview} className="text-[15px]" />
+                        <div className="max-w-[92%] rounded-2xl rounded-br-md border border-[var(--social-border)] bg-[var(--social-hover)]/60 px-3 py-2 text-body text-[var(--social-fg)]">
+                            <BriefFullMarkdownContent content={userPreview} className="text-body" />
                         </div>
                     </div>
                 ) : null}
@@ -941,21 +931,21 @@ export function BriefTurnList(props: {
                                 type="button"
                                 className="block w-full text-left"
                                 onClick={() => openTurnDetails(turn.id)}
-                                aria-label="Open assistant details"
+                                aria-label={t('brief.turn.openReplyDetails')}
                             >
                                 <div className="flex min-h-[7.25rem] flex-col gap-1.5 py-1">
                                     <div className="flex items-center gap-2">
                                         <Badge variant="info" dot live>
                                             {generatingBadgeText}
                                         </Badge>
-                                        <span className="ml-auto text-[12px] text-[var(--social-fg-muted)]">{messageMeta}</span>
+                                        <span className="ml-auto text-caption text-[var(--social-fg-muted)]">{messageMeta}</span>
                                     </div>
                                     <LivePreviewCarousel
                                         preview={assistantPreviewRaw}
                                         liveActivity={liveActivity}
                                     />
-                                    <div className="text-[12px] text-[var(--social-fg-muted)]">
-                                        <span className="underline decoration-dotted">Click to open details</span>
+                                    <div className="text-caption text-[var(--social-fg-muted)]">
+                                        <span className="underline decoration-dotted">{t('groups.brief.openDetails')}</span>
                                     </div>
                                 </div>
                             </button>
@@ -963,7 +953,7 @@ export function BriefTurnList(props: {
                     ) : shouldShowFullLastBlock ? (
                         <div className="w-full max-w-[92%] px-1 py-1">
                             <BriefFullMarkdownContent content={assistantPreview} />
-                            <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--social-fg-muted)]">
+                            <div className="mt-2 flex items-center gap-2 text-caption text-[var(--social-fg-muted)]">
                                 <span>{messageMeta}</span>
                                 <span>·</span>
                                 <button
@@ -971,7 +961,7 @@ export function BriefTurnList(props: {
                                     className={cn('underline decoration-dotted hover:text-[var(--social-fg)]', TEXT_HIT_AREA_CLASS)}
                                     onClick={() => openTurnDetails(turn.id)}
                                 >
-                                    Open details
+                                    {t('groups.brief.openDetails')}
                                 </button>
                                 {turnChangesSummary ? (
                                     <>
@@ -981,7 +971,7 @@ export function BriefTurnList(props: {
                                             className={cn('underline decoration-dotted hover:text-[var(--social-fg)]', TEXT_HIT_AREA_CLASS)}
                                             onClick={() => openTurnChangesDetails(turn.id, turnChangesSummary.toolId)}
                                         >
-                                            Turn changes (+{turnChangesSummary.additions} -{turnChangesSummary.deletions})
+                                            {t('brief.turn.changes', { additions: turnChangesSummary.additions, deletions: turnChangesSummary.deletions })}
                                         </button>
                                     </>
                                 ) : null}
@@ -990,7 +980,7 @@ export function BriefTurnList(props: {
                     ) : (
                         <div className="w-full max-w-[92%] px-1 py-1">
                             <BriefFullMarkdownContent content={assistantPreview} />
-                            <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--social-fg-muted)]">
+                            <div className="mt-2 flex items-center gap-2 text-caption text-[var(--social-fg-muted)]">
                                 <span>{messageMeta}</span>
                                 <span>·</span>
                                 <button
@@ -998,7 +988,7 @@ export function BriefTurnList(props: {
                                     className={cn('underline decoration-dotted hover:text-[var(--social-fg)]', TEXT_HIT_AREA_CLASS)}
                                     onClick={() => openTurnDetails(turn.id)}
                                 >
-                                    Open details
+                                    {t('groups.brief.openDetails')}
                                 </button>
                             </div>
                         </div>
@@ -1014,7 +1004,8 @@ export function BriefTurnList(props: {
         openTurnChangesDetails,
         props.thinking,
         turnChangesSummaryByTurnId,
-        generatingBadgeText
+        generatingBadgeText,
+        t
     ])
 
     useEffect(() => {
@@ -1159,7 +1150,7 @@ export function BriefTurnList(props: {
             <div className="relative flex min-h-0 flex-1 flex-col">
                 <div className="mx-auto flex h-full w-full max-w-content min-h-0 flex-col gap-3 px-3 py-3">
                     {props.warning ? (
-                        <div className="rounded-xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-xs text-[var(--app-badge-warning-text)]">
+                        <div className="rounded-xl border border-[var(--app-badge-warning-border)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-caption text-[var(--app-badge-warning-text)]">
                             {props.warning}
                         </div>
                     ) : null}
@@ -1167,14 +1158,14 @@ export function BriefTurnList(props: {
                     <div className="min-h-0 flex flex-1 flex-col pr-1">
                         <div
                             ref={scrollerRef}
-                            className="app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+                            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
                         >
                             {props.isLoading && props.turns.length === 0 ? (
-                                <div className="text-xs text-[var(--social-fg-muted)]">Loading conversation…</div>
+                                <div className="text-caption text-[var(--social-fg-muted)]">{t('groups.brief.loading')}</div>
                             ) : null}
 
                             {props.turns.length === 0 && !props.isLoading ? (
-                                <div className="text-xs text-[var(--social-fg-muted)]">No turns yet.</div>
+                                <EmptyState title={t('groups.brief.empty')} />
                             ) : null}
 
                             {props.turns.length > 0 ? (
@@ -1187,7 +1178,7 @@ export function BriefTurnList(props: {
                                                 onClick={loadOlderTurnsPreservingViewport}
                                                 disabled={props.isLoadingMore}
                                             >
-                                                {props.isLoadingMore ? 'Loading older turns…' : 'Load older turns'}
+                                                {props.isLoadingMore ? t('brief.turn.loadingOlder') : t('brief.turn.loadOlder')}
                                             </Button>
                                         </div>
                                     ) : (
@@ -1210,27 +1201,11 @@ export function BriefTurnList(props: {
             {isMobileViewport ? (
                 activeTurnId ? (
                     <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--social-surface)]">
-                        <div className="border-b border-[var(--social-border)] bg-[var(--social-surface)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-                            <div className="flex items-center gap-2">
-                                <IconButton label="Back" onClick={closeTurnDetails}>
-                                    <BackIcon />
-                                </IconButton>
-                                <div className="min-w-0">
-                                    <div className="truncate text-[15px] font-semibold text-[var(--social-fg)]">
-                                        {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
-                                    </div>
-                                    {activeTurn ? (
-                                        <div className="text-xs text-[var(--social-fg-muted)]">
-                                            {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            </div>
-                        </div>
+                        <SubPageHeader title={turnTitle} subtitle={turnSubtitle} onBack={closeTurnDetails} />
 
                         <div className="min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]">
                             {activeTurn && activeDetail?.error ? (
-                                <div className="h-full overflow-y-auto p-4 text-[15px] text-[var(--social-danger)]">
+                                <div className="h-full overflow-y-auto p-4 text-body text-[var(--social-danger)]">
                                     {activeDetail.error}
                                     <div className="mt-2">
                                         <Button
@@ -1241,7 +1216,7 @@ export function BriefTurnList(props: {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
                                         >
-                                            Retry
+                                            {t('groups.brief.retry')}
                                         </Button>
                                     </div>
                                 </div>
@@ -1262,14 +1237,14 @@ export function BriefTurnList(props: {
                                     />
                                 </div>
                             ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-full items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
+                                <div className="flex h-full items-center justify-center text-body text-[var(--social-fg-muted)]">
                                     {activeTurn && activeDetail?.isLoading ? (
                                         <span className="inline-flex items-center gap-2">
                                             <Spinner size="sm" label={null} className="text-current" />
-                                            Loading turn details…
+                                            {t('groups.brief.loadingTurn')}
                                         </span>
                                     ) : (
-                                        'No detail messages'
+                                        t('groups.brief.noDetail')
                                     )}
                                 </div>
                             )}
@@ -1285,20 +1260,16 @@ export function BriefTurnList(props: {
                     <DialogContent className="flex h-[90vh] max-h-[90vh] max-w-4xl flex-col overflow-hidden p-0">
                         <div className="border-b border-[var(--social-border)] px-4 py-3">
                             <DialogHeader>
-                                <DialogTitle>
-                                    {activeTurn ? `Turn #${activeTurn.turnIndex} details` : 'Turn details'}
-                                </DialogTitle>
+                                <DialogTitle>{turnTitle}</DialogTitle>
                             </DialogHeader>
-                            {activeTurn ? (
-                                <div className="mt-1 text-xs text-[var(--social-fg-muted)]">
-                                    {activeTurn.messageCount} message{activeTurn.messageCount === 1 ? '' : 's'}
-                                </div>
+                            {turnSubtitle ? (
+                                <div className="mt-1 text-caption text-[var(--social-fg-muted)]">{turnSubtitle}</div>
                             ) : null}
                         </div>
 
                         <div className="min-h-0 flex-1 overflow-hidden">
                             {activeTurn && activeDetail?.error ? (
-                                <div className="h-full overflow-y-auto p-4 text-[15px] text-[var(--social-danger)]">
+                                <div className="h-full overflow-y-auto p-4 text-body text-[var(--social-danger)]">
                                     {activeDetail.error}
                                     <div className="mt-2">
                                         <Button
@@ -1309,7 +1280,7 @@ export function BriefTurnList(props: {
                                                 void fetchTurnMessages(activeTurn.id, null, false)
                                             }}
                                         >
-                                            Retry
+                                            {t('groups.brief.retry')}
                                         </Button>
                                     </div>
                                 </div>
@@ -1330,14 +1301,14 @@ export function BriefTurnList(props: {
                                     />
                                 </div>
                             ) : activeTurn && activeDetail?.error ? null : (
-                                <div className="flex h-[65vh] items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
+                                <div className="flex h-[65vh] items-center justify-center text-body text-[var(--social-fg-muted)]">
                                     {activeTurn && activeDetail?.isLoading ? (
                                         <span className="inline-flex items-center gap-2">
                                             <Spinner size="sm" label={null} className="text-current" />
-                                            Loading turn details…
+                                            {t('groups.brief.loadingTurn')}
                                         </span>
                                     ) : (
-                                        'No detail messages'
+                                        t('groups.brief.noDetail')
                                     )}
                                 </div>
                             )}

@@ -4,17 +4,22 @@ import { cn } from '@/lib/utils'
 export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     /** Filled when chosen (filters, single-choice groups). */
     selected?: boolean
+    /** default 32px; sm 24px for links inside a caption line (still a 44px hit area). */
+    size?: 'default' | 'sm'
 }
 
 /** Pill shortcut / filter / choice. 32px tall; keep rows scrollable or wrapping with 8px gaps. */
 export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
-    ({ className, selected, type = 'button', ...props }, ref) => (
+    ({ className, selected, size = 'default', type = 'button', ...props }, ref) => (
         <button
             ref={ref}
             type={type}
             aria-pressed={selected}
             className={cn(
-                'inline-flex h-8 max-w-full items-center truncate rounded-full border px-3.5 text-[13px] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [-webkit-tap-highlight-color:transparent]',
+                'inline-flex max-w-full items-center truncate rounded-full border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [-webkit-tap-highlight-color:transparent]',
+                size === 'sm'
+                    ? "relative h-6 gap-1 px-2.5 text-caption after:absolute after:-inset-2.5 after:content-['']"
+                    : 'h-8 px-3.5 text-footnote',
                 selected
                     ? 'border-[var(--social-primary)] bg-[var(--social-primary)] font-semibold text-[var(--social-primary-fg)]'
                     : 'border-[var(--social-border)] text-[var(--social-fg)] hover:bg-[var(--social-hover)]',

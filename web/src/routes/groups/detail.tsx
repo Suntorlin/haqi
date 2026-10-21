@@ -59,8 +59,10 @@ import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { TIME_SEPARATOR_GAP_MS } from '@/components/mobile/chatTimeline'
 import { GroupAvatar, SessionAvatar, getProjectName, getSessionProjectPath, type AvatarRing } from '@/components/mobile/SessionAvatar'
 import {
+    AlertCircleIcon,
     ChatBubbleIcon,
     ChevronRightIcon,
+    CloseIcon,
     DuplicateIcon,
     MegaphoneIcon,
     MoreHorizontalIcon,
@@ -75,6 +77,8 @@ import {
     TrashIcon
 } from '@/components/mobile/icons'
 import { useGroupInfoPanel } from './group-info'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -93,27 +97,6 @@ function useDebounce<T>(value: T, delay: number): T {
     }, [value, delay])
 
     return debouncedValue
-}
-
-// ─── Icons ───────────────────────────────────────────────────────────────────
-
-function CloseIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-    )
-}
-
-function AttachmentErrorIcon(props: { className?: string }) {
-    return (
-        <svg className={props.className} viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="11" r="0.75" fill="currentColor" />
-        </svg>
-    )
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -247,7 +230,7 @@ function MemberStatusLine(props: { session: SessionSummary | undefined; status: 
     ].filter(Boolean).join(' · ')
 
     return (
-        <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+        <span className="mt-0.5 flex min-w-0 items-center gap-1 text-footnote leading-snug text-[var(--social-fg-muted)]">
             {status === 'pending' ? (
                 <span className="shrink-0 font-semibold text-[var(--social-badge)]">
                     {t('mobile.feed.pending', { n: session?.pendingRequestsCount ?? 0 })}
@@ -561,10 +544,10 @@ function SessionPickRow(props: { session: SessionSummary; disabled: boolean; onP
         >
             <SessionAvatar session={session} size={36} muted={!session.active} />
             <span className="min-w-0 flex-1">
-                <span className="block truncate text-[15px] text-[var(--social-fg)]">
+                <span className="block truncate text-body text-[var(--social-fg)]">
                     {getSessionTitle(session, { fallbackIdLength: 12 })}
                 </span>
-                <span className="block truncate text-[13px] text-[var(--social-fg-muted)]">
+                <span className="block truncate text-footnote text-[var(--social-fg-muted)]">
                     {[session.metadata?.flavor, getProjectName(getSessionProjectPath(session))].filter(Boolean).join(' · ')}
                 </span>
             </span>
@@ -726,7 +709,7 @@ function MemberRow(props: {
                     badgeCount={status === 'pending' ? session?.pendingRequestsCount : 0}
                 />
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[15px] text-[var(--social-fg)]">{title}</span>
+                    <span className="block truncate text-body text-[var(--social-fg)]">{title}</span>
                     <MemberStatusLine session={session} status={status} />
                 </span>
             </button>
@@ -779,12 +762,12 @@ function GroupInfoSheet(props: {
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <GroupAvatar seed={props.groupId} members={memberSessions} size={48} />
                 <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-[16px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
-                    <div className="mt-1 truncate text-[13px] text-[var(--social-fg-muted)]">
+                    <div className="line-clamp-2 text-headline font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
+                    <div className="mt-1 truncate text-footnote text-[var(--social-fg-muted)]">
                         {t('groups.info.summary', { n: props.members.length, m: onlineCount })}
                     </div>
                     {props.description ? (
-                        <div className="mt-0.5 line-clamp-2 text-[13px] text-[var(--social-fg-muted)]">{props.description}</div>
+                        <div className="mt-0.5 line-clamp-2 text-footnote text-[var(--social-fg-muted)]">{props.description}</div>
                     ) : null}
                 </div>
             </div>
@@ -832,7 +815,7 @@ function GroupInfoSheet(props: {
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg)]">
                         <PlusIcon className="h-5 w-5" />
                     </span>
-                    <span className="text-[15px] text-[var(--social-fg)]">{t('groups.detail.addMember')}</span>
+                    <span className="text-body text-[var(--social-fg)]">{t('groups.detail.addMember')}</span>
                 </button>
             </SheetSection>
 
@@ -845,7 +828,7 @@ function GroupInfoSheet(props: {
                     {noteContent ? (
                         <BriefCardMarkdownPreview content={noteContent} className="max-h-[132px] text-[var(--social-fg-muted)]" />
                     ) : (
-                        <span className="text-[15px] text-[var(--social-fg-muted)]">{t('groups.note.empty')}</span>
+                        <span className="text-body text-[var(--social-fg-muted)]">{t('groups.note.empty')}</span>
                     )}
                 </button>
                 <SheetRow icon={<PencilIcon />} label={t('groups.note.edit')} chevron onClick={closeThen(props.onEditNote)} />
@@ -878,7 +861,7 @@ function MemberActionsSheet(props: {
                     <div className="flex items-center gap-3.5 px-5 pb-4 pt-2">
                         <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={44} ring={getMemberRing(status)} muted={status === 'offline'} />
                         <div className="min-w-0 flex-1">
-                            <div className="line-clamp-2 text-[16px] font-semibold leading-snug text-[var(--social-fg)]">{title}</div>
+                            <div className="line-clamp-2 text-headline font-semibold leading-snug text-[var(--social-fg)]">{title}</div>
                             <MemberStatusLine session={session} status={status} />
                         </div>
                     </div>
@@ -971,7 +954,7 @@ function NoteEditorSheet(props: {
                             className={cn(DIALOG_INPUT_CLASS, 'resize-y')}
                         />
                     </FormField>
-                    {error ? <div className="px-1 text-[13px] text-[var(--social-danger)]">{error}</div> : null}
+                    {error ? <div className="px-1 text-footnote text-[var(--social-danger)]">{error}</div> : null}
                     <div className="flex justify-end gap-2 pt-1">
                         <Button type="button" variant="secondary" onClick={() => props.onOpenChange(false)}>
                             {t('button.cancel')}
@@ -1010,8 +993,8 @@ function PendingRequestsSheet(props: {
                 <div className="flex items-center gap-3 px-5 pb-4 pt-1">
                     <SessionAvatar session={{ id: props.sessionId }} size={40} ring={props.requests.length > 0 ? 'pending' : null} />
                     <div className="min-w-0 flex-1">
-                        <div className="truncate text-[15px] font-semibold text-[var(--social-fg)]">{props.sessionTitle}</div>
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">
+                        <div className="truncate text-body font-semibold text-[var(--social-fg)]">{props.sessionTitle}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">
                             {props.requests.length > 0 ? t('mobile.feed.pending', { n: props.requests.length }) : t('groups.pending.none')}
                         </div>
                     </div>
@@ -1023,14 +1006,14 @@ function PendingRequestsSheet(props: {
                 <SheetNote>{t('groups.pending.loading')}</SheetNote>
             ) : props.requests.map((request) => (
                 <section key={request.id} className="px-4 pb-3">
-                    <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                    <Card className="overflow-hidden">
                         <div className="flex items-baseline gap-2 px-4 pt-3">
-                            <span className="min-w-0 flex-1 truncate text-[15px] font-semibold text-[var(--social-fg)]">{request.tool}</span>
+                            <span className="min-w-0 flex-1 truncate text-body font-semibold text-[var(--social-fg)]">{request.tool}</span>
                             {request.createdAt ? (
-                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">{formatTime(request.createdAt)}</span>
+                                <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">{formatTime(request.createdAt)}</span>
                             ) : null}
                         </div>
-                        <pre className="mx-4 mb-3 mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-[12px] leading-relaxed text-[var(--social-fg)]">
+                        <pre className="mx-4 mb-3 mt-2 max-h-52 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-caption leading-relaxed text-[var(--social-fg)]">
                             {formatPermissionArguments(request.arguments)}
                         </pre>
                         <div className="flex justify-end gap-2 border-t border-[var(--social-border)] px-3 py-2.5">
@@ -1051,7 +1034,7 @@ function PendingRequestsSheet(props: {
                                 {props.activeRequestId === request.id ? t('groups.detail.processing') : t('groups.detail.approve')}
                             </Button>
                         </div>
-                    </div>
+                    </Card>
                 </section>
             ))}
             <SheetSection>
@@ -1080,8 +1063,8 @@ function PendingBanner(props: {
                 >
                     <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
                     <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[15px] font-semibold text-[var(--social-fg)]">{item.title}</span>
-                        <span className="block text-[13px] text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
+                        <span className="block truncate text-body font-semibold text-[var(--social-fg)]">{item.title}</span>
+                        <span className="block text-footnote text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
                     </span>
                     <span aria-hidden className={buttonVariants({ size: 'sm' })}>
                         {t('groups.pending.handle')}
@@ -1114,7 +1097,7 @@ function TaskStateList(props: { taskStates: LatestTaskStates; sessionMap: Map<st
                 type="button"
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
-                className="relative flex items-center gap-1 text-[12px] text-[var(--social-fg-subtle)] transition-colors before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:text-[var(--social-fg-muted)]"
+                className="relative flex items-center gap-1 text-caption text-[var(--social-fg-subtle)] transition-colors before:absolute before:-inset-x-2 before:-inset-y-3 before:content-[''] hover:text-[var(--social-fg-muted)]"
             >
                 <ChevronRightIcon className={cn('h-3 w-3 transition-transform', open ? 'rotate-90' : '')} />
                 {allDone ? t('groups.task.summaryDone', { n: tasks.length }) : t('groups.task.summary', { n: tasks.length })}
@@ -1130,7 +1113,7 @@ function TaskStateList(props: { taskStates: LatestTaskStates; sessionMap: Map<st
                             : ''
                         const error = typeof p?.error === 'string' ? p.error : null
                         return (
-                            <div key={task.taskId ?? task.id} className="flex min-w-0 items-center gap-2 text-[12px]">
+                            <div key={task.taskId ?? task.id} className="flex min-w-0 items-center gap-2 text-caption">
                                 <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', taskStatusDotClass(status))} />
                                 <span className="shrink-0 text-[var(--social-fg)]">{t(`groups.task.status.${status}`)}</span>
                                 {target ? <span className="min-w-0 truncate text-[var(--social-fg-muted)]">{target}</span> : null}
@@ -1187,7 +1170,7 @@ function TimelineBubble(props: {
             <div className="mx-auto w-full max-w-content px-4 pt-3">
                 {separator}
                 <div className="flex justify-center">
-                    <span className="max-w-[88%] rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-[12px] leading-[18px] text-[var(--social-fg-muted)]">
+                    <span className="max-w-[88%] rounded-full bg-[var(--social-muted)] px-3 py-1 text-center text-caption leading-[1.125rem] text-[var(--social-fg-muted)]">
                         {text}
                     </span>
                 </div>
@@ -1224,10 +1207,10 @@ function TimelineBubble(props: {
                             title={t('groups.message.openSession', { name: actorTitle })}
                         >
                             <SessionAvatar session={{ id: actorSessionId }} size={18} muted={!actorSession?.active} />
-                            <span className="truncate text-[13px] font-semibold text-[var(--social-fg-muted)]">{actorTitle}</span>
+                            <span className="truncate text-footnote font-semibold text-[var(--social-fg-muted)]">{actorTitle}</span>
                         </button>
                     ) : (
-                        <div className="mb-1 max-w-[88%] truncate px-1 text-[13px] font-semibold text-[var(--social-fg-muted)]">{actorTitle}</div>
+                        <div className="mb-1 max-w-[88%] truncate px-1 text-footnote font-semibold text-[var(--social-fg-muted)]">{actorTitle}</div>
                     )
                 ) : null}
                 <div className={cn('flex min-w-0 max-w-[88%] items-end gap-1 lg:max-w-[75%]', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -1235,16 +1218,16 @@ function TimelineBubble(props: {
                         {...(isMobileLayout ? longPressHandlers : {})}
                         style={isMobileLayout ? { WebkitTouchCallout: 'none' } : undefined}
                         className={cn(
-                            'min-w-0 max-w-full rounded-2xl px-4 py-2.5 text-[15px] leading-[1.55] break-words [overflow-wrap:anywhere]',
-                            isUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md',
+                            'min-w-0 max-w-full rounded-2xl px-4 py-2.5 text-body leading-[1.55] break-words [overflow-wrap:anywhere]',
+                            isUser ? 'social-bubble-self rounded-br-md' : 'social-bubble-other rounded-tl-md',
                             isMobileLayout ? 'select-none' : '',
-                            isCommand ? 'whitespace-pre-wrap font-mono text-[13px]' : ''
+                            isCommand ? 'whitespace-pre-wrap font-mono text-footnote' : ''
                         )}
                     >
                         {quoteInfo ? (
                             <div
                                 className={cn(
-                                    'mb-2 border-l-2 pl-2.5 font-sans text-[13px] leading-snug',
+                                    'mb-2 border-l-2 pl-2.5 font-sans text-footnote leading-snug',
                                     isUser ? 'border-[var(--social-primary-fg)]/40 opacity-80' : 'border-[var(--social-border)] text-[var(--social-fg-muted)]'
                                 )}
                             >
@@ -1368,7 +1351,7 @@ function ComposerAttachmentList(props: {
                         ) : null}
                         {attachment.status === 'error' ? (
                             <span className="text-[var(--social-danger)]">
-                                <AttachmentErrorIcon className="h-4 w-4" />
+                                <AlertCircleIcon className="h-4 w-4" />
                             </span>
                         ) : null}
                         {isImage ? (
@@ -1383,10 +1366,10 @@ function ComposerAttachmentList(props: {
                             </span>
                         )}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] text-[var(--social-fg)]">
+                            <div className="truncate text-footnote text-[var(--social-fg)]">
                                 {attachment.filename}
                             </div>
-                            <div className={cn('truncate text-[12px]', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
+                            <div className={cn('truncate text-caption', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
                                 {statusText}
                             </div>
                         </div>
@@ -1414,7 +1397,7 @@ const TimelineScroller = forwardRef<HTMLDivElement, ComponentProps<'div'>>(
             <div
                 {...props}
                 ref={ref}
-                className={`app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${props.className ?? ''}`.trim()}
+                className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${props.className ?? ''}`.trim()}
             />
         )
     }
@@ -1433,8 +1416,8 @@ function TimelineHistoryControl(props: {
     return (
         <div className="flex justify-center pb-1 pt-3">
             {props.isLoading ? (
-                <span className="inline-flex items-center gap-2 text-[12px] text-[var(--social-fg-subtle)]">
-                    <span className="social-spinner" aria-hidden="true" />
+                <span className="inline-flex items-center gap-2 text-caption text-[var(--social-fg-subtle)]">
+                    <Spinner size="sm" label={null} />
                     {t('groups.timeline.loadingOlder')}
                 </span>
             ) : (
@@ -1829,7 +1812,7 @@ function GroupBriefTurnList(props: {
         <>
             {activeTurn && activeDetail?.error ? (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                    <div className="text-[15px] text-[var(--social-danger)]">{activeDetail.error}</div>
+                    <div className="text-body text-[var(--social-danger)]">{activeDetail.error}</div>
                     <Button
                         type="button"
                         variant="secondary"
@@ -1853,7 +1836,7 @@ function GroupBriefTurnList(props: {
                     />
                 </div>
             ) : (
-                <div className="flex h-full items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
+                <div className="flex h-full items-center justify-center text-body text-[var(--social-fg-muted)]">
                     {activeTurn && activeDetail?.isLoading ? t('groups.brief.loadingTurn') : t('groups.brief.noDetail')}
                 </div>
             )}
@@ -1864,19 +1847,17 @@ function GroupBriefTurnList(props: {
         <>
             <div className="relative flex h-full min-h-0 flex-col">
                 {props.warning ? (
-                    <div className="mx-4 mt-2 rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-[12px] text-[var(--app-badge-warning-text)]">
+                    <div className="mx-4 mt-2 rounded-xl bg-[var(--app-badge-warning-bg)] px-3 py-2 text-caption text-[var(--app-badge-warning-text)]">
                         {props.warning}
                     </div>
                 ) : null}
 
                 {props.isLoading && props.turns.length === 0 ? (
                     <div className="flex flex-1 items-center justify-center py-8">
-                        <LoadingState label={t('groups.brief.loading')} className="text-[15px]" />
+                        <LoadingState label={t('groups.brief.loading')} className="text-body" />
                     </div>
                 ) : props.turns.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center py-8 text-[15px] text-[var(--social-fg-muted)]">
-                        {t('groups.brief.empty')}
-                    </div>
+                    <EmptyState variant="page" className="flex-1" title={t('groups.brief.empty')} />
                 ) : (
                     <div className="min-h-0 flex-1">
                         <Virtuoso
@@ -1918,7 +1899,7 @@ function GroupBriefTurnList(props: {
                                 )
                                 const initiatorIsUser = (turn.initiatorSource ?? '').startsWith('user:')
                                 const footer = (
-                                    <div className="mt-2 flex items-center gap-1.5 px-1 text-[12px] text-[var(--social-fg-subtle)]">
+                                    <div className="mt-2 flex items-center gap-1.5 px-1 text-caption text-[var(--social-fg-subtle)]">
                                         <span>{formatMessageCount(turn.messageCount, t)}</span>
                                         <span aria-hidden="true">·</span>
                                         <button
@@ -1930,7 +1911,7 @@ function GroupBriefTurnList(props: {
                                         </button>
                                         {isOpen ? (
                                             <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--social-fg-muted)]">
-                                                <span className="social-spinner" aria-hidden="true" />
+                                                <Spinner size="sm" label={null} />
                                                 {t('groups.brief.generating')}
                                             </span>
                                         ) : null}
@@ -1942,8 +1923,8 @@ function GroupBriefTurnList(props: {
                                         <div className={cn('flex', initiatorIsUser ? 'justify-end' : 'justify-start')}>
                                             <div
                                                 className={cn(
-                                                    'max-w-[88%] rounded-2xl px-4 py-2.5 text-[15px] lg:max-w-[75%]',
-                                                    initiatorIsUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md'
+                                                    'max-w-[88%] rounded-2xl px-4 py-2.5 text-body lg:max-w-[75%]',
+                                                    initiatorIsUser ? 'social-bubble-self rounded-br-md' : 'social-bubble-other rounded-tl-md'
                                                 )}
                                             >
                                                 <BriefCardMarkdownPreview content={initiatorPreview} />
@@ -1954,14 +1935,14 @@ function GroupBriefTurnList(props: {
                                             {isOpen ? (
                                                 <button
                                                     type="button"
-                                                    className="social-card w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
+                                                    className="social-bubble-other w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
                                                     onClick={() => openTurnDetails(turn.id)}
                                                     aria-label={t('groups.detail.openTurn')}
                                                 >
                                                     <BriefCardMarkdownPreview content={responderPreview} className="text-[var(--social-fg)]" />
                                                 </button>
                                             ) : (
-                                                <div className="social-card w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 lg:max-w-[75%]">
+                                                <div className="social-bubble-other w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 lg:max-w-[75%]">
                                                     <BriefFullMarkdownContent content={responderPreview} />
                                                 </div>
                                             )}
@@ -1996,7 +1977,7 @@ function GroupBriefTurnList(props: {
                                 <DialogTitle>{turnTitle}</DialogTitle>
                             </DialogHeader>
                             {turnSubtitle ? (
-                                <div className="mt-0.5 text-[12px] text-[var(--social-fg-muted)]">{turnSubtitle}</div>
+                                <div className="mt-0.5 text-caption text-[var(--social-fg-muted)]">{turnSubtitle}</div>
                             ) : null}
                         </div>
                         <div className="social-chat min-h-0 flex-1 overflow-hidden">
@@ -2786,14 +2767,14 @@ export default function GroupDetailPage() {
     if (groupLoading) {
         return (
             <div className="flex h-full items-center justify-center">
-                <LoadingState label={t('groups.loading')} className="text-[15px]" />
+                <LoadingState label={t('groups.loading')} className="text-body" />
             </div>
         )
     }
 
     if (!group || groupError) {
         return (
-            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-[15px] text-[var(--social-fg-muted)]">
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-body text-[var(--social-fg-muted)]">
                 {groupError ?? t('groups.notFound')}
             </div>
         )
@@ -2819,7 +2800,7 @@ export default function GroupDetailPage() {
                 onOpenSession={openSession}
             />
         ) : (
-            <div className="flex h-full items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
+            <div className="flex h-full items-center justify-center text-body text-[var(--social-fg-muted)]">
                 {t('groups.unavailable')}
             </div>
         )
@@ -2829,13 +2810,10 @@ export default function GroupDetailPage() {
          expects. A dedicated groups-to-ChatBlock adapter would be needed to
          support CliThread here. */ messagesLoading && visibleMessages.length === 0 ? (
         <div className="flex h-full items-center justify-center">
-            <LoadingState label={t('groups.timeline.loading')} className="text-[15px]" />
+            <LoadingState label={t('groups.timeline.loading')} className="text-body" />
         </div>
     ) : visibleMessages.length === 0 ? (
-        <div className="flex h-full flex-col items-center justify-center gap-1 px-8 text-center">
-            <div className="text-[15px] font-semibold text-[var(--social-fg)]">{t('groups.timeline.emptyTitle')}</div>
-            <div className="text-[13px] text-[var(--social-fg-muted)]">{t('groups.timeline.emptyHint')}</div>
-        </div>
+        <EmptyState variant="page" className="h-full" title={t('groups.timeline.emptyTitle')} subtitle={t('groups.timeline.emptyHint')} />
     ) : (
         <Virtuoso
             ref={timelineRef}
@@ -2877,7 +2855,7 @@ export default function GroupDetailPage() {
 
     const quotedPreview = quotedMessage ? (
         <div className="flex items-start gap-2 border-l-2 border-[var(--social-fg-subtle)] pl-2.5">
-            <span className="min-w-0 flex-1 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+            <span className="min-w-0 flex-1 text-footnote leading-snug text-[var(--social-fg-muted)]">
                 <span className="font-semibold text-[var(--social-fg)]">
                     {t('groups.composer.replyingTo', {
                         name: quotedMessage.actorName
@@ -2922,7 +2900,7 @@ export default function GroupDetailPage() {
             disabled={!canSendComposer}
         >
             {isPending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                <Spinner size="md" label={null} className="text-current" />
             ) : (
                 <SendArrowIcon className="h-[18px] w-[18px]" />
             )}
@@ -2939,7 +2917,7 @@ export default function GroupDetailPage() {
             placeholder={t('groups.detail.composerPlaceholder')}
             aria-label={t('groups.detail.composerPlaceholder')}
             rows={1}
-            className={cn('app-scrollbar block w-full resize-none bg-transparent text-[16px] leading-[22px] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
+            className={cn('block w-full resize-none bg-transparent text-headline leading-[1.375rem] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
         />
     )
 
@@ -2962,7 +2940,7 @@ export default function GroupDetailPage() {
                 />
             ) : null}
             {actionError ? (
-                <div className="px-4 pb-1.5 pt-2 text-[13px] text-[var(--social-danger)]">{actionError}</div>
+                <div className="px-4 pb-1.5 pt-2 text-footnote text-[var(--social-danger)]">{actionError}</div>
             ) : null}
         </>
     )

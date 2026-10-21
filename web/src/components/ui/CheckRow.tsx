@@ -23,13 +23,13 @@ export function CheckRow(props: {
     const text = (
         <span className="block min-w-0">
             <span className={cn(
-                'block text-[15px] leading-snug',
+                'block text-body leading-snug',
                 props.checked ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)] line-through'
             )}>
                 {props.title}
             </span>
             {props.subtitle ? (
-                <span className="mt-0.5 block text-[13px] leading-snug text-[var(--social-fg-muted)]">{props.subtitle}</span>
+                <span className="mt-0.5 block text-footnote leading-snug text-[var(--social-fg-muted)]">{props.subtitle}</span>
             ) : null}
         </span>
     )

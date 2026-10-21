@@ -1,14 +1,34 @@
 import type { ReactNode } from 'react'
 import type { SessionMetadataSummary } from '@/types/api'
 import { isObject } from '@hapi/protocol'
-import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, GlobeIcon, MessageSquareIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, UsersIcon, WrenchIcon } from '@/components/ToolCard/icons'
+import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, MessageSquareIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, UsersIcon, WebIcon, WrenchIcon } from '@/components/mobile/icons'
 import type { ChecklistItem } from '@/components/ToolCard/checklist'
 import { extractTodoChecklist, extractUpdatePlanChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
 import { getInputStringAny, truncate } from '@/lib/toolInputUtils'
+import { en, zhCN } from '@/lib/locales'
 
 const DEFAULT_ICON_CLASS = 'h-3.5 w-3.5'
 // Tool presentation registry for `hapi/web` (aligned with `hapi-app`).
+
+export type Translate = (key: string, params?: Record<string, string | number>) => string
+
+function interpolate(text: string, params?: Record<string, string | number>): string {
+    if (!params) return text
+    return text.replace(/\{(\w+)\}/g, (match, name: string) => (params[name] !== undefined ? String(params[name]) : match))
+}
+
+/**
+ * Fallback when the caller passes no `t`: follow the app language.
+ * I18nProvider writes the current locale to `<html lang>`.
+ */
+const translateCurrentLocale: Translate = (key, params) => {
+    const english: Record<string, string> = en
+    const chinese: Record<string, string> = zhCN
+    const lang = typeof document === 'undefined' ? 'en' : document.documentElement.lang
+    const dict = lang === 'zh-CN' ? chinese : english
+    return interpolate(dict[key] ?? english[key] ?? key, params)
+}
 
 export type ToolPresentation = {
     icon: ReactNode
@@ -21,9 +41,10 @@ function countLines(text: string): number {
     return text.split('\n').length
 }
 
-function formatChecklistCount(items: ChecklistItem[], noun: string): string | null {
+function formatChecklistCount(items: ChecklistItem[], noun: 'item' | 'step', t: Translate): string | null {
     if (items.length === 0) return null
-    return `${items.length} ${noun}${items.length === 1 ? '' : 's'}`
+    if (items.length === 1) return t(noun === 'item' ? 'tool.subtitle.itemOne' : 'tool.subtitle.stepOne')
+    return t(noun === 'item' ? 'tool.subtitle.items' : 'tool.subtitle.steps', { n: items.length })
 }
 
 function snakeToTitleWithSpaces(value: string): string {
@@ -112,7 +133,7 @@ function isCollabPayload(value: unknown): boolean {
     return false
 }
 
-function getCollabSubtitle(input: unknown, result: unknown): string | null {
+function getCollabSubtitle(input: unknown, result: unknown, t: Translate): string | null {
     const inputRecord = isObject(input) ? input : null
     const resultRecord = isObject(result) ? result : null
     const payload = resultRecord ?? inputRecord
@@ -125,7 +146,7 @@ function getCollabSubtitle(input: unknown, result: unknown): string | null {
         ? payload.receiver_thread_ids.filter((value): value is string => typeof value === 'string')
         : []
     if (receivers.length > 0) {
-        return receivers.length === 1 ? `1 subagent` : `${receivers.length} subagents`
+        return receivers.length === 1 ? t('tool.subtitle.subagentOne') : t('tool.subtitle.subagents', { n: receivers.length })
     }
 
     const status = getInputStringAny(payload, ['status'])
@@ -139,6 +160,7 @@ type ToolOpts = {
     childrenCount: number
     description: string | null
     metadata: SessionMetadataSummary | null
+    t: Translate
 }
 
 export const knownTools: Record<string, {
@@ -152,9 +174,9 @@ export const knownTools: Record<string, {
         title: (opts) => {
             const name = getInputStringAny(opts.input, ['name'])
             const teamName = getInputStringAny(opts.input, ['team_name'])
-            if (name && teamName) return `Agent: ${name}`
+            if (name && teamName) return opts.t('tool.title.agent', { name })
             const description = getInputStringAny(opts.input, ['description'])
-            return description ?? 'Task'
+            return description ?? opts.t('tool.title.task')
         },
         subtitle: (opts) => {
             const prompt = getInputStringAny(opts.input, ['prompt'])
@@ -166,14 +188,14 @@ export const knownTools: Record<string, {
         icon: () => <UsersIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const teamName = getInputStringAny(opts.input, ['team_name'])
-            return teamName ? `Team: ${teamName}` : 'Create Team'
+            return teamName ? opts.t('team.title', { name: teamName }) : opts.t('tool.title.createTeam')
         },
         subtitle: (opts) => getInputStringAny(opts.input, ['description']) ?? null,
         minimal: false
     },
     TeamDelete: {
         icon: () => <UsersIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Delete Team',
+        title: (opts) => opts.t('tool.title.deleteTeam'),
         minimal: true
     },
     SendMessage: {
@@ -181,10 +203,10 @@ export const knownTools: Record<string, {
         title: (opts) => {
             const recipient = getInputStringAny(opts.input, ['recipient'])
             const msgType = getInputStringAny(opts.input, ['type'])
-            if (msgType === 'broadcast') return 'Broadcast'
-            if (msgType === 'shutdown_request') return `Shutdown: ${recipient ?? 'agent'}`
-            if (msgType === 'shutdown_response') return 'Shutdown Response'
-            return recipient ? `Message: ${recipient}` : 'Send Message'
+            if (msgType === 'broadcast') return opts.t('tool.title.broadcast')
+            if (msgType === 'shutdown_request') return opts.t('tool.title.shutdown', { name: recipient ?? opts.t('tool.title.someAgent') })
+            if (msgType === 'shutdown_response') return opts.t('tool.title.shutdownResponse')
+            return recipient ? opts.t('tool.title.messageTo', { name: recipient }) : opts.t('tool.title.sendMessage')
         },
         subtitle: (opts) => {
             const summary = getInputStringAny(opts.input, ['summary'])
@@ -194,20 +216,20 @@ export const knownTools: Record<string, {
     },
     Bash: {
         icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
-        title: (opts) => opts.description ?? 'Terminal',
+        title: (opts) => opts.description ?? opts.t('terminal.title'),
         subtitle: (opts) => getInputStringAny(opts.input, ['command', 'cmd']),
         minimal: true
     },
     Glob: {
         icon: () => <SearchIcon className={DEFAULT_ICON_CLASS} />,
-        title: (opts) => getInputStringAny(opts.input, ['pattern']) ?? 'Search files',
+        title: (opts) => getInputStringAny(opts.input, ['pattern']) ?? opts.t('files.search'),
         minimal: true
     },
     Grep: {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const pattern = getInputStringAny(opts.input, ['pattern'])
-            return pattern ? `grep(pattern: ${pattern})` : 'Search content'
+            return pattern ? `grep(pattern: ${pattern})` : opts.t('tool.title.searchContent')
         },
         minimal: true
     },
@@ -215,7 +237,7 @@ export const knownTools: Record<string, {
         icon: () => <SearchIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const path = getInputStringAny(opts.input, ['path'])
-            return path ? resolveDisplayPath(path, opts.metadata) : 'List files'
+            return path ? resolveDisplayPath(path, opts.metadata) : opts.t('tool.title.listFiles')
         },
         minimal: true
     },
@@ -236,7 +258,7 @@ export const knownTools: Record<string, {
                     return resolveDisplayPath(parsed.name, opts.metadata)
                 }
             }
-            return opts.description ?? 'Terminal'
+            return opts.description ?? opts.t('terminal.title')
         },
         subtitle: (opts) => {
             const command = getInputStringAny(opts.input, ['command', 'cmd'])
@@ -252,14 +274,14 @@ export const knownTools: Record<string, {
         icon: () => <QuestionIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const tool = getInputStringAny(opts.input, ['tool'])
-            return tool ? `Permission: ${tool}` : 'Permission request'
+            return tool ? opts.t('tool.title.permission', { tool }) : opts.t('tool.title.permissionRequest')
         },
         subtitle: (opts) => getInputStringAny(opts.input, ['message', 'command']) ?? null,
         minimal: true
     },
     shell_command: {
         icon: () => <TerminalIcon className={DEFAULT_ICON_CLASS} />,
-        title: (opts) => opts.description ?? 'Terminal',
+        title: (opts) => opts.description ?? opts.t('terminal.title'),
         subtitle: (opts) => getInputStringAny(opts.input, ['command', 'cmd']),
         minimal: true
     },
@@ -267,7 +289,7 @@ export const knownTools: Record<string, {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const file = getInputStringAny(opts.input, ['file_path', 'path', 'file'])
-            return file ? resolveDisplayPath(file, opts.metadata) : 'Read file'
+            return file ? resolveDisplayPath(file, opts.metadata) : opts.t('tool.title.readFile')
         },
         minimal: true
     },
@@ -275,7 +297,7 @@ export const knownTools: Record<string, {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const file = getInputStringAny(opts.input, ['file_path', 'path'])
-            return file ? resolveDisplayPath(file, opts.metadata) : 'Edit file'
+            return file ? resolveDisplayPath(file, opts.metadata) : opts.t('tool.title.editFile')
         },
         minimal: true
     },
@@ -283,11 +305,11 @@ export const knownTools: Record<string, {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const file = getInputStringAny(opts.input, ['file_path', 'path'])
-            if (!file) return 'Edit file'
+            if (!file) return opts.t('tool.title.editFile')
             const edits = isObject(opts.input) && Array.isArray(opts.input.edits) ? opts.input.edits : null
             const count = edits ? edits.length : 0
             const path = resolveDisplayPath(file, opts.metadata)
-            return count > 1 ? `${path} (${count} edits)` : path
+            return count > 1 ? opts.t('tool.title.editCount', { path, n: count }) : path
         },
         minimal: true
     },
@@ -295,21 +317,21 @@ export const knownTools: Record<string, {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const file = getInputStringAny(opts.input, ['file_path', 'path'])
-            return file ? resolveDisplayPath(file, opts.metadata) : 'Write file'
+            return file ? resolveDisplayPath(file, opts.metadata) : opts.t('tool.title.writeFile')
         },
         subtitle: (opts) => {
             const content = getInputStringAny(opts.input, ['content', 'text'])
             if (!content) return null
             const lines = countLines(content)
-            return lines > 1 ? `${lines} lines` : `${content.length} chars`
+            return lines > 1 ? opts.t('tool.subtitle.lines', { n: lines }) : opts.t('tool.subtitle.chars', { n: content.length })
         },
         minimal: true
     },
     WebFetch: {
-        icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
+        icon: () => <WebIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const url = getInputStringAny(opts.input, ['url'])
-            if (!url) return 'Web fetch'
+            if (!url) return opts.t('tool.title.webFetch')
             try {
                 return new URL(url).hostname
             } catch {
@@ -324,10 +346,10 @@ export const knownTools: Record<string, {
         minimal: true
     },
     WebSearch: {
-        icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
+        icon: () => <WebIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => getWebSearchQueryFromPayload(opts.input)
             ?? getWebSearchQueryFromPayload(opts.result)
-            ?? 'Web search',
+            ?? opts.t('tool.title.webSearch'),
         subtitle: (opts) => {
             const query = getWebSearchQueryFromPayload(opts.input)
                 ?? getWebSearchQueryFromPayload(opts.result)
@@ -340,7 +362,7 @@ export const knownTools: Record<string, {
         title: (opts) => {
             const path = getInputStringAny(opts.input, ['path', 'file_path', 'filePath'])
                 ?? getInputStringAny(opts.result, ['path', 'file_path', 'filePath'])
-            if (!path) return 'Image preview'
+            if (!path) return opts.t('file.imagePreview')
             const display = resolveDisplayPath(path, opts.metadata)
             return basename(display)
         },
@@ -355,7 +377,7 @@ export const knownTools: Record<string, {
         icon: () => <EyeIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const path = getInputStringAny(opts.input, ['notebook_path'])
-            return path ? resolveDisplayPath(path, opts.metadata) : 'Read notebook'
+            return path ? resolveDisplayPath(path, opts.metadata) : opts.t('tool.title.readNotebook')
         },
         minimal: true
     },
@@ -363,29 +385,29 @@ export const knownTools: Record<string, {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const path = getInputStringAny(opts.input, ['notebook_path'])
-            return path ? resolveDisplayPath(path, opts.metadata) : 'Edit notebook'
+            return path ? resolveDisplayPath(path, opts.metadata) : opts.t('tool.title.editNotebook')
         },
         subtitle: (opts) => {
             const mode = getInputStringAny(opts.input, ['edit_mode'])
-            return mode ? `mode: ${mode}` : null
+            return mode ? opts.t('tool.subtitle.mode', { mode }) : null
         },
         minimal: false
     },
     TodoWrite: {
         icon: () => <BulbIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Todo list',
-        subtitle: (opts) => formatChecklistCount(extractTodoChecklist(opts.input, opts.result), 'item'),
+        title: (opts) => opts.t('tool.title.todoList'),
+        subtitle: (opts) => formatChecklistCount(extractTodoChecklist(opts.input, opts.result), 'item', opts.t),
         minimal: (opts) => extractTodoChecklist(opts.input, opts.result).length === 0
     },
     update_plan: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Plan',
-        subtitle: (opts) => formatChecklistCount(extractUpdatePlanChecklist(opts.input, opts.result), 'step'),
+        title: (opts) => opts.t('tool.title.plan'),
+        subtitle: (opts) => formatChecklistCount(extractUpdatePlanChecklist(opts.input, opts.result), 'step', opts.t),
         minimal: (opts) => extractUpdatePlanChecklist(opts.input, opts.result).length === 0
     },
     CodexReasoning: {
         icon: () => <BulbIcon className={DEFAULT_ICON_CLASS} />,
-        title: (opts) => getInputStringAny(opts.input, ['title']) ?? 'Reasoning',
+        title: (opts) => getInputStringAny(opts.input, ['title']) ?? opts.t('mobile.turn.reasoning'),
         subtitle: (opts) => {
             const content = getInputStringAny(opts.result, ['content'])
             return content ? truncate(content, 120) : null
@@ -394,7 +416,7 @@ export const knownTools: Record<string, {
     },
     CodexPatch: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Apply changes',
+        title: (opts) => opts.t('tool.title.applyChanges'),
         subtitle: (opts) => {
             if (isObject(opts.input) && isObject(opts.input.changes)) {
                 const files = Object.keys(opts.input.changes)
@@ -410,7 +432,7 @@ export const knownTools: Record<string, {
     },
     CodexDiff: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Diff',
+        title: (opts) => opts.t('diff.title'),
         subtitle: (opts) => {
             const unified = getInputStringAny(opts.input, ['unified_diff'])
             if (!unified) return null
@@ -431,31 +453,31 @@ export const knownTools: Record<string, {
     },
     CodexTurnChanges: {
         icon: () => <FileDiffIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Turn changes',
+        title: (opts) => opts.t('tool.title.turnChanges'),
         subtitle: (opts) => {
             if (!isObject(opts.input) || !Array.isArray(opts.input.files)) return null
             const files = opts.input.files.filter((file): file is Record<string, unknown> => isObject(file))
             const count = files.length
-            if (count <= 0) return 'No code change in this turn'
+            if (count <= 0) return opts.t('tool.turnChanges.empty')
             if (count === 1) {
                 const first = files[0]
                 const path = typeof first.path === 'string' ? first.path : null
-                if (!path) return '1 file'
+                if (!path) return opts.t('tool.subtitle.fileOne')
                 const display = resolveDisplayPath(path, opts.metadata)
                 return basename(display)
             }
-            return `${count} files`
+            return opts.t('tool.subtitle.files', { n: count })
         },
         minimal: true
     },
     ExitPlanMode: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Plan proposal',
+        title: (opts) => opts.t('tool.title.planProposal'),
         minimal: false
     },
     exit_plan_mode: {
         icon: () => <ClipboardIcon className={DEFAULT_ICON_CLASS} />,
-        title: () => 'Plan proposal',
+        title: (opts) => opts.t('tool.title.planProposal'),
         minimal: false
     },
     AskUserQuestion: {
@@ -469,9 +491,9 @@ export const knownTools: Record<string, {
                 ? first.header.trim() : ''
 
             if (count > 1) {
-                return `${count} Questions`
+                return opts.t('tool.title.questions', { n: count })
             }
-            return header.length > 0 ? header : 'Question'
+            return header.length > 0 ? header : opts.t('tool.question')
         },
         subtitle: (opts) => {
             const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
@@ -482,7 +504,7 @@ export const knownTools: Record<string, {
                 ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
-                return truncate(question, 100) + ` (+${count - 1} more)`
+                return opts.t('tool.subtitle.more', { text: truncate(question, 100), n: count - 1 })
             }
             return question.length > 0 ? truncate(question, 120) : null
         },
@@ -499,9 +521,9 @@ export const knownTools: Record<string, {
                 ? first.header.trim() : ''
 
             if (count > 1) {
-                return `${count} Questions`
+                return opts.t('tool.title.questions', { n: count })
             }
-            return header.length > 0 ? header : 'Question'
+            return header.length > 0 ? header : opts.t('tool.question')
         },
         subtitle: (opts) => {
             const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
@@ -512,7 +534,7 @@ export const knownTools: Record<string, {
                 ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
-                return truncate(question, 100) + ` (+${count - 1} more)`
+                return opts.t('tool.subtitle.more', { text: truncate(question, 100), n: count - 1 })
             }
             return question.length > 0 ? truncate(question, 120) : null
         },
@@ -531,12 +553,12 @@ export const knownTools: Record<string, {
                 ? first.id.trim() : ''
 
             if (count > 1) {
-                return `${count} Questions`
+                return opts.t('tool.title.questions', { n: count })
             }
             if (header.length > 0) {
                 return header
             }
-            return id.length > 0 ? id : 'Question'
+            return id.length > 0 ? id : opts.t('tool.question')
         },
         subtitle: (opts) => {
             const questions = isObject(opts.input) && Array.isArray(opts.input.questions)
@@ -547,7 +569,7 @@ export const knownTools: Record<string, {
                 ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
-                return truncate(question, 100) + ` (+${count - 1} more)`
+                return opts.t('tool.subtitle.more', { text: truncate(question, 100), n: count - 1 })
             }
             return question.length > 0 ? truncate(question, 120) : null
         },
@@ -555,7 +577,13 @@ export const knownTools: Record<string, {
     }
 }
 
-export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadata: SessionMetadataSummary | null }): ToolPresentation {
+// Newer Claude Code names the subagent tool `Agent` instead of `Task`; show it the same way.
+knownTools.Agent = knownTools.Task
+
+export function getToolPresentation(
+    input: Omit<ToolOpts, 't'> & { t?: Translate }
+): ToolPresentation {
+    const opts: ToolOpts = { ...input, t: input.t ?? translateCurrentLocale }
     if (opts.toolName.startsWith('mcp__')) {
         const subtitle = getMcpSubtitle(opts.input, opts.result)
         const isWebTool = /^mcp__web__/i.test(opts.toolName)
@@ -589,8 +617,8 @@ export function getToolPresentation(opts: Omit<ToolOpts, 'metadata'> & { metadat
     if (isCollabPayload(opts.input) || isCollabPayload(opts.result)) {
         return {
             icon: <RocketIcon className={DEFAULT_ICON_CLASS} />,
-            title: 'Subagent coordination',
-            subtitle: getCollabSubtitle(opts.input, opts.result),
+            title: opts.t('tool.title.subagents'),
+            subtitle: getCollabSubtitle(opts.input, opts.result, opts.t),
             minimal: false
         }
     }

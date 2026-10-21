@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
+import type { DictationError, DictationStatus } from '@/hooks/useDictation'
 import {
     CompactIcon,
     InfoCircleIcon,
@@ -18,26 +19,13 @@ import {
 import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { Button } from '@/components/ui/button'
 import { CountBadge, DotBadge } from '@/components/ui/badge'
+import { ActionTile } from '@/components/mobile/ActionTile'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_28_CLASS, HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { Spinner } from '@/components/Spinner'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-
-const tileClass = 'flex flex-col items-center gap-1.5 text-[12px] text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
-const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] transition-transform active:scale-95'
-
-function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; badge?: number }) {
-    return (
-        <button type="button" onClick={props.onClick} disabled={props.disabled} className={tileClass}>
-            <span className={tileIconClass}>
-                {props.icon}
-                <CountBadge count={props.badge ?? 0} className="absolute -right-1 -top-1" />
-            </span>
-            {props.label}
-        </button>
-    )
-}
 
 /**
  * WeChat-style "+" panel: the conversation settings as chips (each opens its own drawer), then
@@ -55,31 +43,28 @@ export function MobileComposerToolPanel(props: {
     return (
         <div className="pb-3 pt-3">
             {props.settings ? (
-                <div className="social-scroll-x flex gap-2 overflow-x-auto px-5 pb-3 [&>button]:h-11 [&>button]:text-[13px]">
+                <div className="flex gap-2 overflow-x-auto px-5 pb-3 [&>button]:h-11 [&>button]:text-footnote">
                     {props.settings}
                 </div>
             ) : null}
-            <div className="grid grid-cols-4 gap-x-2 gap-y-3 px-5 pt-1 [&_svg]:stroke-[1.6]">
-                <ComposerPrimitive.AddAttachment disabled={props.controlsDisabled} className={tileClass}>
-                    <span className={tileIconClass}>
-                        <PaperclipIcon className="h-6 w-6" />
-                    </span>
-                    {t('mobile.composer.attach')}
+            <div className="grid grid-cols-4 gap-2 px-5 pt-1 [&_svg]:stroke-[1.6]">
+                <ComposerPrimitive.AddAttachment asChild disabled={props.controlsDisabled}>
+                    <ActionTile icon={<PaperclipIcon className="h-6 w-6" />} label={t('mobile.composer.attach')} />
                 </ComposerPrimitive.AddAttachment>
                 {props.showTerminalButton ? (
-                    <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
+                    <ActionTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
                 ) : null}
                 {compact ? (
-                    <PanelTile icon={<CompactIcon className="h-6 w-6" />} label={t('composer.compact')} onClick={compact.onRun} disabled={compact.disabled} />
+                    <ActionTile icon={<CompactIcon className="h-6 w-6" />} label={t('composer.compact')} onClick={compact.onRun} disabled={compact.disabled} />
                 ) : null}
                 {queue ? (
-                    <PanelTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={queue.onOpen} disabled={queue.disabled} badge={queue.pendingCount} />
+                    <ActionTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={queue.onOpen} disabled={queue.disabled} badge={queue.pendingCount} />
                 ) : null}
                 {status ? (
-                    <PanelTile icon={<InfoCircleIcon className="h-6 w-6" />} label={t('composer.status')} onClick={status.onOpen} disabled={status.disabled} />
+                    <ActionTile icon={<InfoCircleIcon className="h-6 w-6" />} label={t('composer.status')} onClick={status.onOpen} disabled={status.disabled} />
                 ) : null}
                 {switchRemote ? (
-                    <PanelTile icon={<SwitchIcon className="h-6 w-6" />} label={t('composer.switchRemote')} onClick={switchRemote.onSwitch} disabled={switchRemote.disabled} />
+                    <ActionTile icon={<SwitchIcon className="h-6 w-6" />} label={t('composer.switchRemote')} onClick={switchRemote.onSwitch} disabled={switchRemote.disabled} />
                 ) : null}
             </div>
         </div>
@@ -114,6 +99,14 @@ export function MobileComposerToggle(props: { open: boolean; onClick: () => void
  * The one right-hand action, in both layouts: stop while the agent is running, send while there is
  * a draft, otherwise voice (like WeChat swapping the mic for "发送" once you type).
  */
+const primaryActionClass = cn('mb-[2px] h-9 w-9 transition-[transform,opacity] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)] disabled:opacity-100', HIT_AREA_CLASS)
+
+export type DictationControl = {
+    status: DictationStatus
+    onStart: () => void
+    onFinish: () => void
+}
+
 export function MobileComposerAction(props: {
     hasDraft: boolean
     canSend: boolean
@@ -127,9 +120,10 @@ export function MobileComposerAction(props: {
     onSend: () => void
     onAbort: () => void
     onVoiceToggle: () => void
+    // Local dictation; when present, the empty-draft action is its mic instead of the voice call.
+    dictation?: DictationControl | null
 }) {
     const { t } = useTranslation()
-    const base = cn('mb-[2px] h-9 w-9 transition-[transform,opacity] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)] disabled:opacity-100', HIT_AREA_CLASS)
     const voiceActive = props.voiceStatus === 'connected' || props.voiceStatus === 'connecting'
 
     if (props.showStop) {
@@ -139,10 +133,10 @@ export function MobileComposerAction(props: {
                 label={t('mobile.composer.stop')}
                 onClick={props.onAbort}
                 disabled={props.abortDisabled}
-                className={base}
+                className={primaryActionClass}
             >
                 {props.isAborting ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                    <Spinner size="md" label={null} className="text-current" />
                 ) : (
                     <StopSquareIcon className="h-3.5 w-3.5" />
                 )}
@@ -157,14 +151,24 @@ export function MobileComposerAction(props: {
                 label={t('composer.send')}
                 onClick={props.onSend}
                 disabled={!props.canSend || props.isSending}
-                className={base}
+                className={primaryActionClass}
             >
                 {props.isSending ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                    <Spinner size="md" label={null} className="text-current" />
                 ) : (
                     <SendArrowIcon className="h-[18px] w-[18px]" />
                 )}
             </IconButton>
+        )
+    }
+
+    if (props.dictation && !voiceActive) {
+        return (
+            <DictationButton
+                {...props.dictation}
+                primary
+                disabled={props.controlsDisabled}
+            />
         )
     }
 
@@ -175,7 +179,7 @@ export function MobileComposerAction(props: {
                 label={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
                 onClick={props.onVoiceToggle}
                 disabled={props.controlsDisabled && !voiceActive}
-                className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)]' : '')}
+                className={cn(primaryActionClass, voiceActive ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)]' : '')}
             >
                 {voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
             </IconButton>
@@ -183,7 +187,7 @@ export function MobileComposerAction(props: {
     }
 
     return (
-        <IconButton variant="filled" label={t('composer.send')} disabled className={base}>
+        <IconButton variant="filled" label={t('composer.send')} disabled className={primaryActionClass}>
             <SendArrowIcon className="h-[18px] w-[18px]" />
         </IconButton>
     )
@@ -204,7 +208,7 @@ export function QueueStrip(props: {
     const entries = props.entries ?? []
     return (
         <div role="status">
-            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px]">
+            <div className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
                 <QueueListIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
                 <span className="shrink-0 font-semibold text-[var(--social-fg)]">
                     {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
@@ -215,10 +219,9 @@ export function QueueStrip(props: {
                 {props.onOpen ? (
                     <Button
                         variant="secondary"
-                        size="sm"
+                        size="xs"
                         onClick={props.onOpen}
                         disabled={props.disabled}
-                        className={cn('h-7 px-3', HIT_AREA_28_CLASS)}
                     >
                         {t('queue.inline.open')}
                     </Button>
@@ -227,7 +230,7 @@ export function QueueStrip(props: {
             {entries.length > 0 ? (
                 <div className="mt-1.5 flex flex-col gap-1 px-3.5">
                     {entries.slice(0, 5).map((entry, index) => (
-                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-[13px]">
+                        <div key={entry.id} className="flex min-w-0 items-center gap-2 text-footnote">
                             <span className="w-4 shrink-0 tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
                             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{entry.preview || t('queue.dialog.emptyMessage')}</span>
                             <span className="shrink-0 text-[var(--social-fg-subtle)]">
@@ -236,7 +239,7 @@ export function QueueStrip(props: {
                         </div>
                     ))}
                     {entries.length > 5 ? (
-                        <div className="text-[12px] text-[var(--social-fg-subtle)]">+{entries.length - 5}</div>
+                        <div className="text-caption text-[var(--social-fg-subtle)]">+{entries.length - 5}</div>
                     ) : null}
                 </div>
             ) : null}
@@ -260,27 +263,111 @@ export function VoiceCallBar(props: {
         ? t('voice.call.connecting')
         : props.micMuted ? t('voice.call.muted') : t('voice.call.active')
     return (
-        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-[13px]">
+        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
             <DotBadge className={cn('h-2 w-2 shrink-0 ring-0', connecting ? 'opacity-50' : 'animate-pulse')} />
             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
             {props.onToggleMic && !connecting ? (
                 <IconButton
-                    size="sm"
+                    size="xs"
                     label={props.micMuted ? t('voice.unmute') : t('voice.mute')}
                     onClick={props.onToggleMic}
-                    className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                 >
                     <MicIcon muted={props.micMuted} className="h-4 w-4" />
                 </IconButton>
             ) : null}
             <Button
                 variant="destructive"
-                size="sm"
+                size="xs"
                 onClick={props.onEnd}
-                className={cn('h-7 px-3', HIT_AREA_28_CLASS)}
             >
                 {t('voice.end')}
             </Button>
+        </div>
+    )
+}
+
+/**
+ * Speech-to-text into the draft: tap to record, tap again (or "Done" in the bar) to turn it into text.
+ * `primary` is the composer's main action while the draft is empty; the small one only shows
+ * while the main action is "stop", so a reply can still be dictated during a run.
+ */
+export function DictationButton(props: DictationControl & {
+    disabled: boolean
+    primary?: boolean
+    className?: string
+}) {
+    const { t } = useTranslation()
+    const recording = props.status === 'recording'
+    const busy = props.status === 'starting' || props.status === 'transcribing'
+    return (
+        <IconButton
+            variant={props.primary ? 'filled' : undefined}
+            size={props.primary ? undefined : 'xs'}
+            label={recording ? t('dictation.finish') : t('dictation.start')}
+            onClick={recording ? props.onFinish : props.onStart}
+            disabled={busy || (props.disabled && !recording)}
+            aria-pressed={recording}
+            className={cn(props.primary && primaryActionClass, recording ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)] hover:bg-[var(--social-badge)] hover:text-[var(--social-on-accent)]' : '', props.className)}
+        >
+            {busy ? <Spinner size="sm" label={null} className="text-current" /> : <MicIcon className="h-[18px] w-[18px]" />}
+        </IconButton>
+    )
+}
+
+function formatDictationTime(ms: number): string {
+    const seconds = Math.floor(ms / 1000)
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/**
+ * Shown above the input while dictating, the same slim bar as the voice call: recording time with
+ * cancel and done, then "converting", or why it failed.
+ */
+export function DictationBar(props: {
+    status: DictationStatus
+    elapsedMs: number
+    error: DictationError | null
+    onCancel: () => void
+    onFinish: () => void
+    onDismissError: () => void
+}) {
+    const { t } = useTranslation()
+    if (props.error && props.status === 'idle') {
+        return (
+            <div role="alert" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
+                <span className="min-w-0 flex-1 truncate text-[var(--social-danger)]">{t(`dictation.error.${props.error}`)}</span>
+                <Button variant="ghost" size="xs" onClick={props.onDismissError}>
+                    {t('button.close')}
+                </Button>
+            </div>
+        )
+    }
+    if (props.status !== 'recording' && props.status !== 'transcribing') {
+        return null
+    }
+    const recording = props.status === 'recording'
+    return (
+        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
+            {recording ? (
+                <DotBadge className="h-2 w-2 shrink-0 animate-pulse bg-[var(--social-danger)] ring-0" />
+            ) : (
+                <Spinner size="sm" label={null} className="shrink-0 text-[var(--social-fg-muted)]" />
+            )}
+            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">
+                {recording
+                    ? t('dictation.recording', { time: formatDictationTime(props.elapsedMs) })
+                    : t('dictation.transcribing')}
+            </span>
+            {recording ? (
+                <>
+                    <Button variant="ghost" size="xs" onClick={props.onCancel}>
+                        {t('button.cancel')}
+                    </Button>
+                    <Button size="xs" onClick={props.onFinish}>
+                        {t('dictation.done')}
+                    </Button>
+                </>
+            ) : null}
         </div>
     )
 }
@@ -338,7 +425,7 @@ export function DesktopComposerToolbar(props: {
                 </IconButton>
             ) : null}
             {props.settings ? (
-                <div className="social-scroll-x ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto [&>button]:text-[13px]">
+                <div className="ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto [&>button]:text-footnote">
                     {props.settings}
                 </div>
             ) : null}
@@ -366,7 +453,7 @@ export function DesktopComposerToolbar(props: {
                             label={t('composer.queue')}
                             disabled={queue.disabled}
                             onSelect={runThen(queue.onOpen)}
-                            trailing={pending > 0 ? <span className="text-[13px] text-[var(--social-fg-muted)]">{t('queue.inline.pending', { count: pending })}</span> : undefined}
+                            trailing={pending > 0 ? <span className="text-footnote text-[var(--social-fg-muted)]">{t('queue.inline.pending', { count: pending })}</span> : undefined}
                         />
                     ) : null}
                     {status ? (

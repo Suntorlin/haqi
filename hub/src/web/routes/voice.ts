@@ -14,6 +14,10 @@ const tokenRequestSchema = z.object({
     customApiKey: z.string().optional()
 })
 
+// Local dictation service (scripts/asr-server). The hub only forwards; the service checks the token again.
+const ASR_URL = (process.env.HAQI_ASR_URL || 'http://127.0.0.1:18790').replace(/\/+$/, '')
+const ASR_TIMEOUT_MS = 120_000
+
 // Cache for auto-created agent IDs (keyed by API key hash)
 const agentIdCache = new Map<string, string>()
 
@@ -226,6 +230,45 @@ export function createVoiceRoutes(): Hono<WebAppEnv> {
                 allowed: false,
                 error: error instanceof Error ? error.message : 'Network error'
             }, 500)
+        }
+    })
+
+    // Local dictation: is the speech-to-text service up?
+    app.get('/voice/dictation', async (c) => {
+        try {
+            const response = await fetch(`${ASR_URL}/api/voice/dictation`, {
+                headers: { authorization: c.req.header('authorization') ?? '' },
+                signal: AbortSignal.timeout(5_000)
+            })
+            if (!response.ok) {
+                return c.json({ available: false })
+            }
+            return c.json(await response.json())
+        } catch {
+            return c.json({ available: false })
+        }
+    })
+
+    // Local dictation: raw audio in, text out.
+    app.post('/voice/transcribe', async (c) => {
+        const query = new URL(c.req.url).search
+        try {
+            const response = await fetch(`${ASR_URL}/api/voice/transcribe${query}`, {
+                method: 'POST',
+                headers: {
+                    authorization: c.req.header('authorization') ?? '',
+                    'content-type': c.req.header('content-type') ?? 'application/octet-stream'
+                },
+                body: await c.req.arrayBuffer(),
+                signal: AbortSignal.timeout(ASR_TIMEOUT_MS)
+            })
+            return new Response(response.body, {
+                status: response.status,
+                headers: { 'content-type': response.headers.get('content-type') ?? 'application/json' }
+            })
+        } catch (error) {
+            console.error('[Voice] Dictation service unreachable:', error)
+            return c.json({ error: 'Dictation service is not available' }, 503)
         }
     })
 

@@ -148,17 +148,17 @@ export function TaskGuideSheet(props: {
                 <div>
                     {task.guide.request ? (
                         <SheetSection title={t('taskGuide.request')}>
-                            <p className="px-4 pb-2 text-[15px] leading-snug text-[var(--social-fg)]">{task.guide.request}</p>
+                            <p className="px-4 pb-2 text-body leading-snug text-[var(--social-fg)]">{task.guide.request}</p>
                         </SheetSection>
                     ) : null}
 
                     {working ? (
                         <div className="px-4 py-6 text-center">
-                            <p className="flex items-center justify-center gap-2 text-[15px] text-[var(--social-fg)]">
+                            <p className="flex items-center justify-center gap-2 text-body text-[var(--social-fg)]">
                                 <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--social-fg-muted)]" aria-hidden="true" />
                                 {t('taskGuide.working')}
                             </p>
-                            <p className="mt-2 text-[13px] text-[var(--social-fg-muted)]">{t('taskGuide.workingHint')}</p>
+                            <p className="mt-2 text-footnote text-[var(--social-fg-muted)]">{t('taskGuide.workingHint')}</p>
                         </div>
                     ) : null}
 
@@ -191,14 +191,14 @@ export function TaskGuideSheet(props: {
                                         type="button"
                                         onClick={() => setEditing('goal')}
                                         title={t('taskGuide.edit')}
-                                        className="mx-2 block min-h-11 w-[calc(100%-1rem)] rounded-xl px-2 py-2.5 text-left text-[15px] font-semibold leading-snug text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
+                                        className="mx-2 block min-h-11 w-[calc(100%-1rem)] rounded-xl px-2 py-2.5 text-left text-body font-semibold leading-snug text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
                                     >
                                         {edits.goal ?? draft.goal}
                                     </button>
                                 )}
                                 {draft.nonGoals.length > 0 ? (
-                                    <div className="px-4 pb-2 pt-1 text-[13px] text-[var(--social-fg-muted)]">
-                                        <span className="text-[12px] uppercase tracking-wide">{t('taskGuide.nonGoals')}</span>
+                                    <div className="px-4 pb-2 pt-1 text-footnote text-[var(--social-fg-muted)]">
+                                        <span className="text-caption uppercase tracking-wide">{t('taskGuide.nonGoals')}</span>
                                         <ul className="mt-1 space-y-0.5">
                                             {draft.nonGoals.map((line) => <li key={line}>· {line}</li>)}
                                         </ul>
@@ -207,7 +207,7 @@ export function TaskGuideSheet(props: {
                             </SheetSection>
 
                             <SheetSection title={t('taskGuide.criteria')}>
-                                <p className="px-4 pb-1 text-[13px] text-[var(--social-fg-muted)]">{t('taskGuide.criteriaHint')}</p>
+                                <p className="px-4 pb-1 text-footnote text-[var(--social-fg-muted)]">{t('taskGuide.criteriaHint')}</p>
                                 {draft.criteria.map((criterion) => {
                                     const kept = edits.kept[criterion.id] !== false
                                     const text = edits.texts[criterion.id] ?? criterion.text
@@ -254,7 +254,7 @@ export function TaskGuideSheet(props: {
                                 <SheetSection title={t('taskGuide.questions')}>
                                     {draft.questions.map((question) => (
                                         <div key={question.id} className="space-y-2 px-4 pb-3">
-                                            <p className="text-[15px] leading-snug text-[var(--social-fg)]">{question.text}</p>
+                                            <p className="text-body leading-snug text-[var(--social-fg)]">{question.text}</p>
                                             <ChoiceChips
                                                 label={question.text}
                                                 value={edits.answers[question.id] ?? question.default}
@@ -262,7 +262,7 @@ export function TaskGuideSheet(props: {
                                                 onChange={(value) => patch({ answers: { ...edits.answers, [question.id]: value } })}
                                             />
                                             {question.precedentRef && (edits.answers[question.id] ?? question.default) === question.default ? (
-                                                <p className="text-[12px] text-[var(--social-fg-muted)]">{t('taskGuide.precedent')}</p>
+                                                <p className="text-caption text-[var(--social-fg-muted)]">{t('taskGuide.precedent')}</p>
                                             ) : null}
                                         </div>
                                     ))}

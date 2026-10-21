@@ -5,6 +5,9 @@ import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { resolveDisplayPath } from '@/utils/path'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/lib/use-translation'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 type ChangeFile = {
     path: string
@@ -246,10 +249,10 @@ function parseUnifiedDiff(unifiedDiff: string): { oldText: string; newText: stri
     }
 }
 
-function statusLabel(status: string): string {
-    if (status === 'aborted') return 'Turn aborted'
-    if (status === 'failed') return 'Turn failed'
-    return 'Turn completed'
+function statusLabel(status: string, t: (key: string) => string): string {
+    if (status === 'aborted') return t('tool.turnChanges.status.aborted')
+    if (status === 'failed') return t('tool.turnChanges.status.failed')
+    return t('tool.turnChanges.status.completed')
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -260,6 +263,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 }
 
 export function CodexTurnChangesView(props: ToolViewProps) {
+    const { t } = useTranslation()
     const summary = useMemo(() => normalizeSummary(props.block.tool.input), [props.block.tool.input])
     if (!summary) return null
 
@@ -467,14 +471,12 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+        <Card className="overflow-hidden">
             <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5 text-xs font-semibold text-[var(--social-fg-muted)]">
-                Files ({files.length})
+                {t('tool.turnChanges.files', { n: files.length })}
             </div>
             {files.length === 0 ? (
-                <div className="px-2 py-3 text-xs text-[var(--social-fg-muted)]">
-                    No code change in this turn.
-                </div>
+                <EmptyState title={t('tool.turnChanges.empty')} />
             ) : (
                 <div className="max-h-72 overflow-y-auto md:max-h-[28rem]">
                     {files.map((file) => {
@@ -496,7 +498,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                                 <div className="font-mono text-xs text-[var(--social-fg)] break-all">
                                     {file.displayPath}
                                 </div>
-                                <div className="mt-0.5 text-[12px] text-[var(--social-fg-muted)]">
+                                <div className="mt-0.5 text-caption text-[var(--social-fg-muted)]">
                                     +{file.additions} / -{file.deletions}
                                 </div>
                             </button>
@@ -504,11 +506,11 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     })}
                 </div>
             )}
-        </div>
+        </Card>
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+        <Card className="overflow-hidden">
             {selectedFile ? (
                 <>
                     <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5">
@@ -516,7 +518,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                             <div className="min-w-0 font-mono text-xs text-[var(--social-fg)] break-all">
                                 {selectedFile.displayPath}
                             </div>
-                            <div className="shrink-0 text-[12px] text-[var(--social-fg-muted)]">
+                            <div className="shrink-0 text-caption text-[var(--social-fg-muted)]">
                                 +{selectedFile.additions} / -{selectedFile.deletions}
                             </div>
                         </div>
@@ -531,25 +533,23 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                             />
                         ) : (
                             <div className="text-xs text-[var(--social-fg-muted)]">
-                                No diff snapshot for this file (patch event only).
+                                {t('tool.turnChanges.noSnapshot')}
                             </div>
                         )}
                     </div>
                 </>
             ) : (
-                <div className="px-2 py-3 text-xs text-[var(--social-fg-muted)]">
-                    No file selected.
-                </div>
+                <EmptyState title={t('tool.turnChanges.noSelection')} />
             )}
 
             {mobile ? (
                 <div className="border-t border-[var(--social-border)] px-2 py-2 md:hidden">
                     <Button variant="outline" size="sm" className={HIT_AREA_CLASS} onClick={handleBackToFileList}>
-                        Back to files
+                        {t('tool.turnChanges.back')}
                     </Button>
                 </div>
             ) : null}
-        </div>
+        </Card>
     )
 
     const showTopSummary = !isMobileViewport || mobileView === 'list'
@@ -558,14 +558,24 @@ export function CodexTurnChangesView(props: ToolViewProps) {
         <div className="flex flex-col gap-2" onKeyDown={handleNavigationKeyDown}>
             {showTopSummary ? (
                 <div className="rounded-xl border border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5 text-xs text-[var(--social-fg-muted)]">
-                    <div>{statusLabel(summary.status)}</div>
-                    <div>Files: {summary.files.length}</div>
-                    <div>Patch apply: {summary.patchTotal} ({summary.patchSuccess} success, {summary.patchFailed} failed)</div>
+                    <div>{statusLabel(summary.status, t)}</div>
+                    <div>{t('tool.turnChanges.fileCount', { n: summary.files.length })}</div>
                     <div>
-                        Diff: {summary.diffAvailable ? `+${summary.diffAdditions} / -${summary.diffDeletions}` : 'unavailable'}
+                        {t('tool.turnChanges.patchSummary', {
+                            total: summary.patchTotal,
+                            success: summary.patchSuccess,
+                            failed: summary.patchFailed
+                        })}
+                    </div>
+                    <div>
+                        {t('tool.turnChanges.diffSummary', {
+                            value: summary.diffAvailable
+                                ? `+${summary.diffAdditions} / -${summary.diffDeletions}`
+                                : t('tool.turnChanges.diffUnavailable')
+                        })}
                     </div>
                     {summary.files.length > 1 ? (
-                        <div>Shortcut: ↑/↓ switch file</div>
+                        <div>{t('tool.turnChanges.shortcut')}</div>
                     ) : null}
                 </div>
             ) : null}
@@ -588,7 +598,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                 <div
                     role="separator"
                     aria-orientation="vertical"
-                    aria-label="Resize file list and diff"
+                    aria-label={t('tool.turnChanges.resize')}
                     onPointerDown={handleResizeStart}
                     className="flex w-3 shrink-0 cursor-col-resize touch-none select-none items-stretch justify-center"
                 >

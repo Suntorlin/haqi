@@ -1,21 +1,14 @@
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import type { MessageStatus } from '@/types/api'
-
-function ErrorIcon() {
-    return (
-        <svg className="h-[14px] w-[14px]" viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="11" r="0.75" fill="currentColor" />
-        </svg>
-    )
-}
+import { AlertCircleIcon } from '@/components/mobile/icons'
 
 export function MessageStatusIndicator(props: {
     status?: MessageStatus
     onRetry?: () => void
 }) {
+    const { t } = useTranslation()
     if (props.status !== 'failed') {
         return null
     }
@@ -23,7 +16,7 @@ export function MessageStatusIndicator(props: {
     return (
         <span className="inline-flex items-center gap-1">
             <span className="text-[var(--social-danger)]">
-                <ErrorIcon />
+                <AlertCircleIcon className="h-[14px] w-[14px]" />
             </span>
             {props.onRetry ? (
                 <button
@@ -31,7 +24,7 @@ export function MessageStatusIndicator(props: {
                     onClick={props.onRetry}
                     className={cn('text-xs text-[var(--social-fg)] underline', TEXT_HIT_AREA_CLASS)}
                 >
-                    Retry
+                    {t('button.retry')}
                 </button>
             ) : null}
         </span>

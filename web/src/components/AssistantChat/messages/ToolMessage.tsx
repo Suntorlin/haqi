@@ -167,6 +167,7 @@ function HappyNestedBlockList(props: {
 }
 
 export function HappyToolMessage(props: ToolCallMessagePartProps) {
+    const { t } = useTranslation()
     const ctx = useHappyChatContext()
     const artifact = props.artifact
     const isCompact = ctx.density === 'compact'
@@ -182,13 +183,13 @@ export function HappyToolMessage(props: ToolCallMessagePartProps) {
                 <div className={`rounded-xl bg-[var(--social-muted)] ${isCompact ? 'p-2.5' : 'p-3'}`}>
                     <div className="flex items-center gap-2 text-xs">
                         <div className="font-mono text-[var(--social-fg-muted)]">
-                            Tool: {props.toolName}
+                            {t('tool.label', { name: props.toolName })}
                         </div>
                         {props.isError ? (
-                            <span className="text-[var(--social-danger)]">Error</span>
+                            <span className="text-[var(--social-danger)]">{t('tool.error')}</span>
                         ) : null}
                         {props.status.type === 'running' && !hasResult ? (
-                            <span className="text-[var(--social-fg-muted)]">Running…</span>
+                            <span className="text-[var(--social-fg-muted)]">{t('tool.result.running')}</span>
                         ) : null}
                     </div>
 

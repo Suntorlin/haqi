@@ -1,6 +1,7 @@
 import { useCallback, type ReactNode } from 'react'
 import { useParams } from '@tanstack/react-router'
 import { useAppContext } from '@/lib/app-context'
+import { useTranslation } from '@/lib/use-translation'
 import { useReviewLoop } from '@/hooks/queries/useReviewLoop'
 import { useReviewLoopActions } from '@/hooks/mutations/useReviewLoopActions'
 import { LoadingState } from '@/components/LoadingState'
@@ -14,26 +15,25 @@ import {
     RoundTimeline,
 } from '@/components/ReviewLoop'
 import type { ReviewLoopUserPreference } from '@/types/api'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
     return (
         <section className="flex min-w-0 flex-col gap-1.5">
-            <h2 className="px-1 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{title}</h2>
+            <h2 className="px-1 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">{title}</h2>
             {children}
         </section>
     )
-}
-
-function Card({ children }: { children: ReactNode }) {
-    return <div className="min-w-0 rounded-2xl border border-[var(--social-border)] p-4">{children}</div>
 }
 
 // ─── Main Detail Page ────────────────────────────────────────────────────────────
 
 export default function ReviewLoopDetailPage() {
     const { api } = useAppContext()
+    const { t } = useTranslation()
     const { loopId } = useParams({ from: '/review-loops/$loopId' })
     const { loop, rounds, isLoading, error } = useReviewLoop(api, loopId)
     const { continueLoop, cancelLoop, pauseLoop, updateLoop, isPending } = useReviewLoopActions(api, loopId)
@@ -61,7 +61,7 @@ export default function ReviewLoopDetailPage() {
     if (isLoading || !loop) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <LoadingState label="Loading..." className="text-[15px]" />
+                <LoadingState label={t('loading')} className="text-body" />
             </div>
         )
     }
@@ -69,7 +69,7 @@ export default function ReviewLoopDetailPage() {
     if (error) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <div className="text-[15px] text-[var(--social-danger)]">{error}</div>
+                <div className="text-body text-[var(--social-danger)]">{error}</div>
             </div>
         )
     }
@@ -85,8 +85,8 @@ export default function ReviewLoopDetailPage() {
     return (
         <div className="flex h-full min-w-0 flex-col overflow-y-auto">
             <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                <Card>
-                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-[var(--social-fg)]">
+                <Card className="min-w-0 p-4">
+                    <div className="whitespace-pre-wrap text-body leading-relaxed text-[var(--social-fg)]">
                         {loop.requirement.length > 300
                             ? loop.requirement.slice(0, 300) + '...'
                             : loop.requirement}
@@ -94,7 +94,7 @@ export default function ReviewLoopDetailPage() {
 
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                         <ReviewLoopStatusBadge status={loop.status} />
-                        <Badge>Round {loop.currentRound}/{loop.maxRounds}</Badge>
+                        <Badge>{t('mobile.loops.round', { n: loop.currentRound, max: loop.maxRounds })}</Badge>
                     </div>
                     <div className="mt-3">
                         <ProgressBar progress={latestProgress} />
@@ -102,21 +102,21 @@ export default function ReviewLoopDetailPage() {
                 </Card>
 
                 {loop.acceptanceCriteria && latestVerdict?.criteriaStatus && latestVerdict.criteriaStatus.length > 0 ? (
-                    <Section title="Acceptance Criteria">
-                        <Card>
+                    <Section title={t('loops.create.criteria')}>
+                        <Card className="min-w-0 p-4">
                             <CriteriaChecklist criteria={latestVerdict.criteriaStatus} />
                         </Card>
                     </Section>
                 ) : loop.acceptanceCriteria ? (
-                    <Section title="Acceptance Criteria">
-                        <Card>
-                            <div className="whitespace-pre-wrap text-[15px] text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
+                    <Section title={t('loops.create.criteria')}>
+                        <Card className="min-w-0 p-4">
+                            <div className="whitespace-pre-wrap text-body text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
                         </Card>
                     </Section>
                 ) : null}
 
-                <Section title="Settings">
-                    <Card>
+                <Section title={t('settings.title')}>
+                    <Card className="min-w-0 p-4">
                         <LoopSettingsPanel
                             userPreference={loop.userPreference}
                             maxRounds={loop.maxRounds}
@@ -129,8 +129,8 @@ export default function ReviewLoopDetailPage() {
                 </Section>
 
                 {isTerminal ? null : (
-                    <Section title="Controls">
-                        <Card>
+                    <Section title={t('loops.detail.controls')}>
+                        <Card className="min-w-0 p-4">
                             <LoopControls
                                 status={loop.status}
                                 onContinue={handleContinue}
@@ -142,9 +142,9 @@ export default function ReviewLoopDetailPage() {
                     </Section>
                 )}
 
-                <Section title={`Timeline (${rounds.length} rounds)`}>
+                <Section title={t('loops.detail.timeline', { n: rounds.length })}>
                     {rounds.length === 0 ? (
-                        <div className="px-1 py-2 text-[15px] text-[var(--social-fg-muted)]">No rounds yet.</div>
+                        <EmptyState title={t('loops.detail.noRounds')} />
                     ) : (
                         <RoundTimeline rounds={rounds} />
                     )}

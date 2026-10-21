@@ -20,7 +20,7 @@ Concrete rules:
 2. **44px on phones.** Every tappable target has a >= 44px hit area. Glyph may be smaller: use `IconButton` (44) or pad the hit area (`after:` pseudo-element, see `AssistantChat/hitArea.ts`). Dense desktop toolbars may use `size="sm"` (36).
 3. **Inputs are 16px.** Smaller makes iOS Safari zoom the page on focus.
 4. **Only the tokens below.** No raw `#hex`, no `bg-red-500` / `text-gray-600`. Need a new colour -> add a token first.
-5. **Only the radius / type scales below.** No `rounded-lg`, `rounded-[10px]`, `font-medium`, `text-[14.5px]`.
+5. **Only the radius / type scales below.** No `rounded-lg`, `rounded-[10px]`, `font-medium`, `text-[13px]` (use `text-footnote`).
 6. **Prefer less.** If a label, hint or divider adds no information, delete it (see the simplified question overlay).
 7. **Dark mode is not optional.** Every screen is checked in light and dark.
 8. **Behaviour-preserving refactors.** Restyling never changes logic, i18n keys or APIs.
@@ -71,7 +71,7 @@ Flat by default: cards, bubbles and tool cards have **no shadow**. Only floating
 
 Illustration palettes are tokens too: `--orb-<family>-<slot>` (18 avatar orb families, 4 colours each), `--orb-shade/edge/sheen/glaze-*/gloss` (orb lighting), `--ring-live` / `--ring-pending` (story rings), `--filetype-<ext>` (file-icon accents). Add a colour here, not as a hex in a component.
 
-Allowed raw colours (documented exceptions): xterm fallback colours in `Terminal/TerminalView.tsx` (xterm needs real colour strings when the token cannot be read) and the rainbow keyframes of the CLI loader in `index.css`.
+Allowed raw colours (documented exceptions): xterm fallback colours in `Terminal/TerminalView.tsx` (xterm needs real colour strings when the token cannot be read) and the rainbow keyframes of the ultrathink highlight (`LazyRainbowText`) in `index.css`.
 
 ### 2.3 Radius (only these)
 
@@ -88,13 +88,26 @@ Intentional exceptions: the single-line mobile composer input (`rounded-[22px]`,
 
 ### 2.4 Type
 
-Sizes (px): **12** captions / section titles (uppercase, tracking-wide), **13** secondary text / small buttons / chips, **15** body / list rows / default buttons, **16** page titles / inputs / question text, **20** section headings, **32** showcase hero only. Weights: **400** and **600** only (`font-semibold`). System font stack (SF / PingFang), set in `html.social-app`.
+Use the named sizes only. They are rem, so every size follows the font-size setting (`--app-font-scale` sets the `html` font size). A px size (`text-[13px]`) ignores that setting, and a rem size multiplied by the scale again (`calc(1rem * var(--app-font-scale))`) applies it twice: don't write either.
+
+| Class | px at 100% | Use |
+|---|---|---|
+| `text-caption` | 12 | Captions, section titles (uppercase, tracking-wide) |
+| `text-footnote` | 13 | Secondary text, small buttons, chips |
+| `text-body` | 15 | Body, list rows, default buttons |
+| `text-headline` | 16 | Page titles, inputs, question text |
+| `text-title` | 20 | Section headings |
+| `text-display` | 32 | Showcase hero only |
+
+Defined in `web/tailwind.config.ts` (`theme.extend.fontSize`). `cn()` (`web/src/lib/utils.ts`) teaches tailwind-merge these names; without that, `text-footnote` reads as a colour and drops `text-[var(--…)]`. Add a new size in both places. Tailwind's own `text-xs` (12) and `text-base` (16) are on the scale and allowed in existing code; prefer the names in new code.
+
+Weights: **400** and **600** only (`font-semibold`). System font stack (SF / PingFang), set in `html.social-app`.
 
 ### 2.5 Spacing, size, motion
 
 - Spacing: multiples of 4; gaps between sibling controls >= 8.
 - Heights: touch min `--touch-min` 44; button 44 (sm 36, lg 48); chip 32 (hit area 44); badge 24; count badge 18; list row >= 52.
-- Motion: `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-ease` `cubic-bezier(.2,0,0,1)`. Press feedback `active:scale-[.98]` on buttons. No decorative animation; `animate-pulse` only for live state.
+- Motion: `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-ease` `cubic-bezier(.2,0,0,1)`. Press feedback `active:scale-[.98]` on buttons. No decorative animation; `animate-pulse` only for live state. Exception: surfaces that travel across the screen take longer — bottom sheet `animate-sheet-up` 280ms, side panel `animate-panel-in` 260ms. Menus and popovers use `animate-menu-pop` (180ms).
 
 ## 3. Components
 
@@ -102,27 +115,33 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 
 | Component | File | Use / key props |
 |---|---|---|
-| `Button` | `button.tsx` | `variant`: default (primary) / secondary / outline / ghost / destructive; `size`: default 44 / sm 36 / lg 48; pill. `buttonVariants()` for link-as-button. |
-| `IconButton` | `IconButton.tsx` | Icon-only, `label` **required** (aria + tooltip); `variant` ghost / muted / filled; `size` default 44 / sm 36. |
+| `Button` | `button.tsx` | `variant`: default (primary) / secondary / outline / ghost / destructive; `size`: default 44 / sm 36 / lg 48 / xs 28 (keeps a 44px hit area); pill. `buttonVariants()` for link-as-button. |
+| `IconButton` | `IconButton.tsx` | Icon-only, `label` **required** (aria + tooltip); `variant` ghost / muted / filled; `size` default 44 / sm 36 / xs 28 (code blocks, attachments, card headers; keeps a 44px hit area). Never shrink it with `h-6`/`h-7`. |
 | `TextField` | `TextField.tsx` | 44px, 16px. `variant` field (bordered, 12px) / pill (borderless address / search bar); `leading`, `trailing`, `invalid`. Textareas: use `DIALOG_INPUT_CLASS` (`RenameSessionDialog.tsx`). |
-| `FormField`, `FieldHint`, `SelectInput`, `ChoiceChips`, `SegmentedControl`, `SuggestionChip` | `FormControls.tsx` | Caption + control + hint; native select skin; single-choice pills; 2-3 option segmented control; fill-a-field shortcuts. |
-| `Chip` | `Chip.tsx` | 32px pill, `selected` = filled. Filters, choices, shortcuts. `tagChipClass()` (`tagChip.ts`) = same look for session tags. |
+| `FormField`, `FieldHint`, `SelectInput`, `ChoiceChips`, `SegmentedControl` | `FormControls.tsx` | Caption + control + hint; native select skin; single-choice pills; 2-3 option segmented control. |
+| `Chip` | `Chip.tsx` | 32px pill, `selected` = filled. Filters, choices, shortcuts. `size="sm"` (24px, `text-caption`, 44px hit area) for a chip inside a line of text. `tagChipClass()` (`tagChip.ts`) = same look for session tags. |
 | `Badge` | `badge.tsx` | **State** pill (no border): default / solid / info / success / warning / destructive; `dot`, `live`. Never for actions. |
 | `CountBadge`, `DotBadge` | `badge.tsx` | **Unread** (brand red). Position with `absolute -right-1 -top-1` on a `relative` parent. |
-| `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows. |
+| `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows.; `className` for a row outside a group. `FEED_ROW_CLASS` (same file) = avatar + two-line rows in the session, group and loop lists. |
 | `CheckRow` | `CheckRow.tsx` | A row the user ticks on or off (44px checkbox, text, optional trailing `Badge`). Unticked stays visible, struck through; `onEdit` makes the text tappable to edit. Acceptance criteria in a task's guide step. |
 | `Switch`, `SwitchTrack` | `Switch.tsx` | Monochrome toggle. |
 | `SettingChip`, `ToggleChip` | `SettingChip.tsx` | Composer-toolbar setting that opens a sheet (phone) or menu (desktop). |
 | `SwitchChip` | `SettingChip.tsx` | Two-state setting shown as its value; one tap flips it (send mode: direct / queue). |
 | `Dialog*`, `ConfirmDialog` | `dialog.tsx`, `ConfirmDialog.tsx` | Radix dialog; bottom sheet on phones (`.app-dialog-content`). |
-| `Toast`, `Card*` | `Toast.tsx`, `card.tsx` | Transient message; plain card. |
-| `BottomSheet`, `SheetSection/Row/Option/SwitchRow`, `ContextMenu` | `components/mobile/` | Phone sheets and long-press / right-click menus (>= 44px rows, scroll when tall). |
+| `Toast` | `Toast.tsx` | Transient message. |
+| `Card*` | `card.tsx` | The only card: `rounded-2xl`, `border-[var(--social-border)]`, `bg-[var(--social-surface)]`, no shadow. Grouped settings lists use `ListGroup`; chat bubbles use `.social-bubble-self` / `.social-bubble-other` (`index.css`). |
+| `EmptyState` | `EmptyState.tsx` | Every empty list or pane. `variant` `inline` (default: one muted `text-footnote` line inside a list) or `page` (centred: `illustration`, `title`, `subtitle`, one primary `action` or custom `children`). Don't hand-write "No … yet" text. |
+| `Spinner` | `components/Spinner.tsx` | The only loading indicator. `size` xs 12 / sm 16 / md 20 / lg 24; `label={null}` when decorative. Don't hand-write `animate-spin rounded-full border`. |
+| Icons | `components/mobile/icons.tsx` | The only icon set. Same action = same icon everywhere (archive = `ArchiveBoxIcon`, close = `CloseIcon`, check = `CheckIcon`). Collapsible groups and trees use `DisclosureIcon`. Add a missing icon here, never a local `function XIcon()` in a component. |
+| `BottomSheet`, `SheetSection/Row/Option/SwitchRow`, `ContextMenu` | `components/mobile/` | Phone sheets and long-press / right-click menus (>= 44px rows, scroll when tall). `SheetOption multiple` = checkbox row. `CONTEXT_MENU_SURFACE` + `ContextMenuItem` is the one popover/menu look, also for autocomplete and the language switcher (`active` = keyboard highlight, `wrapDescription` = two-line hint). |
+| `ActionTile` | `components/mobile/ActionTile.tsx` | Icon-over-label tile for quick actions (session info card, composer "+" panel); `badge` for a count. |
+| `OptionRow` | `components/ToolCard/OptionRow.tsx` | Answer option in question / user-input prompts; `mode` single / multi. |
 | `InputHistory` | `ui/InputHistory.tsx` | Chevron on a text input that opens its history (recent paths, preview URLs) as a dropdown. Built on `CONTEXT_MENU_SURFACE` + `ContextMenuItem` (`components/mobile/ContextMenu.tsx`), the same surface and rows as menus. Never a row of chips. |
 | `.social-float-card`, `BottomSheet popoverAnchor` | `index.css`, `components/mobile/BottomSheet.tsx` | Opaque floating card anchored under a button (desktop session info). Phones keep the sheet. No frosted glass: content behind it hurts reading. |
 | `SessionDockLayout`, `useSessionDock` | `components/`, `hooks/` | Desktop: terminal / preview docked left or right of the chat, resizable, open on the right by default. |
-| `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. |
+| `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. Full-screen detail pages on phones (tool card, turn details) use `SubPageHeader` too; never draw a custom back row. |
 | Settings helpers | `components/settings/SettingsParts.tsx` | `SettingsGroup`, `SettingsBlock`, `SettingsSelectRow`, ... built on `ListGroup` / `ListRow`. |
-| `HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. |
+| `HIT_AREA_CLASS`, `TEXT_HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. For a 28px button use `size="xs"` instead. |
 
 Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new primitive there (light + dark) in the same change.
 
@@ -141,7 +160,7 @@ Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new
 
 ## 5. Checklist for a UI change
 
-1. Uses primitives and tokens only (grep your diff for `#`, `-gray-`, `-red-`, `rounded-lg`, `font-medium`).
+1. Uses primitives and tokens only (grep your diff for `#`, `-gray-`, `-red-`, `rounded-lg`, `font-medium`, `text-[`…`px]`).
 1b. No scrollbar re-enabled (grep your diff for `scrollbar-width`, `scrollbar-gutter`, `::-webkit-scrollbar`).
 2. Phone (390px) and desktop (1200px), light and dark, screenshotted and looked at.
 3. Touch targets >= 44px on phone; inputs 16px.

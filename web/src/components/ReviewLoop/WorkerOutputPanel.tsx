@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { ChevronRightIcon } from '@/components/mobile/icons'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import type { WorkerOutput } from '@/types/api'
 
-const CODE_BLOCK_CLASS = 'app-scrollbar min-w-0 overflow-auto rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-[12px] leading-relaxed text-[var(--social-fg)]'
+const CODE_BLOCK_CLASS = 'min-w-0 overflow-auto rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-caption leading-relaxed text-[var(--social-fg)]'
 
 function Section({
     title,
@@ -27,8 +28,8 @@ function Section({
                 onClick={() => setOpen((v) => !v)}
             >
                 <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', open && 'rotate-90')} />
-                <span className="text-[15px] font-semibold text-[var(--social-fg)]">{title}</span>
-                {suffix && <span className="text-[13px]">{suffix}</span>}
+                <span className="text-body font-semibold text-[var(--social-fg)]">{title}</span>
+                {suffix && <span className="text-footnote">{suffix}</span>}
             </button>
             {open && (
                 <div className="min-w-0 overflow-hidden pb-1 pl-6">
@@ -45,11 +46,12 @@ function CommandEntry({ command, exitCode, stdout, stderr }: {
     stdout: string
     stderr: string
 }) {
+    const { t } = useTranslation()
     return (
         <div className="flex min-w-0 flex-col gap-1.5">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <span className="break-all font-mono text-[13px] text-[var(--social-fg)]">$ {command}</span>
-                <Badge variant={exitCode === 0 ? 'success' : 'destructive'}>exit {exitCode}</Badge>
+                <span className="break-all font-mono text-footnote text-[var(--social-fg)]">$ {command}</span>
+                <Badge variant={exitCode === 0 ? 'success' : 'destructive'}>{t('loops.output.exit', { code: exitCode })}</Badge>
             </div>
             {stdout && (
                 <pre className={cn(CODE_BLOCK_CLASS, 'max-h-48 whitespace-pre-wrap break-all')}>{stdout}</pre>
@@ -62,28 +64,31 @@ function CommandEntry({ command, exitCode, stdout, stderr }: {
 }
 
 export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
+    const { t } = useTranslation()
     return (
         <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
             <div className="flex min-w-0 items-center gap-2">
-                <span className="text-[15px] font-semibold text-[var(--social-fg)]">Worker Output</span>
-                <Badge variant={output.exitStatus === 'success' ? 'success' : 'destructive'}>{output.exitStatus}</Badge>
+                <span className="text-body font-semibold text-[var(--social-fg)]">{t('loops.output.title')}</span>
+                <Badge variant={output.exitStatus === 'success' ? 'success' : 'destructive'}>
+                    {t(output.exitStatus === 'success' ? 'loops.output.success' : 'loops.output.error')}
+                </Badge>
             </div>
 
             {output.summary && (
-                <Section title="Summary" defaultOpen>
-                    <p className="whitespace-pre-wrap break-words text-[15px] text-[var(--social-fg)]">{output.summary}</p>
+                <Section title={t('loops.output.summary')} defaultOpen>
+                    <p className="whitespace-pre-wrap break-words text-body text-[var(--social-fg)]">{output.summary}</p>
                 </Section>
             )}
 
             {output.filesChanged.length > 0 && (
-                <Section title={`Files Changed (${output.filesChanged.length})`} defaultOpen>
+                <Section title={t('loops.output.files', { n: output.filesChanged.length })} defaultOpen>
                     <div className="flex min-w-0 flex-col gap-1">
                         {output.filesChanged.map((f, i) => {
                             const prefix = f.startsWith('D ') ? 'D' : f.startsWith('A ') ? 'A' : 'M'
                             const name = f.replace(/^[MAD]\s+/, '')
                             const prefixColor = prefix === 'D' ? 'var(--app-badge-error-text)' : prefix === 'A' ? 'var(--app-badge-success-text)' : 'var(--app-badge-info-text)'
                             return (
-                                <div key={i} className="min-w-0 truncate font-mono text-[13px]">
+                                <div key={i} className="min-w-0 truncate font-mono text-footnote">
                                     <span className="font-semibold" style={{ color: prefixColor }}>{prefix}</span>{' '}
                                     <span className="text-[var(--social-fg)]">{name}</span>
                                 </div>
@@ -94,7 +99,7 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
             )}
 
             {output.diff && (
-                <Section title="Diff" suffix={(() => {
+                <Section title={t('diff.title')} suffix={(() => {
                     const lines = output.diff.split('\n')
                     const added = lines.filter(l => l.startsWith('+') && !l.startsWith('+++')).length
                     const removed = lines.filter(l => l.startsWith('-') && !l.startsWith('---')).length
@@ -117,7 +122,7 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
             )}
 
             {output.commands.length > 0 && (
-                <Section title={`Commands (${output.commands.length})`}>
+                <Section title={t('loops.output.commands', { n: output.commands.length })}>
                     <div className="flex min-w-0 flex-col gap-3">
                         {output.commands.map((cmd, i) => (
                             <CommandEntry key={i} {...cmd} />
@@ -127,7 +132,7 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
             )}
 
             {output.rawResponse && (
-                <Section title="Raw Response">
+                <Section title={t('loops.output.raw')}>
                     <pre className={cn(CODE_BLOCK_CLASS, 'max-h-64 whitespace-pre-wrap break-all')}>
                         {output.rawResponse}
                     </pre>
