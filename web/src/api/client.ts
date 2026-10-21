@@ -1102,6 +1102,22 @@ export class ApiClient {
         return result.task
     }
 
+    async answerTaskDecision(taskId: string, decisionId: string, label: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/decisions/${encodeURIComponent(decisionId)}`, {
+            method: 'POST',
+            body: JSON.stringify({ label })
+        })
+        return result.task
+    }
+
+    async taskVerdict(taskId: string, input: { approved: boolean; text?: string }): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/verdict`, {
+            method: 'POST',
+            body: JSON.stringify(input)
+        })
+        return result.task
+    }
+
     async confirmTask(taskId: string, input: TaskConfirmInput): Promise<TaskView> {
         const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/confirm`, {
             method: 'POST',

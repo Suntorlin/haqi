@@ -38,6 +38,7 @@ function setup(dir: string) {
     const pushes: string[] = []
     const reports: string[] = []
     const stopped: string[] = []
+    const approved: string[] = []
     let next = 1
     const addSession = (id: string, path: string, worktree: RunSession['worktree'] = null) => {
         sessions.set(id, { id, active: true, thinking: false, machineId: 'm1', path, name: null, tags: [], updatedAt: Date.now(), worktree, requests: [] })
@@ -73,7 +74,8 @@ function setup(dir: string) {
             },
             activity: () => ({ lastMessageAt: Date.now(), commands: [] }),
             push: async (_ns, notice) => { pushes.push(notice.title) },
-            createReport: (_ns, input) => { reports.push(input.markdown); return { shareUrl: 'https://example.test/share/r/x' } }
+            createReport: (_ns, input) => { reports.push(input.markdown); return { shareUrl: 'https://example.test/share/r/x' } },
+            approve: async (sessionId, requestId) => { approved.push(`${sessionId}:${requestId}`); sessions.get(sessionId)!.requests = sessions.get(sessionId)!.requests.filter((r) => r.id !== requestId) }
         }
     })
     addSession('work', '/repo')
@@ -81,7 +83,7 @@ function setup(dir: string) {
         await service.whenIdle()
         for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0))
     }
-    return { store, service, runs: service.runs!, sessions, spawned, sent, pushes, reports, stopped, settle }
+    return { store, service, runs: service.runs!, sessions, spawned, sent, pushes, reports, stopped, approved, settle }
 }
 
 describe('task run after the guide step', () => {
@@ -221,5 +223,21 @@ describe('task run after the guide step', () => {
         await t.runs.tick('default')
         expect(t.pushes.length - before).toBe(1)
         expect(t.service.get('default', task.id)!.run!.signals.map((s) => s.kind)).toEqual(['approval'])
+    })
+
+    it('grants the lead read-only requests for the user, and pushes anything else once', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        t.sessions.get(lead)!.requests = [
+            { id: 'r1', tool: 'Bash', detail: 'ls', args: { command: 'for d in /a /b; do ls $d; done | head' } },
+            { id: 'r2', tool: 'Bash', detail: 'rm -rf build', args: { command: 'rm -rf build' } }
+        ]
+        const before = t.pushes.length
+        await t.runs.tick('default')
+        await t.runs.tick('default')
+        expect(t.approved).toEqual([`${lead}:r1`])
+        expect(t.pushes.slice(before)).toEqual(['负责人等你批准：记忆页加归档恢复'])
     })
 })

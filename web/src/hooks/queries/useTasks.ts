@@ -58,6 +58,8 @@ export function useTaskActions(api: ApiClient | null) {
     const updateTask = useCallback(async (taskId: string, patch: { name?: string; tag?: string; status?: TaskStatus }) => writeTask(await need().updateTask(taskId, patch)), [need, writeTask])
     const reviseDraft = useCallback(async (taskId: string, text: string) => writeTask(await need().reviseTaskDraft(taskId, text)), [need, writeTask])
     const confirmTask = useCallback(async (taskId: string, input: TaskConfirmInput) => writeTask(await need().confirmTask(taskId, input)), [need, writeTask])
+    const answerDecision = useCallback(async (taskId: string, decisionId: string, label: string) => writeTask(await need().answerTaskDecision(taskId, decisionId, label)), [need, writeTask])
+    const verdict = useCallback(async (taskId: string, input: { approved: boolean; text?: string }) => writeTask(await need().taskVerdict(taskId, input)), [need, writeTask])
     const retryGuide = useCallback(async (taskId: string) => writeTask(await need().retryTaskGuide(taskId)), [need, writeTask])
     const linkSession = useCallback(async (taskId: string, sessionId: string, linked: boolean) => writeTask(linked
         ? await need().addTaskMember(taskId, sessionId)
@@ -70,5 +72,5 @@ export function useTaskActions(api: ApiClient | null) {
             : previous)
     }, [need, queryClient])
 
-    return { createTask, updateTask, deleteTask, reviseDraft, confirmTask, retryGuide, linkSession }
+    return { createTask, updateTask, deleteTask, reviseDraft, confirmTask, retryGuide, linkSession, answerDecision, verdict }
 }
