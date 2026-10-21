@@ -1391,7 +1391,8 @@ export function SessionFeed(props: {
     onSelect: (sessionId: string) => void
     api: ApiClient | null
     listHeader?: ReactNode
-    emptyLabel?: string
+    /** Shown when the list has no rows (loading line or empty state). */
+    empty?: ReactNode
 }) {
     const { t } = useTranslation()
     const { api, availableTags = [] } = props
@@ -1439,11 +1440,7 @@ export function SessionFeed(props: {
                 components={{
                     Scroller: SessionListScroller,
                     Header: ListHeader,
-                    EmptyPlaceholder: () => (
-                        <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">
-                            {props.emptyLabel}
-                        </div>
-                    )
+                    EmptyPlaceholder: () => <>{props.empty}</>
                 }}
                 computeItemKey={(_, row) => row.type === 'session' ? row.session.id : row.type === 'snoozed-section' ? '__snoozed__' : '__offline__'}
                 itemContent={(_, row) => row.type === 'snoozed-section' ? (

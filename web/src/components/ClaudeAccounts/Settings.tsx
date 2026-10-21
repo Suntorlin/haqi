@@ -14,6 +14,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { TextField } from '@/components/ui/TextField'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export const accountsKey = (machineId: string) => ['claude-accounts', machineId] as const
 // Claude keys its keychain entry by the literal CLAUDE_CONFIG_DIR string, while the runner passes the symlink-resolved path
@@ -74,7 +75,7 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
                 onCheckedChange={autoSwitch => change({ ...pool, autoSwitch })}
             />
         </ListGroup>
-        {!pool.profiles.length && <p className="px-1 text-footnote text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.empty')}</p>}
+        {!pool.profiles.length && <EmptyState title={t('settings.claudeAccounts.empty')} />}
         {pool.profiles.map((profile, index) => <fieldset disabled={working} key={profile.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[var(--social-border)] p-4">
             <TextField type="email" aria-label={t('settings.claudeAccounts.emailLabel', { index: index + 1 })} placeholder="user@example.com" value={profile.email} onChange={e => { update(index, { email: e.target.value }); setChecks(old => ({ ...old, [profile.id]: '' })) }} />
             <div className="flex items-center justify-between gap-3">
@@ -136,7 +137,7 @@ export function ClaudeAccountsSettings({ api, machines }: { api: ApiClient; mach
     const online = machines.filter(m => m.active)
     const machineId = online.some(m => m.id === selected) ? selected : online[0]?.id
     if (!machineId) {
-        return <p role="status" className="px-1 text-footnote text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.noMachine')}</p>
+        return <EmptyState role="status" title={t('settings.claudeAccounts.noMachine')} />
     }
     return <div className="flex flex-col gap-4">
         {online.length > 1 && <FormField label={t('settings.claudeAccounts.machine')}>

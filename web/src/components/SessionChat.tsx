@@ -59,6 +59,7 @@ import { QueueSheet, QueueStatusSheet } from '@/components/AssistantChat/QueueSh
 import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { useSemanticZoomController } from '@/vendor/semantic-zoom'
 import { ZOOM_LEVEL_COUNT, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type CodexStatusRow = {
     label: string
@@ -1761,9 +1762,7 @@ export function SessionChat(props: {
                             ) : null}
 
                             {!isMcpLoading && mcpServers.length === 0 && !mcpError ? (
-                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-footnote text-[var(--social-fg-muted)]">
-                                    {t('mcp.dialog.empty')}
-                                </div>
+                                <EmptyState title={t('mcp.dialog.empty')} />
                             ) : null}
 
                             {mcpServers.length > 0 ? (

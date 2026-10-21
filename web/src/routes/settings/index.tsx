@@ -49,6 +49,7 @@ import {
     SettingsValueRow
 } from '@/components/settings/SettingsParts'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
     { value: 'en', nativeLabel: 'English' },
@@ -1298,9 +1299,7 @@ export default function SettingsPage() {
                                                 </SettingsCard>
                                             ))
                                         ) : (
-                                            <div className="rounded-2xl border border-dashed border-[var(--social-border)] px-4 py-4 text-footnote text-[var(--social-fg-muted)]">
-                                                {t('settings.codexCredentials.profiles.empty')}
-                                            </div>
+                                            <EmptyState title={t('settings.codexCredentials.profiles.empty')} />
                                         )}
                                         <div className="px-1 text-caption text-[var(--social-fg-subtle)]">
                                             {t('settings.codexCredentials.futureSessionsHint')}
@@ -1308,9 +1307,7 @@ export default function SettingsPage() {
                                     </div>
                                 </>
                             ) : (
-                                <div className="px-4 text-footnote text-[var(--social-fg-muted)]">
-                                    {t('settings.codexCredentials.noMachines')}
-                                </div>
+                                <EmptyState title={t('settings.codexCredentials.noMachines')} />
                             )}
                         </SettingsPanel>
 

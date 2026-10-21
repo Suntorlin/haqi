@@ -17,6 +17,7 @@ import { InputHistory } from '@/components/ui/InputHistory'
 import { TextField } from '@/components/ui/TextField'
 import { cn } from '@/lib/utils'
 import { ChevronLeftIcon, ClearIcon, ExternalLinkIcon, GlobeIcon, RefreshIcon, SendArrowIcon } from '@/components/mobile/icons'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function PreviewPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/preview' })
@@ -256,10 +257,12 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
                         style={{ colorScheme: 'light' }}
                     />
                 ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                        <GlobeIcon className="h-8 w-8 text-[var(--social-fg-subtle)]" />
-                        <div className="text-body text-[var(--social-fg-muted)]">{t('preview.empty')}</div>
-                    </div>
+                    <EmptyState
+                        variant="page"
+                        className="h-full"
+                        illustration={<GlobeIcon className="h-8 w-8 text-[var(--social-fg-subtle)]" />}
+                        title={t('preview.empty')}
+                    />
                 )}
             </div>
         </div>

@@ -75,6 +75,7 @@ import {
     TrashIcon
 } from '@/components/mobile/icons'
 import { useGroupInfoPanel } from './group-info'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -1874,9 +1875,7 @@ function GroupBriefTurnList(props: {
                         <LoadingState label={t('groups.brief.loading')} className="text-body" />
                     </div>
                 ) : props.turns.length === 0 ? (
-                    <div className="flex flex-1 items-center justify-center py-8 text-body text-[var(--social-fg-muted)]">
-                        {t('groups.brief.empty')}
-                    </div>
+                    <EmptyState variant="page" className="flex-1" title={t('groups.brief.empty')} />
                 ) : (
                     <div className="min-h-0 flex-1">
                         <Virtuoso
@@ -2832,10 +2831,7 @@ export default function GroupDetailPage() {
             <LoadingState label={t('groups.timeline.loading')} className="text-body" />
         </div>
     ) : visibleMessages.length === 0 ? (
-        <div className="flex h-full flex-col items-center justify-center gap-1 px-8 text-center">
-            <div className="text-body font-semibold text-[var(--social-fg)]">{t('groups.timeline.emptyTitle')}</div>
-            <div className="text-footnote text-[var(--social-fg-muted)]">{t('groups.timeline.emptyHint')}</div>
-        </div>
+        <EmptyState variant="page" className="h-full" title={t('groups.timeline.emptyTitle')} subtitle={t('groups.timeline.emptyHint')} />
     ) : (
         <Virtuoso
             ref={timelineRef}

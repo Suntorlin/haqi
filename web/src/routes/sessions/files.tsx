@@ -16,6 +16,7 @@ import { SubPageHeader, SubPageHeaderButton } from '@/components/mobile/SubPageH
 import { Badge } from '@/components/ui/badge'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 function RefreshIcon(props: { className?: string }) {
     return (
@@ -427,9 +428,7 @@ export default function FilesPage() {
                         ) : searchResults.error ? (
                             <div className="p-6 text-footnote text-[var(--social-fg-muted)]">{searchResults.error}</div>
                         ) : searchResults.files.length === 0 ? (
-                            <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
-                                {searchQuery ? t('files.empty.search') : t('files.empty.project')}
-                            </div>
+                            <EmptyState title={searchQuery ? t('files.empty.search') : t('files.empty.project')} />
                         ) : (
                             <div className="border-t border-[var(--social-divider)]">
                                 {searchResults.files.map((file, index) => (
@@ -518,9 +517,7 @@ export default function FilesPage() {
                             ) : null}
 
                             {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
-                                <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
-                                    {t('files.noChanges')}
-                                </div>
+                                <EmptyState title={t('files.noChanges')} />
                             ) : null}
                         </div>
                     )}
