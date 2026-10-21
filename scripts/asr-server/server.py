@@ -10,6 +10,9 @@ Runs Qwen3-ASR through mlx-audio and serves the two routes the web app calls:
 The hub proxies both routes to this service. A tunnel can also route them here
 directly, so every request is checked: the bearer token must be accepted by the hub.
 
+It also serves a small standalone test page at / (static/index.html). The page logs in
+through POST /api/auth, which this service forwards to the hub unchanged.
+
 Settings (env):
     HAQI_ASR_MODEL     default mlx-community/Qwen3-ASR-1.7B-8bit
     HAQI_ASR_HOST      default 127.0.0.1
@@ -32,7 +35,7 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 
 MODEL_ID = os.environ.get("HAQI_ASR_MODEL", "mlx-community/Qwen3-ASR-1.7B-8bit")
 HOST = os.environ.get("HAQI_ASR_HOST", "127.0.0.1")
@@ -45,6 +48,7 @@ MAX_AUDIO_SECONDS = 10 * 60
 MAX_HOTWORDS = 80
 TOKEN_CACHE_SECONDS = 300
 SAMPLE_RATE = 16000
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 model = None
 # MLX runs one generation at a time; requests queue behind this lock.
@@ -176,6 +180,31 @@ async def transcribe(request: Request):
     elapsed = time.time() - started
     log(f"{len(audio)} bytes, {seconds:.1f}s audio, {elapsed:.2f}s, {len(text)} chars")
     return {"text": text, "audioSeconds": round(seconds, 2), "elapsedSeconds": round(elapsed, 2)}
+
+
+@app.get("/")
+async def test_page():
+    return FileResponse(STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/api/auth")
+async def auth(request: Request):
+    """Forward the test page's login to the hub, so the page needs only this one origin."""
+    body = await request.body()
+
+    def forward():
+        req = urllib.request.Request(
+            f"{HUB_URL}/api/auth", data=body, method="POST",
+            headers={"content-type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=10) as res:
+                return res.status, res.read()
+        except urllib.error.HTTPError as error:
+            return error.code, error.read()
+
+    status, payload = await asyncio.to_thread(forward)
+    return Response(payload, status_code=status, media_type="application/json")
 
 
 @app.get("/health")

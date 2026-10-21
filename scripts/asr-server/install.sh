@@ -19,6 +19,7 @@ command -v ffmpeg >/dev/null || { echo "ffmpeg is required: brew install ffmpeg"
 
 mkdir -p "$DEST" "$HOME/.hapi/logs"
 cp "$HERE/server.py" "$HERE/requirements.txt" "$DEST/"
+rm -rf "$DEST/static" && cp -R "$HERE/static" "$DEST/static"
 [ -f "$HOME/.hapi/asr-hotwords.txt" ] || cp "$HERE/hotwords.example.txt" "$HOME/.hapi/asr-hotwords.txt"
 
 [ -d "$DEST/.venv" ] || uv venv -q -p 3.12 "$DEST/.venv"
