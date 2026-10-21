@@ -239,6 +239,7 @@ function LiveStatusCard(props: {
     const { layout } = props
 
     const describe = (block: ToolCallBlock) => getToolPresentation({
+        t,
         toolName: block.tool.name,
         input: block.tool.input,
         result: block.tool.result,

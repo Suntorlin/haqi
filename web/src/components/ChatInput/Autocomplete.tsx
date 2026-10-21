@@ -1,4 +1,5 @@
 import { memo, useEffect, useRef } from 'react'
+import { ContextMenuItem } from '@/components/mobile/ContextMenu'
 import type { Suggestion } from '@/hooks/useActiveSuggestions'
 
 interface AutocompleteProps {
@@ -8,7 +9,7 @@ interface AutocompleteProps {
 }
 
 /**
- * Autocomplete suggestions list component
+ * Autocomplete suggestions list: menu rows, the keyboard-selected row is highlighted.
  */
 export const Autocomplete = memo(function Autocomplete(props: AutocompleteProps) {
     const { suggestions, selectedIndex, onSelect } = props
@@ -18,10 +19,7 @@ export const Autocomplete = memo(function Autocomplete(props: AutocompleteProps)
         if (selectedIndex < 0 || selectedIndex >= suggestions.length) return
         const listEl = listRef.current
         if (!listEl) return
-        const selectedEl = listEl.querySelector<HTMLButtonElement>(
-            `[data-suggestion-index="${selectedIndex}"]`
-        )
-        selectedEl?.scrollIntoView({ block: 'nearest' })
+        listEl.children[selectedIndex]?.scrollIntoView({ block: 'nearest' })
     }, [selectedIndex, suggestions])
 
     if (suggestions.length === 0) {
@@ -29,31 +27,22 @@ export const Autocomplete = memo(function Autocomplete(props: AutocompleteProps)
     }
 
     return (
-        <div className="py-1" ref={listRef}>
+        <div
+            ref={listRef}
+            role="menu"
+            className="flex flex-col"
+            // Keep focus in the text field: a click on a row must not blur it.
+            onMouseDown={(e) => e.preventDefault()}
+        >
             {suggestions.map((suggestion, index) => (
-                <button
+                <ContextMenuItem
                     key={suggestion.key}
-                    type="button"
-                    data-suggestion-index={index}
-                    className={`flex min-h-11 w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left text-body transition-colors ${
-                        index === selectedIndex
-                            ? 'bg-[var(--social-primary)] text-[var(--social-primary-fg)]'
-                            : 'text-[var(--social-fg)] hover:bg-[var(--social-muted)]'
-                    }`}
-                    onClick={() => onSelect(index)}
-                    onMouseDown={(e) => e.preventDefault()} // Prevent blur on textarea
-                >
-                    <span className="w-full font-semibold">{suggestion.label}</span>
-                    {suggestion.description && (
-                        <span className={`w-full min-h-[2.25rem] text-xs leading-snug line-clamp-2 ${
-                            index === selectedIndex
-                                ? 'opacity-80'
-                                : 'text-[var(--social-fg-muted)]'
-                        }`}>
-                            {suggestion.description}
-                        </span>
-                    )}
-                </button>
+                    label={suggestion.label}
+                    description={suggestion.description}
+                    wrapDescription
+                    active={index === selectedIndex}
+                    onSelect={() => onSelect(index)}
+                />
             ))}
         </div>
     )

@@ -15,6 +15,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader, SubPageHeaderButton } from '@/components/mobile/SubPageHeader'
 import { Badge } from '@/components/ui/badge'
 import { TextField } from '@/components/ui/TextField'
+import { SegmentedControl } from '@/components/ui/FormControls'
 
 function RefreshIcon(props: { className?: string }) {
     return (
@@ -156,7 +157,7 @@ function GitFileRow(props: {
             <FileIcon fileName={props.file.fileName} size={22} />
             <div className="min-w-0 flex-1">
                 <div className="truncate text-body">{props.file.fileName}</div>
-                <div className="min-w-0 flex items-center gap-1 text-xs text-[var(--social-fg-muted)]">
+                <div className="min-w-0 flex items-center gap-1 text-caption text-[var(--social-fg-muted)]">
                     {props.file.repo ? (
                         <Badge className="shrink-0">{props.file.repo}</Badge>
                     ) : null}
@@ -190,7 +191,7 @@ function SearchResultRow(props: {
             {icon}
             <div className="min-w-0 flex-1">
                 <div className="truncate text-body">{props.file.fileName}</div>
-                <div className="truncate text-xs text-[var(--social-fg-muted)]">{subtitle}</div>
+                <div className="truncate text-caption text-[var(--social-fg-muted)]">{subtitle}</div>
             </div>
         </button>
     )
@@ -314,7 +315,7 @@ export default function FilesPage() {
         [isAggregatedRepoView, stagedGroups, unstagedGroups]
     )
     const branchLabel = isAggregatedRepoView
-        ? `${repoSummaries.length} ${repoSummaries.length === 1 ? 'repository' : 'repositories'}`
+        ? t(repoSummaries.length === 1 ? 'files.repoCountOne' : 'files.repoCount', { n: repoSummaries.length })
         : (gitStatus?.branch ?? 'detached')
     const subtitle = session?.metadata?.path ?? sessionId
     const showGitErrorBanner = Boolean(gitError)
@@ -376,35 +377,17 @@ export default function FilesPage() {
                         autoCapitalize="none"
                         autoCorrect="off"
                     />
-                </div>
-            </div>
-
-            <div className="bg-[var(--social-surface)] border-b border-[var(--social-divider)]" role="tablist">
-                <div className="mx-auto w-full max-w-content grid grid-cols-2">
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={activeTab === 'changes'}
-                        onClick={() => handleTabChange('changes')}
-                        className={`relative min-h-11 py-3 text-center text-body font-semibold transition-colors hover:bg-[var(--social-hover)] ${activeTab === 'changes' ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}
-                    >
-                        {t('files.tab.changes')}
-                        <span
-                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'changes' ? 'bg-[var(--social-fg)]' : 'bg-transparent'}`}
+                    <div className="mt-3">
+                        <SegmentedControl
+                            label={t('files.title')}
+                            value={activeTab}
+                            options={[
+                                { value: 'changes', label: t('files.tab.changes') },
+                                { value: 'directories', label: t('files.tab.directories') }
+                            ]}
+                            onChange={handleTabChange}
                         />
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={activeTab === 'directories'}
-                        onClick={() => handleTabChange('directories')}
-                        className={`relative min-h-11 py-3 text-center text-body font-semibold transition-colors hover:bg-[var(--social-hover)] ${activeTab === 'directories' ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]'}`}
-                    >
-                        {t('files.tab.directories')}
-                        <span
-                            className={`absolute bottom-0 left-1/2 h-0.5 w-10 -translate-x-1/2 rounded-full ${activeTab === 'directories' ? 'bg-[var(--social-fg)]' : 'bg-transparent'}`}
-                        />
-                    </button>
+                    </div>
                 </div>
             </div>
 
@@ -415,8 +398,8 @@ export default function FilesPage() {
                             <GitBranchIcon className="text-[var(--social-fg-muted)]" />
                             <span className="font-semibold">{branchLabel}</span>
                         </div>
-                        <div className="text-xs text-[var(--social-fg-muted)]">
-                            {gitStatus.totalStaged} staged, {gitStatus.totalUnstaged} unstaged
+                        <div className="text-caption text-[var(--social-fg-muted)]">
+                            {t('files.changeSummary', { staged: gitStatus.totalStaged, unstaged: gitStatus.totalUnstaged })}
                         </div>
                         {isAggregatedRepoView ? (
                             <div className="mt-1 flex flex-wrap gap-1">
@@ -434,7 +417,7 @@ export default function FilesPage() {
             <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content">
                     {showGitErrorBanner && activeTab === 'changes' ? (
-                        <div className="border-b border-[var(--social-divider)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-xs text-[var(--app-badge-warning-text)]">
+                        <div className="border-b border-[var(--social-divider)] bg-[var(--app-badge-warning-bg)] px-3 py-2 text-caption text-[var(--app-badge-warning-text)]">
                             {gitError}
                         </div>
                     ) : null}
@@ -472,7 +455,7 @@ export default function FilesPage() {
                         <div>
                             {gitStatus?.stagedFiles.length ? (
                                 <div>
-                                    <div className="border-b border-[var(--social-divider)] bg-[var(--social-surface)] px-3 py-2 text-xs font-semibold text-[var(--app-git-staged-color)]">
+                                    <div className="border-b border-[var(--social-divider)] bg-[var(--social-surface)] px-3 py-2 text-caption font-semibold text-[var(--app-git-staged-color)]">
                                         {t('files.staged', { n: gitStatus.stagedFiles.length })}
                                     </div>
                                     {stagedGroups.map((group, groupIndex) => (
@@ -501,7 +484,7 @@ export default function FilesPage() {
 
                             {gitStatus?.unstagedFiles.length ? (
                                 <div>
-                                    <div className="border-b border-[var(--social-divider)] bg-[var(--social-surface)] px-3 py-2 text-xs font-semibold text-[var(--app-git-unstaged-color)]">
+                                    <div className="border-b border-[var(--social-divider)] bg-[var(--social-surface)] px-3 py-2 text-caption font-semibold text-[var(--app-git-unstaged-color)]">
                                         {t('files.unstaged', { n: gitStatus.unstagedFiles.length })}
                                     </div>
                                     {unstagedGroups.map((group, groupIndex) => (

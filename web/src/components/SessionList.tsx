@@ -347,7 +347,15 @@ function getAgentLabel(session: SessionSummary): string {
     return 'unknown'
 }
 
-export function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
+/**
+ * "刚刚" / "3 分钟前" / ... up to 6 days, then a short date in the app language ("10月14日", "Oct 14").
+ * The app language comes from `<html lang>` (set by I18nProvider) unless `locale` is given.
+ */
+export function formatRelativeTime(
+    value: number,
+    t: (key: string, params?: Record<string, string | number>) => string,
+    locale?: string
+): string | null {
     const ms = value < 1_000_000_000_000 ? value * 1000 : value
     if (!Number.isFinite(ms)) return null
     const delta = Date.now() - ms
@@ -358,7 +366,12 @@ export function formatRelativeTime(value: number, t: (key: string, params?: Reco
     if (hours < 24) return t('session.time.hoursAgo', { n: hours })
     const days = Math.floor(hours / 24)
     if (days < 7) return t('session.time.daysAgo', { n: days })
-    return new Date(ms).toLocaleDateString()
+    const date = new Date(ms)
+    const lang = locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : '')
+    const sameYear = date.getFullYear() === new Date().getFullYear()
+    return date.toLocaleDateString(lang || undefined, sameYear
+        ? { month: 'short', day: 'numeric' }
+        : { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function shortModelName(model: string): string {
