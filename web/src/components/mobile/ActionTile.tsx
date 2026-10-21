@@ -34,7 +34,7 @@ export function ActionTile({
             )}
         >
             {icon}
-            <span className="max-w-full truncate">{label}</span>
+            <span className="line-clamp-2 max-w-full break-words text-center leading-tight">{label}</span>
             {badge ? <CountBadge count={badge} className="absolute -right-1 -top-1" /> : null}
         </button>
     )
