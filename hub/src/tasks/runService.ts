@@ -430,6 +430,9 @@ export class RunService {
                 if (this.pushedRequests.has(request.id)) continue
                 this.pushedRequests.add(request.id)
                 void this.host.push(namespace, { title: `负责人等你批准：${task.name}`, body: `${request.tool} ${request.detail}`.slice(0, 200), url: `/groups/${task.id}` }).catch(() => {})
+                if (task.status === 'active') {
+                    this.kernel.log(namespace, task.id, RUN_EVENT.watch, { kind: 'approval', text: `负责人等你批准：${request.tool} ${request.detail}`.slice(0, 200), notified: true })
+                }
             }
         }
     }
