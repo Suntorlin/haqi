@@ -11,4 +11,8 @@ describe('reportMarkdownForApp', () => {
         const markdown = '## 验收标准\n| # | 标准 | 结论 | 证据 |\n|---|---|---|---|\n| 1 | a \\| b | 达到 | 跑了测试 |\n| 2 | c | 没达到 |  |\n\n## 关键数字'
         expect(reportMarkdownForApp(markdown)).toBe('## 验收标准\n1. **达到**：a | b\n   证据：跑了测试\n2. **没达到**：c\n\n## 关键数字')
     })
+
+    it('keeps paths with ~ from turning into strikethrough, but leaves code spans alone', () => {
+        expect(reportMarkdownForApp('改动只在 ~/dev/a 内，`ls ~/dev` 和 ~/dev/b')).toBe('改动只在 \\~/dev/a 内，`ls ~/dev` 和 \\~/dev/b')
+    })
 })
