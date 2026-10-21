@@ -577,6 +577,9 @@ export const knownTools: Record<string, {
     }
 }
 
+// Newer Claude Code names the subagent tool `Agent` instead of `Task`; show it the same way.
+knownTools.Agent = knownTools.Task
+
 export function getToolPresentation(
     input: Omit<ToolOpts, 't'> & { t?: Translate }
 ): ToolPresentation {

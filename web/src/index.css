@@ -4,7 +4,7 @@
 :root {
     /*
      * Design tokens. --social-* is the single source of truth (zinc monochrome, Instagram-style).
-     * --app-badge-*, --app-code-*, --app-diff-*, --app-git-*, --app-scrollbar-* are domain tokens.
+     * --app-badge-*, --app-code-*, --app-diff-*, --app-git-* are domain tokens.
      * Radius scale (use only these): full = pills / avatars / bars, 2xl = cards / panels / sheets,
      * xl = inputs / rows, md = small tags. Type scale: 12 / 13 / 15 / 16 px, weights 400 + 600.
      * Touch targets >= 44px (use --touch-min), text inputs >= 16px on phones.
@@ -19,6 +19,7 @@
     --scrim-soft: rgba(0, 0, 0, 0.2);
     --scrim: rgba(0, 0, 0, 0.45);
     --scrim-strong: rgba(0, 0, 0, 0.6);
+    --bubble-code-bg: rgba(127, 127, 127, 0.22);
     --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.08);
     --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 24px rgba(0, 0, 0, 0.04);
     --shadow-float: 0 12px 40px rgba(0, 0, 0, 0.14);
@@ -88,8 +89,6 @@
     --app-badge-error-border: rgba(239, 68, 68, 0.3);
 
     /* Scrollbar (light) */
-    --app-scrollbar-thumb: rgba(17, 24, 39, 0.22);
-    --app-scrollbar-thumb-hover: rgba(17, 24, 39, 0.34);
 
     /* Social layout tokens: zinc monochrome (light) */
     --social-fg: #09090b;
@@ -152,8 +151,6 @@
     --app-badge-error-border: rgba(248, 113, 113, 0.35);
 
     /* Scrollbar (dark) */
-    --app-scrollbar-thumb: rgba(255, 255, 255, 0.24);
-    --app-scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
 
     /* Social layout tokens: zinc monochrome (dark) */
     --social-fg: #fafafa;
@@ -346,22 +343,6 @@ html[data-theme="dark"] .shiki span {
   font-weight: 600;
 }
 
-/* PWA install prompt animation */
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.animate-slide-up {
-  animation: slide-up 0.3s ease-out;
-}
-
 @keyframes menu-pop {
   from {
     opacity: 0;
@@ -381,39 +362,6 @@ html[data-theme="dark"] .shiki span {
 
 .animate-menu-pop {
   animation: menu-pop 0.18s ease-out;
-}
-
-/* Syncing spinner animation */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* New messages indicator bounce animation */
-@keyframes bounce-in {
-  0% {
-    transform: translateX(-50%) scale(0.8);
-    opacity: 0;
-  }
-  50% {
-    transform: translateX(-50%) scale(1.05);
-  }
-  100% {
-    transform: translateX(-50%) scale(1);
-    opacity: 1;
-  }
-}
-
-.animate-bounce-in {
-  animation: bounce-in 0.3s ease-out;
 }
 
 /* ReactQueryDevtools button - move to middle-right to avoid blocking UI */
@@ -562,7 +510,7 @@ html.social-app {
 
 .social-bubble-self code,
 .social-bubble-self .markdown-content code {
-    background: rgba(127, 127, 127, 0.22);
+    background: var(--bubble-code-bg);
     color: inherit;
 }
 
