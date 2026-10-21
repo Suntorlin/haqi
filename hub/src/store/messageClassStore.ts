@@ -49,6 +49,12 @@ export class MessageClassStore {
         })
     }
 
+    /** The time of the newest classified message. */
+    newest(namespace: string): number | null {
+        const row = this.db.prepare('SELECT MAX(created_at) AS at FROM message_classes WHERE namespace = ?').get(namespace) as { at: number | null }
+        return row.at
+    }
+
     has(messageId: string): boolean {
         return Boolean(this.db.prepare('SELECT 1 FROM message_classes WHERE message_id = ?').get(messageId))
     }
