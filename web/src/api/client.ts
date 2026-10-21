@@ -4,6 +4,8 @@ import type {
     MemoriesResponse,
     MemoryCaptureSettings,
     MemoryHit,
+    MemoryMergePreview,
+    MemoryRelatedHit,
     MemoryItem,
     MemoryMaintainResult,
     MemoryLevel,
@@ -441,12 +443,24 @@ export class ApiClient {
         return await this.request<{ hits: MemoryHit[] }>(`/api/memories/search?q=${encodeURIComponent(query)}&limit=20`)
     }
 
-    async relatedMemories(id: string): Promise<{ hits: MemoryHit[] }> {
-        return await this.request<{ hits: MemoryHit[] }>(`/api/memories/${encodeURIComponent(id)}/related`)
+    async relatedMemories(id: string): Promise<{ hits: MemoryRelatedHit[] }> {
+        return await this.request<{ hits: MemoryRelatedHit[] }>(`/api/memories/${encodeURIComponent(id)}/related`)
     }
 
-    async mergeMemoryItem(id: string, into: string): Promise<{ memory: MemoryItem }> {
-        return await this.request<{ memory: MemoryItem }>(`/api/memories/${encodeURIComponent(id)}/merge`, { method: 'POST', body: JSON.stringify({ into }) })
+    async previewMemoryMerge(ids: string[]): Promise<MemoryMergePreview> {
+        return await this.request<MemoryMergePreview>('/api/memories/merge/preview', { method: 'POST', body: JSON.stringify({ ids }) })
+    }
+
+    async mergeMemories(ids: string[], text?: string): Promise<{ memory: MemoryItem; eventId: string }> {
+        return await this.request<{ memory: MemoryItem; eventId: string }>('/api/memories/merge', { method: 'POST', body: JSON.stringify({ ids, ...(text ? { text } : {}) }) })
+    }
+
+    async undoMemoryMerge(eventId: string): Promise<{ memory: MemoryItem }> {
+        return await this.request<{ memory: MemoryItem }>(`/api/memories/merge/${encodeURIComponent(eventId)}/undo`, { method: 'POST', body: JSON.stringify({}) })
+    }
+
+    async archiveMemories(ids: string[]): Promise<{ archived: number }> {
+        return await this.request<{ archived: number }>('/api/memories/archive', { method: 'POST', body: JSON.stringify({ ids }) })
     }
 
     async maintainMemories(): Promise<MemoryMaintainResult> {

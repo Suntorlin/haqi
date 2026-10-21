@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'bun:test'
 import type { Database } from 'bun:sqlite'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { Store } from './index'
 
@@ -8,6 +11,29 @@ function closeStore(store: Store): void {
 }
 
 describe('MemoryStore', () => {
+    it('adds the newer memory columns to a database made before them', () => {
+        const dir = mkdtempSync(join(tmpdir(), 'haqi-store-'))
+        try {
+            const path = join(dir, 'hapi.db')
+            const first = new Store(path)
+            const db = (first as unknown as { db: Database }).db
+            db.exec('ALTER TABLE memory_events DROP COLUMN detail')
+            db.exec('ALTER TABLE memory_vectors DROP COLUMN checked')
+            closeStore(first)
+
+            const store = new Store(path)
+            const memory = store.memories.insert({ namespace: 'default', text: 'x', level: 'fact', scope: '', status: 'active', reason: null, source: 'propose', sourceLabel: null, sessionId: null, said: false, support: 1, jev: null, overridden: null, replaces: null })
+            const event = store.memories.addEvent({ namespace: 'default', memoryId: memory.id, action: 'merged', text: 'x', reason: null, source: 'system', sourceLabel: null, sourceRef: null, hash: null, sessionId: null, jev: null, costUsd: 0, latencyMs: 0, detail: { drops: [] } })
+            expect(store.memories.event(event.id, 'default')?.detail).toEqual({ drops: [] })
+            store.memories.setVector('default', { memoryId: memory.id, model: 'm', textHash: 'h', vector: [1] })
+            store.memories.setChecked('default', memory.id, 'seen')
+            expect(store.memories.vectors('default')[0]?.checked).toBe('seen')
+            closeStore(store)
+        } finally {
+            rmSync(dir, { recursive: true, force: true })
+        }
+    })
+
     it('stores memories, links and events per namespace', () => {
         const store = new Store(':memory:')
         const base = { level: 'experience' as const, scope: 'haqi', status: 'active' as const, reason: null, source: 'propose', sourceLabel: null, sessionId: null, said: false, support: 1, jev: { keep: 0.9 }, overridden: null, replaces: null }

@@ -55,6 +55,7 @@ export const MEMORY_SCHEMA_SQL = `
         cost_usd REAL NOT NULL DEFAULT 0,
         latency_ms INTEGER NOT NULL DEFAULT 0,
         created_at INTEGER NOT NULL,
+        detail TEXT,
         FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE SET NULL
     );
     CREATE INDEX IF NOT EXISTS idx_memory_events_namespace_created ON memory_events(namespace, created_at DESC);
@@ -68,6 +69,7 @@ export const MEMORY_SCHEMA_SQL = `
         text_hash TEXT NOT NULL,
         vector TEXT NOT NULL,
         created_at INTEGER NOT NULL,
+        checked TEXT,
         FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_memory_vectors_namespace ON memory_vectors(namespace);
@@ -81,6 +83,12 @@ export const MEMORY_SCHEMA_SQL = `
     );
     CREATE INDEX IF NOT EXISTS idx_memory_tags_namespace_tag ON memory_tags(namespace, tag);
 `
+
+/** Columns added after the memory tables first shipped; added in place, so older hubs can still open the database. */
+export const MEMORY_ADDED_COLUMNS: Array<{ table: string; column: string; type: string }> = [
+    { table: 'memory_events', column: 'detail', type: 'TEXT' },
+    { table: 'memory_vectors', column: 'checked', type: 'TEXT' }
+]
 
 type DbMemoryRow = {
     id: string
@@ -119,6 +127,7 @@ type DbEventRow = {
     cost_usd: number
     latency_ms: number
     created_at: number
+    detail: string | null
 }
 
 function toStoredMemory(row: DbMemoryRow, tags: string[] = []): StoredMemory {
@@ -161,7 +170,8 @@ function toStoredEvent(row: DbEventRow): StoredMemoryEvent {
         jev: row.jev ? safeJsonParse(row.jev) : null,
         costUsd: row.cost_usd,
         latencyMs: row.latency_ms,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        detail: row.detail ? safeJsonParse(row.detail) : null
     }
 }
 
@@ -259,19 +269,23 @@ export function addMemoryLink(db: Database, namespace: string, fromId: string, t
     db.prepare('INSERT OR IGNORE INTO memory_links (namespace, from_id, to_id, created_at) VALUES (?, ?, ?, ?)').run(namespace, fromId, toId, Date.now())
 }
 
+export function removeMemoryLink(db: Database, namespace: string, fromId: string, toId: string): void {
+    db.prepare('DELETE FROM memory_links WHERE namespace = ? AND from_id = ? AND to_id = ?').run(namespace, fromId, toId)
+}
+
 export function listMemoryLinks(db: Database, namespace: string): StoredMemoryLink[] {
     const rows = db.prepare('SELECT namespace, from_id, to_id, created_at FROM memory_links WHERE namespace = ?').all(namespace) as Array<{ namespace: string; from_id: string; to_id: string; created_at: number }>
     return rows.map((row) => ({ namespace: row.namespace, fromId: row.from_id, toId: row.to_id, createdAt: row.created_at }))
 }
 
-export type NewMemoryEvent = Omit<StoredMemoryEvent, 'id' | 'createdAt'>
+export type NewMemoryEvent = Omit<StoredMemoryEvent, 'id' | 'createdAt' | 'detail'> & { detail?: unknown }
 
 export function addMemoryEvent(db: Database, input: NewMemoryEvent): StoredMemoryEvent {
     const id = randomUUID()
     const now = Date.now()
     db.prepare(`
-        INSERT INTO memory_events (id, namespace, memory_id, action, text, reason, source, source_label, source_ref, hash, session_id, jev, cost_usd, latency_ms, created_at)
-        VALUES (@id, @namespace, @memory_id, @action, @text, @reason, @source, @source_label, @source_ref, @hash, @session_id, @jev, @cost_usd, @latency_ms, @now)
+        INSERT INTO memory_events (id, namespace, memory_id, action, text, reason, source, source_label, source_ref, hash, session_id, jev, cost_usd, latency_ms, created_at, detail)
+        VALUES (@id, @namespace, @memory_id, @action, @text, @reason, @source, @source_label, @source_ref, @hash, @session_id, @jev, @cost_usd, @latency_ms, @now, @detail)
     `).run({
         id,
         namespace: input.namespace,
@@ -287,9 +301,25 @@ export function addMemoryEvent(db: Database, input: NewMemoryEvent): StoredMemor
         jev: input.jev === null ? null : JSON.stringify(input.jev),
         cost_usd: input.costUsd,
         latency_ms: input.latencyMs,
-        now
+        now,
+        detail: input.detail === undefined || input.detail === null ? null : JSON.stringify(input.detail)
     })
-    return { ...input, id, createdAt: now }
+    return { ...input, id, createdAt: now, detail: input.detail ?? null }
+}
+
+export function getMemoryEvent(db: Database, id: string, namespace: string): StoredMemoryEvent | null {
+    const row = db.prepare('SELECT * FROM memory_events WHERE id = ? AND namespace = ?').get(id, namespace) as DbEventRow | null
+    return row ? toStoredEvent(row) : null
+}
+
+export function setMemoryEventAction(db: Database, id: string, namespace: string, action: string): void {
+    db.prepare('UPDATE memory_events SET action = ? WHERE id = ? AND namespace = ?').run(action, id, namespace)
+}
+
+/** Merges that can still be undone, newest first. */
+export function listMergeEvents(db: Database, namespace: string): StoredMemoryEvent[] {
+    const rows = db.prepare("SELECT * FROM memory_events WHERE namespace = ? AND action = 'merged' AND detail IS NOT NULL ORDER BY created_at DESC, rowid DESC").all(namespace) as DbEventRow[]
+    return rows.map(toStoredEvent)
 }
 
 export function listMemoryEvents(db: Database, namespace: string, limit: number): StoredMemoryEvent[] {
@@ -353,7 +383,8 @@ export function hasReplacement(db: Database, namespace: string, id: string): boo
     return Boolean(db.prepare('SELECT 1 FROM memories WHERE namespace = ? AND replaces = ? LIMIT 1').get(namespace, id))
 }
 
-export type StoredVector = { memoryId: string; model: string; textHash: string; vector: number[] }
+/** `checked`: what the last duplicate check saw (the memory and its neighbours), so an unchanged neighbourhood is not asked again. */
+export type StoredVector = { memoryId: string; model: string; textHash: string; vector: number[]; checked?: string | null }
 
 export function setMemoryVector(db: Database, namespace: string, input: StoredVector): void {
     db.prepare(`
@@ -363,6 +394,10 @@ export function setMemoryVector(db: Database, namespace: string, input: StoredVe
 }
 
 export function listMemoryVectors(db: Database, namespace: string): StoredVector[] {
-    const rows = db.prepare('SELECT memory_id, model, text_hash, vector FROM memory_vectors WHERE namespace = ?').all(namespace) as Array<{ memory_id: string; model: string; text_hash: string; vector: string }>
-    return rows.map((row) => ({ memoryId: row.memory_id, model: row.model, textHash: row.text_hash, vector: JSON.parse(row.vector) as number[] }))
+    const rows = db.prepare('SELECT memory_id, model, text_hash, vector, checked FROM memory_vectors WHERE namespace = ?').all(namespace) as Array<{ memory_id: string; model: string; text_hash: string; vector: string; checked: string | null }>
+    return rows.map((row) => ({ memoryId: row.memory_id, model: row.model, textHash: row.text_hash, vector: JSON.parse(row.vector) as number[], checked: row.checked }))
+}
+
+export function setMemoryChecked(db: Database, namespace: string, memoryId: string, checked: string): void {
+    db.prepare('UPDATE memory_vectors SET checked = ? WHERE memory_id = ? AND namespace = ?').run(checked, memoryId, namespace)
 }

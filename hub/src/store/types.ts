@@ -359,4 +359,6 @@ export type StoredMemoryEvent = {
     costUsd: number
     latencyMs: number
     createdAt: number
+    /** What a merge changed, kept so it can be undone. */
+    detail: unknown | null
 }

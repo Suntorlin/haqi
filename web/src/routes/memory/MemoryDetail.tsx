@@ -8,7 +8,7 @@ import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
-import type { MemoryItem, MemoryLink } from '@/types/api'
+import type { MemoryItem, MemoryLink, MemoryMerge } from '@/types/api'
 import { evidenceOf, formatWhen, levelLabel, scopeLabel, sourceLabel, supportsOf, trialLabel, type Level } from './model'
 
 /** Maturity as a filling circle: fact ○, experience ◐, principle ●. Used by the graph and its legend. */
@@ -50,8 +50,11 @@ export function MemoryDetail(props: {
     onDelete: () => void
     /** Mentions so far, for a memory on trial. */
     trial?: { recent: number; lastAt: number }
-    /** Merge this memory into another one. */
-    onMerge: (intoId: string) => void
+    /** Start merging this memory with another one (a preview comes first). */
+    onMerge: (otherId: string) => void
+    /** The merge this memory came out of, while it can be undone. */
+    merged?: MemoryMerge
+    onUndoMerge: (eventId: string) => void
 }) {
     const { memory } = props
     const { api } = useAppContext()
@@ -135,6 +138,13 @@ export function MemoryDetail(props: {
                 </ListGroup>
             ) : null}
 
+            {props.merged ? (
+                <ListGroup title={t('memoryPage.detail.mergedFrom', { count: props.merged.drops.length + 1, when: formatWhen(props.merged.createdAt, t) })}>
+                    {props.merged.drops.map((drop) => <ListRow key={drop.id} wrap title={drop.text} />)}
+                    <ListRow title={t('memoryPage.detail.undoMerge')} subtitle={t('memoryPage.detail.undoMergeHint')} wrap disabled={props.busy} onClick={() => props.onUndoMerge(props.merged!.eventId)} />
+                </ListGroup>
+            ) : null}
+
             {related.data && related.data.length > 0 ? (
                 <ListGroup title={t('memoryPage.detail.similar')}>
                     {related.data.map((item) => (
@@ -142,7 +152,11 @@ export function MemoryDetail(props: {
                             key={item.id}
                             wrap
                             title={item.text}
-                            subtitle={`${levelLabel(item.level, t)} · ${scopeLabel(item.scope, t)} · ${t('memoryPage.detail.similarity', { score: item.score.toFixed(2) })}`}
+                            subtitle={[
+                                item.same !== null ? t('memoryPage.detail.sameScore', { score: item.same.toFixed(2) }) : t('memoryPage.detail.similarity', { score: item.score.toFixed(2) }),
+                                levelLabel(item.level, t),
+                                scopeLabel(item.scope, t)
+                            ].join(' · ')}
                             trailing={(
                                 <Button variant="secondary" className="px-4" disabled={props.busy} onClick={() => props.onMerge(item.id)}>
                                     {t('memoryPage.detail.merge')}
@@ -151,6 +165,8 @@ export function MemoryDetail(props: {
                         />
                     ))}
                 </ListGroup>
+            ) : related.isLoading ? (
+                <p className="px-1 text-footnote text-[var(--social-fg-muted)]">{t('memoryPage.detail.similarLoading')}</p>
             ) : null}
 
             <p className="px-1 text-footnote text-[var(--social-fg-muted)]">
