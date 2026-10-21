@@ -110,6 +110,10 @@ export function ContextMenuItem(props: {
     hasPopup?: boolean
     expanded?: boolean
     onFocus?: () => void
+    /** Keyboard-highlighted row in a list whose focus stays elsewhere (composer autocomplete). */
+    active?: boolean
+    /** Let the description wrap to two lines instead of one (slash-command help). */
+    wrapDescription?: boolean
 }) {
     const checkable = props.checked !== undefined
     return (
@@ -124,6 +128,7 @@ export function ContextMenuItem(props: {
             onFocus={props.onFocus}
             className={cn(
                 'flex w-full items-center gap-3 min-h-11 rounded-xl px-3 py-2.5 text-left text-body leading-tight transition-colors hover:bg-[var(--social-muted)] focus-visible:bg-[var(--social-muted)] focus-visible:outline-none disabled:opacity-40',
+                props.active && 'bg-[var(--social-muted)]',
                 props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]'
             )}
         >
@@ -135,7 +140,7 @@ export function ContextMenuItem(props: {
             {props.description ? (
                 <span className="min-w-0 flex-1">
                     <span className="block truncate">{props.label}</span>
-                    <span className="mt-1 block truncate text-caption text-[var(--social-fg-muted)]">{props.description}</span>
+                    <span className={cn('mt-1 block text-caption text-[var(--social-fg-muted)]', props.wrapDescription ? 'line-clamp-2 leading-snug' : 'truncate')}>{props.description}</span>
                 </span>
             ) : (
                 <span className="min-w-0 flex-1 truncate">{props.label}</span>
