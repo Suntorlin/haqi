@@ -20,6 +20,7 @@ import type { SessionSummary, SessionTask } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
 import { cn } from '@/lib/utils'
+import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
@@ -566,7 +567,7 @@ function SessionItem(props: {
                     <button
                         type="button"
                         {...longPressHandlers}
-                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none ${sortable ? 'max-lg:pr-12' : ''} focus-visible:outline-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3 ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
+                        className={cn('session-list-item focus-visible:outline-none', FEED_ROW_CLASS, sortable && 'max-lg:pr-12', effectiveActive && s.pendingRequestsCount > 0 && 'bg-[var(--social-muted)]/60')}
                         style={{ WebkitTouchCallout: 'none' }}
                         aria-current={selected ? 'page' : undefined}
                     >
