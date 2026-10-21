@@ -54,7 +54,7 @@ function formatResetsIn(resetsAtSeconds: number, now: number, t: (key: string, p
 }
 
 function utilizationToColorClass(utilization: number, status: ClaudeRateLimitEntry['status']): string {
-    if (status === 'rejected') return 'bg-[var(--app-badge-error-bg)]0'
+    if (status === 'rejected') return 'bg-[var(--social-danger)]'
     if (utilization >= 0.85 || status === 'allowed_warning') return 'bg-[var(--social-warning)]'
     return 'bg-[var(--social-fg)]'
 }
@@ -68,7 +68,7 @@ function ProgressRow(props: {
     const safePct = props.percentage === null ? 0 : Math.min(100, Math.max(0, props.percentage))
     return (
         <div className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center justify-between gap-3 text-caption">
                 <span className="text-[var(--social-fg)]">{props.label}</span>
                 <span className="shrink-0 text-[var(--social-fg-muted)]">
                     {props.percentage === null ? '—' : `${Math.round(props.percentage)}%`}
@@ -110,9 +110,9 @@ export function UsagePanel(props: UsagePanelProps) {
     }, [props.rateLimitSnapshot])
 
     return (
-        <div className="flex w-72 flex-col gap-3 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3 shadow-[var(--shadow-float)]">
+        <div className="flex w-72 flex-col gap-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3 shadow-[var(--shadow-float)]">
             <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold">
+                <div className="flex items-center justify-between text-caption font-semibold">
                     <span className="text-[var(--social-fg)]">{t('usage.contextWindow')}</span>
                     {contextRow ? (
                         <span className="text-[var(--social-fg-muted)]">
@@ -126,7 +126,7 @@ export function UsagePanel(props: UsagePanelProps) {
                     {contextRow ? (
                         <div
                             className={`h-1 rounded-full transition-[width] ${
-                                contextRow.percentage >= 90 ? 'bg-[var(--app-badge-error-bg)]0'
+                                contextRow.percentage >= 90 ? 'bg-[var(--social-danger)]'
                                     : contextRow.percentage >= 70 ? 'bg-[var(--social-warning)]'
                                         : 'bg-[var(--social-fg)]'
                             }`}
@@ -137,7 +137,7 @@ export function UsagePanel(props: UsagePanelProps) {
             </div>
 
             <div className="flex flex-col gap-2">
-                <div className="text-xs font-semibold text-[var(--social-fg)]">
+                <div className="text-caption font-semibold text-[var(--social-fg)]">
                     {t('usage.planUsage')}
                 </div>
 

@@ -14,7 +14,7 @@ import { PermissionFooter } from '@/components/ToolCard/PermissionFooter'
 import { isAskUserQuestionToolName } from '@/components/ToolCard/askUserQuestion'
 import { getExitPlanText, isExitPlanToolName } from '@/components/ToolCard/exitPlanMode'
 import { isRequestUserInputToolName } from '@/components/ToolCard/requestUserInput'
-import { getToolPresentation } from '@/components/ToolCard/knownTools'
+import { getToolPresentation, type Translate } from '@/components/ToolCard/knownTools'
 import { getToolFullViewComponent, getToolViewComponent } from '@/components/ToolCard/views/_all'
 import { getToolResultViewComponent } from '@/components/ToolCard/views/_results'
 import { useHappyChatContext } from '@/components/AssistantChat/context'
@@ -26,6 +26,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { formatRunningAgentNames, formatTaskChildStateSummary, getRunningAgentsForTaskBlock, getTaskChildStateSummary } from '@/components/ToolCard/taskSummary'
 import { useTranslation } from '@/lib/use-translation'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 
 const ELAPSED_INTERVAL_MS = 1000
@@ -88,6 +89,7 @@ function writeDiffDetailToolId(toolId: string | null, mode: 'push' | 'replace'):
 }
 
 function ElapsedView(props: { from: number; active: boolean; signal?: ToolProgressSignal | null }) {
+    const { t } = useTranslation()
     const [now, setNow] = useState(() => Date.now())
 
     useEffect(() => {
@@ -107,25 +109,26 @@ function ElapsedView(props: { from: number; active: boolean; signal?: ToolProgre
     const stale = signalAgeMs !== null && signalAgeMs > TOOL_PROGRESS_STALE_AFTER_MS
 
     return (
-        <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[var(--social-fg-muted)]">
+        <span className="inline-flex items-center gap-1.5 font-mono text-caption text-[var(--social-fg-muted)]">
             {elapsed.toFixed(1)}s
             {signalAgeMs !== null && !stale && (
                 <span
                     className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--social-success)]"
-                    title={`Backend heartbeat ${Math.max(0, Math.round(signalAgeMs / 1000))}s ago`}
+                    title={t('tool.heartbeat.ago', { n: Math.max(0, Math.round(signalAgeMs / 1000)) })}
                 />
             )}
             {stale && (
-                <span className="text-[var(--app-badge-warning-text)]" title="The backend stopped sending tool heartbeats">
-                    no signal {Math.round(signalAgeMs! / 1000)}s
+                <span className="text-[var(--app-badge-warning-text)]" title={t('tool.heartbeat.stopped')}>
+                    {t('tool.heartbeat.noSignal', { n: Math.round(signalAgeMs! / 1000) })}
                 </span>
             )}
         </span>
     )
 }
 
-function formatTaskChildLabel(child: ToolCallBlock, metadata: SessionMetadataSummary | null): string {
+function formatTaskChildLabel(child: ToolCallBlock, metadata: SessionMetadataSummary | null, t: Translate): string {
     const presentation = getToolPresentation({
+        t,
         toolName: child.tool.name,
         input: child.tool.input,
         result: child.tool.result,
@@ -167,7 +170,11 @@ function getTaskSummaryChildren(block: ToolCallBlock): { visible: ToolCallBlock[
     return { visible, remaining: children.length - visible.length }
 }
 
-function renderTaskSummary(block: ToolCallBlock, metadata: SessionMetadataSummary | null): ReactNode | null {
+function renderTaskSummary(
+    block: ToolCallBlock,
+    metadata: SessionMetadataSummary | null,
+    t: (key: string, params?: Record<string, string | number>) => string
+): ReactNode | null {
     const summary = getTaskSummaryChildren(block)
     if (!summary) return null
 
@@ -179,19 +186,19 @@ function renderTaskSummary(block: ToolCallBlock, metadata: SessionMetadataSummar
             <div className="flex flex-col gap-1">
                 {visible.map((child) => (
                     <div key={child.id} className="flex items-center gap-2">
-                        <div className="min-w-0 flex-1 font-mono text-xs text-[var(--social-fg-muted)]">
+                        <div className="min-w-0 flex-1 font-mono text-caption text-[var(--social-fg-muted)]">
                             <span className="mr-2 inline-block w-4 text-center align-middle">
                                 <TaskStateIcon state={child.tool.state} />
                             </span>
                             <span className="align-middle break-all">
-                                {formatTaskChildLabel(child, metadata)}
+                                {formatTaskChildLabel(child, metadata, t)}
                             </span>
                         </div>
                     </div>
                 ))}
                 {remaining > 0 ? (
-                    <div className="text-xs text-[var(--social-fg-muted)] italic">
-                        (+{remaining} more)
+                    <div className="text-caption text-[var(--social-fg-muted)] italic">
+                        {t('tool.task.more', { n: remaining })}
                     </div>
                 ) : null}
             </div>
@@ -279,7 +286,7 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
                     <div className="flex flex-col gap-2">
                         {rendered}
                         {edits.length > 3 ? (
-                            <div className="text-xs text-[var(--social-fg-muted)]">
+                            <div className="text-caption text-[var(--social-fg-muted)]">
                                 (+{edits.length - 3} more edits)
                             </div>
                         ) : null}
@@ -295,7 +302,7 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
         if (filePath && content !== null) {
             return (
                 <div className="flex flex-col gap-2">
-                    <div className="text-xs text-[var(--social-fg-muted)] font-mono break-all">
+                    <div className="text-caption text-[var(--social-fg-muted)] font-mono break-all">
                         {filePath}
                     </div>
                     <CodeBlock code={content} language="text" />
@@ -405,25 +412,6 @@ function DetailsIcon(props: { className?: string }) {
     )
 }
 
-function BackIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <polyline points="15 18 9 12 15 6" />
-        </svg>
-    )
-}
-
 type ToolCardProps = {
     api: ApiClient
     sessionId: string
@@ -438,6 +426,7 @@ function ToolCardInner(props: ToolCardProps) {
     const { t } = useTranslation()
     const chatContext = useHappyChatContext()
     const presentation = useMemo(() => getToolPresentation({
+        t,
         toolName: props.block.tool.name,
         input: props.block.tool.input,
         result: props.block.tool.result,
@@ -450,7 +439,8 @@ function ToolCardInner(props: ToolCardProps) {
         props.block.tool.result,
         props.block.children.length,
         props.block.tool.description,
-        props.metadata
+        props.metadata,
+        t
     ])
 
     const toolName = props.block.tool.name
@@ -463,7 +453,7 @@ function ToolCardInner(props: ToolCardProps) {
     const taskStateSummaryText = formatTaskChildStateSummary(taskChildStateSummary)
     const taskRunningAgents = getRunningAgentsForTaskBlock(props.block, chatContext.agentState?.runningAgents ?? null)
     const runningAgentNames = formatRunningAgentNames(taskRunningAgents)
-    const taskSummary = renderTaskSummary(props.block, props.metadata)
+    const taskSummary = renderTaskSummary(props.block, props.metadata, t)
     const runningFrom = props.block.tool.startedAt ?? props.block.tool.createdAt
     const toolProgressMap = chatContext.toolProgress ?? null
     let progressSignal = toolProgressMap?.get(props.block.tool.id) ?? null
@@ -644,7 +634,7 @@ function ToolCardInner(props: ToolCardProps) {
                     <span className={cn('shrink-0', statusColorClass(props.block.tool.state))}>
                         <StatusIcon state={props.block.tool.state} />
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--social-fg-muted)]">
+                    <span className="min-w-0 flex-1 truncate text-caption text-[var(--social-fg-muted)]">
                         {toolTitle}
                     </span>
                     <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
@@ -674,7 +664,7 @@ function ToolCardInner(props: ToolCardProps) {
                         : 'mt-3 max-h-[75vh]'
             )}>
                 <div>
-                    <div className="mb-1 text-xs font-semibold text-[var(--social-fg-muted)]">
+                    <div className="mb-1 text-caption font-semibold text-[var(--social-fg-muted)]">
                         {isQuestionToolWithAnswers ? t('tool.questionsAnswers') : t('tool.input')}
                     </div>
                     {FullToolView ? (
@@ -685,7 +675,7 @@ function ToolCardInner(props: ToolCardProps) {
                 </div>
                 {!isQuestionToolWithAnswers && !hideResultSection && (
                     <div>
-                        <div className="mb-1 text-xs font-semibold text-[var(--social-fg-muted)]">{t('tool.result')}</div>
+                        <div className="mb-1 text-caption font-semibold text-[var(--social-fg-muted)]">{t('tool.result')}</div>
                         <ResultToolView block={props.block} metadata={props.metadata} />
                     </div>
                 )}
@@ -714,16 +704,7 @@ function ToolCardInner(props: ToolCardProps) {
 
             return (
                 <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--social-surface)]">
-                    <div className="border-b border-[var(--social-border)] bg-[var(--social-surface)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-                        <div className="flex items-center gap-2">
-                            <IconButton label="Back" onClick={closeTurnChangesDetail}>
-                                <BackIcon />
-                            </IconButton>
-                            <div className="min-w-0 truncate text-footnote font-semibold text-[var(--social-fg)]">
-                                {toolTitle}
-                            </div>
-                        </div>
-                    </div>
+                    <SubPageHeader title={toolTitle} onBack={closeTurnChangesDetail} />
                     {renderDetailBody({ mobile: true })}
                 </div>
             )
@@ -751,16 +732,7 @@ function ToolCardInner(props: ToolCardProps) {
 
             return (
                 <div className="fixed inset-0 z-[60] flex flex-col bg-[var(--social-surface)]">
-                    <div className="border-b border-[var(--social-border)] bg-[var(--social-surface)] px-3 py-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
-                        <div className="flex items-center gap-2">
-                            <IconButton label="Back" onClick={closeDiffDetail}>
-                                <BackIcon />
-                            </IconButton>
-                            <div className="min-w-0 truncate text-footnote font-semibold text-[var(--social-fg)]">
-                                {toolTitle}
-                            </div>
-                        </div>
-                    </div>
+                    <SubPageHeader title={toolTitle} onBack={closeDiffDetail} />
                     {renderDetailBody({ mobile: true })}
                 </div>
             )
@@ -824,7 +796,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-xs font-semibold leading-tight">
+                                        <div className="truncate text-caption font-semibold leading-tight">
                                             {toolTitle}
                                             {compactSummary ? (
                                                 <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
@@ -864,7 +836,7 @@ function ToolCardInner(props: ToolCardProps) {
                                                 {presentation.icon}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="truncate text-xs font-semibold leading-tight">
+                                                <div className="truncate text-caption font-semibold leading-tight">
                                                     {toolTitle}
                                                     {compactSummary ? (
                                                         <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
@@ -908,7 +880,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             {presentation.icon}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate text-xs font-semibold leading-tight">
+                                            <div className="truncate text-caption font-semibold leading-tight">
                                                 {toolTitle}
                                                 {compactSummary ? (
                                                     <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
@@ -997,7 +969,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 </div>
 
                                 {subtitle ? (
-                                    <CardDescription className="font-mono text-xs break-all opacity-80">
+                                    <CardDescription className="font-mono text-caption break-all opacity-80">
                                         {truncate(subtitle, 160)}
                                     </CardDescription>
                                 ) : null}
@@ -1043,7 +1015,7 @@ function ToolCardInner(props: ToolCardProps) {
                                 </div>
 
                                 {subtitle ? (
-                                    <CardDescription className="font-mono text-xs break-all opacity-80">
+                                    <CardDescription className="font-mono text-caption break-all opacity-80">
                                         {truncate(subtitle, 160)}
                                     </CardDescription>
                                 ) : null}
@@ -1089,7 +1061,7 @@ function ToolCardInner(props: ToolCardProps) {
                                     </div>
 
                                     {subtitle ? (
-                                        <CardDescription className="font-mono text-xs break-all opacity-80">
+                                        <CardDescription className="font-mono text-caption break-all opacity-80">
                                             {truncate(subtitle, 160)}
                                         </CardDescription>
                                     ) : null}
@@ -1124,11 +1096,11 @@ function ToolCardInner(props: ToolCardProps) {
                         ) : (
                             <div className={cn('flex flex-col', isCompact ? 'mt-2 gap-2' : 'mt-3 gap-3')}>
                                 <div>
-                                    <div className="mb-1 text-xs font-semibold text-[var(--social-fg-muted)]">{t('tool.input')}</div>
+                                    <div className="mb-1 text-caption font-semibold text-[var(--social-fg-muted)]">{t('tool.input')}</div>
                                     {renderToolInput(props.block)}
                                 </div>
                                 <div>
-                                    <div className="mb-1 text-xs font-semibold text-[var(--social-fg-muted)]">{t('tool.result')}</div>
+                                    <div className="mb-1 text-caption font-semibold text-[var(--social-fg-muted)]">{t('tool.result')}</div>
                                     <ResultToolView block={props.block} metadata={props.metadata} />
                                 </div>
                             </div>
@@ -1137,7 +1109,7 @@ function ToolCardInner(props: ToolCardProps) {
 
                     {isQuestionTool && permission?.status === 'pending' ? (
                         <div className="mt-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-3 py-3">
-                            <div className="text-xs font-semibold text-[var(--social-fg-muted)]">
+                            <div className="text-caption font-semibold text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>
                             <div className="mt-1 text-footnote text-[var(--social-fg)]">
