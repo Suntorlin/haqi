@@ -1,4 +1,5 @@
 import { CheckIcon, CloseIcon } from '@/components/mobile/icons'
+import { useTranslation } from '@/lib/use-translation'
 import type { CriteriaItem } from '@/types/api'
 
 const statusIcon: Record<CriteriaItem['status'], { icon: React.ReactNode; className: string }> = {
@@ -11,12 +12,13 @@ const statusIcon: Record<CriteriaItem['status'], { icon: React.ReactNode; classN
         className: 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]'
     },
     unclear: {
-        icon: <span className="text-[12px] font-semibold leading-none">?</span>,
+        icon: <span className="text-caption font-semibold leading-none">?</span>,
         className: 'bg-[var(--app-badge-warning-bg)] text-[var(--app-badge-warning-text)]'
     },
 }
 
 export function CriteriaChecklist({ criteria }: { criteria: CriteriaItem[] }) {
+    const { t } = useTranslation()
     if (criteria.length === 0) return null
 
     return (
@@ -28,14 +30,14 @@ export function CriteriaChecklist({ criteria }: { criteria: CriteriaItem[] }) {
                         <span
                             className={`mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${className}`}
                             role="img"
-                            aria-label={item.status.replace('_', ' ')}
+                            aria-label={t(`loops.criteria.${item.status}`)}
                         >
                             {icon}
                         </span>
                         <span className="min-w-0 flex-1">
-                            <span className="block break-words text-[15px] text-[var(--social-fg)]">{item.criteria}</span>
+                            <span className="block break-words text-body text-[var(--social-fg)]">{item.criteria}</span>
                             {item.note ? (
-                                <span className="mt-0.5 block break-words text-[13px] text-[var(--social-fg-muted)]">{item.note}</span>
+                                <span className="mt-0.5 block break-words text-footnote text-[var(--social-fg-muted)]">{item.note}</span>
                             ) : null}
                         </span>
                     </li>

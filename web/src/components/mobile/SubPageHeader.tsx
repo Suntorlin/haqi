@@ -26,11 +26,11 @@ export function SubPageHeader(props: { title: ReactNode; subtitle?: ReactNode; o
                     <span className="w-3 shrink-0" />
                 )}
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-[16px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                    <div className="truncate text-headline font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                         {props.title}
                     </div>
                     {props.subtitle ? (
-                        <div className="mt-0.5 truncate text-[12px] leading-tight text-[var(--social-fg-muted)]">{props.subtitle}</div>
+                        <div className="mt-0.5 truncate text-caption leading-tight text-[var(--social-fg-muted)]">{props.subtitle}</div>
                     ) : null}
                 </div>
                 {props.actions ? <div className="flex shrink-0 items-center gap-1">{props.actions}</div> : null}

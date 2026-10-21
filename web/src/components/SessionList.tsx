@@ -20,6 +20,7 @@ import type { SessionSummary, TaskView } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
 import { cn } from '@/lib/utils'
+import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
@@ -29,6 +30,7 @@ import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { SessionTaskSheet } from '@/components/SessionTaskSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
+import { BulbIcon, DisclosureIcon, GripIcon, PlusIcon } from '@/components/mobile/icons'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
@@ -238,26 +240,6 @@ function flattenSessionRows(
     return rows
 }
 
-function PlusIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-    )
-}
-
 type ListHeaderContext = { header?: ReactNode }
 
 const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div'> & { context?: ListHeaderContext }>(
@@ -267,7 +249,7 @@ const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div
             <div
                 {...rest}
                 ref={ref}
-                className={`session-list-scroll ${props.className ?? ''}`.trim()}
+                className={props.className}
             />
         )
     }
@@ -275,65 +257,6 @@ const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div
 
 function ListHeader(props: { context?: ListHeaderContext }) {
     return <>{props.context?.header ?? null}</>
-}
-
-function GripIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={props.className}
-            aria-hidden="true"
-        >
-            <circle cx="9" cy="6" r="1.8" />
-            <circle cx="15" cy="6" r="1.8" />
-            <circle cx="9" cy="12" r="1.8" />
-            <circle cx="15" cy="12" r="1.8" />
-            <circle cx="9" cy="18" r="1.8" />
-            <circle cx="15" cy="18" r="1.8" />
-        </svg>
-    )
-}
-
-function BulbIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M9 18h6" />
-            <path d="M10 22h4" />
-            <path d="M12 2a7 7 0 0 0-4 12c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2a7 7 0 0 0-4-12Z" />
-        </svg>
-    )
-}
-
-function ChevronIcon(props: { className?: string; collapsed?: boolean }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`${props.className ?? ''} transition-transform duration-200 ${props.collapsed ? '' : 'rotate-90'}`}
-        >
-            <polyline points="9 18 15 12 9 6" />
-        </svg>
-    )
 }
 
 function getTodoProgress(session: SessionSummary): { completed: number; total: number } | null {
@@ -348,7 +271,15 @@ function getAgentLabel(session: SessionSummary): string {
     return 'unknown'
 }
 
-export function formatRelativeTime(value: number, t: (key: string, params?: Record<string, string | number>) => string): string | null {
+/**
+ * "刚刚" / "3 分钟前" / ... up to 6 days, then a short date in the app language ("10月14日", "Oct 14").
+ * The app language comes from `<html lang>` (set by I18nProvider) unless `locale` is given.
+ */
+export function formatRelativeTime(
+    value: number,
+    t: (key: string, params?: Record<string, string | number>) => string,
+    locale?: string
+): string | null {
     const ms = value < 1_000_000_000_000 ? value * 1000 : value
     if (!Number.isFinite(ms)) return null
     const delta = Date.now() - ms
@@ -359,7 +290,12 @@ export function formatRelativeTime(value: number, t: (key: string, params?: Reco
     if (hours < 24) return t('session.time.hoursAgo', { n: hours })
     const days = Math.floor(hours / 24)
     if (days < 7) return t('session.time.daysAgo', { n: days })
-    return new Date(ms).toLocaleDateString()
+    const date = new Date(ms)
+    const lang = locale ?? (typeof document !== 'undefined' ? document.documentElement.lang : '')
+    const sameYear = date.getFullYear() === new Date().getFullYear()
+    return date.toLocaleDateString(lang || undefined, sameYear
+        ? { month: 'short', day: 'numeric' }
+        : { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function shortModelName(model: string): string {
@@ -384,7 +320,7 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
     ].filter(Boolean).join(' · ')
 
     return (
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] leading-snug text-[var(--social-fg-muted)]">
+        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
             {props.active && s.pendingRequestsCount > 0 ? (
                 <span className="shrink-0 font-semibold text-[var(--social-badge)]">
                     {t('mobile.feed.pending', { n: s.pendingRequestsCount })} ·
@@ -399,7 +335,7 @@ function FeedPreview(props: { session: SessionSummary; active: boolean; thinking
             ) : null}
             <span className="min-w-0 truncate">{meta}</span>
             {progress ? (
-                <span className="ml-auto shrink-0 pl-1 text-[12px] tabular-nums text-[var(--social-fg-subtle)]">
+                <span className="ml-auto shrink-0 pl-1 text-caption tabular-nums text-[var(--social-fg-subtle)]">
                     {progress.completed}/{progress.total}
                 </span>
             ) : null}
@@ -554,7 +490,7 @@ function SessionItem(props: {
                     <button
                         type="button"
                         {...longPressHandlers}
-                        className={`session-list-item social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none ${sortable ? 'max-lg:pr-12' : ''} focus-visible:outline-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3 ${effectiveActive && s.pendingRequestsCount > 0 ? 'bg-[var(--social-muted)]/60' : ''}`}
+                        className={cn('session-list-item focus-visible:outline-none', FEED_ROW_CLASS, sortable && 'max-lg:pr-12', effectiveActive && s.pendingRequestsCount > 0 && 'bg-[var(--social-muted)]/60')}
                         style={{ WebkitTouchCallout: 'none' }}
                         aria-current={selected ? 'page' : undefined}
                     >
@@ -568,10 +504,10 @@ function SessionItem(props: {
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className={`min-w-0 flex-1 truncate text-[15px] leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
+                                <span className={`min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
                                     {sessionName}
                                 </span>
-                                <span className="shrink-0 text-[12px] text-[var(--social-fg-subtle)]">
+                                <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">
                                     {snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
                                 </span>
                             </div>
@@ -593,7 +529,7 @@ function SessionItem(props: {
                                         className={`h-2 w-2 rounded-full ${statusDotClass}`}
                                     />
                                 </span>
-                                <div className={`truncate font-semibold ${isCompact ? 'text-[15px]' : 'text-base'}`}>
+                                <div className={`truncate font-semibold ${isCompact ? 'text-body' : 'text-base'}`}>
                                     {sessionName}
                                 </div>
                             </div>
@@ -635,7 +571,7 @@ function SessionItem(props: {
                                 {userTags.map((tag) => (
                                     <span
                                         key={tag}
-                                        className="rounded-full bg-[var(--social-muted)] px-2 py-0.5 text-[12px] text-[var(--social-fg-muted)]"
+                                        className="rounded-full bg-[var(--social-muted)] px-2 py-0.5 text-caption text-[var(--social-fg-muted)]"
                                     >
                                         #{tag}
                                     </span>
@@ -919,21 +855,21 @@ function SessionGroupRow(props: {
                 onClick={() => onToggleGroup(group.directory, isCollapsed)}
                 className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-[var(--social-muted)] ${minimal ? 'min-h-11' : ''}`}
             >
-                <ChevronIcon
+                <DisclosureIcon
                     className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--social-fg-muted)]'}
-                    collapsed={isCollapsed}
+                    open={!isCollapsed}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                     <span
                         className={minimal
-                            ? 'truncate text-[13px] font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
-                            : `font-semibold break-words ${density === 'compact' ? 'text-[15px]' : 'text-base'}`}
+                            ? 'truncate text-footnote font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
+                            : `font-semibold break-words ${density === 'compact' ? 'text-body' : 'text-base'}`}
                         title={group.directory}
                     >
                         {group.displayName}
                     </span>
                     {isProjectOffline ? (
-                        <span className="shrink-0 rounded-md bg-[var(--social-hover)] px-1.5 py-0.5 text-[12px] uppercase tracking-wide text-[var(--social-fg-muted)]">
+                        <span className="shrink-0 rounded-md bg-[var(--social-hover)] px-1.5 py-0.5 text-caption uppercase tracking-wide text-[var(--social-fg-muted)]">
                             {t('misc.offline')}
                         </span>
                     ) : null}
@@ -987,9 +923,9 @@ function OfflineSectionRow(props: {
             aria-expanded={!isCollapsed}
             className={`flex w-full items-center gap-2 text-left text-xs text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)] ${props.minimal ? 'min-h-11 px-5 py-2' : `border-b border-[var(--social-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
         >
-            <ChevronIcon
+            <DisclosureIcon
                 className="h-3.5 w-3.5 text-[var(--social-fg-muted)]"
-                collapsed={isCollapsed}
+                open={!isCollapsed}
             />
             <span className="uppercase tracking-wide">{label ?? t('misc.offline')}</span>
             <span className="text-[var(--social-fg-muted)]">
@@ -1379,7 +1315,8 @@ export function SessionFeed(props: {
     onSelect: (sessionId: string) => void
     api: ApiClient | null
     listHeader?: ReactNode
-    emptyLabel?: string
+    /** Shown when the list has no rows (loading line or empty state). */
+    empty?: ReactNode
 }) {
     const { t } = useTranslation()
     const { api, availableTags = [] } = props
@@ -1427,11 +1364,7 @@ export function SessionFeed(props: {
                 components={{
                     Scroller: SessionListScroller,
                     Header: ListHeader,
-                    EmptyPlaceholder: () => (
-                        <div className="px-6 py-16 text-center text-[13px] text-[var(--social-fg-muted)]">
-                            {props.emptyLabel}
-                        </div>
-                    )
+                    EmptyPlaceholder: () => <>{props.empty}</>
                 }}
                 computeItemKey={(_, row) => row.type === 'session' ? row.session.id : row.type === 'snoozed-section' ? '__snoozed__' : '__offline__'}
                 itemContent={(_, row) => row.type === 'snoozed-section' ? (

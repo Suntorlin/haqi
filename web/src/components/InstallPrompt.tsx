@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { usePlatform } from '@/hooks/usePlatform'
-import { CloseIcon, ShareIcon, PlusCircleIcon } from '@/components/icons'
+import { CloseIcon, ShareIcon, PlusCircleIcon } from '@/components/mobile/icons'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
+import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { useTranslation } from '@/lib/use-translation'
 
 export function InstallPrompt() {
@@ -18,54 +19,37 @@ export function InstallPrompt() {
 
     // iOS Safari install guide
     if (canInstallIOS) {
+        // The banner hides while the guide is open, as before.
         if (showIOSGuide) {
             return (
-                <div className="fixed inset-0 bg-[var(--scrim)] z-50 flex items-end justify-center">
-                    <div className="w-full max-w-lg bg-[var(--social-surface)] rounded-t-2xl p-5 pb-8 space-y-4 animate-slide-up">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-[16px] font-semibold text-[var(--social-fg)]">
-                                {t('install.title')}
-                            </h3>
-                            <IconButton label={t('button.close')} className="-mr-2" onClick={() => setShowIOSGuide(false)}>
-                                <CloseIcon className="w-5 h-5" />
-                            </IconButton>
+                <BottomSheet open onOpenChange={setShowIOSGuide} title={t('install.title')}>
+                    <div className="space-y-3 px-5 pb-2 pt-2">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-footnote font-semibold text-[var(--social-primary-fg)]">
+                                1
+                            </div>
+                            <p className="flex-1 pt-1 text-body text-[var(--social-fg)]">
+                                {t('install.ios.share.before')} <ShareIcon className="inline h-5 w-5 align-text-bottom" /> {t('install.ios.share.after')}
+                            </p>
                         </div>
-
-                        <div className="space-y-3">
-                            <div className="flex items-start gap-3">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] flex items-center justify-center text-[13px] font-semibold">
-                                    1
-                                </div>
-                                <div className="flex-1 pt-1">
-                                    <p className="text-[15px] text-[var(--social-fg)]">
-                                        {t('install.ios.share.before')} <ShareIcon className="inline w-5 h-5 align-text-bottom" /> {t('install.ios.share.after')}
-                                    </p>
-                                </div>
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-footnote font-semibold text-[var(--social-primary-fg)]">
+                                2
                             </div>
-
-                            <div className="flex items-start gap-3">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] flex items-center justify-center text-[13px] font-semibold">
-                                    2
-                                </div>
-                                <div className="flex-1 pt-1">
-                                    <p className="text-[15px] text-[var(--social-fg)]">
-                                        {t('install.ios.add.before')} <PlusCircleIcon className="inline w-5 h-5 align-text-bottom" /> <strong className="font-semibold">{t('install.ios.add.label')}</strong>
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex items-start gap-3">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)] flex items-center justify-center text-[13px] font-semibold">
-                                    3
-                                </div>
-                                <div className="flex-1 pt-1">
-                                    <p className="text-[15px] text-[var(--social-fg)]">
-                                        {t('install.ios.confirm.before')} <strong className="font-semibold">{t('install.ios.confirm.label')}</strong> {t('install.ios.confirm.after')}
-                                    </p>
-                                </div>
-                            </div>
+                            <p className="flex-1 pt-1 text-body text-[var(--social-fg)]">
+                                {t('install.ios.add.before')} <PlusCircleIcon className="inline h-5 w-5 align-text-bottom" /> <strong className="font-semibold">{t('install.ios.add.label')}</strong>
+                            </p>
                         </div>
-
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--social-primary)] text-footnote font-semibold text-[var(--social-primary-fg)]">
+                                3
+                            </div>
+                            <p className="flex-1 pt-1 text-body text-[var(--social-fg)]">
+                                {t('install.ios.confirm.before')} <strong className="font-semibold">{t('install.ios.confirm.label')}</strong> {t('install.ios.confirm.after')}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="px-5 pb-4 pt-2">
                         <Button
                             variant="ghost"
                             className="w-full"
@@ -77,7 +61,7 @@ export function InstallPrompt() {
                             {t('button.dismiss')}
                         </Button>
                     </div>
-                </div>
+                </BottomSheet>
             )
         }
 
@@ -85,10 +69,10 @@ export function InstallPrompt() {
             <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-[var(--shadow-float)] z-50">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                        <p className="text-[15px] font-semibold text-[var(--social-fg)]">
+                        <p className="text-body font-semibold text-[var(--social-fg)]">
                             {t('install.title')}
                         </p>
-                        <p className="text-[12px] text-[var(--social-fg-muted)] mt-0.5">
+                        <p className="text-caption text-[var(--social-fg-muted)] mt-0.5">
                             {t('install.description')}
                         </p>
                     </div>
@@ -131,10 +115,10 @@ export function InstallPrompt() {
         <div className="fixed bottom-4 left-4 right-4 bg-[var(--social-surface)] border border-[var(--social-border)] rounded-2xl p-4 shadow-[var(--shadow-float)] z-50">
             <div className="flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-semibold text-[var(--social-fg)]">
+                    <p className="text-body font-semibold text-[var(--social-fg)]">
                         {t('install.title')}
                     </p>
-                    <p className="text-[12px] text-[var(--social-fg-muted)] mt-0.5">
+                    <p className="text-caption text-[var(--social-fg-muted)] mt-0.5">
                         {t('install.description')}
                     </p>
                 </div>

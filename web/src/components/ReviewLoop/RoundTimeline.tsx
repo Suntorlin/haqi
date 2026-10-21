@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { ChevronRightIcon } from '@/components/mobile/icons'
+import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import type { ReviewRound } from '@/types/api'
 import { RoundCard } from './RoundCard'
 import { roundStatusLabel, roundStatusVariant } from './roundStatus'
 
 export function RoundTimeline({ rounds }: { rounds: ReviewRound[] }) {
+    const { t } = useTranslation()
     const sorted = [...rounds].sort((a, b) => a.round - b.round)
     const [expandedId, setExpandedId] = useState<string | null>(
         sorted.length > 0 ? sorted[sorted.length - 1].id : null
@@ -27,10 +29,10 @@ export function RoundTimeline({ rounds }: { rounds: ReviewRound[] }) {
                             onClick={() => setExpandedId(isExpanded ? null : round.id)}
                         >
                             <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', isExpanded && 'rotate-90')} />
-                            <span className="shrink-0 text-[15px] font-semibold text-[var(--social-fg)]">Round {round.round}</span>
-                            <Badge variant={roundStatusVariant[round.status] ?? 'default'}>{roundStatusLabel(round.status)}</Badge>
+                            <span className="shrink-0 text-body font-semibold text-[var(--social-fg)]">{t('loops.round.title', { n: round.round })}</span>
+                            <Badge variant={roundStatusVariant[round.status] ?? 'default'}>{roundStatusLabel(round.status, t)}</Badge>
                             {isLatest ? (
-                                <span className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">current</span>
+                                <span className="shrink-0 text-footnote text-[var(--social-fg-muted)]">{t('loops.round.current')}</span>
                             ) : null}
                         </button>
 

@@ -166,17 +166,18 @@ function ResultNoteText(props: { kind: ResultNoteKind }) {
 /** Muted one-liner shown instead of a result body (done / no output / waiting / running). */
 function ResultNote(props: { kind: ResultNoteKind }) {
     const { t } = useTranslation()
-    return <div className="text-[13px] text-[var(--social-fg-muted)]">{t(`tool.result.${props.kind}`)}</div>
+    return <div className="text-footnote text-[var(--social-fg-muted)]">{t(`tool.result.${props.kind}`)}</div>
 }
 
 function RawJsonDevOnly(props: { value: unknown }) {
+    const { t } = useTranslation()
     if (!import.meta.env.DEV) return null
     if (props.value === null || props.value === undefined) return null
 
     return (
         <details className="mt-3">
             <summary className="cursor-pointer text-xs font-semibold text-[var(--social-fg-muted)]">
-                Raw JSON
+                {t('tool.rawJson')}
             </summary>
             <div className="mt-2">
                 <CodeBlock code={safeStringify(props.value)} language="json" />
@@ -433,7 +434,7 @@ const LineListResultView: ToolViewComponent = (props: ToolViewProps) => {
         <>
             <div className="flex flex-col gap-1">
                 {lines.map((line) => (
-                    <div key={line} className="text-[13px] font-mono text-[var(--social-fg)] break-all">
+                    <div key={line} className="text-footnote font-mono text-[var(--social-fg)] break-all">
                         {line}
                     </div>
                 ))}
@@ -499,7 +500,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
         const className = state === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]'
         return (
             <>
-                <div className={`text-[13px] ${className}`}>
+                <div className={`text-footnote ${className}`}>
                     {renderText(text, { mode: state === 'error' ? 'code' : 'auto' })}
                 </div>
                 <RawJsonDevOnly value={result} />
@@ -509,7 +510,7 @@ const MutationResultView: ToolViewComponent = (props: ToolViewProps) => {
 
     return (
         <>
-            <div className="text-[13px] text-[var(--social-fg-muted)]">
+            <div className="text-footnote text-[var(--social-fg-muted)]">
                 <ResultNoteText kind={state === 'completed' ? 'done' : 'empty'} />
             </div>
             <RawJsonDevOnly value={result} />
@@ -781,6 +782,7 @@ const TodoWriteResultView: ToolViewComponent = (props: ToolViewProps) => {
 }
 
 const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
+    const { t } = useTranslation()
     const ctx = useOptionalHappyChatContext()
     const api = ctx?.api
     const sessionId = ctx?.sessionId
@@ -857,7 +859,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
 
         if (sourceKey === 'none') {
             if (props.block.tool.state !== 'pending') {
-                setErrorMessage('Image path missing.')
+                setErrorMessage(t('file.imagePathMissing'))
             }
             return () => {
                 cancelled = true
@@ -871,21 +873,21 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
         }
 
         if (!api || !sessionId) {
-            setErrorMessage('Image preview requires active session context.')
+            setErrorMessage(t('file.imageNeedsSession'))
             return () => {
                 cancelled = true
             }
         }
 
         if (!localPath) {
-            setErrorMessage('Image path missing.')
+            setErrorMessage(t('file.imagePathMissing'))
             return () => {
                 cancelled = true
             }
         }
 
         if (!imageMimeType) {
-            setErrorMessage('Unsupported image format.')
+            setErrorMessage(t('file.imageUnsupported'))
             return () => {
                 cancelled = true
             }
@@ -906,11 +908,11 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
                 const result = await api.readSessionFile(sessionId, localPath, { maxBytes: MAX_IMAGE_PREVIEW_BYTES })
                 if (cancelled) return
                 if (!result.success || !result.content) {
-                    setErrorMessage(result.error ?? 'Failed to preview image.')
+                    setErrorMessage(result.error ?? t('file.imagePreviewFailed'))
                     return
                 }
                 if (result.truncated || (typeof result.size === 'number' && result.size > MAX_IMAGE_PREVIEW_BYTES)) {
-                    setErrorMessage('Image preview is limited to 8 MB.')
+                    setErrorMessage(t('file.imageTooLarge'))
                     return
                 }
 
@@ -924,7 +926,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
                 setPreviewUrl(objectUrl)
             } catch (error) {
                 if (cancelled) return
-                setErrorMessage(error instanceof Error ? error.message : 'Failed to preview image.')
+                setErrorMessage(error instanceof Error ? error.message : t('file.imagePreviewFailed'))
             } finally {
                 if (!cancelled) {
                     setLoading(false)
@@ -935,7 +937,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
         return () => {
             cancelled = true
         }
-    }, [api, directUrl, imageMimeType, localPath, props.block.tool.state, sessionId, sourceKey])
+    }, [api, directUrl, imageMimeType, localPath, props.block.tool.state, sessionId, sourceKey, t])
 
     useEffect(() => {
         return () => {
@@ -944,7 +946,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
     }, [previewUrl])
 
     const displayPath = localPath ? resolveDisplayPath(localPath, props.metadata) : null
-    const altText = displayPath ? basename(displayPath) : 'Image preview'
+    const altText = displayPath ? basename(displayPath) : t('file.imagePreview')
 
     return (
         <div className="flex flex-col gap-2">
@@ -963,9 +965,9 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
                     />
                 </div>
             ) : loading ? (
-                <div className="text-[13px] text-[var(--social-fg-muted)]">Loading image…</div>
+                <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.imageLoading')}</div>
             ) : errorMessage ? (
-                <div className="text-[13px] text-[var(--social-danger)]">{errorMessage}</div>
+                <div className="text-footnote text-[var(--social-danger)]">{errorMessage}</div>
             ) : (
                 <ResultNote kind={placeholderForState(props.block.tool.state)} />
             )}

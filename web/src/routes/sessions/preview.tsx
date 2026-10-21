@@ -17,6 +17,7 @@ import { InputHistory } from '@/components/ui/InputHistory'
 import { TextField } from '@/components/ui/TextField'
 import { cn } from '@/lib/utils'
 import { ChevronLeftIcon, ClearIcon, ExternalLinkIcon, GlobeIcon, RefreshIcon, SendArrowIcon } from '@/components/mobile/icons'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function PreviewPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/preview' })
@@ -115,8 +116,8 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
     // Early returns stay below every hook: settings load after the first render.
     if (experimentalSettingsLoading) {
         return (
-            <div className="flex h-full items-center justify-center text-[15px] text-[var(--social-fg-muted)]">
-                <LoadingState label={t('preview.loading')} className="text-[15px]" />
+            <div className="flex h-full items-center justify-center text-body text-[var(--social-fg-muted)]">
+                <LoadingState label={t('preview.loading')} className="text-body" />
             </div>
         )
     }
@@ -125,7 +126,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
         return (
             <div className="flex h-full flex-col bg-[var(--social-surface)]">
                 <SubPageHeader title={t('preview.title')} onBack={dockActions ? undefined : goBack} actions={dockActions} />
-                <div className="flex flex-1 items-center justify-center px-6 text-center text-[15px] text-[var(--social-fg-muted)]">
+                <div className="flex flex-1 items-center justify-center px-6 text-center text-body text-[var(--social-fg-muted)]">
                     {t('preview.disabled')}
                 </div>
             </div>
@@ -135,7 +136,7 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
     if (isLoading && !session) {
         return (
             <div className="flex h-full items-center justify-center p-4">
-                <LoadingState label={t('preview.loading')} className="text-[15px]" />
+                <LoadingState label={t('preview.loading')} className="text-body" />
             </div>
         )
     }
@@ -243,8 +244,8 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
                 </div>
             </header>
 
-            {formError ? <div className="px-4 pt-2 text-[13px] text-[var(--social-danger)]">{formError}</div> : null}
-            {error ? <div className="px-4 pt-2 text-[13px] text-[var(--social-danger)]">{error}</div> : null}
+            {formError ? <div className="px-4 pt-2 text-footnote text-[var(--social-danger)]">{formError}</div> : null}
+            {error ? <div className="px-4 pt-2 text-footnote text-[var(--social-danger)]">{error}</div> : null}
 
             <div className="min-h-0 flex-1 bg-[var(--social-surface)]">
                 {frameUrl ? (
@@ -256,10 +257,12 @@ export function PreviewPanel(props: { sessionId: string; dockActions?: ReactNode
                         style={{ colorScheme: 'light' }}
                     />
                 ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                        <GlobeIcon className="h-8 w-8 text-[var(--social-fg-subtle)]" />
-                        <div className="text-[15px] text-[var(--social-fg-muted)]">{t('preview.empty')}</div>
-                    </div>
+                    <EmptyState
+                        variant="page"
+                        className="h-full"
+                        illustration={<GlobeIcon className="h-8 w-8 text-[var(--social-fg-subtle)]" />}
+                        title={t('preview.empty')}
+                    />
                 )}
             </div>
         </div>

@@ -2,31 +2,10 @@ import { useState, useEffect, type FC, type PropsWithChildren } from 'react'
 import { useMessage } from '@assistant-ui/react'
 import { MarkdownTextPrimitive } from '@assistant-ui/react-markdown'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 import { defaultComponents, MARKDOWN_PLUGINS } from '@/components/assistant-ui/markdown-text'
 import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
-
-function ChevronIcon(props: { className?: string; open?: boolean }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={cn(
-                'transition-transform duration-200',
-                props.open ? 'rotate-90' : '',
-                props.className
-            )}
-        >
-            <polyline points="9 18 15 12 9 6" />
-        </svg>
-    )
-}
+import { DisclosureIcon } from '@/components/mobile/icons'
 
 function ShimmerDot() {
     return (
@@ -42,7 +21,7 @@ export const Reasoning: FC = () => {
         <MarkdownTextPrimitive
             remarkPlugins={MARKDOWN_PLUGINS}
             components={defaultComponents}
-            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-[13px] text-[var(--social-fg-muted)]')}
+            className={cn('aui-reasoning-content min-w-0 max-w-full break-words text-footnote text-[var(--social-fg-muted)]')}
         />
     )
 }
@@ -52,6 +31,7 @@ export const Reasoning: FC = () => {
  * Shows shimmer effect while reasoning is streaming.
  */
 export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
+    const { t } = useTranslation()
     const [isOpen, setIsOpen] = useState(false)
 
     // Check if reasoning is still streaming
@@ -79,8 +59,8 @@ export const ReasoningGroup: FC<PropsWithChildren> = ({ children }) => {
                     TEXT_HIT_AREA_CLASS
                 )}
             >
-                <ChevronIcon open={isOpen} />
-                <span>Reasoning</span>
+                <DisclosureIcon open={isOpen} className="h-3 w-3" />
+                <span>{t('mobile.turn.reasoning')}</span>
                 {isStreaming && (
                     <span className="flex items-center gap-1 ml-1 text-[var(--social-fg-muted)]">
                         <ShimmerDot />

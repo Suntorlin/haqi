@@ -2,6 +2,7 @@ import { memo, useState } from 'react'
 import type { ToolCallBlock } from '@/chat/types'
 import { Spinner } from '@/components/Spinner'
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
+import { useTranslation } from '@/lib/use-translation'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { isObject } from '@hapi/protocol'
 import { isAskUserQuestionToolName } from '@/components/ToolCard/askUserQuestion'
@@ -102,12 +103,14 @@ function ResultPanel(props: {
 export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallBlock }) {
     const { block } = props
     const ctx = useOptionalHappyChatContext()
+    const { t } = useTranslation()
     const [expanded, setExpanded] = useState(false)
     const isRunning = block.tool.state === 'running'
     const isError = block.tool.state === 'error'
     const isPending = block.tool.state === 'pending'
 
     const pres = getToolPresentation({
+        t,
         toolName: block.tool.name,
         input: block.tool.input,
         result: block.tool.result,
@@ -140,7 +143,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
                 {/* Status indicator */}
                 <span className={`shrink-0 w-3.5 text-center ${stateColor}`}>
                     {isRunning ? (
-                        <Spinner size="sm" label={null} className="h-3 w-3" />
+                        <Spinner size="xs" label={null} />
                     ) : isError ? (
                         '✗'
                     ) : isPending ? (

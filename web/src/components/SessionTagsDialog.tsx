@@ -98,7 +98,7 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                     />
                     {quickSelectTags.length ? (
                         <div className="flex flex-col gap-2">
-                            <div className="text-[12px] font-semibold text-[var(--social-fg-muted)]">
+                            <div className="text-caption font-semibold text-[var(--social-fg-muted)]">
                                 {t('dialog.tags.existing')}
                             </div>
                             <div className="flex flex-wrap gap-2">
@@ -118,10 +118,10 @@ export function SessionTagsDialog(props: SessionTagsDialogProps) {
                             </div>
                         </div>
                     ) : null}
-                    <div className="text-[12px] text-[var(--social-fg-subtle)]">{t('dialog.tags.hint')}</div>
+                    <div className="text-caption text-[var(--social-fg-subtle)]">{t('dialog.tags.hint')}</div>
 
                     {error ? (
-                        <div className="text-[13px] text-[var(--social-danger)]">
+                        <div className="text-footnote text-[var(--social-danger)]">
                             {error}
                         </div>
                     ) : null}

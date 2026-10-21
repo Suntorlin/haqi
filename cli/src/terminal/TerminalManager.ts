@@ -67,6 +67,10 @@ function buildFilteredEnv(): NodeJS.ProcessEnv {
         }
         env[key] = value
     }
+    // The other end is xterm.js in the browser. The runner (launchd) has no TERM, and without it
+    // zsh falls back to single-line editing: long lines scroll sideways and wrap wrong.
+    env.TERM = 'xterm-256color'
+    env.COLORTERM = 'truecolor'
     return env
 }
 

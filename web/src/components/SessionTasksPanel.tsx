@@ -8,12 +8,14 @@ import { getSessionTitle } from '@/lib/session-title'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { TaskGuideSheet } from '@/components/TaskGuideSheet'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import { CheckIcon, ChevronDownIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from '@/components/mobile/icons'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 /** Sessions of each task, keyed by task id, from the task's members. */
 function useSessionsByTask(tasks: TaskView[], sessions: SessionSummary[]): Map<string, SessionSummary[]> {
@@ -50,7 +52,7 @@ function SectionCaption(props: { label: string; count: number; collapsed: boolea
             type="button"
             onClick={props.onToggle}
             aria-expanded={!props.collapsed}
-            className="flex min-h-11 w-full items-center gap-2 px-5 text-left text-[12px] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]"
+            className="flex min-h-11 w-full items-center gap-2 px-5 text-left text-caption text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]"
         >
             <ChevronDownIcon className={cn('h-3.5 w-3.5 transition-transform', props.collapsed && '-rotate-90')} />
             <span className="uppercase tracking-wide">{props.label}</span>
@@ -147,14 +149,14 @@ function TaskRow(props: {
                     <span className="min-w-0 flex-1">
                         <span className="flex min-w-0 items-center gap-2">
                             <span className={cn(
-                                'block truncate text-[15px]',
+                                'block truncate text-body',
                                 closed ? 'text-[var(--social-fg-muted)] line-through' : 'text-[var(--social-fg)]'
                             )}>
                                 {task.name}
                             </span>
                             {guiding ? <Badge variant={task.guide.state === 'failed' ? 'destructive' : 'default'}>{t('tasks.guiding')}</Badge> : null}
                         </span>
-                        <span className="block truncate text-[13px] text-[var(--social-fg-muted)]">
+                        <span className="block truncate text-footnote text-[var(--social-fg-muted)]">
                             {taskSubtitle(task, sessions, t)}
                         </span>
                     </span>
@@ -172,22 +174,22 @@ function TaskRow(props: {
             {expanded && !guiding ? (
                 <div className="pb-1 pl-[3.25rem] pr-3 lg:pl-11">
                     {task.goal ? (
-                        <p className="pb-1 text-[13px] text-[var(--social-fg)]">
+                        <p className="pb-1 text-footnote text-[var(--social-fg)]">
                             <span className="text-[var(--social-fg-muted)]">{t('tasks.goal')}：</span>{task.goal}
                         </p>
                     ) : null}
                     {task.acceptance.length > 0 ? (
-                        <ol aria-label={t('tasks.acceptance')} className="list-decimal space-y-0.5 pb-2 pl-4 text-[13px] text-[var(--social-fg)]">
+                        <ol aria-label={t('tasks.acceptance')} className="list-decimal space-y-0.5 pb-2 pl-4 text-footnote text-[var(--social-fg)]">
                             {task.acceptance.map((criterion) => <li key={criterion.id}>{criterion.text}</li>)}
                         </ol>
                     ) : null}
                     {load ? (
-                        <p className="pb-2 text-[12px] text-[var(--social-fg-muted)]">
+                        <p className="pb-2 text-caption text-[var(--social-fg-muted)]">
                             {t('tasks.load', { n: load.progress + load.correction + load.decision, progress: load.progress, correction: load.correction, decision: load.decision })}
                         </p>
                     ) : null}
                     {sessions.length === 0 ? (
-                        <div className="py-2 text-[13px] text-[var(--social-fg-muted)]">{t('tasks.howToAdd')}</div>
+                        <div className="py-2 text-footnote text-[var(--social-fg-muted)]">{t('tasks.howToAdd')}</div>
                     ) : sessions.map((session) => (
                         <button
                             key={session.id}
@@ -203,7 +205,7 @@ function TaskRow(props: {
                                 'h-2 w-2 shrink-0 rounded-full',
                                 session.active ? 'bg-[var(--social-success)]' : 'bg-[var(--social-fg-subtle)]'
                             )} />
-                            <span className="min-w-0 flex-1 truncate text-[13px] text-[var(--social-fg)]">
+                            <span className="min-w-0 flex-1 truncate text-footnote text-[var(--social-fg)]">
                                 {getSessionTitle(session)}
                             </span>
                             {session.id === leadId ? <Badge>{t('tasks.lead')}</Badge> : null}
@@ -303,8 +305,7 @@ function TaskComposer(props: { tags: string[]; onCreate: (input: { tag: string; 
                 onChange={(event) => setTitle(event.target.value)}
                 leading={<PlusIcon className="h-4 w-4" />}
                 trailing={tag ? (
-                    <button
-                        type="button"
+                    <Chip
                         onClick={(event) => {
                             const rect = event.currentTarget.getBoundingClientRect()
                             setMenuPoint({ x: rect.left + rect.width / 2, y: rect.bottom })
@@ -312,11 +313,11 @@ function TaskComposer(props: { tags: string[]; onCreate: (input: { tag: string; 
                         aria-haspopup="menu"
                         aria-expanded={menuPoint !== null}
                         aria-label={t('tasks.pickTag')}
-                        className="relative flex h-8 max-w-40 shrink-0 items-center gap-1 rounded-full bg-[var(--social-surface)] pl-3 pr-2 text-[13px] text-[var(--social-fg)] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+                        className="relative max-w-40 shrink-0 gap-1 border-transparent bg-[var(--social-surface)] pl-3 pr-2 after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
                     >
                         <span className="truncate">#{tag}</span>
                         <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-[var(--social-fg-muted)]" />
-                    </button>
+                    </Chip>
                 ) : null}
             />
             <ContextMenu
@@ -332,7 +333,7 @@ function TaskComposer(props: { tags: string[]; onCreate: (input: { tag: string; 
                         checked={item === tag}
                         onSelect={() => pickTag(item)}
                         trailing={(
-                            <span className={cn('text-[15px]', item === tag ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
+                            <span className={cn('text-body', item === tag ? 'text-[var(--social-fg)]' : 'text-transparent')} aria-hidden="true">
                                 ✓
                             </span>
                         )}
@@ -509,9 +510,11 @@ export function AllTasksView(props: {
             {props.header}
             <TaskComposer tags={props.tagOrder} onCreate={create} />
             {tags.length === 0 ? (
-                <div className="px-5 py-8 text-center text-[13px] text-[var(--social-fg-muted)]">
-                    {props.isLoading ? t('mobile.feed.loading') : t('tasks.empty')}
-                </div>
+                props.isLoading ? (
+                    <div className="px-5 py-8 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
+                ) : (
+                    <EmptyState variant="page" title={t('tasks.empty')} />
+                )
             ) : tags.map((tag) => {
                 const tagTasks = props.tasks.filter((task) => task.tag === tag)
                 const openCount = tagTasks.filter(isTaskOpen).length
@@ -520,10 +523,10 @@ export function AllTasksView(props: {
                         <button
                             type="button"
                             onClick={() => props.onOpenTag(tag)}
-                            className="flex min-h-11 w-full items-center gap-2 px-5 text-left text-[15px] font-semibold text-[var(--social-fg)] lg:px-4"
+                            className="flex min-h-11 w-full items-center gap-2 px-5 text-left text-body font-semibold text-[var(--social-fg)] lg:px-4"
                         >
                             #{tag}
-                            <span className="text-[13px] font-normal text-[var(--social-fg-muted)]">
+                            <span className="text-footnote font-normal text-[var(--social-fg-muted)]">
                                 {t('tasks.openCount', { n: openCount })}
                             </span>
                         </button>

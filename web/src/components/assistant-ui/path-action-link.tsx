@@ -7,6 +7,7 @@ import { encodeBase64 } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { isOutsideWorkspacePathCandidate, isYoloPermissionMode } from '@/lib/pathLinks'
 import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { useTranslation } from '@/lib/use-translation'
 
 const MAX_IMAGE_PREVIEW_BYTES = 8 * 1024 * 1024
 const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024
@@ -85,12 +86,12 @@ function triggerFileDownload(blob: Blob, fileName: string): void {
     }
 }
 
-function classifyProbeFailure(error: string | undefined): PathProbeResult {
+function classifyProbeFailure(error: string | undefined, t: (key: string) => string): PathProbeResult {
     const message = (error ?? '').trim()
     const normalized = message.toLowerCase()
 
     if (normalized.includes('outside-workspace paths require yolo')) {
-        return { state: 'blocked', errorMessage: message || 'Outside-workspace paths need YOLO mode.' }
+        return { state: 'blocked', errorMessage: message || t('pathLink.needsYolo') }
     }
 
     if (
@@ -98,10 +99,10 @@ function classifyProbeFailure(error: string | undefined): PathProbeResult {
         || normalized.includes('no such file')
         || normalized.includes('not a regular file')
     ) {
-        return { state: 'missing', errorMessage: message || 'Path does not exist.' }
+        return { state: 'missing', errorMessage: message || t('pathLink.missing') }
     }
 
-    return { state: 'error', errorMessage: message || 'Path check failed.' }
+    return { state: 'error', errorMessage: message || t('pathLink.checkFailed') }
 }
 
 function renderPlainPath(path: string, className?: string, title?: string) {
@@ -117,6 +118,7 @@ export function PathActionLink(props: {
     className?: string
 }) {
     const { path } = props
+    const { t } = useTranslation()
     const ctx = useOptionalHappyChatContext()
     const navigate = useNavigate()
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null)
@@ -155,7 +157,7 @@ export function PathActionLink(props: {
 
         if (blockedOutsidePath) {
             setProbeState('blocked')
-            setProbeErrorMessage('Outside-workspace paths need YOLO mode.')
+            setProbeErrorMessage(t('pathLink.needsYolo'))
             return
         }
 
@@ -172,7 +174,7 @@ export function PathActionLink(props: {
                     if (result.success) {
                         return { state: 'available' as const }
                     }
-                    return classifyProbeFailure(result.error)
+                    return classifyProbeFailure(result.error, t)
                 })
                 if (disposed) return
 
@@ -180,7 +182,7 @@ export function PathActionLink(props: {
                 setProbeErrorMessage(outcome.errorMessage ?? null)
             } catch (error) {
                 if (disposed) return
-                const message = error instanceof Error ? error.message : 'Path check failed.'
+                const message = error instanceof Error ? error.message : t('pathLink.checkFailed')
                 setProbeState('error')
                 setProbeErrorMessage(message)
             }
@@ -189,12 +191,12 @@ export function PathActionLink(props: {
         return () => {
             disposed = true
         }
-    }, [blockedOutsidePath, ctx, path])
+    }, [blockedOutsidePath, ctx, path, t])
 
     const openFilePage = useCallback(() => {
         if (!ctx) return
         if (blockedOutsidePath) {
-            setErrorMessage('Outside-workspace paths need YOLO mode.')
+            setErrorMessage(t('pathLink.needsYolo'))
             return
         }
         navigate({
@@ -202,14 +204,14 @@ export function PathActionLink(props: {
             params: { sessionId: ctx.sessionId },
             search: { path: encodeBase64(path) }
         })
-    }, [blockedOutsidePath, ctx, navigate, path])
+    }, [blockedOutsidePath, ctx, navigate, path, t])
 
     const handlePreview = useCallback(async () => {
         if (!ctx) return
         setErrorMessage(null)
 
         if (blockedOutsidePath) {
-            setErrorMessage('Outside-workspace paths need YOLO mode.')
+            setErrorMessage(t('pathLink.needsYolo'))
             return
         }
 
@@ -222,10 +224,10 @@ export function PathActionLink(props: {
         try {
             const result = await ctx.api.readSessionFile(ctx.sessionId, path, { maxBytes: MAX_IMAGE_PREVIEW_BYTES })
             if (!result.success || !result.content) {
-                throw new Error(result.error ?? 'Failed to preview image')
+                throw new Error(result.error ?? t('file.imagePreviewFailed'))
             }
             if (result.truncated || (typeof result.size === 'number' && result.size > MAX_IMAGE_PREVIEW_BYTES)) {
-                throw new Error('Image preview is limited to 8 MB.')
+                throw new Error(t('file.imageTooLarge'))
             }
 
             const bytes = base64ToBytes(result.content)
@@ -238,18 +240,18 @@ export function PathActionLink(props: {
             })
             setPreviewOpen(true)
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to preview image')
+            setErrorMessage(error instanceof Error ? error.message : t('file.imagePreviewFailed'))
         } finally {
             setBusyAction(null)
         }
-    }, [blockedOutsidePath, canPreviewImage, ctx, imageMimeType, openFilePage, path])
+    }, [blockedOutsidePath, canPreviewImage, ctx, imageMimeType, openFilePage, path, t])
 
     const handleDownload = useCallback(async () => {
         if (!ctx) return
         setErrorMessage(null)
 
         if (blockedOutsidePath) {
-            setErrorMessage('Outside-workspace paths need YOLO mode.')
+            setErrorMessage(t('pathLink.needsYolo'))
             return
         }
 
@@ -257,21 +259,21 @@ export function PathActionLink(props: {
         try {
             const result = await ctx.api.readSessionFile(ctx.sessionId, path, { maxBytes: MAX_DOWNLOAD_BYTES })
             if (!result.success) {
-                throw new Error(result.error ?? 'Failed to download file')
+                throw new Error(result.error ?? t('pathLink.downloadFailed'))
             }
             if (result.truncated || (typeof result.size === 'number' && result.size > MAX_DOWNLOAD_BYTES)) {
-                throw new Error('Download is limited to files <= 25 MB.')
+                throw new Error(t('pathLink.downloadTooLarge'))
             }
 
             const bytes = result.content ? base64ToBytes(result.content) : new Uint8Array()
             const blobType = imageMimeType ?? 'application/octet-stream'
             triggerFileDownload(new Blob([toArrayBuffer(bytes)], { type: blobType }), getPathFileName(path))
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Failed to download file')
+            setErrorMessage(error instanceof Error ? error.message : t('pathLink.downloadFailed'))
         } finally {
             setBusyAction(null)
         }
-    }, [blockedOutsidePath, ctx, imageMimeType, path])
+    }, [blockedOutsidePath, ctx, imageMimeType, path, t])
 
     if (!ctx) {
         return renderPlainPath(path, props.className)
@@ -281,24 +283,24 @@ export function PathActionLink(props: {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="text-[12px] text-[var(--social-fg-muted)]">...</span>
+                <span className="text-caption text-[var(--social-fg-muted)]">...</span>
             </span>
         )
     }
 
     if (probeState === 'missing') {
-        return renderPlainPath(path, props.className, probeErrorMessage ?? 'Path does not exist.')
+        return renderPlainPath(path, props.className, probeErrorMessage ?? t('pathLink.missing'))
     }
 
     if (probeState === 'error') {
-        return renderPlainPath(path, props.className, probeErrorMessage ?? 'Path check failed.')
+        return renderPlainPath(path, props.className, probeErrorMessage ?? t('pathLink.checkFailed'))
     }
 
     if (probeState === 'blocked') {
         return (
             <span className={cn('inline-flex max-w-full items-center gap-1', props.className)}>
                 {renderPlainPath(path)}
-                <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-[12px] text-[var(--app-badge-warning-text)]" title={probeErrorMessage ?? 'Outside-workspace paths require YOLO mode'}>
+                <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-caption text-[var(--app-badge-warning-text)]" title={probeErrorMessage ?? t('pathLink.needsYolo')}>
                     YOLO
                 </span>
             </span>
@@ -323,27 +325,27 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={handlePreview}
                     disabled={busyAction !== null}
-                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
-                    title={canPreviewImage ? 'Preview image' : 'Open file preview'}
+                    className={cn('shrink-0 rounded-md px-1 text-caption text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
+                    title={canPreviewImage ? t('pathLink.previewImage') : t('pathLink.openFile')}
                 >
-                    {busyAction === 'preview' ? '...' : '预览'}
+                    {busyAction === 'preview' ? '…' : t('pathLink.preview')}
                 </button>
                 <button
                     type="button"
                     onClick={handleDownload}
                     disabled={busyAction !== null}
-                    className={cn('shrink-0 rounded-md px-1 text-[12px] text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
-                    title="Download file"
+                    className={cn('shrink-0 rounded-md px-1 text-caption text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)] hover:text-[var(--social-fg)] disabled:opacity-50', TEXT_HIT_AREA_CLASS)}
+                    title={t('pathLink.downloadFile')}
                 >
-                    {busyAction === 'download' ? '...' : '下载'}
+                    {busyAction === 'download' ? '…' : t('pathLink.download')}
                 </button>
                 {blockedOutsidePath ? (
-                    <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-[12px] text-[var(--app-badge-warning-text)]" title="Outside-workspace paths require YOLO mode">
+                    <span className="rounded-md bg-[var(--app-badge-warning-bg)] px-1 text-caption text-[var(--app-badge-warning-text)]" title={t('pathLink.needsYolo')}>
                         YOLO
                     </span>
                 ) : null}
                 {errorMessage ? (
-                    <span className="max-w-[8rem] truncate text-[12px] text-[var(--social-danger)]" title={errorMessage}>
+                    <span className="max-w-[8rem] truncate text-caption text-[var(--social-danger)]" title={errorMessage}>
                         !
                     </span>
                 ) : null}
@@ -359,7 +361,7 @@ export function PathActionLink(props: {
                             <img src={previewImageUrl} alt={path} className="mx-auto max-h-[70vh] max-w-full object-contain" />
                         </div>
                     ) : (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">Preview unavailable.</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{t('pathLink.previewUnavailable')}</div>
                     )}
                 </DialogContent>
             </Dialog>

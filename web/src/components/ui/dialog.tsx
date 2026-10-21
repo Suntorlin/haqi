@@ -45,7 +45,7 @@ export const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
     <DialogPrimitive.Description
         ref={ref}
-        className={cn('text-[13px] text-[var(--social-fg-muted)]', className)}
+        className={cn('text-footnote text-[var(--social-fg-muted)]', className)}
         {...props}
     />
 ))

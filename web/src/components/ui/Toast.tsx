@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
+import { useTranslation } from '@/lib/use-translation'
 
 const toastVariants = cva(
     'pointer-events-auto w-full max-w-sm rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-[var(--shadow-float)]',
@@ -24,6 +25,7 @@ export type ToastProps = React.HTMLAttributes<HTMLDivElement> &
 }
 
 export function Toast({ title, body, onClose, className, variant, ...props }: ToastProps) {
+    const { t } = useTranslation()
     const handleClose = (event: React.MouseEvent<HTMLButtonElement>) => {
         event.stopPropagation()
         onClose?.()
@@ -33,7 +35,7 @@ export function Toast({ title, body, onClose, className, variant, ...props }: To
         <div className={cn(toastVariants({ variant }), className)} role="status" {...props}>
             <div className="flex items-start gap-3 p-3">
                 <div className="min-w-0 flex-1">
-                    <div className="text-[15px] font-semibold leading-5">{title}</div>
+                    <div className="text-body font-semibold leading-5">{title}</div>
                     <div className="mt-1 text-xs text-[var(--social-fg-muted)]">{body}</div>
                 </div>
                 {onClose ? (
@@ -41,7 +43,7 @@ export function Toast({ title, body, onClose, className, variant, ...props }: To
                         type="button"
                         className="text-xs text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]"
                         onClick={handleClose}
-                        aria-label="Dismiss"
+                        aria-label={t('button.dismiss')}
                     >
                         x
                     </button>

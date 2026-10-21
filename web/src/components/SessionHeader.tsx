@@ -15,7 +15,7 @@ import { ZOOM_ALL, ZOOM_BRIEF, ZOOM_REPLY } from '@/components/AssistantChat/cha
 import type { SemanticZoomController } from '@/vendor/semantic-zoom'
 import { IconButton } from '@/components/ui/IconButton'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
-import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import {
     ArchiveBoxIcon,
     DuplicateIcon,
@@ -357,8 +357,8 @@ export function SessionHeader(props: {
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <SessionAvatar session={session} size={48} ring={avatarRing} muted={!session.active} />
                 <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-[16px] font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
-                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[13px] text-[var(--social-fg-muted)]">
+                    <div className="line-clamp-2 text-headline font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
+                    <div className="mt-1 flex min-w-0 items-center gap-1.5 text-footnote text-[var(--social-fg-muted)]">
                         <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass)} />
                         <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
                         <span className="truncate">· {flavor ?? 'unknown'} · {getProjectName(getSessionProjectPath(session))}</span>
@@ -399,7 +399,7 @@ export function SessionHeader(props: {
                             if (props.zoomController) setChatZoomLevel(props.zoomController, Number(level))
                         }}
                     />
-                    <div className="px-4 pb-3 pt-1 text-[12px] text-[var(--social-fg-muted)]">{t('chat.zoom.hint')}</div>
+                    <div className="px-4 pb-3 pt-1 text-caption text-[var(--social-fg-muted)]">{t('chat.zoom.hint')}</div>
                 </SheetSection>
             ) : null}
 
@@ -414,7 +414,7 @@ export function SessionHeader(props: {
                                 value={session.metadata.claudeAccount?.id ?? ''}
                                 disabled={accountSwitching}
                                 onChange={(event) => void handleAccountSwitch(event.target.value)}
-                                className="min-h-11 max-w-[210px] truncate bg-transparent text-right text-[16px] text-[var(--social-fg-muted)] outline-none"
+                                className="min-h-11 max-w-[210px] truncate bg-transparent text-right text-headline text-[var(--social-fg-muted)] outline-none"
                             >
                                 {!session.metadata.claudeAccount ? <option value="">{t('sessionAccount.machineDefault')}</option> : null}
                                 {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
@@ -429,7 +429,7 @@ export function SessionHeader(props: {
                 {worktreeBranch ? <SheetRow label={t('mobile.chat.branch')} value={worktreeBranch} /> : null}
             </SheetSection>
             {accountSwitchError ? (
-                <div role="alert" className="px-7 pb-3 text-[12px] text-[var(--social-danger)]">{accountSwitchError}</div>
+                <div role="alert" className="px-7 pb-3 text-caption text-[var(--social-danger)]">{accountSwitchError}</div>
             ) : null}
 
             {showUsage ? (
@@ -522,23 +522,23 @@ export function SessionHeader(props: {
                     actions={(
                         <>
                             {props.onViewFiles ? (
-                                <DesktopIconButton label={t('mobile.chat.files')} onClick={props.onViewFiles}>
+                                <IconButton size="sm" label={t('mobile.chat.files')} onClick={props.onViewFiles}>
                                     <FileIcon className="h-[19px] w-[19px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             ) : null}
                             {props.onViewTerminal ? (
-                                <DesktopIconButton label={t('mobile.chat.terminal')} onClick={props.onViewTerminal}>
+                                <IconButton size="sm" label={t('mobile.chat.terminal')} onClick={props.onViewTerminal}>
                                     <TerminalIcon className="h-[19px] w-[19px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             ) : null}
                             {props.onViewPreview ? (
-                                <DesktopIconButton label={t('mobile.chat.preview')} onClick={props.onViewPreview}>
+                                <IconButton size="sm" label={t('mobile.chat.preview')} onClick={props.onViewPreview}>
                                     <GlobeIcon className="h-[19px] w-[19px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             ) : null}
-                            <DesktopIconButton label={t('mobile.chat.info')} onClick={openDesktopInfo} buttonRef={infoButtonRef}>
+                            <IconButton size="sm" label={t('mobile.chat.info')} onClick={openDesktopInfo} ref={infoButtonRef}>
                                 <MoreHorizontalIcon className="h-[21px] w-[21px]" />
-                            </DesktopIconButton>
+                            </IconButton>
                         </>
                     )}
                 />
@@ -562,10 +562,10 @@ export function SessionHeader(props: {
                     >
                         <SessionAvatar session={session} size={38} ring={avatarRing} muted={!session.active} />
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-[15px] font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
+                            <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
                                 {title}
                             </div>
-                            <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-[12px] leading-tight text-[var(--social-fg-muted)]">
+                            <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-caption leading-tight text-[var(--social-fg-muted)]">
                                 {statusLine}
                             </div>
                         </div>

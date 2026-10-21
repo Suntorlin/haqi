@@ -462,3 +462,27 @@ describe('Claude Session running agent state', () => {
         }
     })
 })
+
+describe('Claude Session one-time flags', () => {
+    it('keeps the --resume session ID when the launch ended before Claude reported one', () => {
+        const { session, client } = createSession()
+        session.claudeArgs = ['--resume', '6eef50e8-b5d3-4ebc-b3c6-69257a241bb7', '--model', 'sonnet']
+
+        session.consumeOneTimeFlags()
+
+        expect(session.claudeArgs).toEqual(['--model', 'sonnet'])
+        expect(session.sessionId).toBe('6eef50e8-b5d3-4ebc-b3c6-69257a241bb7')
+        expect(client.updateMetadata).toHaveBeenCalled()
+    })
+
+    it('does not overwrite a session ID that Claude already reported', () => {
+        const { session } = createSession()
+        session.claudeArgs = ['--resume', '6eef50e8-b5d3-4ebc-b3c6-69257a241bb7']
+        session.onSessionFound('29c4f805-8bab-4329-bac0-59a447153801')
+
+        session.consumeOneTimeFlags()
+
+        expect(session.claudeArgs).toBeUndefined()
+        expect(session.sessionId).toBe('29c4f805-8bab-4329-bac0-59a447153801')
+    })
+})

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CheckIcon, FolderStackIcon, PlusIcon } from '@/components/mobile/icons'
+import { CheckIcon, FolderIcon, PlusIcon } from '@/components/mobile/icons'
 import { getProjectName } from '@/components/mobile/SessionAvatar'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useTranslation } from '@/lib/use-translation'
@@ -28,7 +28,7 @@ export function ProjectPicker(props: DirectorySectionProps) {
                     {rows.map((path) => (
                         <ListRow
                             key={path}
-                            icon={<FolderStackIcon className="h-[18px] w-[18px]" />}
+                            icon={<FolderIcon className="h-[18px] w-[18px]" />}
                             title={getProjectName(path)}
                             subtitle={shortenHomePath(path)}
                             trailing={path === directory ? <CheckIcon className="h-[18px] w-[18px] text-[var(--social-fg)]" /> : undefined}

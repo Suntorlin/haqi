@@ -14,6 +14,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { TextField } from '@/components/ui/TextField'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export const accountsKey = (machineId: string) => ['claude-accounts', machineId] as const
 // Claude keys its keychain entry by the literal CLAUDE_CONFIG_DIR string, while the runner passes the symlink-resolved path
@@ -52,8 +53,8 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
         catch (error) { setChecks(old => ({ ...old, [id]: failure(error, t('settings.claudeAccounts.checkFailed')) })) }
         finally { setWorking(false) }
     }
-    if (query.isPending) return <p role="status" className="text-[13px] text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.loading')}</p>
-    if (query.isError) return <div role="alert" className="flex flex-col items-start gap-2 text-[13px]"><p>{query.error.message}</p><Button variant="secondary" onClick={() => void query.refetch()}>{t('settings.claudeAccounts.retry')}</Button></div>
+    if (query.isPending) return <p role="status" className="text-footnote text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.loading')}</p>
+    if (query.isError) return <div role="alert" className="flex flex-col items-start gap-2 text-footnote"><p>{query.error.message}</p><Button variant="secondary" onClick={() => void query.refetch()}>{t('settings.claudeAccounts.retry')}</Button></div>
     if (!draft) return null
     const pool = draft.pool
     const update = (index: number, patch: Partial<ClaudeAccountPool['profiles'][number]>) => change({ ...pool, profiles: pool.profiles.map((p, i) => i === index ? { ...p, ...patch } : p) })
@@ -74,7 +75,7 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
                 onCheckedChange={autoSwitch => change({ ...pool, autoSwitch })}
             />
         </ListGroup>
-        {!pool.profiles.length && <p className="px-1 text-[13px] text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.empty')}</p>}
+        {!pool.profiles.length && <EmptyState title={t('settings.claudeAccounts.empty')} />}
         {pool.profiles.map((profile, index) => <fieldset disabled={working} key={profile.id} className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[var(--social-border)] p-4">
             <TextField type="email" aria-label={t('settings.claudeAccounts.emailLabel', { index: index + 1 })} placeholder="user@example.com" value={profile.email} onChange={e => { update(index, { email: e.target.value }); setChecks(old => ({ ...old, [profile.id]: '' })) }} />
             <div className="flex items-center justify-between gap-3">
@@ -89,7 +90,7 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
                 >
                     {t('settings.claudeAccounts.default')}
                 </Chip>
-                <div className="flex shrink-0 items-center gap-2 text-[13px] text-[var(--social-fg-muted)]">
+                <div className="flex shrink-0 items-center gap-2 text-footnote text-[var(--social-fg-muted)]">
                     {t('settings.claudeAccounts.enabled')}
                     <Switch className="-my-3 py-3" checked={profile.enabled} onCheckedChange={enabled => update(index, { enabled })} ariaLabel={`${t('settings.claudeAccounts.enabled')} ${index + 1}`} />
                 </div>
@@ -105,7 +106,7 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
                     <IconButton variant="muted" label={`${t('settings.claudeAccounts.moveDown')} ${index + 1}`} disabled={index === pool.profiles.length - 1} onClick={() => reorder(index, 1)}><ChevronDownIcon className="h-4 w-4" /></IconButton>
                 </div>
             </div>
-            {checks[profile.id] && <p role="status" className="text-[12px] text-[var(--social-fg-muted)]">{checks[profile.id]}</p>}
+            {checks[profile.id] && <p role="status" className="text-caption text-[var(--social-fg-muted)]">{checks[profile.id]}</p>}
             <AccountQuota snapshot={query.data?.usage?.[profile.id]} />
         </fieldset>)}
         <div className="flex flex-wrap gap-2">
@@ -117,8 +118,8 @@ function PoolEditor({ api, machineId }: { api: ApiClient; machineId: string }) {
             <Button variant="secondary" disabled={working || dirty} onClick={() => void query.refetch()}>{t('settings.claudeAccounts.refresh')}</Button>
             {dirty && <Button variant="secondary" disabled={working} onClick={() => { setDirty(false); setNotice('') }}>{t('settings.claudeAccounts.discard')}</Button>}
         </div>
-        {notice && <p role="status" className="px-1 text-[13px] text-[var(--social-fg)]">{notice}</p>}
-        <details className="group text-[12px] text-[var(--social-fg-muted)]">
+        {notice && <p role="status" className="px-1 text-footnote text-[var(--social-fg)]">{notice}</p>}
+        <details className="group text-caption text-[var(--social-fg-muted)]">
             <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-1 [&::-webkit-details-marker]:hidden">
                 {t('settings.claudeAccounts.help')}
                 <ChevronDownIcon className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
@@ -136,7 +137,7 @@ export function ClaudeAccountsSettings({ api, machines }: { api: ApiClient; mach
     const online = machines.filter(m => m.active)
     const machineId = online.some(m => m.id === selected) ? selected : online[0]?.id
     if (!machineId) {
-        return <p role="status" className="px-1 text-[13px] text-[var(--social-fg-muted)]">{t('settings.claudeAccounts.noMachine')}</p>
+        return <EmptyState role="status" title={t('settings.claudeAccounts.noMachine')} />
     }
     return <div className="flex flex-col gap-4">
         {online.length > 1 && <FormField label={t('settings.claudeAccounts.machine')}>

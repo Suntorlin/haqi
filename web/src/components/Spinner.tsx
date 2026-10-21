@@ -2,7 +2,8 @@ import { cn } from '@/lib/utils'
 import { useTranslation } from '@/lib/use-translation'
 
 type SpinnerProps = {
-    size?: 'sm' | 'md' | 'lg'
+    /** xs 12 (inline status), sm 16 (buttons, rows), md 20, lg 24. */
+    size?: 'xs' | 'sm' | 'md' | 'lg'
     className?: string
     label?: string | null
 }
@@ -14,6 +15,7 @@ export function Spinner({
 }: SpinnerProps) {
     const { t } = useTranslation()
     const sizeClasses = {
+        xs: 'h-3 w-3',
         sm: 'h-4 w-4',
         md: 'h-5 w-5',
         lg: 'h-6 w-6'

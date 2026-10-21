@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { stripAnsiAndControls } from '@/components/assistant-ui/markdown-utils'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { ChevronRightIcon, TerminalIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
 const CLI_TAG_PATTERN = '(?:local-command-[a-z-]+|command-(?:name|message|args))'
@@ -84,23 +85,6 @@ function extractCommandName(text: string): string | null {
     return firstLine && firstLine.length > 0 ? firstLine : null
 }
 
-function DetailsIcon() {
-    return (
-        <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    )
-}
-
-function CliIcon() {
-    return (
-        <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none">
-            <path d="M3 4.5l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M8.5 10.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
-    )
-}
-
 export function CliOutputBlock(props: { text: string }) {
     const { t } = useTranslation()
     const content = useMemo(() => buildCliOutput(props.text, t), [props.text, t])
@@ -116,14 +100,14 @@ export function CliOutputBlock(props: { text: string }) {
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0 flex items-center gap-2">
                                         <div className="shrink-0 flex h-4 w-4 items-center justify-center text-[var(--social-fg-muted)] leading-none">
-                                            <CliIcon />
+                                            <TerminalIcon className="h-3.5 w-3.5" />
                                         </div>
-                                        <CardTitle className="min-w-0 text-[13px] font-semibold leading-tight break-words">
+                                        <CardTitle className="min-w-0 text-footnote font-semibold leading-tight break-words">
                                             {commandName ?? t('terminal.commandName')}
                                         </CardTitle>
                                     </div>
                                     <span className="text-[var(--social-fg-muted)]">
-                                        <DetailsIcon />
+                                        <ChevronRightIcon className="h-4 w-4" />
                                     </span>
                                 </div>
                             </div>

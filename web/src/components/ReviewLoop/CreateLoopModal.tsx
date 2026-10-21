@@ -11,6 +11,7 @@ import { matchesSessionSearch } from '@/lib/session-search'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export type CreateLoopData = {
     workerSessionId: string
@@ -59,7 +60,7 @@ function SessionPicker(props: {
                 aria-expanded={open}
             >
                 {selected ? <SessionAvatar session={selected} size={30} muted={!selected.active} /> : null}
-                <span className={cn('min-w-0 flex-1 truncate text-[15px]', selected ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)]')}>
+                <span className={cn('min-w-0 flex-1 truncate text-body', selected ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)]')}>
                     {selected ? getSessionTitle(selected, { fallbackIdLength: 12 }) : t('loops.create.pickSession')}
                 </span>
                 <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', open ? 'rotate-90' : '')} />
@@ -79,7 +80,7 @@ function SessionPicker(props: {
                     </div>
                     <div className="max-h-64 overflow-y-auto border-t border-[var(--social-border)]">
                         {candidates.length === 0 ? (
-                            <div className="px-4 py-3 text-[15px] text-[var(--social-fg-muted)]">{t('loops.create.noMatch')}</div>
+                            <EmptyState title={t('loops.create.noMatch')} />
                         ) : candidates.map((session) => (
                             <button
                                 key={session.id}
@@ -93,8 +94,8 @@ function SessionPicker(props: {
                             >
                                 <SessionAvatar session={session} size={28} muted={!session.active} />
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-[15px] text-[var(--social-fg)]">{getSessionTitle(session, { fallbackIdLength: 12 })}</span>
-                                    <span className="block truncate text-[12px] text-[var(--social-fg-muted)]">
+                                    <span className="block truncate text-body text-[var(--social-fg)]">{getSessionTitle(session, { fallbackIdLength: 12 })}</span>
+                                    <span className="block truncate text-caption text-[var(--social-fg-muted)]">
                                         {getProjectName(getSessionProjectPath(session))}
                                         {session.active ? '' : ` · ${t('misc.offline')}`}
                                     </span>
@@ -195,7 +196,7 @@ export function CreateLoopModal({ open, onClose, onSubmit, sessions }: CreateLoo
 
                 <SheetSection>
                     <div className="flex min-h-[48px] items-center gap-3 px-4 py-2">
-                        <label htmlFor={maxRoundsId} className="flex-1 text-[15px] text-[var(--social-fg)]">{t('loops.create.maxRounds')}</label>
+                        <label htmlFor={maxRoundsId} className="flex-1 text-body text-[var(--social-fg)]">{t('loops.create.maxRounds')}</label>
                         <TextField
                             id={maxRoundsId}
                             type="number"

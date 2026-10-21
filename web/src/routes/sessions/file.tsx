@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
 import type { GitCommandResponse } from '@/types/api'
 import { FileIcon } from '@/components/FileIcon'
-import { CopyIcon, CheckIcon } from '@/components/icons'
+import { CopyIcon, CheckIcon } from '@/components/mobile/icons'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
@@ -16,6 +16,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { IconButton } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
 const GitDiffViewer = lazy(() => import('@/components/GitDiffViewer'))
@@ -337,7 +338,7 @@ export default function FilePage() {
                         </div>
                     ) : null}
                     {missingPath ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.noPath')}</div>
+                        <EmptyState title={t('file.noPath')} />
                     ) : loading ? (
                         <FileContentSkeleton />
                     ) : displayMode === 'diff' && diffContent ? (
@@ -352,11 +353,11 @@ export default function FilePage() {
                             />
                         </Suspense>
                     ) : fileError ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{fileError}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{fileError}</div>
                     ) : imageMimeType && (displayMode === 'file' || !diffContent) ? (
                         fileContentResult?.truncated ? (
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">
-                                Image preview unavailable because the file content is truncated.
+                            <div className="text-footnote text-[var(--social-fg-muted)]">
+                                {t('file.imageTruncated')}
                             </div>
                         ) : imagePreviewUrl ? (
                             <div className="overflow-hidden rounded-xl border border-[var(--social-border)] bg-[var(--app-code-bg)] p-2">
@@ -369,16 +370,16 @@ export default function FilePage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">
-                                Failed to render image preview.
+                            <div className="text-footnote text-[var(--social-fg-muted)]">
+                                {t('file.imageRenderFailed')}
                             </div>
                         )
                     ) : binaryFile ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">
-                            This looks like a binary file. It cannot be displayed.
+                        <div className="text-footnote text-[var(--social-fg-muted)]">
+                            {t('file.binary')}
                         </div>
                     ) : displayMode === 'diff' && diffError ? (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{diffError}</div>
+                        <div className="text-footnote text-[var(--social-fg-muted)]">{diffError}</div>
                     ) : displayMode === 'file' ? (
                         decodedContent ? (
                             <div className="relative">
@@ -396,10 +397,10 @@ export default function FilePage() {
                                 </pre>
                             </div>
                         ) : (
-                            <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.empty')}</div>
+                            <EmptyState title={t('file.empty')} />
                         )
                     ) : (
-                        <div className="text-[13px] text-[var(--social-fg-muted)]">{t('file.noChanges')}</div>
+                        <EmptyState title={t('file.noChanges')} />
                     )}
                 </div>
             </div>

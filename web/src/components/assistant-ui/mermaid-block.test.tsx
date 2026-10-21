@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MermaidBlock, isMermaidLanguage } from '@/components/assistant-ui/mermaid-block'
 import { setThemePreference } from '@/hooks/useTheme'
+import { I18nProvider } from '@/lib/i18n-context'
 
 const initialize = vi.fn()
 const renderDiagram = vi.fn()
@@ -28,6 +29,7 @@ describe('MermaidBlock', () => {
         initialize.mockReset()
         renderDiagram.mockReset()
         setThemePreference('light')
+        localStorage.setItem('hapi-lang', 'en')
     })
 
     afterEach(() => {
@@ -43,7 +45,8 @@ describe('MermaidBlock', () => {
         })
 
         const { container } = render(
-            <MermaidBlock code={'flowchart TD\nA-->B'} language="mermaid" />
+            <MermaidBlock code={'flowchart TD\nA-->B'} language="mermaid" />,
+            { wrapper: I18nProvider }
         )
 
         expect(screen.getByText('Rendering Mermaid…')).toBeInTheDocument()
@@ -64,7 +67,7 @@ describe('MermaidBlock', () => {
     it('shows fallback source when rendering fails', async () => {
         renderDiagram.mockRejectedValue(new Error('Parse error'))
 
-        render(<MermaidBlock code={'flowchart TD\nA-->B'} language="mermaid" />)
+        render(<MermaidBlock code={'flowchart TD\nA-->B'} language="mermaid" />, { wrapper: I18nProvider })
 
         await waitFor(() => {
             expect(screen.getByText('Mermaid render failed')).toBeInTheDocument()

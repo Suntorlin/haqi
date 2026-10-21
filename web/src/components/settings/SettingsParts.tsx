@@ -7,8 +7,9 @@ import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
-const BLOCK_TITLE_CLASS = 'px-4 text-[12px] font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]'
+const BLOCK_TITLE_CLASS = 'px-4 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]'
 
 /** Collapsible top-level group of the settings page: header row + stacked blocks. */
 export function SettingsGroup(props: {
@@ -29,8 +30,8 @@ export function SettingsGroup(props: {
                 className="social-pressable mx-2 flex min-h-[64px] w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-2 py-3 text-left"
             >
                 <span className="min-w-0 flex-1">
-                    <span className="block text-[16px] font-semibold text-[var(--social-fg)]">{props.title}</span>
-                    <span className="mt-0.5 block text-[13px] text-[var(--social-fg-muted)]">{props.description}</span>
+                    <span className="block text-headline font-semibold text-[var(--social-fg)]">{props.title}</span>
+                    <span className="mt-0.5 block text-footnote text-[var(--social-fg-muted)]">{props.description}</span>
                 </span>
                 <ChevronDownIcon
                     className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', props.isExpanded && 'rotate-180')}
@@ -60,7 +61,7 @@ export function SettingsPanel(props: { title?: ReactNode; description?: ReactNod
     return (
         <section className="flex flex-col gap-3">
             {props.title ? <h3 className={BLOCK_TITLE_CLASS}>{props.title}</h3> : null}
-            {props.description ? <p className="px-4 text-[13px] leading-snug text-[var(--social-fg-muted)]">{props.description}</p> : null}
+            {props.description ? <p className="px-4 text-footnote leading-snug text-[var(--social-fg-muted)]">{props.description}</p> : null}
             {props.children}
         </section>
     )
@@ -69,23 +70,23 @@ export function SettingsPanel(props: { title?: ReactNode; description?: ReactNod
 /** Bordered card inside a SettingsPanel (usage per provider, credential profile, ...). */
 export function SettingsCard(props: { title?: ReactNode; trailing?: ReactNode; children: ReactNode; className?: string }) {
     return (
-        <div className={cn('flex flex-col gap-2 rounded-2xl border border-[var(--social-border)] p-4', props.className)}>
+        <Card className={cn('flex flex-col gap-2 p-4', props.className)}>
             {props.title ? (
                 <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0 text-[15px] font-semibold text-[var(--social-fg)]">{props.title}</div>
-                    {props.trailing ? <div className="shrink-0 text-[13px] text-[var(--social-fg-muted)]">{props.trailing}</div> : null}
+                    <div className="min-w-0 text-body font-semibold text-[var(--social-fg)]">{props.title}</div>
+                    {props.trailing ? <div className="shrink-0 text-footnote text-[var(--social-fg-muted)]">{props.trailing}</div> : null}
                 </div>
             ) : null}
             {props.children}
-        </div>
+        </Card>
     )
 }
 
 /** Label on the left, value on the right inside a card. */
 export function SettingsStat(props: { label: ReactNode; value: ReactNode; strong?: boolean }) {
     return (
-        <div className="flex items-baseline justify-between gap-3 text-[15px]">
-            <span className="min-w-0 text-[13px] text-[var(--social-fg-muted)]">{props.label}</span>
+        <div className="flex items-baseline justify-between gap-3 text-body">
+            <span className="min-w-0 text-footnote text-[var(--social-fg-muted)]">{props.label}</span>
             <span className={cn('shrink-0 text-[var(--social-fg)]', props.strong && 'font-semibold')}>{props.value}</span>
         </div>
     )
@@ -97,7 +98,7 @@ export function SettingsNotice(props: { tone: 'error' | 'success'; children: Rea
         <div
             role={props.tone === 'error' ? 'alert' : 'status'}
             className={cn(
-                'rounded-xl px-3.5 py-2.5 text-[13px]',
+                'rounded-xl px-3.5 py-2.5 text-footnote',
                 props.tone === 'error'
                     ? 'bg-[var(--app-badge-error-bg)] text-[var(--app-badge-error-text)]'
                     : 'bg-[var(--app-badge-success-bg)] text-[var(--app-badge-success-text)]'

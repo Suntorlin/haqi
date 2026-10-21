@@ -1,12 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { I18nProvider } from '@/lib/i18n-context'
 import { TeamPanel } from './TeamPanel'
 
 const runningAgents = [
     { name: 'test-appserver', task: 'Write converter tests', startedAt: 1 },
     { name: 'test-launcher', task: 'Write lifecycle tests', startedAt: 2 }
 ]
+
+beforeEach(() => {
+    localStorage.setItem('hapi-lang', 'en')
+})
 
 afterEach(() => {
     cleanup()
@@ -23,10 +28,12 @@ describe('TeamPanel', () => {
 
     it('renders running agents even without team state', () => {
         const html = renderToStaticMarkup(
-            <TeamPanel agentState={{ runningAgents, runningAgent: runningAgents[1] }} />
+            <I18nProvider>
+                <TeamPanel agentState={{ runningAgents, runningAgent: runningAgents[1] }} />
+            </I18nProvider>
         )
 
-        expect(html).toContain('Running Agents')
+        expect(html).toContain('Running agents')
         expect(html).toContain('2 running')
     })
 
@@ -42,7 +49,8 @@ describe('TeamPanel', () => {
                     members: [{ name: 'researcher', status: 'active' }],
                     tasks: [{ id: 'task-1', title: 'Trace auth bug', status: 'pending' }]
                 }}
-            />
+            />,
+            { wrapper: I18nProvider }
         )
 
         clickTeamToggle()
@@ -78,13 +86,14 @@ describe('TeamPanel', () => {
                     ],
                     tasks: [{ id: 'task-1', title: 'Trace auth bug', owner: 'researcher', status: 'pending' }]
                 }}
-            />
+            />,
+            { wrapper: I18nProvider }
         )
 
         clickTeamToggle()
         fireEvent.click(screen.getByRole('button', { name: 'Assign' }))
         fireEvent.change(screen.getByLabelText('Teammate'), { target: { value: 'reviewer' } })
-        fireEvent.change(screen.getByLabelText('Additional guidance (optional)'), { target: { value: 'Focus on middleware first.' } })
+        fireEvent.change(screen.getByLabelText(/Additional guidance/), { target: { value: 'Focus on middleware first.' } })
         fireEvent.click(screen.getByRole('button', { name: 'Send to lead' }))
 
         await waitFor(() => expect(onControl).toHaveBeenCalledTimes(1))
@@ -113,7 +122,8 @@ describe('TeamPanel', () => {
                     members: [{ name: 'researcher', status: 'active' }],
                     tasks: []
                 }}
-            />
+            />,
+            { wrapper: I18nProvider }
         )
 
         clickTeamToggle()

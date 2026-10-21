@@ -73,7 +73,7 @@ export function SessionSnoozeDialog(props: {
                                 disabled={pending}
                             />
                         </FormField>
-                        {error ? <div className="text-[13px] text-[var(--social-danger)]">{error}</div> : null}
+                        {error ? <div className="text-footnote text-[var(--social-danger)]">{error}</div> : null}
                         <div className="flex justify-end gap-2">
                             <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
                                 {t('button.cancel')}

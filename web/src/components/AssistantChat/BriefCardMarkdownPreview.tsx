@@ -31,15 +31,15 @@ export function BriefCardMarkdownPreview(props: BriefCardMarkdownPreviewProps) {
         >
             <div
                 className={cn(
-                    'aui-md min-w-0 max-w-full break-words text-[15px] leading-[1.4rem] [overflow-wrap:anywhere]',
+                    'aui-md min-w-0 max-w-full break-words text-body leading-[1.4rem] [overflow-wrap:anywhere]',
                     '[&_.aui-md-p]:m-0',
                     '[&_.aui-md-p+_.aui-md-p]:mt-1',
-                    '[&_.aui-md-h1]:mt-0 [&_.aui-md-h1]:text-[15px]',
-                    '[&_.aui-md-h2]:mt-0 [&_.aui-md-h2]:text-[15px]',
-                    '[&_.aui-md-h3]:mt-0 [&_.aui-md-h3]:text-[15px]',
-                    '[&_.aui-md-h4]:mt-0 [&_.aui-md-h4]:text-[15px]',
-                    '[&_.aui-md-h5]:mt-0 [&_.aui-md-h5]:text-[15px]',
-                    '[&_.aui-md-h6]:mt-0 [&_.aui-md-h6]:text-[15px]',
+                    '[&_.aui-md-h1]:mt-0 [&_.aui-md-h1]:text-body',
+                    '[&_.aui-md-h2]:mt-0 [&_.aui-md-h2]:text-body',
+                    '[&_.aui-md-h3]:mt-0 [&_.aui-md-h3]:text-body',
+                    '[&_.aui-md-h4]:mt-0 [&_.aui-md-h4]:text-body',
+                    '[&_.aui-md-h5]:mt-0 [&_.aui-md-h5]:text-body',
+                    '[&_.aui-md-h6]:mt-0 [&_.aui-md-h6]:text-body',
                     '[&_.aui-md-ul]:my-0 [&_.aui-md-ol]:my-0',
                     '[&_.aui-md-li]:my-0',
                     '[&_.aui-md-blockquote]:my-0'
