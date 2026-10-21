@@ -66,7 +66,7 @@ Bun workspaces; `shared` consumed by cli, hub, web.
 
 ```bash
 bun typecheck           # All packages
-bun run test            # cli + hub tests
+bun run test            # cli + hub + web tests
 bun run dev             # hub + web concurrently
 bun run safety:check    # Nothing private in the tracked files
 bun run build:single-exe # All-in-one binary
@@ -173,7 +173,7 @@ Expected: `/health` OK; process command shows `~/.local/bin/haqi hub`.
 - Run: `bun run test` (from root) or `bun run test` (from package)
 - Hub tests: `hub/src/**/*.test.ts`
 - CLI tests: `cli/src/**/*.test.ts`
-- No web tests currently
+- Web tests: `web/src/**/*.test.ts(x)`
 
 ## Common tasks
 

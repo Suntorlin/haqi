@@ -149,6 +149,27 @@ See `src/web/routes/` for all endpoints.
 - `GET /share/r/:token` - Public report page (no auth).
 - `GET /share/r/:token/assets/:assetId` - Public shared asset (no auth).
 
+### Tasks (`src/web/routes/tasks.ts`)
+
+A task is a group with `kind = 'task'`. While it is `guiding`, a planner session drafts the goal and the acceptance criteria; the user confirms them. Status: `guiding` -> `active` -> `done`; `guiding` or `active` -> `abandoned`. Each change is pushed as the `task-updated` sync event.
+
+- `GET /api/tasks` - List tasks (optional `?tag=`).
+- `POST /api/tasks` - Create a task in the guide step (`text`, `tag`, optional `machineId`, `directory`, `fromSessionId`); starts the planner session in the background.
+- `GET /api/tasks/:id` - Task details, latest draft and load counts.
+- `PATCH /api/tasks/:id` - Rename, change tag or status.
+- `DELETE /api/tasks/:id` - Delete a task.
+- `POST /api/tasks/:id/draft` - Draft from the planner (the `task_draft_submit` MCP tool).
+- `POST /api/tasks/:id/revise` - Send the user's change request (`text`) to the planner.
+- `POST /api/tasks/:id/confirm` - Confirm the draft (`criteria[{id, kept, text?}]`, `answers{questionId: optionId}`, optional `goal`); writes each choice as a `decision` experience.
+- `POST /api/tasks/:id/retry` - Start the planner again after a failed start.
+- `POST /api/tasks/:id/members` - Add a session (`sessionId`).
+- `DELETE /api/tasks/:id/members/:sessionId` - Remove a session.
+
+### Insights (`src/web/routes/insights.ts`)
+
+- `GET /api/insights/load` - Load baseline: classes of the user's messages per session (median, p75, p90); optional `?days=` (1-90, default 30).
+- `POST /api/insights/load/backfill` - Classify the last 30 days in the background. Costs money (one small model call per message).
+
 ### CLI (`src/web/routes/cli.ts`)
 
 - `POST /cli/sessions` - Create/load session.
