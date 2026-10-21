@@ -288,6 +288,7 @@ export class RunService {
         if (body.approved) {
             this.phase(namespace, taskId, 'accepted')
             this.kernel.move(namespace, taskId, 'done')
+            await this.stopAll(namespace, taskId)
             this.host.timeline(namespace, taskId, '你接收了结果，任务完成。')
             return
         }
@@ -402,6 +403,16 @@ export class RunService {
                 this.pushedRequests.add(request.id)
                 void this.host.push(namespace, { title: `负责人等你批准：${task.name}`, body: `${request.tool} ${request.detail}`.slice(0, 200), url: `/groups/${task.id}` }).catch(() => {})
             }
+        }
+    }
+
+    /** A task that ends (done or abandoned) stops every session still working on it. */
+    async stopAll(namespace: string, taskId: string): Promise<void> {
+        const run = this.run(namespace, taskId)
+        const reviewer = (this.kernel.latest(namespace, taskId, RUN_EVENT.reviewStarted)?.payload as { sessionId?: string } | undefined)?.sessionId
+        const ids = [...(run?.subtasks ?? []).filter((s) => s.state !== 'done' && s.sessionId).map((s) => s.sessionId!), ...(reviewer ? [reviewer] : [])]
+        for (const id of ids) {
+            if (this.host.session(namespace, id)?.active) await this.host.stopSession(namespace, id).catch(() => {})
         }
     }
 
