@@ -331,7 +331,16 @@ export class RunService {
         if (!decision.options.some((o) => o.label === label)) throw new TaskError('Pick one of the options')
         this.kernel.log(namespace, taskId, RUN_EVENT.decisionAnswered, { id: decisionId, label, by: 'user' })
         this.host.timeline(namespace, taskId, `你定了：${decision.question} → ${label}`)
-        if (decision.askedBy) await this.host.send(decision.askedBy, answerPrompt(taskId, decision.question, label, 'user'), meta(taskId, `answer:${decisionId}`)).catch(() => false)
+        // To the session that asked; if it stopped, to the sessions still working. Later sessions get it in their brief.
+        const text = answerPrompt(taskId, decision.question, label, 'user')
+        let delivered = decision.askedBy ? await this.host.send(decision.askedBy, text, meta(taskId, `answer:${decisionId}`)).catch(() => false) : false
+        if (!delivered) {
+            for (const subtask of this.run(namespace, taskId)?.subtasks ?? []) {
+                if (subtask.state !== 'running' || !subtask.sessionId) continue
+                if (await this.host.send(subtask.sessionId, text, meta(taskId, `answer:${decisionId}`)).catch(() => false)) delivered = true
+            }
+        }
+        if (!delivered) this.host.timeline(namespace, taskId, '提问的会话已经停了；这个决定会写进之后每个会话的指令。')
         await this.memory.recordDecision({
             namespace, situation: decision.question, options: decision.options.map((o) => o.label), chosen: label,
             project: task.repoPath ? projectNameFor(task.repoPath) : null, tags: task.tag ? [task.tag] : [], sessionId: decision.askedBy, sourceRef: `task:${taskId}#${decisionId}`
@@ -422,7 +431,10 @@ export class RunService {
     }
 
     private brief(task: StoredGroup): TaskBrief {
-        return { taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '' }
+        const decisions = (readRun(this.kernel.events(task.namespace, task.id))?.decisions ?? [])
+            .filter((d) => d.answer)
+            .map((d) => ({ question: d.question, label: d.answer!.label }))
+        return { taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '', decisions }
     }
 
     private requireRunning(namespace: string, taskId: string): StoredGroup {

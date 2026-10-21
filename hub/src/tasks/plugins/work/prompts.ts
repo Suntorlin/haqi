@@ -12,6 +12,8 @@ export type TaskBrief = {
     nonGoals: string[]
     acceptance: AcceptanceCriterion[]
     repoPath: string
+    /** Decisions already taken during the run (by the user or by precedent). */
+    decisions?: Array<{ question: string; label: string }>
 }
 
 /** Rules every session that touches code gets: the user's hard limits. */
@@ -31,7 +33,8 @@ function header(brief: TaskBrief, title: string): string[] {
         `${WORK_MARKER} 任务 ${brief.taskId}：${title}`,
         '',
         `## 目标\n${brief.goal}`,
-        ...(brief.nonGoals.length ? ['', '## 不做什么', ...brief.nonGoals.map((line) => `- ${line}`)] : [])
+        ...(brief.nonGoals.length ? ['', '## 不做什么', ...brief.nonGoals.map((line) => `- ${line}`)] : []),
+        ...(brief.decisions?.length ? ['', '## 已定的决定（照做）', ...brief.decisions.map((d) => `- ${d.question} → ${d.label}`)] : [])
     ]
 }
 

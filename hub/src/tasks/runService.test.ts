@@ -240,4 +240,29 @@ describe('task run after the guide step', () => {
         expect(t.approved).toEqual([`${lead}:r1`])
         expect(t.pushes.slice(before)).toEqual(['负责人等你批准：记忆页加归档恢复'])
     })
+
+    it('sends an answer to a working session when the asker stopped, and puts decisions in later briefs', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        await t.runs.askDecision('default', task.id, { question: '优先级用几档', options: [{ label: '三档' }, { label: '五档' }], sessionId: lead })
+        await t.runs.submitPlan('default', task.id, {
+            subtasks: [
+                { id: 'a', title: '数据', brief: '加字段', criteria: ['c1', 'c2'] },
+                { id: 'b', title: '界面', brief: '加选择', criteria: ['c3'], dependsOn: ['a'] }
+            ]
+        })
+        await t.settle()
+        expect(t.sessions.get(lead)!.active).toBe(false)
+        const worker = t.service.get('default', task.id)!.run!.subtasks.find((s) => s.id === 'a')!.sessionId!
+        await t.runs.answerDecision('default', task.id, 'd1', '五档')
+        expect(t.sent.at(-1)).toMatchObject({ sessionId: worker })
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'a', summary: '加了字段' })
+        await t.settle()
+        expect(t.spawned.find((s) => s.name === '执行 · 界面')!.text).toContain('## 已定的决定（照做）\n- 优先级用几档 → 五档')
+    })
 })
