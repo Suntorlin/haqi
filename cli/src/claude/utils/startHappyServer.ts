@@ -27,6 +27,12 @@ import {
     reportUpdateInputSchema,
     reviewLoopWorkerSubmitInputSchema,
     taskDraftSubmitInputSchema,
+    taskPlanSubmitInputSchema,
+    subtaskDoneInputSchema,
+    taskDecisionAskInputSchema,
+    taskIntegratedInputSchema,
+    taskReviewSubmitInputSchema,
+    TASK_RUN_TOOL_DESCRIPTIONS,
     TASK_DRAFT_SUBMIT_DESCRIPTION,
     reviewLoopReviewerSubmitInputSchema
 } from "@/mcp/hapiMcpTools";
@@ -401,6 +407,34 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    const taskRunTool = (name: keyof typeof TASK_RUN_TOOL_DESCRIPTIONS, title: string, inputSchema: unknown, path: (args: any) => string, body: (args: any) => unknown) => {
+        mcp.registerTool<any, any>(name, { description: TASK_RUN_TOOL_DESCRIPTIONS[name], title, inputSchema: inputSchema as any }, async (args: any) => {
+            try {
+                const payload = await requestHubJson(path(args), { method: 'POST', body: JSON.stringify(body(args)) });
+                const message = typeof payload.message === 'string' ? payload.message : 'Done.';
+                return { content: [{ type: 'text' as const, text: message }], isError: false };
+            } catch (error) {
+                return buildToolError(`Failed: ${title}`, error);
+            }
+        });
+    };
+    const taskPath = (args: { task_id: string }, rest: string) => `/api/tasks/${encodeURIComponent(args.task_id)}/${rest}`;
+    taskRunTool('task_plan_submit', 'Submit Task Plan', taskPlanSubmitInputSchema, (a) => taskPath(a, 'plan'), (a) => ({
+        subtasks: a.subtasks.map((s: any) => ({ id: s.id, title: s.title, brief: s.brief, criteria: s.criteria ?? [], dependsOn: s.depends_on ?? [] }))
+    }));
+    taskRunTool('subtask_done', 'Subtask Done', subtaskDoneInputSchema, (a) => taskPath(a, 'subtasks/done'), (a) => ({
+        subtaskId: a.subtask_id, summary: a.summary, evidence: a.evidence ?? []
+    }));
+    taskRunTool('task_decision_ask', 'Ask the User to Decide', taskDecisionAskInputSchema, (a) => taskPath(a, 'decisions'), (a) => ({
+        question: a.question, context: a.context, options: a.options, recommended: a.recommended, sessionId: client.sessionId
+    }));
+    taskRunTool('task_integrated', 'Branches Merged', taskIntegratedInputSchema, (a) => taskPath(a, 'integrated'), (a) => ({
+        branch: a.branch, worktreePath: a.worktree_path, summary: a.summary
+    }));
+    taskRunTool('task_review_submit', 'Submit Task Review', taskReviewSubmitInputSchema, (a) => taskPath(a, 'review'), (a) => ({
+        results: a.results.map((r: any) => ({ criterionId: r.criterion_id, status: r.status, evidence: r.evidence })), suggestions: a.suggestions ?? []
+    }));
+
     mcp.registerTool<any, any>('task_draft_submit', {
         description: TASK_DRAFT_SUBMIT_DESCRIPTION,
         title: 'Submit Task Draft',
@@ -571,6 +605,11 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_add_asset',
             'report_create_share',
             'task_draft_submit',
+            'task_plan_submit',
+            'subtask_done',
+            'task_decision_ask',
+            'task_integrated',
+            'task_review_submit',
             'review_loop_worker_submit',
             'review_loop_reviewer_submit'
         ],

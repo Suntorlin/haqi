@@ -8,6 +8,9 @@ import type { StoredAcceptanceCriterion, StoredGroup, StoredTaskEvent, StoredTas
 import { confirmInputSchema, draftInputSchema, toTaskDraft, type ConfirmInput } from './kernel/draft'
 import { TASK_EVENT } from './kernel/events'
 import { TaskKernel } from './kernel/kernel'
+import { readRun } from './kernel/run'
+import { TaskError } from './errors'
+import { RunService, type RunHost } from './runService'
 import { buildContextPack, type ContextSources } from './plugins/context/contextPack'
 import { Planner, type PlannerHost } from './plugins/planner/planner'
 
@@ -34,13 +37,11 @@ export type TaskServiceHost = {
     stopSession?: (namespace: string, sessionId: string) => Promise<void>
     /** How often the user stepped in, per task; null until messages are classified. */
     load?: (namespace: string, sessionIds: string[], since: number) => TaskLoad | null
+    /** What the run after the guide step needs (spawning executors, push, reports); tests may leave it out. */
+    run?: Omit<RunHost, 'load' | 'timeline' | 'stopSession'>
 }
 
-export class TaskError extends Error {
-    constructor(message: string, readonly status: 400 | 404 | 409 = 400) {
-        super(message)
-    }
-}
+export { TaskError }
 
 const NAME_CHARS = 60
 const RECENT_REPOS = 12
@@ -53,6 +54,8 @@ const RELATED_TASKS = 5
  */
 export class TaskService {
     readonly kernel: TaskKernel
+    /** Split, work, observe, decide, review, report: the task after the guide step. Null without a run host. */
+    readonly runs: RunService | null
     private readonly planner: Planner
     private readonly starting = new Set<Promise<void>>()
 
@@ -63,6 +66,12 @@ export class TaskService {
     ) {
         this.kernel = new TaskKernel(store, host.changed)
         this.planner = new Planner(host.planner)
+        this.runs = host.run ? new RunService(store, this.kernel, memory, {
+            ...host.run,
+            timeline: (namespace, taskId, text) => host.timeline?.(namespace, taskId, text),
+            stopSession: async (namespace, sessionId) => { await host.stopSession?.(namespace, sessionId) },
+            load: (namespace, sessionIds, since) => host.load?.(namespace, sessionIds, since) ?? null
+        }) : null
     }
 
     list(namespace: string, tag?: string): TaskView[] {
@@ -199,7 +208,9 @@ export class TaskService {
         this.kernel.move(namespace, taskId, 'active', { goal, nonGoals, acceptance })
         this.kernel.log(namespace, taskId, TASK_EVENT.draftConfirmed, { version: draft.version, answers, acceptance, decisions })
         this.writeNote(namespace, taskId, goal, nonGoals, acceptance)
-        await this.stopPlanner(namespace, task.leadSessionId)
+        // The lead splits the task now; without a run host (tests) it has nothing left to do.
+        if (this.runs) void this.runs.start(namespace, this.kernel.get(namespace, taskId)!).catch(() => {})
+        else await this.stopPlanner(namespace, task.leadSessionId)
         return this.get(namespace, taskId)!
     }
 
@@ -419,6 +430,7 @@ export class TaskService {
             guide: { ...guideState(task, events), request },
             draft: task.status === 'guiding' ? (findLast(events, TASK_EVENT.draftSubmitted)?.payload as TaskDraft | undefined) ?? null : null,
             load: this.host.load?.(namespace, members.map((m) => m.sessionId), task.createdAt) ?? null,
+            run: task.status === 'guiding' ? null : readRun(events),
             createdAt: task.createdAt,
             updatedAt: task.updatedAt,
             completedAt: task.completedAt

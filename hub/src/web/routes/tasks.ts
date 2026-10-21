@@ -36,6 +36,10 @@ const patchSchema = z.object({
 
 const memberSchema = z.object({ sessionId: z.string().min(1) })
 
+const answerSchema = z.object({ label: z.string().trim().min(1).max(80) })
+
+const verdictSchema = z.object({ approved: z.boolean(), text: z.string().trim().max(2000).optional() })
+
 async function run(c: Context<WebAppEnv>, work: () => unknown | Promise<unknown>): Promise<Response> {
     try {
         return c.json(await work() as object)
@@ -133,6 +137,40 @@ export function createTaskRoutes(getSyncEngine: () => SyncEngine | null): Hono<W
         const tasks = withTasks(c)
         if (tasks instanceof Response) return tasks
         return run(c, () => ({ task: tasks.removeMember(c.get('namespace'), c.req.param('id'), c.req.param('sessionId')) }))
+    })
+
+    // ---- the run after the guide step: the lead, executors and the reviewer call these through MCP tools ----
+
+    const withRuns = (c: Context<WebAppEnv>) => {
+        const tasks = withTasks(c)
+        if (tasks instanceof Response) return tasks
+        return tasks.runs ?? c.json({ error: 'Task runs are not available' }, 503)
+    }
+    const runRoute = (path: string, call: (runs: NonNullable<TaskService['runs']>, namespace: string, id: string, body: unknown, c: Context<WebAppEnv>) => unknown) => {
+        app.post(path, async (c) => {
+            const runs = withRuns(c)
+            if (runs instanceof Response) return runs
+            const body = await c.req.json().catch(() => null)
+            return run(c, () => call(runs, c.get('namespace'), c.req.param('id') ?? '', body, c))
+        })
+    }
+
+    runRoute('/tasks/:id/plan', (runs, ns, id, body) => runs.submitPlan(ns, id, body))
+    runRoute('/tasks/:id/subtasks/done', (runs, ns, id, body) => runs.subtaskDone(ns, id, body))
+    runRoute('/tasks/:id/integrated', (runs, ns, id, body) => runs.integrated(ns, id, body))
+    runRoute('/tasks/:id/review', (runs, ns, id, body) => runs.reviewSubmitted(ns, id, body))
+    runRoute('/tasks/:id/decisions', (runs, ns, id, body) => runs.askDecision(ns, id, body))
+    runRoute('/tasks/:id/decisions/:decisionId', async (runs, ns, id, body, c) => {
+        const parsed = answerSchema.safeParse(body)
+        if (!parsed.success) throw new TaskError('Invalid body: label is required')
+        await runs.answerDecision(ns, id, c.req.param('decisionId') ?? '', parsed.data.label)
+        return { task: getSyncEngine()!.getTaskService().get(ns, id) }
+    })
+    runRoute('/tasks/:id/verdict', async (runs, ns, id, body) => {
+        const parsed = verdictSchema.safeParse(body)
+        if (!parsed.success) throw new TaskError('Invalid body: approved is required')
+        await runs.verdict(ns, id, parsed.data)
+        return { task: getSyncEngine()!.getTaskService().get(ns, id) }
     })
 
     return app

@@ -276,6 +276,12 @@ export function createGroup(
     return created
 }
 
+/** Namespaces that have a task running (status active), for the task observer. */
+export function getActiveTaskNamespaces(db: Database): string[] {
+    const rows = db.prepare("SELECT DISTINCT namespace FROM groups WHERE kind = 'task' AND status = 'active'").all() as Array<{ namespace: string }>
+    return rows.map((row) => row.namespace)
+}
+
 export function getGroupsByNamespace(db: Database, namespace: string, kind?: StoredGroupKind): StoredGroup[] {
     const rows = kind
         ? db.prepare(

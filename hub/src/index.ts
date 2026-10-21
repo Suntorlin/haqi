@@ -199,6 +199,16 @@ async function main() {
         })
     })
 
+    syncEngine.setPushNotifier(async (namespace, notice) => {
+        await pushService.sendToNamespace(namespace, {
+            title: notice.title,
+            body: notice.body,
+            tag: notice.tag,
+            data: { type: 'task', sessionId: '', url: notice.url }
+        })
+    })
+    syncEngine.setReportShareBase(reportPublicBaseUrlSettings.value)
+
     const notificationChannels: NotificationChannel[] = [
         new PushNotificationChannel(pushService, sseManager, visibilityTracker, config.publicUrl)
     ]
