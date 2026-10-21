@@ -26,6 +26,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/markdown-text'
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
+import { TaskReportCard } from '@/components/tasks/ReportSheet'
 import { MessageAttachments } from '@/components/AssistantChat/messages/MessageAttachments'
 import { ChatTimeSeparator } from '@/components/AssistantChat/messages/SocialMessages'
 import { FileIcon } from '@/components/FileIcon'
@@ -315,6 +316,14 @@ function getActorSessionId(message: GroupTimelineMessage): string | null {
         return value || null
     }
     return null
+}
+
+/** A task's report line carries the full report; the conversation shows it as a card. */
+function taskReportOf(message: GroupTimelineMessage): string | null {
+    const p = message.payload
+    if (message.source !== 'system:task' || !p || typeof p !== 'object') return null
+    const report = (p as { report?: { markdown?: unknown } }).report
+    return typeof report?.markdown === 'string' && report.markdown ? report.markdown : null
 }
 
 function isSystemMessage(message: GroupTimelineMessage): boolean {
@@ -1168,6 +1177,16 @@ function TimelineBubble(props: {
         && !isSystemMessage(previous)
         && getMessageActorKey(previous) === getMessageActorKey(message)
     const separator = showSeparator ? <ChatTimeSeparator at={message.createdAt} /> : null
+
+    const report = isSystem ? taskReportOf(message) : null
+    if (report) {
+        return (
+            <div className="mx-auto w-full max-w-content px-4 pt-3">
+                {separator}
+                <TaskReportCard text={text} markdown={report} title={t('taskRun.reportCard')} />
+            </div>
+        )
+    }
 
     if (isSystem) {
         return (

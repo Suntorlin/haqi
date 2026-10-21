@@ -131,6 +131,8 @@ export default {
   'taskRun.byPrecedent': '按你以前的选择',
   'taskRun.byYou': '你定的',
   'taskRun.fullReport': '看完整报告',
+  'taskRun.reportCard': '负责人的报告',
+  'taskRun.openShare': '在浏览器里打开',
   'taskRun.changePlaceholder': '要改什么？',
   'taskRun.phase.planning': '拆分中',
   'taskRun.phase.running': '进行中',

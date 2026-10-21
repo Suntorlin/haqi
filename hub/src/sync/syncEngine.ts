@@ -610,8 +610,8 @@ export class SyncEngine {
                     return { shareUrl: this.reportShareBase ? `${this.reportShareBase}/share/r/${encodeURIComponent(share.token)}` : null }
                 }
             },
-            timeline: (namespace, taskId, text) => {
-                void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text } })
+            timeline: (namespace, taskId, text, extra) => {
+                void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text, ...extra } })
                     .catch((error) => console.error('[Tasks] timeline line failed', error))
             },
             load: (namespace, sessionIds, since) => this.loadService.taskLoad(namespace, sessionIds, since)

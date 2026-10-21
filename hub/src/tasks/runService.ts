@@ -43,7 +43,8 @@ export type RunHost = {
     stopSession: (namespace: string, sessionId: string) => Promise<void>
     /** Grants a permission request on the user's behalf (only read-only requests are). */
     approve: (sessionId: string, requestId: string) => Promise<void>
-    timeline: (namespace: string, taskId: string, text: string) => void
+    /** A line in the task's conversation; `report` makes it the report card there. */
+    timeline: (namespace: string, taskId: string, text: string, extra?: { report?: { markdown: string } }) => void
     push: (namespace: string, notice: { title: string; body: string; url: string }) => Promise<void>
     createReport: (namespace: string, input: { title: string; markdown: string }) => { shareUrl: string | null }
     load: (namespace: string, sessionIds: string[], since: number) => import('@hapi/protocol/types').TaskLoad | null
@@ -275,7 +276,7 @@ export class RunService {
         const { shareUrl } = this.host.createReport(namespace, { title: `任务报告：${task.name}`, markdown })
         this.kernel.log(namespace, task.id, RUN_EVENT.reportReady, { conclusion, markdown, shareUrl })
         this.phase(namespace, task.id, 'reporting')
-        this.host.timeline(namespace, task.id, `做完了，等你验收：${conclusion}`)
+        this.host.timeline(namespace, task.id, `做完了，等你验收：${conclusion}`, { report: { markdown } })
         void this.host.push(namespace, { title: `等你验收：${task.name}`, body: conclusion, url: `/groups/${task.id}` }).catch(() => {})
     }
 

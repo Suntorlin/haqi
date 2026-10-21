@@ -39,6 +39,7 @@ function setup(dir: string) {
     const reports: string[] = []
     const stopped: string[] = []
     const approved: string[] = []
+    const lines: Array<{ text: string; report?: string }> = []
     let next = 1
     const addSession = (id: string, path: string, worktree: RunSession['worktree'] = null) => {
         sessions.set(id, { id, active: true, thinking: false, machineId: 'm1', path, name: null, tags: [], updatedAt: Date.now(), worktree, requests: [] })
@@ -63,6 +64,7 @@ function setup(dir: string) {
         sessions: () => [...sessions.values()],
         machineOnline: () => true,
         changed: () => {},
+        timeline: (_ns, _id, text, extra) => { lines.push({ text, report: extra?.report?.markdown }) },
         stopSession: async (_ns, id) => { stopped.push(id); const s = sessions.get(id); if (s) s.active = false },
         run: {
             spawnWorker: async (input) => spawn('worker')(input),
@@ -83,7 +85,7 @@ function setup(dir: string) {
         await service.whenIdle()
         for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0))
     }
-    return { store, service, runs: service.runs!, sessions, spawned, sent, pushes, reports, stopped, approved, settle }
+    return { store, service, runs: service.runs!, sessions, spawned, sent, pushes, reports, stopped, approved, lines, settle }
 }
 
 describe('task run after the guide step', () => {
@@ -173,6 +175,9 @@ describe('task run after the guide step', () => {
         expect(reporting.run!.report).toMatchObject({ conclusion: `3 条验收标准全部达到，结果在本地分支 task/${task.id}（未推送）。`, shareUrl: 'https://example.test/share/r/x' })
         expect(t.reports[0]).toContain('返工 · 返工 1')
         expect(t.pushes.at(-1)).toBe('等你验收：记忆页加归档恢复')
+        // The report also lands in the task's conversation, in full.
+        expect(t.lines.at(-1)?.text.startsWith('做完了，等你验收：')).toBe(true)
+        expect(t.lines.at(-1)?.report).toBe(t.reports.at(-1))
 
         const accepted = await t.runs.verdict('default', task.id, { approved: true }).then(() => t.service.get('default', task.id)!)
         expect([accepted.status, accepted.run!.phase]).toEqual(['done', 'accepted'])
