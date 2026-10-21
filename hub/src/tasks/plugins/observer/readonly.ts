@@ -26,7 +26,10 @@ export function isReadOnlyRequest(tool: string, args: unknown): boolean {
     return typeof command === 'string' && isReadOnlyCommand(command)
 }
 
-export function isReadOnlyCommand(command: string): boolean {
+export function isReadOnlyCommand(raw: string): boolean {
+    // Quoted text is data (a grep pattern may hold "|" or ">"): blank it out first. "$(" inside double quotes still runs.
+    if (/"[^"]*(\$\(|`)[^"]*"/.test(raw)) return false
+    const command = raw.replace(/"(?:[^"\\]|\\.)*"|'[^']*'/g, '""')
     // Writing to a file, substitution that could run anything, or background jobs: not a plain read.
     if (/(^|[^>&0-9])>(?!&)|>>|\$\(|`|<\(|&\s*$|\btee\b/.test(command.replace(/2>\/dev\/null|2>&1|>\/dev\/null/g, ''))) return false
     const segments = command.split(/&&|\|\||;|\||\n/).map((part) => part.trim()).filter(Boolean)
