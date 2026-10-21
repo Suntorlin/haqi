@@ -70,7 +70,78 @@ export type TaskView = {
     guide: { state: TaskGuideState; error: string | null; request: string | null }
     draft: TaskDraft | null
     load: TaskLoad | null
+    /** After the guide step: subtasks, decisions, review and report. Null while guiding. */
+    run: TaskRun | null
     createdAt: number
     updatedAt: number
     completedAt: number | null
+}
+
+/**
+ * Where a confirmed task is: the lead splits it (planning), executor sessions work in worktrees (running), the lead
+ * merges their branches (integrating), a reviewer checks every criterion (reviewing), failed criteria go back to a
+ * fixer (fixing), the report waits for the user's verdict (reporting), and the user accepts it (accepted).
+ */
+export type TaskPhase = 'planning' | 'running' | 'integrating' | 'reviewing' | 'fixing' | 'reporting' | 'accepted'
+
+export type SubtaskState = 'waiting' | 'running' | 'done' | 'stuck' | 'stopped'
+
+export type TaskSubtask = {
+    id: string
+    title: string
+    brief: string
+    criteria: string[]
+    dependsOn: string[]
+    /** A fix after a failed review or the user's "change it". */
+    fix: boolean
+    state: SubtaskState
+    sessionId: string | null
+    branch: string | null
+    summary: string | null
+    startedAt: number | null
+    doneAt: number | null
+}
+
+export type TaskDecisionOption = { label: string; good?: string | null; cost?: string | null }
+
+export type TaskDecision = {
+    id: string
+    question: string
+    context: string | null
+    options: TaskDecisionOption[]
+    recommended: string | null
+    askedBy: string | null
+    subtaskId: string | null
+    askedAt: number
+    /** answered: by the user, or by a precedent in memory with high confidence. */
+    answer: { label: string; by: 'user' | 'precedent'; memoryId: string | null; at: number } | null
+}
+
+/** Something the observer saw: an approval waiting, a stuck or stopped session, a risky command. */
+export type TaskSignal = {
+    key: string
+    kind: 'approval' | 'stuck' | 'stopped' | 'danger' | 'reminded'
+    text: string
+    sessionId: string | null
+    at: number
+    /** The user was pushed a notification for it. */
+    notified: boolean
+}
+
+export type CriterionVerdict = 'met' | 'not_met' | 'unclear'
+
+export type TaskReview = {
+    round: number
+    results: Array<{ criterionId: string; status: CriterionVerdict; evidence: string }>
+    suggestions: string[]
+}
+
+export type TaskRun = {
+    phase: TaskPhase
+    subtasks: TaskSubtask[]
+    decisions: TaskDecision[]
+    signals: TaskSignal[]
+    integration: { branch: string; worktree: string; summary: string | null } | null
+    review: TaskReview | null
+    report: { conclusion: string; markdown: string; shareUrl: string | null; at: number } | null
 }

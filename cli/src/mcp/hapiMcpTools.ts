@@ -133,6 +133,61 @@ export const taskDraftSubmitInputSchema: z.ZodTypeAny = z.object({
     })).max(3).optional().describe('At most 3 choice questions for the user')
 })
 
+export const taskPlanSubmitInputSchema: z.ZodTypeAny = z.object({
+    task_id: z.string().min(1).max(40).describe('The task id from the message'),
+    subtasks: z.array(z.object({
+        id: z.string().min(1).max(40).describe('Short English id: letters, digits, - and _'),
+        title: z.string().min(1).max(60).describe('At most 20 Chinese characters'),
+        brief: z.string().min(1).max(4000).describe('What to change, where, and how to verify; the executor sees only this'),
+        criteria: z.array(z.string().min(1).max(40)).describe('Acceptance criterion ids this subtask is responsible for'),
+        depends_on: z.array(z.string().min(1).max(40)).optional().describe('Ids of subtasks that must finish first')
+    })).min(1).max(5).describe('1 to 5 subtasks that together cover every acceptance criterion')
+})
+
+export const subtaskDoneInputSchema: z.ZodTypeAny = z.object({
+    task_id: z.string().min(1).max(40),
+    subtask_id: z.string().min(1).max(60),
+    summary: z.string().min(1).max(4000).describe('What you changed and how you verified it'),
+    evidence: z.array(z.string().min(1).max(1000)).max(20).optional().describe('One piece of evidence each: a command and its result, a file and line, a screenshot path')
+})
+
+export const taskDecisionAskInputSchema: z.ZodTypeAny = z.object({
+    task_id: z.string().min(1).max(40),
+    question: z.string().min(1).max(300).describe('The one thing the user has to decide'),
+    context: z.string().max(1000).optional().describe('Why it needs the user, in one or two sentences'),
+    options: z.array(z.object({
+        label: z.string().min(1).max(80),
+        good: z.string().max(120).optional().describe('What picking it gains'),
+        cost: z.string().max(120).optional().describe('What it costs')
+    })).min(2).max(4),
+    recommended: z.string().max(80).optional().describe('The label you recommend')
+})
+
+export const taskIntegratedInputSchema: z.ZodTypeAny = z.object({
+    task_id: z.string().min(1).max(40),
+    branch: z.string().min(1).max(200),
+    worktree_path: z.string().min(1).max(500).describe('Absolute path of the merge worktree'),
+    summary: z.string().max(4000).optional().describe('Merge result and test results')
+})
+
+export const taskReviewSubmitInputSchema: z.ZodTypeAny = z.object({
+    task_id: z.string().min(1).max(40),
+    results: z.array(z.object({
+        criterion_id: z.string().min(1).max(40),
+        status: z.enum(['met', 'not_met', 'unclear']),
+        evidence: z.string().min(1).max(2000).describe('What you checked and saw')
+    })).min(1).describe('One result per acceptance criterion'),
+    suggestions: z.array(z.string().min(1).max(500)).max(10).optional().describe('Your own ideas outside the acceptance list; they never fail the review')
+})
+
+export const TASK_RUN_TOOL_DESCRIPTIONS = {
+    task_plan_submit: 'Submit how a confirmed HAQI task splits into subtasks. Each subtask goes to an executor session in its own git worktree. Do not change code yourself.',
+    subtask_done: 'Tell HAQI your subtask is done, with a summary and evidence. Commit to your branch first. Do not push.',
+    task_decision_ask: 'Ask the user to decide something the work needs (a disagreement, out of scope, an unclear criterion, anything that pushes, deploys, spends or sends). Give 2 to 4 options with gains and costs. Go on with the parts that do not depend on it; the answer comes back to this session.',
+    task_integrated: 'Tell HAQI the subtask branches are merged into one branch, with the test results.',
+    task_review_submit: 'Submit your review of a HAQI task: one result per acceptance criterion (met / not_met / unclear) with evidence.'
+} as const
+
 export const TASK_DRAFT_SUBMIT_DESCRIPTION = 'Submit the goal and acceptance criteria you drafted for a HAQI task, during its guide step. The user ticks the criteria and answers the questions in the HAQI web app. Call it again with a new draft when the user asks for changes. Do not start the work.'
 
 export const reviewLoopReviewerSubmitInputSchema: z.ZodTypeAny = z.object({
@@ -210,6 +265,11 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         description: TASK_DRAFT_SUBMIT_DESCRIPTION,
         inputSchema: taskDraftSubmitInputSchema
     },
+    { name: 'task_plan_submit', title: 'Submit Task Plan', description: TASK_RUN_TOOL_DESCRIPTIONS.task_plan_submit, inputSchema: taskPlanSubmitInputSchema },
+    { name: 'subtask_done', title: 'Subtask Done', description: TASK_RUN_TOOL_DESCRIPTIONS.subtask_done, inputSchema: subtaskDoneInputSchema },
+    { name: 'task_decision_ask', title: 'Ask the User to Decide', description: TASK_RUN_TOOL_DESCRIPTIONS.task_decision_ask, inputSchema: taskDecisionAskInputSchema },
+    { name: 'task_integrated', title: 'Branches Merged', description: TASK_RUN_TOOL_DESCRIPTIONS.task_integrated, inputSchema: taskIntegratedInputSchema },
+    { name: 'task_review_submit', title: 'Submit Task Review', description: TASK_RUN_TOOL_DESCRIPTIONS.task_review_submit, inputSchema: taskReviewSubmitInputSchema },
     {
         name: 'review_loop_worker_submit',
         title: 'Submit Review Loop Worker Output',

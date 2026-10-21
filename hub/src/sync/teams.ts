@@ -4,7 +4,7 @@ import type { TeamState } from '@hapi/protocol/types'
 
 type TeamStateDelta = Partial<TeamState> & { _action?: 'create' | 'delete' | 'update' }
 
-function extractToolBlocks(content: Record<string, unknown>): Array<{ name: string; input: Record<string, unknown> }> {
+export function extractToolBlocks(content: Record<string, unknown>): Array<{ name: string; input: Record<string, unknown> }> {
     const blocks: Array<{ name: string; input: Record<string, unknown> }> = []
 
     // Claude output format: { type: 'output', data: { type: 'assistant', message: { content: [...] } } }

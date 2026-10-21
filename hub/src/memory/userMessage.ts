@@ -6,7 +6,7 @@ import { userText } from './extract'
  */
 
 /** Meta keys HAQI sets on the messages it sends on its own. */
-const INJECTED_META = ['routeContext', 'teamControl', 'taskGuide'] as const
+const INJECTED_META = ['routeContext', 'teamControl', 'taskGuide', 'taskWork'] as const
 
 /**
  * Claude echoes a queued message back without its meta, so the injected ones are also known by their text.
@@ -17,7 +17,8 @@ const INJECTED_TEXT = [
     /^\[SYSTEM\] You are (?:in a ReviewLoop|a ReviewLoop Reviewer)/,
     /^📝 \*\*Group Note Broadcast\*\*/,
     /^You are coordinating the Claude agent team /,
-    /^\[HAQI_TASK_GUIDE\]/
+    /^\[HAQI_TASK_GUIDE\]/,
+    /^\[HAQI_TASK_WORK\]/
 ]
 
 /** A message that is only a slash command ("/compact", "/note refresh") runs a command; the user did not say anything. */

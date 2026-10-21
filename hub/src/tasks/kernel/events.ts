@@ -1,3 +1,5 @@
+import { RUN_EVENT } from './run'
+
 /** The task event types. A task's state is its row plus this log; the newest draft is the last draft_submitted. */
 export const TASK_EVENT = {
     guideStarted: 'guide_started',
@@ -11,4 +13,4 @@ export const TASK_EVENT = {
     memberRemoved: 'member_removed'
 } as const
 
-export type TaskEventType = typeof TASK_EVENT[keyof typeof TASK_EVENT]
+export type TaskEventType = typeof TASK_EVENT[keyof typeof TASK_EVENT] | typeof RUN_EVENT[keyof typeof RUN_EVENT]

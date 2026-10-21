@@ -14,6 +14,7 @@ import {
     getGroupMessages,
     getGroupTasks,
     getGroupsByNamespace,
+    getActiveTaskNamespaces,
     getGroupNote,
     getGroupTaskByDedupeKey,
     hasGroupTaskForTargetSession,
@@ -80,6 +81,10 @@ export class GroupStore {
 
     getGroupsByNamespace(namespace: string, kind?: StoredGroupKind): StoredGroup[] {
         return getGroupsByNamespace(this.db, namespace, kind)
+    }
+
+    getActiveTaskNamespaces(): string[] {
+        return getActiveTaskNamespaces(this.db)
     }
 
     getAllGroups(): StoredGroup[] {

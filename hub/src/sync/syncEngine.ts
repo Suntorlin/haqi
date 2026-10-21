@@ -38,6 +38,7 @@ import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession } from '../tasks/taskService'
 import { LoadService } from '../tasks/loadService'
+import { sessionActivity } from '../tasks/sessionActivity'
 import { resolveJevApiKey } from '../memory/jev'
 import { configuration } from '../configuration'
 
@@ -105,6 +106,8 @@ const MAX_NOTE_REFRESH_CONTENT_LENGTH = 20_000
 const MAX_GROUP_MIRROR_TEXT_LENGTH = 8_000
 const GROUP_NOTE_FILE_SYNC_INTERVAL_MS = 3 * 60 * 1000
 const MEMORY_HARVEST_INTERVAL_MS = 15 * 60 * 1000
+/** How often the task observer looks at running tasks. */
+const TASK_OBSERVER_INTERVAL_MS = 60 * 1000
 const MEMORY_HARVEST_FIRST_DELAY_MS = 60 * 1000
 const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'tool-call',
@@ -477,6 +480,9 @@ export class SyncEngine {
     private readonly taskService: TaskService
     private readonly loadService: LoadService
     private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
+    private pushNotifier: ((namespace: string, notice: { title: string; body: string; url: string; tag: string }) => Promise<void>) | null = null
+    private reportShareBase: string | null = null
+    private taskObserverTimer: NodeJS.Timeout | null = null
 
     constructor(
         store: Store,
@@ -556,6 +562,53 @@ export class SyncEngine {
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
             stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
+            run: {
+                spawnWorker: async (input) => {
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, {
+                        thinkEffort: 'medium', yolo: true, sessionType: input.worktreeName ? 'worktree' : 'simple', worktreeName: input.worktreeName
+                    }, { text: input.text, meta: input.meta })
+                    if (result.type === 'error') return { error: result.message }
+                    await this.renameSession(result.sessionId, input.name).catch(() => {})
+                    await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
+                    return { sessionId: result.sessionId }
+                },
+                spawnLead: async (input) => {
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta })
+                    if (result.type === 'error') return { error: result.message }
+                    await this.renameSession(result.sessionId, input.name).catch(() => {})
+                    await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
+                    return { sessionId: result.sessionId }
+                },
+                send: async (sessionId, text, meta) => {
+                    if (!this.getSession(sessionId)?.active) return false
+                    await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta })
+                    return true
+                },
+                session: (namespace, sessionId) => {
+                    const session = this.getSessionByNamespace(sessionId, namespace)
+                    if (!session) return null
+                    const worktree = session.metadata?.worktree
+                    return {
+                        id: session.id,
+                        active: session.active,
+                        thinking: session.thinking,
+                        path: session.metadata?.path ?? null,
+                        worktree: worktree ? { branch: worktree.branch, path: worktree.worktreePath ?? session.metadata?.path ?? null } : null,
+                        pendingRequests: Object.entries(session.agentState?.requests ?? {}).map(([id, request]) => {
+                            const args = request.arguments as { command?: unknown; file_path?: unknown } | null
+                            const detail = typeof args?.command === 'string' ? args.command : typeof args?.file_path === 'string' ? args.file_path : ''
+                            return { id, tool: request.tool, detail: detail.slice(0, 200) }
+                        })
+                    }
+                },
+                activity: (sessionId, since) => sessionActivity(this.store.messages.getMessages(sessionId, 60), since),
+                push: async (namespace, notice) => { await this.pushNotifier?.(namespace, { ...notice, tag: `task:${notice.url}` }) },
+                createReport: (namespace, input) => {
+                    const report = this.store.reports.createReport({ namespace, title: input.title, markdown: input.markdown, status: 'final' })
+                    const share = this.store.reports.createShare({ reportId: report.id, namespace, createdBy: 'system:task' })
+                    return { shareUrl: this.reportShareBase ? `${this.reportShareBase}/share/r/${encodeURIComponent(share.token)}` : null }
+                }
+            },
             timeline: (namespace, taskId, text) => {
                 void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text } })
                     .catch((error) => console.error('[Tasks] timeline line failed', error))
@@ -565,6 +618,7 @@ export class SyncEngine {
         if (store.getDatabasePath() !== ':memory:') {
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
             this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
+            this.taskObserverTimer = setInterval(() => this.observeTasks(), TASK_OBSERVER_INTERVAL_MS)
         }
     }
 
@@ -583,6 +637,24 @@ export class SyncEngine {
     /** The hub hands in push delivery once it exists; the engine is created first. */
     setMemoryNotifier(notifier: (namespace: string, notice: MemoryNotice) => Promise<void>): void {
         this.memoryNotifier = notifier
+    }
+
+    /** Push to the user's devices; the task run uses it when the user has to step in. */
+    setPushNotifier(notifier: (namespace: string, notice: { title: string; body: string; url: string; tag: string }) => Promise<void>): void {
+        this.pushNotifier = notifier
+    }
+
+    /** Public base URL of report share links (task reports). */
+    setReportShareBase(base: string): void {
+        this.reportShareBase = base.replace(/\/$/, '')
+    }
+
+    private observeTasks(): void {
+        const runs = this.taskService.runs
+        if (!runs) return
+        for (const namespace of this.store.groups.getActiveTaskNamespaces()) {
+            void runs.tick(namespace).catch((error: unknown) => console.warn('[Tasks] observer failed', error))
+        }
     }
 
     private harvestMemories(): void {
@@ -612,6 +684,10 @@ export class SyncEngine {
         if (this.memoryHarvestTimer) {
             clearInterval(this.memoryHarvestTimer)
             this.memoryHarvestTimer = null
+        }
+        if (this.taskObserverTimer) {
+            clearInterval(this.taskObserverTimer)
+            this.taskObserverTimer = null
         }
     }
 
@@ -2414,6 +2490,8 @@ ${note.content}
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
             yolo?: boolean
             claudeAccount?: ClaudeAccountSelection
+            sessionType?: 'simple' | 'worktree'
+            worktreeName?: string
         },
         prompt: { text: string; meta?: Record<string, unknown> }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
@@ -2425,8 +2503,8 @@ ${note.content}
             options.thinkEffort,
             undefined,
             options.yolo,
-            'simple',
-            undefined,
+            options.sessionType ?? 'simple',
+            options.worktreeName,
             undefined,
             undefined,
             options.claudeAccount

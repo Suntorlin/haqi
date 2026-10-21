@@ -54,5 +54,14 @@ export type {
     TaskGuideState,
     TaskLoad,
     TaskStatus,
-    TaskView
+    TaskView,
+    TaskPhase,
+    SubtaskState,
+    TaskSubtask,
+    TaskDecision,
+    TaskDecisionOption,
+    TaskSignal,
+    CriterionVerdict,
+    TaskReview,
+    TaskRun
 } from './tasks'
