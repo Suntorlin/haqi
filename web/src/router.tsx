@@ -52,7 +52,8 @@ import { useConversationTurns } from '@/hooks/queries/useConversationTurns'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessions } from '@/hooks/queries/useSessions'
-import { useSessionTasks } from '@/hooks/queries/useSessionTasks'
+import { useTasks } from '@/hooks/queries/useTasks'
+import { isTaskOpen } from '@/lib/tasks'
 import { useSlashCommands } from '@/hooks/queries/useSlashCommands'
 import { useSkills } from '@/hooks/queries/useSkills'
 import { useSendMessage } from '@/hooks/mutations/useSendMessage'
@@ -229,7 +230,7 @@ function SessionsPage() {
     const { t } = useTranslation()
     const { addToast } = useToast()
     const { sessions, isLoading, error, refetch } = useSessions(api)
-    const { tasks: sessionTasks, isLoading: sessionTasksLoading } = useSessionTasks(api)
+    const { tasks: sessionTasks, isLoading: sessionTasksLoading } = useTasks(api)
     const { spawnSession, isPending: isQuickCreatingSession } = useSpawnSession(api)
     const { density } = useSessionListDensity()
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
@@ -276,7 +277,7 @@ function SessionsPage() {
     // A tag with open tasks keeps its filter even when no session carries it any more.
     const sessionTags = useMemo(() => Array.from(new Set([
         ...sessions.flatMap((session) => getUserTags(session)),
-        ...sessionTasks.filter((task) => task.status === 'open').map((task) => task.tag)
+        ...sessionTasks.filter(isTaskOpen).map((task) => task.tag)
     ])).sort((a, b) => a.localeCompare(b)), [sessions, sessionTasks])
     const orderedSessionTags = useMemo(
         () => applySessionTagOrder(sessionTags, sessionTagOrder),

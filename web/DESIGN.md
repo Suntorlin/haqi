@@ -110,6 +110,7 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `Badge` | `badge.tsx` | **State** pill (no border): default / solid / info / success / warning / destructive; `dot`, `live`. Never for actions. |
 | `CountBadge`, `DotBadge` | `badge.tsx` | **Unread** (brand red). Position with `absolute -right-1 -top-1` on a `relative` parent. |
 | `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows. |
+| `CheckRow` | `CheckRow.tsx` | A row the user ticks on or off (44px checkbox, text, optional trailing `Badge`). Unticked stays visible, struck through; `onEdit` makes the text tappable to edit. Acceptance criteria in a task's guide step. |
 | `Switch`, `SwitchTrack` | `Switch.tsx` | Monochrome toggle. |
 | `SettingChip`, `ToggleChip` | `SettingChip.tsx` | Composer-toolbar setting that opens a sheet (phone) or menu (desktop). |
 | `SwitchChip` | `SettingChip.tsx` | Two-state setting shown as its value; one tap flips it (send mode: direct / queue). |

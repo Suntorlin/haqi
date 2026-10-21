@@ -58,6 +58,7 @@ export function MemoryPage() {
     const [notice, setNotice] = useState<string | null>(null)
     const [search, setSearch] = useState('')
     const [trialOpen, setTrialOpen] = useState(false)
+    const [tagFilter, setTagFilter] = useState('')
     const needle = useDebounced(search.trim(), 300)
 
     const query = useQuery({
@@ -172,10 +173,22 @@ export function MemoryPage() {
     }
 
     const levelList = (level: Level) => {
-        const list = memories.filter((m) => m.level === level)
-        if (list.length === 0) return <p className="px-1 pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">还没有{LEVEL_LABEL[level]}。</p>
+        const ofLevel = memories.filter((m) => m.level === level)
+        const levelTags = Array.from(new Set(ofLevel.flatMap((m) => m.tags))).sort((a, b) => a.localeCompare(b))
+        const activeTag = levelTags.includes(tagFilter) ? tagFilter : ''
+        const list = activeTag ? ofLevel.filter((m) => m.tags.includes(activeTag)) : ofLevel
+        if (ofLevel.length === 0) return <p className="px-1 pt-6 text-center text-[13px] text-[var(--social-fg-muted)]">还没有{LEVEL_LABEL[level]}。</p>
         return (
             <div className="space-y-6">
+                {levelTags.length > 0 ? (
+                    <ChoiceChips
+                        label="按标签筛选"
+                        value={activeTag}
+                        options={[{ value: '', label: '全部' }, ...levelTags.map((tag) => ({ value: tag, label: `#${tag}` }))]}
+                        onChange={setTagFilter}
+                        className="-mx-4 flex-nowrap overflow-x-auto px-4"
+                    />
+                ) : null}
                 {scopesInOrder(list).map((scope) => (
                     <ListGroup key={scope || 'global'} title={scopeLabel(scope)}>
                         {list.filter((m) => m.scope === scope).map((m) => {
@@ -185,7 +198,7 @@ export function MemoryPage() {
                                     key={m.id}
                                     wrap
                                     title={<Clamp text={m.text} />}
-                                    subtitle={[backing ? `依据 ${backing} 条` : null, m.support > 1 ? `被提到 ${m.support} 次` : null, sourceLabel(m)].filter(Boolean).join(' · ')}
+                                    subtitle={[backing ? `依据 ${backing} 条` : null, m.support > 1 ? `被提到 ${m.support} 次` : null, sourceLabel(m), m.tags.map((tag) => `#${tag}`).join(' ')].filter(Boolean).join(' · ')}
                                     trailing={m.status === 'pending' ? <Badge variant="warning">待审批</Badge> : m.status === 'candidate' ? <Badge>观察中</Badge> : undefined}
                                     onClick={() => setOpenId(m.id)}
                                 />

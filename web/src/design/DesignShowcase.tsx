@@ -6,6 +6,7 @@ import { Chip } from '@/components/ui/Chip'
 import { Badge, CountBadge, DotBadge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/Switch'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { CheckRow } from '@/components/ui/CheckRow'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { SwitchChip } from '@/components/ui/SettingChip'
 import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
@@ -78,6 +79,7 @@ export function DesignShowcase() {
     const [chip, setChip] = useState('all')
     const [on, setOn] = useState(true)
     const [direct, setDirect] = useState(true)
+    const [kept, setKept] = useState<Record<string, boolean>>({ a: true, b: true, c: false })
     const [url, setUrl] = useState('http://localhost:3000/')
 
     return (
@@ -263,6 +265,28 @@ export function DesignShowcase() {
                         <ListRow title="通知" trailing={<Switch checked={on} onCheckedChange={setOn} ariaLabel="notify" />} />
                         <ListRow title="归档会话" destructive onClick={() => undefined} />
                     </ListGroup>
+                </div>
+                <div className="max-w-md">
+                    <p className="pb-2 text-[13px] text-[var(--social-fg-muted)]">CheckRow：可勾选的行（引导步骤里的验收标准）。取消勾选后划线但仍可见；点文字可改。</p>
+                    <div className="overflow-hidden rounded-2xl border border-[var(--social-border)] px-2">
+                        {[
+                            { id: 'a', text: 'bun run test 全部通过', how: '验证：bun run test', source: '仓库约定', warn: false },
+                            { id: 'b', text: '报告结论先行，带关键数字', how: '验证：看报告第一段', source: '你的原则', warn: false },
+                            { id: 'c', text: '引导面板 3 秒内出现', how: '验证：Playwright 计时', source: '本次推断', warn: true }
+                        ].map((row) => (
+                            <CheckRow
+                                key={row.id}
+                                checked={kept[row.id] ?? false}
+                                onCheckedChange={(checked) => setKept((current) => ({ ...current, [row.id]: checked }))}
+                                label={row.text}
+                                title={row.text}
+                                subtitle={row.how}
+                                onEdit={() => undefined}
+                                editLabel="改这一行"
+                                trailing={<Badge variant={row.warn ? 'warning' : 'default'}>{row.source}</Badge>}
+                            />
+                        ))}
+                    </div>
                 </div>
             </Section>
 

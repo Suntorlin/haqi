@@ -3,14 +3,13 @@ import {
     PINNED_TAG,
     SNOOZE_FOREVER,
     getNextSnoozeWake,
-    getSessionTaskIds,
     getSnoozeUntil,
     getUserTags,
     isSessionPinned,
     isSessionSnoozed,
     withPinTag,
     withSnoozeTag,
-    withTaskTag,
+    withTaskOwnTag,
     withUserTags
 } from './session-pins'
 
@@ -84,16 +83,16 @@ describe('session snooze', () => {
 describe('session tasks', () => {
     const task = { id: 'abc123', tag: 'haqi' }
 
-    it('joining a task adds its tag too, and leaving keeps every other tag', () => {
+    it('joining a task adds its tag once and keeps every other tag', () => {
         const session = tagged('shop', PINNED_TAG)
-        const joined = withTaskTag(session, task, true)
-        expect(joined).toEqual(['haqi', 'shop', PINNED_TAG, 'task:abc123'])
+        const joined = withTaskOwnTag(session, task.tag)
+        expect(joined).toEqual(['haqi', 'shop', PINNED_TAG])
         expect(getUserTags(tagged(...joined))).toEqual(['haqi', 'shop'])
-        expect(getSessionTaskIds(tagged(...joined))).toEqual(['abc123'])
-        expect(withTaskTag(tagged(...joined), task, false)).toEqual(['haqi', 'shop', PINNED_TAG])
+        const already = tagged('haqi')
+        expect(withTaskOwnTag(already, task.tag)).toBe(already.metadata.tags)
     })
 
-    it('editing user tags keeps the task membership', () => {
+    it('editing user tags keeps an old task tag hidden and in place', () => {
         expect(withUserTags(tagged('haqi', 'task:abc123'), ['shop'])).toEqual(['shop', 'task:abc123'])
     })
 })

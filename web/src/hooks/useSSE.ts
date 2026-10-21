@@ -582,6 +582,10 @@ export function useSSE(options: {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.memories })
             }
 
+            if (event.type === 'task-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.tasks })
+            }
+
             if (event.type === 'review-loop-updated') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoops })
                 void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })

@@ -11,7 +11,8 @@ export const SOURCE_LABEL: Record<string, string> = {
     import: 'MEMORY.md',
     claude_auto: 'Claude 自带记忆',
     user_message: '你的消息',
-    user_edit: '你'
+    user_edit: '你',
+    decision: '你在任务里的选择'
 }
 
 export function sourceLabel(memory: Pick<MemoryItem, 'source' | 'sourceLabel'>): string {

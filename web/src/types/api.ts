@@ -2,8 +2,8 @@ import type {
     DecryptedMessage as ProtocolDecryptedMessage,
     Session,
     SessionSummary,
-    SessionTask,
     SyncEvent as ProtocolSyncEvent,
+    TaskView,
     WorktreeMetadata
 } from '@hapi/protocol/types'
 
@@ -22,7 +22,14 @@ export type {
     Session,
     SessionSummary,
     SessionSummaryMetadata,
-    SessionTask,
+    AcceptanceCriterion,
+    CriterionSource,
+    TaskDraft,
+    TaskDraftQuestion,
+    TaskGuideState,
+    TaskLoad,
+    TaskStatus,
+    TaskView,
     TeamControlAction,
     TeamControlRequest,
     TeamControlResponse,
@@ -478,6 +485,8 @@ export type MemoryItem = {
     jev: MemoryJevVerdict | null
     overridden: { level?: MemoryLevel; scope?: string } | null
     replaces: string | null
+    /** Tags of the session or task the memory came from. */
+    tags: string[]
     version: number
     createdAt: number
     updatedAt: number
@@ -538,8 +547,16 @@ export type ProjectOfflineSettingsResponse = {
     directories: string[]
 }
 
-export type SessionTasksResponse = {
-    tasks: SessionTask[]
+export type TasksResponse = {
+    tasks: TaskView[]
+}
+
+/** What the user sends back from the guide sheet. */
+export type TaskConfirmInput = {
+    goal?: string
+    nonGoals?: string[]
+    criteria: Array<{ id: string; kept: boolean; text?: string }>
+    answers: Record<string, string>
 }
 
 /** The model settings picked last (new-session form or a chat switch), shared by every device. */

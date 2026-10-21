@@ -37,8 +37,10 @@ import type {
     ExperimentalSettingsResponse,
     ReportDomainResponse,
     ProjectOfflineSettingsResponse,
-    SessionTask,
-    SessionTasksResponse,
+    TaskConfirmInput,
+    TaskStatus,
+    TaskView,
+    TasksResponse,
     NewSessionDefaults,
     NewSessionDefaultsResponse,
     UpdateMemoryResponse,
@@ -1065,28 +1067,63 @@ export class ApiClient {
         })
     }
 
-    async getSessionTasks(): Promise<SessionTasksResponse> {
-        return await this.request<SessionTasksResponse>('/api/session-tasks')
+    async getTasks(): Promise<TasksResponse> {
+        return await this.request<TasksResponse>('/api/tasks')
     }
 
-    async createSessionTask(input: { tag: string; title: string }): Promise<SessionTask> {
-        const result = await this.request<{ task: SessionTask }>('/api/session-tasks', {
-            method: 'POST',
-            body: JSON.stringify(input)
-        })
+    /** Creates a task in the guide step; the planner starts in the background. */
+    async createTask(input: { text: string; tag: string; fromSessionId?: string; machineId?: string; directory?: string }): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>('/api/tasks', { method: 'POST', body: JSON.stringify(input) })
         return result.task
     }
 
-    async updateSessionTask(taskId: string, patch: { title?: string; status?: SessionTask['status'] }): Promise<SessionTask> {
-        const result = await this.request<{ task: SessionTask }>(`/api/session-tasks/${encodeURIComponent(taskId)}`, {
+    async updateTask(taskId: string, patch: { name?: string; tag?: string; status?: TaskStatus }): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}`, {
             method: 'PATCH',
             body: JSON.stringify(patch)
         })
         return result.task
     }
 
-    async deleteSessionTask(taskId: string): Promise<void> {
-        await this.request(`/api/session-tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' })
+    async deleteTask(taskId: string): Promise<void> {
+        await this.request(`/api/tasks/${encodeURIComponent(taskId)}`, { method: 'DELETE' })
+    }
+
+    async reviseTaskDraft(taskId: string, text: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/revise`, {
+            method: 'POST',
+            body: JSON.stringify({ text })
+        })
+        return result.task
+    }
+
+    async confirmTask(taskId: string, input: TaskConfirmInput): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/confirm`, {
+            method: 'POST',
+            body: JSON.stringify(input)
+        })
+        return result.task
+    }
+
+    async retryTaskGuide(taskId: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/retry`, { method: 'POST', body: '{}' })
+        return result.task
+    }
+
+    async addTaskMember(taskId: string, sessionId: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/members`, {
+            method: 'POST',
+            body: JSON.stringify({ sessionId })
+        })
+        return result.task
+    }
+
+    async removeTaskMember(taskId: string, sessionId: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(
+            `/api/tasks/${encodeURIComponent(taskId)}/members/${encodeURIComponent(sessionId)}`,
+            { method: 'DELETE' }
+        )
+        return result.task
     }
 
     async updateSessionTags(sessionId: string, tags: string[]): Promise<string[]> {

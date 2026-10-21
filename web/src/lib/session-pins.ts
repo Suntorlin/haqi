@@ -6,7 +6,7 @@
 export const PINNED_TAG = 'pinned'
 /** `snooze:<epoch ms>`: the session is out of the way until that moment; `snooze:forever` until woken by hand. */
 export const SNOOZE_TAG_PREFIX = 'snooze:'
-/** `task:<task id>`: the session works on that task (see SessionTask). */
+/** `task:<task id>`: how older builds stored task membership. Still a system tag, so it stays hidden. */
 export const TASK_TAG_PREFIX = 'task:'
 /** Wake time of a snooze with no end. */
 export const SNOOZE_FOREVER = Number.POSITIVE_INFINITY
@@ -80,20 +80,8 @@ export function getNextSnoozeWake(now: Date = new Date()): number {
     return wake.getTime()
 }
 
-/** Ids of the tasks the session works on. */
-export function getSessionTaskIds(session: TaggedSession): string[] {
-    return (session.metadata?.tags ?? [])
-        .filter((tag) => tag.startsWith(TASK_TAG_PREFIX))
-        .map((tag) => tag.slice(TASK_TAG_PREFIX.length))
-}
-
-/**
- * Full tag list to save with the session joined to (or taken out of) a task.
- * Joining also adds the task's own tag, so the session shows in that tag's view.
- */
-export function withTaskTag(session: TaggedSession, task: { id: string; tag: string }, linked: boolean): string[] {
-    const taskTag = `${TASK_TAG_PREFIX}${task.id}`
-    const tags = (session.metadata?.tags ?? []).filter((tag) => tag !== taskTag)
-    if (!linked) return tags
-    return [...(tags.includes(task.tag) ? tags : [task.tag, ...tags]), taskTag]
+/** Full tag list with the task's own tag added, so a session joined to a task shows in that tag's view. */
+export function withTaskOwnTag(session: TaggedSession, tag: string): string[] {
+    const tags = session.metadata?.tags ?? []
+    return tags.includes(tag) ? tags : [tag, ...tags]
 }
