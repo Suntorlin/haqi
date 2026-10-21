@@ -2,6 +2,12 @@ import type { AriaAttributes, ReactNode, Ref } from 'react'
 import { ChevronRightIcon } from '@/components/mobile/icons'
 import { cn } from '@/lib/utils'
 
+/**
+ * Feed row (sessions, groups, review loops): avatar + two lines, full-bleed on phones, inset
+ * rounded pill on desktop. Not a ListRow: feed rows have no group container and no chevron.
+ */
+export const FEED_ROW_CLASS = 'social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3'
+
 /** Group of rows with a hairline between them (iOS inset-grouped list, Instagram settings). */
 export function ListGroup(props: { title?: ReactNode; children: ReactNode; className?: string }) {
     return (
@@ -29,6 +35,8 @@ export function ListRow(props: {
     disabled?: boolean
     /** Let long title / subtitle wrap instead of truncating (settings descriptions). */
     wrap?: boolean
+    /** Layout tweaks for rows outside a ListGroup (padding, a divider). */
+    className?: string
     ref?: Ref<HTMLButtonElement & HTMLDivElement>
     'aria-expanded'?: boolean
     'aria-haspopup'?: AriaAttributes['aria-haspopup']
@@ -45,7 +53,7 @@ export function ListRow(props: {
             {(props.chevron ?? Boolean(props.onClick)) ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}
         </>
     )
-    const className = cn('flex min-h-[52px] w-full items-center gap-3 px-4 py-2', props.disabled && 'pointer-events-none opacity-50')
+    const className = cn('flex min-h-[52px] w-full items-center gap-3 px-4 py-2', props.disabled && 'pointer-events-none opacity-50', props.className)
     return props.onClick ? (
         <button
             ref={props.ref}

@@ -74,6 +74,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary } from '@/types/api'
@@ -972,9 +973,6 @@ function NewSessionPage() {
     )
 }
 
-/** Shared look of list rows (sessions, groups, loops): full-bleed on phones, inset pills on desktop. */
-const SOCIAL_ROW_CLASS = 'social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3'
-
 function GroupRow(props: {
     item: GroupDetail
     members: SessionSummary[]
@@ -999,7 +997,7 @@ function GroupRow(props: {
         <button
             type="button"
             {...longPressHandlers}
-            className={SOCIAL_ROW_CLASS}
+            className={FEED_ROW_CLASS}
             style={{ WebkitTouchCallout: 'none' }}
             aria-current={props.selected ? 'page' : undefined}
         >
@@ -1539,7 +1537,7 @@ function ReviewLoopsLayout() {
                         key={item.id}
                         type="button"
                         onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
-                        className={SOCIAL_ROW_CLASS}
+                        className={FEED_ROW_CLASS}
                         aria-current={selectedLoopId === item.id ? 'page' : undefined}
                     >
                         {loopAvatar(item, 44)}
