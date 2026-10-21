@@ -79,6 +79,7 @@ import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary, TaskStatus, TaskView } from '@/types/api'
 import { Badge, DotBadge } from '@/components/ui/badge'
 import { NewTaskForm } from '@/components/tasks/NewTaskForm'
+import { ProgressOrb, type ReportTone } from '@/components/report'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
@@ -943,6 +944,22 @@ function taskRowSubtitle(item: GroupDetail, task: TaskView | undefined, t: Retur
     return [item.group.tag ? `#${item.group.tag}` : null, item.group.goal].filter(Boolean).join(' · ')
 }
 
+/** A running task's ring: acceptance criteria met (after review) or subtasks done (before). */
+function taskProgress(task: TaskView): number {
+    const run = task.run!
+    if (run.review) return task.acceptance.length ? run.review.results.filter((r) => r.status === 'met').length / task.acceptance.length : 0
+    const subtasks = run.subtasks.filter((s) => !s.fix && s.id !== 'merge')
+    return subtasks.length ? subtasks.filter((s) => s.state === 'done').length / subtasks.length : 0
+}
+
+function taskTone(task: TaskView): ReportTone {
+    const run = task.run!
+    if (run.phase === 'accepted') return 'done'
+    if (run.decisions.some((d) => !d.answer) || run.phase === 'reporting') return 'wait'
+    if (run.subtasks.some((s) => s.state === 'stuck' || s.state === 'stopped')) return 'stuck'
+    return 'live'
+}
+
 const TASK_STATUS_BADGE: Record<TaskStatus, 'warning' | 'info' | 'default'> = { guiding: 'warning', active: 'info', done: 'default', abandoned: 'default' }
 
 function GroupRow(props: {
@@ -978,7 +995,11 @@ function GroupRow(props: {
             style={{ WebkitTouchCallout: 'none' }}
             aria-current={props.selected ? 'page' : undefined}
         >
-            <GroupAvatar seed={item.group.id} members={members} size={44} />
+            {props.task?.run && (props.task.status === 'active' || props.task.status === 'done') ? (
+                <ProgressOrb seed={item.group.id} size={44} progress={taskProgress(props.task)} tone={taskTone(props.task)} />
+            ) : (
+                <GroupAvatar seed={item.group.id} members={members} size={44} />
+            )}
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">{item.group.name}</span>
@@ -1230,11 +1251,20 @@ function GroupsLayout() {
             )}
         </div>
     )
+    // A task's header says who is working and when it last changed, like the lead report; a chat its members.
+    const selectedTask = selectedGroup?.group.kind === 'task' ? tasksById.get(selectedGroup.group.id) : undefined
     const groupSubtitle = selectedGroup
-        ? t('groups.info.summary', {
-            n: selectedGroup.members.length,
-            m: membersOf(selectedGroup).filter((session) => session.active).length
-        })
+        ? selectedTask && (selectedTask.status === 'guiding' || selectedTask.run)
+            ? t('taskRun.header', {
+                who: membersOf(selectedGroup).some((session) => session.thinking)
+                    ? t('taskRun.leadWorking')
+                    : selectedTask.run ? t(`taskRun.phase.${selectedTask.run.phase}`) : t('tasks.status.guiding'),
+                time: formatRelativeTime(selectedTask.updatedAt, t) ?? ''
+            })
+            : t('groups.info.summary', {
+                n: selectedGroup.members.length,
+                m: membersOf(selectedGroup).filter((session) => session.active).length
+            })
         : null
     const groupInfoLabel = t('groups.info.title')
 

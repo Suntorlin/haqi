@@ -47,7 +47,7 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         ...run.signals.filter((s) => s.kind !== 'reminded' && s.kind !== 'approval').map((s) => s.text)
     ]
     const workers = run.subtasks.filter((s) => !s.fix)
-    const fixes = run.subtasks.filter((s) => s.fix)
+    const fixes = run.subtasks.filter((s) => s.fix && s.id !== 'merge')
     const notified = run.signals.filter((s) => s.notified).length
     const load = input.load
     const loadLine = load
@@ -87,7 +87,7 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         '',
         '<details><summary>过程</summary>',
         '',
-        ...run.subtasks.map((s) => `- **${s.fix ? '返工 · ' : ''}${s.title}**${s.branch ? `（${s.branch}）` : ''}：${s.summary ?? '没交总结'}`),
+        ...run.subtasks.map((s) => `- **${s.fix && s.id !== 'merge' ? '返工 · ' : ''}${s.title}**${s.branch ? `（${s.branch}）` : ''}：${s.summary ?? '没交总结'}`),
         ...(run.integration?.summary ? [`- **合并**：${run.integration.summary}`] : []),
         '',
         '</details>',

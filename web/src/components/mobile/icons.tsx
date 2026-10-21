@@ -705,6 +705,16 @@ export function WrenchIcon(props: IconProps) {
     )
 }
 
+export function InfoIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5" />
+            <path d="M12 8h.01" />
+        </Svg>
+    )
+}
+
 export function QuestionIcon(props: IconProps) {
     return (
         <Svg {...props} strokeWidth={1.8}>

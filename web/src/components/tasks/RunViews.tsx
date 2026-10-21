@@ -1,0 +1,356 @@
+import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import type { AcceptanceCriterion, TaskDecision, TaskRun, TaskSubtask, TaskView } from '@/types/api'
+import { useTranslation } from '@/lib/use-translation'
+import {
+    Checklist,
+    DecisionCard,
+    DecisionConfirmation,
+    DecisionPeek,
+    ProgressList,
+    ProgressOrb,
+    ReportSummary,
+    RiskNotice,
+    SectionCaption,
+    type CheckItem,
+    type ProgressItem,
+    type ReportStat,
+    type ReportTone
+} from '@/components/report'
+import { BottomSheet } from '@/components/mobile/BottomSheet'
+import { ChevronLeftIcon } from '@/components/mobile/icons'
+import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/InfoTip'
+
+type Translate = ReturnType<typeof useTranslation>['t']
+
+const SUBTASK_TONE: Record<TaskSubtask['state'], ReportTone> = { waiting: 'wait', running: 'live', done: 'done', stuck: 'stuck', stopped: 'stuck' }
+
+export function duration(ms: number, t: Translate): string {
+    const minutes = Math.max(1, Math.round(ms / 60_000))
+    return minutes < 60 ? t('taskRun.minutes', { n: minutes }) : t('taskRun.hours', { h: Math.floor(minutes / 60), m: minutes % 60 })
+}
+
+function clock(at: number): string {
+    return new Date(at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function workers(run: TaskRun): TaskSubtask[] {
+    return run.subtasks.filter((s) => s.id !== 'merge')
+}
+
+/** How far a subtask is, counted in its acceptance criteria: met by review, or all once it reported done. */
+function criteriaDone(run: TaskRun, subtask: TaskSubtask): { done: number; total: number } {
+    const total = Math.max(1, subtask.criteria.length)
+    if (run.review) return { done: subtask.criteria.filter((id) => run.review!.results.some((r) => r.criterionId === id && r.status === 'met')).length, total }
+    return { done: subtask.state === 'done' ? total : 0, total }
+}
+
+function openDecisionOf(run: TaskRun, subtask: TaskSubtask): TaskDecision | undefined {
+    return run.decisions.find((d) => !d.answer && (d.subtaskId === subtask.id || (subtask.sessionId && d.askedBy === subtask.sessionId)))
+}
+
+function subtaskStatus(run: TaskRun, subtask: TaskSubtask, now: number, t: Translate): { text: string; tone: ReportTone } {
+    const waiting = openDecisionOf(run, subtask)
+    if (waiting) return { text: t('taskRun.waitsFor', { what: waiting.question }), tone: 'wait' }
+    if (subtask.state === 'stuck') return { text: t('taskRun.noProgress', { time: duration(now - (subtask.startedAt ?? now), t) }), tone: 'stuck' }
+    if (subtask.state === 'done') return { text: subtask.summary ?? t('taskRun.state.done'), tone: 'done' }
+    return { text: t(`taskRun.state.${subtask.state}`), tone: SUBTASK_TONE[subtask.state] }
+}
+
+/** One acceptance check: its state, trailing text, and the subtask responsible for it. */
+function checkOf(run: TaskRun, criterion: AcceptanceCriterion, t: Translate): CheckItem & { owner: TaskSubtask | undefined } {
+    const owner = workers(run).find((s) => !s.fix && s.criteria.includes(criterion.id))
+    const result = run.review?.results.find((r) => r.criterionId === criterion.id)
+    if (result?.status === 'met') return { title: criterion.text, state: 'done', trailing: owner?.doneAt ? clock(owner.doneAt) : undefined, owner }
+    if (result) return { title: criterion.text, state: 'wait', trailing: t(`taskRun.verdict.${result.status}`), owner }
+    if (owner && openDecisionOf(run, owner)) return { title: criterion.text, state: 'wait', waiting: true, owner }
+    if (owner?.state === 'done') return { title: criterion.text, state: 'live', trailing: t('taskRun.toReview'), owner }
+    if (owner?.state === 'running' || owner?.state === 'stuck') return { title: criterion.text, state: 'live', owner }
+    return { title: criterion.text, state: 'todo', owner }
+}
+
+/** The details behind one acceptance check: how it is verified, what the review saw, who works on it. */
+function CheckSheet(props: { task: TaskView; run: TaskRun; criterion: AcceptanceCriterion | null; onClose: () => void; t: Translate }) {
+    const { t, criterion, run } = props
+    const navigate = useNavigate()
+    const check = criterion ? checkOf(run, criterion, t) : null
+    const result = criterion ? run.review?.results.find((r) => r.criterionId === criterion.id) : undefined
+    const owner = check?.owner
+    const stateLabel = check ? (result ? t(`taskRun.verdict.${result.status}`) : t(`taskRun.check.${check.state}`)) : ''
+    return (
+        <BottomSheet open={criterion !== null} onOpenChange={(open) => { if (!open) props.onClose() }} title={criterion?.text ?? ''}>
+            {criterion && check ? (
+                <div className="space-y-4 px-5 pb-6">
+                    <p className="text-title font-semibold leading-snug text-[var(--social-fg)]">{stateLabel}</p>
+                    {criterion.verify ? (
+                        <div>
+                            <p className="text-caption font-semibold text-[var(--social-fg-muted)]">{t('taskRun.howVerified')}</p>
+                            <p className="mt-1 text-body leading-relaxed text-[var(--social-fg)]">{criterion.verify}</p>
+                        </div>
+                    ) : null}
+                    {result ? (
+                        <div>
+                            <p className="text-caption font-semibold text-[var(--social-fg-muted)]">{t('taskRun.evidence')}</p>
+                            <p className="mt-1 whitespace-pre-line text-body leading-relaxed text-[var(--social-fg)]">{result.evidence}</p>
+                        </div>
+                    ) : null}
+                    {owner ? (
+                        <div className="flex items-center gap-3 border-t border-[var(--social-divider)] pt-4">
+                            <ProgressOrb seed={owner.sessionId ?? owner.id} size={36} progress={criteriaDone(run, owner).done / criteriaDone(run, owner).total} tone={SUBTASK_TONE[owner.state]} />
+                            <span className="min-w-0 flex-1">
+                                <span className="block truncate text-body text-[var(--social-fg)]">{owner.title}</span>
+                                <span className="block truncate text-footnote text-[var(--social-fg-muted)]">{t(`taskRun.state.${owner.state}`)}</span>
+                            </span>
+                            {owner.sessionId ? (
+                                <Button size="sm" variant="secondary" onClick={() => void navigate({ to: '/sessions/$sessionId', params: { sessionId: owner.sessionId! } })}>{t('taskRun.seeProcess')}</Button>
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+            ) : null}
+        </BottomSheet>
+    )
+}
+
+/** Open decisions: the first is open, the rest fold to a line each; "Ask" puts the question into the composer. */
+function Decisions(props: { run: TaskRun; decisions: TaskDecision[]; onAnswer: (id: string, label: string) => void; onAsk: (question: string) => void; now: number; t: Translate }) {
+    const { t } = props
+    const [openId, setOpenId] = useState<string | null>(null)
+    const [confirmed, setConfirmed] = useState<string | null>(null)
+    if (props.decisions.length === 0) return confirmed ? <div className="mx-4"><DecisionConfirmation label={confirmed} /></div> : null
+    const current = props.decisions.find((d) => d.id === openId) ?? props.decisions[0]!
+    const toDecision = (d: TaskDecision) => ({
+        id: d.id,
+        question: d.question,
+        context: d.context ?? undefined,
+        source: {
+            seed: d.askedBy ?? d.id,
+            name: props.run.subtasks.find((s) => s.id === d.subtaskId)?.title ?? t('report.composer.lead'),
+            meta: t('taskRun.waited', { time: duration(props.now - d.askedAt, t) })
+        },
+        options: d.options.map((o) => ({ label: o.label, good: o.good ?? '', cost: o.cost ?? '', recommended: o.label === d.recommended }))
+    })
+    return (
+        <div className="mx-4 flex flex-col gap-2">
+            {confirmed ? <DecisionConfirmation label={confirmed} /> : null}
+            {props.decisions.map((d) => d.id === current.id ? (
+                <DecisionCard
+                    key={d.id}
+                    showSource
+                    decision={toDecision(d)}
+                    onAnswer={(option) => { setConfirmed(option.label); setOpenId(null); props.onAnswer(d.id, option.label) }}
+                    onAsk={() => props.onAsk(d.question)}
+                />
+            ) : (
+                <DecisionPeek key={d.id} decision={toDecision(d)} onOpen={() => setOpenId(d.id)} />
+            ))}
+        </div>
+    )
+}
+
+/** The executor's own summary: three lines, the rest on a tap. */
+function Summary(props: { text: string; t: Translate }) {
+    const [open, setOpen] = useState(false)
+    return (
+        <>
+            <SectionCaption>{props.t('taskRun.summary')}</SectionCaption>
+            <button type="button" onClick={() => setOpen(!open)} className="mx-5 block text-left">
+                <span className={`whitespace-pre-line text-body leading-relaxed text-[var(--social-fg-muted)] ${open ? 'block' : 'line-clamp-3'}`}>{props.text}</span>
+            </button>
+        </>
+    )
+}
+
+/** One subtask: a big progress ring, its checks, its own decisions, and its session. */
+function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubtask; onBack: () => void; onAnswer: (id: string, label: string) => void; onAsk: (question: string) => void; onOpenCheck: (criterion: AcceptanceCriterion) => void; now: number; t: Translate }) {
+    const { run, subtask, t } = props
+    const navigate = useNavigate()
+    const progress = criteriaDone(run, subtask)
+    const status = subtask.state === 'done' && subtask.doneAt
+        ? { text: t('taskRun.doneAt', { time: clock(subtask.doneAt) }), tone: 'done' as ReportTone }
+        : subtaskStatus(run, subtask, props.now, t)
+    const criteria = props.task.acceptance.filter((c) => subtask.criteria.includes(c.id))
+    const decisions = run.decisions.filter((d) => !d.answer && (d.subtaskId === subtask.id || d.askedBy === subtask.sessionId))
+    const used = subtask.startedAt ? duration((subtask.doneAt ?? props.now) - subtask.startedAt, t) : null
+    return (
+        <>
+            <button type="button" onClick={props.onBack} className="flex min-h-11 w-full items-center gap-1 px-4 text-left">
+                <ChevronLeftIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
+                <span className="min-w-0 flex-1">
+                    <span className="block truncate text-body font-semibold text-[var(--social-fg)]">{subtask.title}</span>
+                    {used ? <span className="block text-caption text-[var(--social-fg-muted)]">{t('taskRun.used', { time: used })}{subtask.branch ? ` · ${subtask.branch}` : ''}</span> : null}
+                </span>
+            </button>
+            <div className="flex flex-col items-center px-5 pb-2 pt-6">
+                <ProgressOrb seed={subtask.sessionId ?? subtask.id} size={120} progress={progress.done / progress.total} tone={status.tone} />
+                <p className="mt-4 text-[2.5rem] font-semibold leading-none tabular-nums text-[var(--social-fg)]">
+                    {progress.done}<span className="text-[var(--social-fg-subtle)]"> / {progress.total}</span>
+                </p>
+                <p className="mt-3 flex items-center gap-2 text-body text-[var(--social-fg-muted)]">
+                    {status.tone === 'live' ? <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--social-badge)]" aria-hidden="true" /> : null}
+                    <span className={status.tone === 'wait' || status.tone === 'stuck' ? 'text-[var(--app-badge-warning-text)]' : undefined}>{status.text}</span>
+                </p>
+            </div>
+            {criteria.length > 0 ? (
+                <div className="mx-4 mt-4">
+                    <Checklist items={criteria.map((c) => ({ ...checkOf(run, c, t), onClick: () => props.onOpenCheck(c) }))} />
+                </div>
+            ) : null}
+            {decisions.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskReport.waiting')}</SectionCaption>
+                    <Decisions run={run} decisions={decisions} onAnswer={props.onAnswer} onAsk={props.onAsk} now={props.now} t={t} />
+                </>
+            ) : null}
+            {subtask.summary ? <Summary text={subtask.summary} t={t} /> : null}
+            {subtask.sessionId ? (
+                <div className="mx-4 mt-6 flex justify-center">
+                    <Button variant="secondary" onClick={() => void navigate({ to: '/sessions/$sessionId', params: { sessionId: subtask.sessionId! } })}>{t('taskRun.seeProcess')}</Button>
+                </div>
+            ) : null}
+        </>
+    )
+}
+
+function runHeadline(task: TaskView, run: TaskRun, t: Translate): string {
+    const open = run.decisions.filter((d) => !d.answer).length
+    const list = workers(run).filter((s) => !s.fix)
+    const done = list.filter((s) => s.state === 'done').length
+    const waiting = open > 0 ? t('taskRun.waitingYou', { n: open }) : ''
+    switch (run.phase) {
+        case 'planning': return t('taskRun.planning') + waiting
+        case 'running': return t('taskRun.running', { n: list.length, done }) + waiting
+        case 'integrating': return t('taskRun.integrating') + waiting
+        case 'reviewing': return t('taskRun.reviewing') + waiting
+        case 'fixing': return t('taskRun.fixing', { n: run.review?.results.filter((r) => r.status === 'not_met').length ?? 0 }) + waiting
+        case 'reporting': return run.report?.conclusion ?? t('taskRun.reporting')
+        case 'accepted': return run.report?.conclusion ?? task.goal ?? task.name
+    }
+}
+
+/**
+ * The task after the guide step, following the report prototype: one sentence and three numbers on top, what waits
+ * for the user, every subtask as one progress row, the risks, and the acceptance checks; a subtask opens its own
+ * page, a check opens its details. With a report it is the finished report: conclusion, numbers, checks, risks.
+ */
+export function RunReport(props: {
+    task: TaskView
+    run: TaskRun
+    onAnswer: (decisionId: string, label: string) => void
+    onAsk: (question: string) => void
+}) {
+    const { task, run } = props
+    const { t } = useTranslation()
+    const [subtaskId, setSubtaskId] = useState<string | null>(null)
+    const [checkId, setCheckId] = useState<string | null>(null)
+    const now = Date.now()
+    const startedAt = run.subtasks.reduce((min, s) => Math.min(min, s.startedAt ?? min), task.updatedAt)
+    const open = run.decisions.filter((d) => !d.answer)
+    const answered = run.decisions.filter((d) => d.answer)
+    const stuck = workers(run).filter((s) => s.state === 'stuck' || s.state === 'stopped').length
+    const finished = run.phase === 'reporting' || run.phase === 'accepted'
+    const results = run.review?.results ?? []
+    const met = results.filter((r) => r.status === 'met').length
+    const fixes = run.subtasks.filter((s) => s.fix && s.id !== 'merge').length
+    const risks = [
+        ...(finished ? results.filter((r) => r.status !== 'met').map((r) => `${task.acceptance.find((c) => c.id === r.criterionId)?.text ?? r.criterionId}：${r.evidence}`) : []),
+        ...run.signals.filter((s) => s.kind !== 'reminded' && (!finished || s.kind === 'danger')).map((s) => s.text)
+    ]
+    const stats: ReportStat[] = finished
+        ? [
+            { value: `${met}/${task.acceptance.length}`, label: t('taskRun.stat.met') },
+            { value: String(fixes), label: t('taskRun.stat.fixes') },
+            { value: duration(((run.report?.at ?? now) - startedAt), t), label: t('taskRun.stat.used') }
+        ]
+        : [
+            { value: duration(now - startedAt, t), label: t('taskRun.stat.used') },
+            { value: t('taskRun.count', { n: stuck }), label: t('taskRun.stat.stuck') },
+            { value: t('taskRun.count', { n: open.length }), label: t('taskRun.stat.waiting') }
+        ]
+    const meta = [task.tag ? `#${task.tag}` : null, task.repoPath?.split('/').filter(Boolean).pop(), run.integration?.branch].filter(Boolean).join(' · ')
+    const subtask = subtaskId ? run.subtasks.find((s) => s.id === subtaskId) ?? null : null
+    const check = checkId ? task.acceptance.find((c) => c.id === checkId) ?? null : null
+    const sheet = <CheckSheet task={task} run={run} criterion={check} onClose={() => setCheckId(null)} t={t} />
+
+    if (subtask) {
+        return (
+            <>
+                <span ref={(el) => el?.scrollIntoView({ block: 'start' })} aria-hidden="true" />
+                <SubtaskDetail task={task} run={run} subtask={subtask} now={now} t={t} onBack={() => setSubtaskId(null)} onAnswer={props.onAnswer} onAsk={props.onAsk} onOpenCheck={(c) => setCheckId(c.id)} />
+                {sheet}
+            </>
+        )
+    }
+
+    const items: ProgressItem[] = workers(run).map((s) => {
+        const status = subtaskStatus(run, s, now, t)
+        const progress = criteriaDone(run, s)
+        return {
+            id: s.id, seed: s.sessionId ?? s.id, name: s.title, status: status.text, tone: status.tone, done: progress.done, total: progress.total,
+            when: s.doneAt ? clock(s.doneAt) : undefined, unread: s.state === 'done' && run.phase === 'reporting'
+        }
+    })
+
+    return (
+        <>
+            <ReportSummary headline={runHeadline(task, run, t)} lede={finished ? task.goal ?? undefined : undefined} stats={stats} />
+            {meta || run.report?.shareUrl ? (
+                <p className="mx-5 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-[var(--social-fg-muted)]">
+                    {meta ? <span>{meta}</span> : null}
+                    {run.report?.shareUrl ? (
+                        <a href={run.report.shareUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--social-fg)] underline underline-offset-4">{t('taskRun.fullReport')}</a>
+                    ) : null}
+                </p>
+            ) : null}
+
+            {open.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskReport.waiting')}</SectionCaption>
+                    <Decisions run={run} decisions={open} onAnswer={props.onAnswer} onAsk={props.onAsk} now={now} t={t} />
+                </>
+            ) : null}
+
+            {finished ? null : items.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.progress')}</SectionCaption>
+                    <div className="mx-4"><ProgressList items={items} onOpen={(item) => setSubtaskId(item.id)} /></div>
+                </>
+            ) : null}
+
+            <SectionCaption trailing={finished ? undefined : <InfoTip text={t('taskRun.checksHint')} align="end" />}>{t('taskGuide.criteria')}</SectionCaption>
+            <div className="mx-4">
+                <Checklist items={task.acceptance.map((c) => ({ ...checkOf(run, c, t), onClick: () => setCheckId(c.id) }))} />
+            </div>
+
+            {risks.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.risks')}</SectionCaption>
+                    <div className="mx-4"><RiskNotice risks={risks} /></div>
+                </>
+            ) : null}
+
+            {finished && items.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.progress')}</SectionCaption>
+                    <div className="mx-4"><ProgressList items={items} onOpen={(item) => setSubtaskId(item.id)} /></div>
+                </>
+            ) : null}
+
+            {answered.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.decided')}</SectionCaption>
+                    <div className="mx-4 divide-y divide-[var(--social-divider)] overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                        {answered.map((d) => (
+                            <div key={d.id} className="flex min-h-[52px] items-center gap-3 px-4 py-3">
+                                <span className="min-w-0 flex-1 text-body text-[var(--social-fg)]">{d.question} → {d.answer!.label}</span>
+                                <span className="shrink-0 text-footnote text-[var(--social-fg-subtle)]">{d.answer!.by === 'precedent' ? t('taskRun.byPrecedent') : t('taskRun.byYou')}</span>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            ) : null}
+            {sheet}
+        </>
+    )
+}
