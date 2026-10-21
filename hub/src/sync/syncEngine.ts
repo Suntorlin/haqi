@@ -37,6 +37,8 @@ import {
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession } from '../tasks/taskService'
+import { LoadService } from '../tasks/loadService'
+import { resolveJevApiKey } from '../memory/jev'
 import { configuration } from '../configuration'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
@@ -473,6 +475,7 @@ export class SyncEngine {
     private memoryHarvestKickoff: NodeJS.Timeout | null = null
     private readonly memoryService: MemoryService
     private readonly taskService: TaskService
+    private readonly loadService: LoadService
     private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
 
     constructor(
@@ -519,6 +522,17 @@ export class SyncEngine {
             onChange: (namespace) => this.eventPublisher.emit({ type: 'memories-updated', namespace }),
             notify: async (namespace, notice) => { await this.memoryNotifier?.(namespace, notice) }
         })
+        this.loadService = new LoadService(store, {
+            jevKey: async () => resolveJevApiKey((await this.memoryService.getSettings()).jevApiKey),
+            goals: (namespace) => {
+                const goals = new Map<string, string>()
+                for (const task of this.taskService.list(namespace)) {
+                    if (!task.goal) continue
+                    for (const member of task.members) goals.set(member.sessionId, task.goal)
+                }
+                return goals
+            }
+        })
         this.taskService = new TaskService(store, this.memoryService, {
             planner: {
                 spawnAndPrompt: async (input) => {
@@ -539,7 +553,8 @@ export class SyncEngine {
                 return session ? toTaskSession(session) : null
             },
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
-            changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId })
+            changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
+            load: (namespace, sessionIds, since) => this.loadService.taskLoad(namespace, sessionIds, since)
         })
         if (store.getDatabasePath() !== ':memory:') {
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
@@ -555,6 +570,10 @@ export class SyncEngine {
         return this.taskService
     }
 
+    getLoadService(): LoadService {
+        return this.loadService
+    }
+
     /** The hub hands in push delivery once it exists; the engine is created first. */
     setMemoryNotifier(notifier: (namespace: string, notice: MemoryNotice) => Promise<void>): void {
         this.memoryNotifier = notifier
@@ -564,6 +583,7 @@ export class SyncEngine {
         void this.memoryService.harvestClaude()
             .then(() => this.memoryService.readUserMessages())
             .then(() => this.memoryService.maintain())
+            .then(() => this.loadService.classifyRecent())
             .catch((error: unknown) => {
                 const message = error instanceof Error ? error.message : String(error)
                 console.warn(`[SyncEngine] Memory harvest failed: ${message}`)
