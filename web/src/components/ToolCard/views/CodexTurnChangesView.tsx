@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 type ChangeFile = {
     path: string
@@ -470,7 +471,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+        <Card className="overflow-hidden">
             <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5 text-xs font-semibold text-[var(--social-fg-muted)]">
                 {t('tool.turnChanges.files', { n: files.length })}
             </div>
@@ -505,11 +506,11 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     })}
                 </div>
             )}
-        </div>
+        </Card>
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+        <Card className="overflow-hidden">
             {selectedFile ? (
                 <>
                     <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5">
@@ -548,7 +549,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     </Button>
                 </div>
             ) : null}
-        </div>
+        </Card>
     )
 
     const showTopSummary = !isMobileViewport || mobileView === 'list'

@@ -1,11 +1,12 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
+/** The one card surface: rounded-2xl, hairline border, page background, no shadow (DESIGN.md 2.3 / 2.2b). */
 export const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
     ({ className, ...props }, ref) => (
         <div
             ref={ref}
-            className={cn('rounded-2xl bg-[var(--social-muted)]', className)}
+            className={cn('rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)]', className)}
             {...props}
         />
     )

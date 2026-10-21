@@ -60,6 +60,7 @@ import { getContextBudgetTokens } from '@/chat/modelConfig'
 import { useSemanticZoomController } from '@/vendor/semantic-zoom'
 import { ZOOM_LEVEL_COUNT, ZOOM_REPLY } from '@/components/AssistantChat/chatZoomText'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 type CodexStatusRow = {
     label: string
@@ -1428,7 +1429,7 @@ export function SessionChat(props: {
                     <div className={`relative flex min-h-0 flex-1 flex-col${props.viewMode === 'cli' ? ' cli-session' : ''}`}>
                         {showCodexPlanNotebook && latestCodexPlan ? (
                             <div className="px-3 pt-2">
-                                <div className="mx-auto w-full max-w-content rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3">
+                                <Card className="mx-auto w-full max-w-content p-3">
                                     <div className="flex items-center gap-2">
                                         <span className="text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                             {t('queuePlan.title')}
@@ -1488,7 +1489,7 @@ export function SessionChat(props: {
                                             </div>
                                         </div>
                                     ) : null}
-                                </div>
+                                </Card>
                             </div>
                         ) : null}
 
@@ -1744,9 +1745,9 @@ export function SessionChat(props: {
                             </div>
 
                             {isMcpLoading ? (
-                                <div className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3 text-footnote text-[var(--social-fg-muted)]">
+                                <Card className="p-3 text-footnote text-[var(--social-fg-muted)]">
                                     {t('mcp.dialog.loading')}
-                                </div>
+                                </Card>
                             ) : null}
 
                             {mcpError ? (
@@ -1768,9 +1769,9 @@ export function SessionChat(props: {
                             {mcpServers.length > 0 ? (
                                 <div className="space-y-2">
                                     {mcpServers.map((server) => (
-                                        <div
+                                        <Card
                                             key={`${server.name}:${server.source ?? 'unknown'}`}
-                                            className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-hover)] p-3"
+                                            className="p-3"
                                         >
                                             <div className="flex items-center justify-between gap-2">
                                                 <div className="text-body font-semibold text-[var(--social-fg)]">
@@ -1808,7 +1809,7 @@ export function SessionChat(props: {
                                                     </div>
                                                 ) : null}
                                             </div>
-                                        </div>
+                                        </Card>
                                     ))}
                                 </div>
                             ) : null}
