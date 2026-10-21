@@ -1140,7 +1140,8 @@ export function HappyComposer(props: {
     const showServiceTierSettings = Boolean(onServiceTierChange && serviceTierOptions.length > 0)
     const showSettingsButton = Boolean(showPermissionSettings || showModelSettings || showThinkEffortSettings || showServiceTierSettings)
     const showAbortButton = true
-    const voiceEnabled = Boolean(onVoiceToggle)
+    // One mic per composer: when local dictation is up, the empty-draft action no longer offers the voice call.
+    const voiceEnabled = Boolean(onVoiceToggle) && !dictation
 
     const overlays = suggestions.length > 0 ? (
         <div className="absolute bottom-[100%] mb-2 w-full">
