@@ -18,6 +18,7 @@ import { useTranslation } from '@/lib/use-translation'
 import type { MemoriesResponse, MemoryItem } from '@/types/api'
 import { MemoryDetail, type MemoryEdit } from './MemoryDetail'
 import { actionLabel, evidenceOf, formatWhen, levelLabel, recentRows, scopeLabel, scopesInOrder, sourceLabel, trialLabel, type Level, type Translate } from './model'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const MemoryGraph = lazy(() => import('./MemoryGraph'))
 
@@ -99,10 +100,8 @@ export function MemoryPage() {
     }
 
     const empty = (
-        <div className="space-y-4 rounded-2xl border border-dashed border-[var(--social-border)] px-5 py-8 text-center">
-            <p className="text-body text-[var(--social-fg)]">{t('memoryPage.empty.title')}</p>
-            <p className="text-footnote leading-relaxed text-[var(--social-fg-muted)]">{t('memoryPage.empty.description')}</p>
-            <div className="flex justify-center gap-2">
+        <EmptyState variant="page" title={t('memoryPage.empty.title')} subtitle={t('memoryPage.empty.description')}>
+            <div className="flex flex-wrap justify-center gap-2">
                 <Button variant="secondary" disabled={action.isPending} onClick={() => run(async () => {
                     const result = await api!.importMemoryMd()
                     setNotice(t('memoryPage.notice.imported', { found: result.found, proposed: result.proposed }))
@@ -112,7 +111,7 @@ export function MemoryPage() {
                     setNotice(t('memoryPage.notice.harvested', { checked: result.checked, proposed: result.proposed }))
                 })}>{t('memoryPage.empty.harvest')}</Button>
             </div>
-        </div>
+        </EmptyState>
     )
 
     const recent = () => {
@@ -175,7 +174,7 @@ export function MemoryPage() {
 
     const levelList = (level: Level) => {
         const list = memories.filter((m) => m.level === level)
-        if (list.length === 0) return <p className="px-1 pt-6 text-center text-footnote text-[var(--social-fg-muted)]">{t(`memoryPage.levelEmpty.${level}`)}</p>
+        if (list.length === 0) return <EmptyState title={t(`memoryPage.levelEmpty.${level}`)} />
         return (
             <div className="space-y-6">
                 {scopesInOrder(list).map((scope) => (
@@ -240,7 +239,7 @@ export function MemoryPage() {
         if (hits.isLoading || needle !== search.trim()) return <p className="pt-6 text-center text-footnote text-[var(--social-fg-muted)]">{t('memoryPage.search.searching')}</p>
         if (hits.error) return <p className="pt-6 text-center text-footnote text-[var(--social-danger)]">{t('memoryPage.search.failed', { error: hits.error instanceof Error ? hits.error.message : t('memoryPage.unknownError') })}</p>
         const list = hits.data ?? []
-        if (list.length === 0) return <p className="pt-6 text-center text-footnote text-[var(--social-fg-muted)]">{t('memoryPage.search.none')}</p>
+        if (list.length === 0) return <EmptyState title={t('memoryPage.search.none')} />
         return (
             <ListGroup title={t('memoryPage.search.resultsTitle', { count: list.length })}>
                 {list.map((m) => (

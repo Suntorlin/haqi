@@ -73,6 +73,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary } from '@/types/api'
@@ -184,20 +186,17 @@ function DesktopSplitView(props: { list: ReactNode; listVisible: boolean; childr
     )
 }
 
+/** Desktop detail pane with nothing selected. */
 function DesktopEmptyState(props: { title: string; subtitle?: string; action?: { label: string; onClick: () => void } }) {
     return (
-        <div className="flex h-full flex-col items-center justify-center px-8 text-center">
-            <Orb seed="haqi" size={76} />
-            <div className="mt-5 text-headline font-semibold tracking-[-0.01em] text-[var(--social-fg)]">{props.title}</div>
-            {props.subtitle ? (
-                <div className="mt-1.5 max-w-sm text-footnote leading-relaxed text-[var(--social-fg-muted)]">{props.subtitle}</div>
-            ) : null}
-            {props.action ? (
-                <Button type="button" onClick={props.action.onClick} className="mt-5">
-                    {props.action.label}
-                </Button>
-            ) : null}
-        </div>
+        <EmptyState
+            variant="page"
+            className="h-full py-0"
+            illustration={<Orb seed="haqi" size={76} />}
+            title={props.title}
+            subtitle={props.subtitle}
+            action={props.action}
+        />
     )
 }
 
@@ -595,7 +594,11 @@ function SessionsPage() {
             onSelect={selectSession}
             api={api}
             listHeader={listHeader}
-            emptyLabel={isLoading ? t('mobile.feed.loading') : t('mobile.feed.empty')}
+            empty={isLoading ? (
+                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
+            ) : (
+                <EmptyState variant="page" title={t('mobile.feed.empty')} />
+            )}
         />
     ) : (
         <SessionList
@@ -970,9 +973,6 @@ function NewSessionPage() {
     )
 }
 
-/** Shared look of list rows (sessions, groups, loops): full-bleed on phones, inset pills on desktop. */
-const SOCIAL_ROW_CLASS = 'social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3'
-
 function GroupRow(props: {
     item: GroupDetail
     members: SessionSummary[]
@@ -997,7 +997,7 @@ function GroupRow(props: {
         <button
             type="button"
             {...longPressHandlers}
-            className={SOCIAL_ROW_CLASS}
+            className={FEED_ROW_CLASS}
             style={{ WebkitTouchCallout: 'none' }}
             aria-current={props.selected ? 'page' : undefined}
         >
@@ -1287,7 +1287,7 @@ function GroupsLayout() {
             {isLoading ? (
                 <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
             ) : visibleGroups.length === 0 ? (
-                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.groups.empty')}</div>
+                <EmptyState variant="page" title={t('mobile.groups.empty')} />
             ) : (
                 visibleGroups.map((item) => (
                     <GroupRow
@@ -1530,14 +1530,14 @@ function ReviewLoopsLayout() {
             {isLoading ? (
                 <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
             ) : visibleLoops.length === 0 ? (
-                <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.loops.empty')}</div>
+                <EmptyState variant="page" title={t('mobile.loops.empty')} />
             ) : (
                 visibleLoops.map((item) => (
                     <button
                         key={item.id}
                         type="button"
                         onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
-                        className={SOCIAL_ROW_CLASS}
+                        className={FEED_ROW_CLASS}
                         aria-current={selectedLoopId === item.id ? 'page' : undefined}
                     >
                         {loopAvatar(item, 44)}

@@ -210,18 +210,23 @@ function CheckIcon() {
     )
 }
 
-/** Single-choice row: tapping applies the value right away and moves the check mark. */
+/**
+ * Choice row with a trailing check mark. Single choice by default: tapping applies the value right
+ * away and moves the check mark. `multiple`: a checkbox row, each tap toggles only this row.
+ */
 export function SheetOption(props: {
     label: ReactNode
     description?: ReactNode
     selected: boolean
     disabled?: boolean
+    /** Checkbox row (several rows can be selected) instead of a single-choice radio row. */
+    multiple?: boolean
     onSelect: () => void
 }) {
     return (
         <button
             type="button"
-            role="menuitemradio"
+            role={props.multiple ? 'checkbox' : 'menuitemradio'}
             aria-checked={props.selected}
             disabled={props.disabled}
             onClick={props.onSelect}

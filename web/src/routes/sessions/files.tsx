@@ -16,6 +16,9 @@ import { SubPageHeader, SubPageHeaderButton } from '@/components/mobile/SubPageH
 import { Badge } from '@/components/ui/badge'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { ListRow } from '@/components/ui/ListRow'
+import { cn } from '@/lib/utils'
 
 function RefreshIcon(props: { className?: string }) {
     return (
@@ -149,26 +152,27 @@ function GitFileRow(props: {
     const subtitle = props.file.filePath || 'project root'
 
     return (
-        <button
-            type="button"
-            onClick={props.onOpen}
-            className={`flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors ${props.showDivider ? 'border-b border-[var(--social-divider)]' : ''}`}
-        >
-            <FileIcon fileName={props.file.fileName} size={22} />
-            <div className="min-w-0 flex-1">
-                <div className="truncate text-body">{props.file.fileName}</div>
-                <div className="min-w-0 flex items-center gap-1 text-caption text-[var(--social-fg-muted)]">
+        <ListRow
+            icon={<FileIcon fileName={props.file.fileName} size={22} />}
+            title={props.file.fileName}
+            subtitle={(
+                <span className="flex min-w-0 items-center gap-1">
                     {props.file.repo ? (
                         <Badge className="shrink-0">{props.file.repo}</Badge>
                     ) : null}
                     <span className="truncate">{subtitle}</span>
-                </div>
-            </div>
-            <div className="flex items-center gap-2">
-                <LineChanges added={props.file.linesAdded} removed={props.file.linesRemoved} />
-                <StatusBadge status={props.file.status} />
-            </div>
-        </button>
+                </span>
+            )}
+            trailing={(
+                <span className="flex items-center gap-2">
+                    <LineChanges added={props.file.linesAdded} removed={props.file.linesRemoved} />
+                    <StatusBadge status={props.file.status} />
+                </span>
+            )}
+            onClick={props.onOpen}
+            chevron={false}
+            className={cn('px-3', props.showDivider && 'border-b border-[var(--social-divider)]')}
+        />
     )
 }
 
@@ -183,17 +187,14 @@ function SearchResultRow(props: {
         : <FolderIcon className="text-[var(--social-fg)]" />
 
     return (
-        <button
-            type="button"
+        <ListRow
+            icon={icon}
+            title={props.file.fileName}
+            subtitle={subtitle}
             onClick={props.onOpen}
-            className={`flex min-h-[52px] w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors ${props.showDivider ? 'border-b border-[var(--social-divider)]' : ''}`}
-        >
-            {icon}
-            <div className="min-w-0 flex-1">
-                <div className="truncate text-body">{props.file.fileName}</div>
-                <div className="truncate text-caption text-[var(--social-fg-muted)]">{subtitle}</div>
-            </div>
-        </button>
+            chevron={false}
+            className={cn('px-3', props.showDivider && 'border-b border-[var(--social-divider)]')}
+        />
     )
 }
 
@@ -427,9 +428,7 @@ export default function FilesPage() {
                         ) : searchResults.error ? (
                             <div className="p-6 text-footnote text-[var(--social-fg-muted)]">{searchResults.error}</div>
                         ) : searchResults.files.length === 0 ? (
-                            <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
-                                {searchQuery ? t('files.empty.search') : t('files.empty.project')}
-                            </div>
+                            <EmptyState title={searchQuery ? t('files.empty.search') : t('files.empty.project')} />
                         ) : (
                             <div className="border-t border-[var(--social-divider)]">
                                 {searchResults.files.map((file, index) => (
@@ -518,9 +517,7 @@ export default function FilesPage() {
                             ) : null}
 
                             {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
-                                <div className="p-6 text-footnote text-[var(--social-fg-muted)]">
-                                    {t('files.noChanges')}
-                                </div>
+                                <EmptyState title={t('files.noChanges')} />
                             ) : null}
                         </div>
                     )}

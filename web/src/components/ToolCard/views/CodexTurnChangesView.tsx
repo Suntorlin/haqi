@@ -6,6 +6,8 @@ import { resolveDisplayPath } from '@/utils/path'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/lib/use-translation'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 type ChangeFile = {
     path: string
@@ -469,14 +471,12 @@ export function CodexTurnChangesView(props: ToolViewProps) {
     }, [clampListWidth])
 
     const renderFileList = () => (
-        <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+        <Card className="overflow-hidden">
             <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5 text-xs font-semibold text-[var(--social-fg-muted)]">
                 {t('tool.turnChanges.files', { n: files.length })}
             </div>
             {files.length === 0 ? (
-                <div className="px-2 py-3 text-xs text-[var(--social-fg-muted)]">
-                    {t('tool.turnChanges.empty')}
-                </div>
+                <EmptyState title={t('tool.turnChanges.empty')} />
             ) : (
                 <div className="max-h-72 overflow-y-auto md:max-h-[28rem]">
                     {files.map((file) => {
@@ -506,11 +506,11 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     })}
                 </div>
             )}
-        </div>
+        </Card>
     )
 
     const renderDiffPanel = (mobile: boolean) => (
-        <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+        <Card className="overflow-hidden">
             {selectedFile ? (
                 <>
                     <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1.5">
@@ -539,9 +539,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     </div>
                 </>
             ) : (
-                <div className="px-2 py-3 text-xs text-[var(--social-fg-muted)]">
-                    {t('tool.turnChanges.noSelection')}
-                </div>
+                <EmptyState title={t('tool.turnChanges.noSelection')} />
             )}
 
             {mobile ? (
@@ -551,7 +549,7 @@ export function CodexTurnChangesView(props: ToolViewProps) {
                     </Button>
                 </div>
             ) : null}
-        </div>
+        </Card>
     )
 
     const showTopSummary = !isMobileViewport || mobileView === 'list'

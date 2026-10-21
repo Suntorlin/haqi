@@ -6,6 +6,7 @@ import { permissionModeText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/IconButton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -225,7 +226,7 @@ export function QueueSheet(props: {
                         onRemove={props.onRemove}
                     />
                 )) : (
-                    <div className="px-4 py-3 text-body text-[var(--social-fg-muted)]">{t('queue.dialog.empty')}</div>
+                    <EmptyState title={t('queue.dialog.empty')} />
                 )}
             </SheetSection>
             <SheetSection>

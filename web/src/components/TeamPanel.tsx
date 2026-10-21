@@ -5,6 +5,7 @@ import { FormField, SelectInput } from '@/components/ui/FormControls'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -235,7 +236,7 @@ export function TeamPanel(props: {
             </button>
 
             {expanded && (
-                <div className="mt-1.5 flex flex-col gap-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
+                <Card className="mt-1.5 flex flex-col gap-4 p-4">
                     {teamState?.description && (
                         <p className="text-footnote text-[var(--social-fg-muted)]">{teamState.description}</p>
                     )}
@@ -358,7 +359,7 @@ export function TeamPanel(props: {
                     )}
 
                     {props.canControl && pendingControl && teamState ? (
-                        <div className="flex flex-col gap-3 rounded-2xl border border-[var(--social-border)] p-4">
+                        <Card className="flex flex-col gap-3 p-4">
                             <div>
                                 <div className="text-body font-semibold text-[var(--social-fg)]">
                                     {actionLabel(pendingControl.action, t)}
@@ -466,7 +467,7 @@ export function TeamPanel(props: {
                                     {isSubmitting ? t('button.sending') : t('team.sendToLead')}
                                 </Button>
                             </div>
-                        </div>
+                        </Card>
                     ) : null}
 
                     {messages.length > 0 && (
@@ -484,7 +485,7 @@ export function TeamPanel(props: {
                             </div>
                         </div>
                     )}
-                </div>
+                </Card>
             )}
         </div>
     )

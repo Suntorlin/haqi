@@ -26,6 +26,7 @@ import { layoutGraph, lineage, NODE_H, NODE_W, type Point, type ScopeBox } from 
 import { LevelIcon } from './MemoryDetail'
 import type { MemoryItem, MemoryLink } from '@/types/api'
 import { levelLabel, scopeLabel, shortLabel } from './model'
+import { Card } from '@/components/ui/card'
 
 type MemoryNodeData = { memory: MemoryItem; dim: boolean; focus: boolean; tip: boolean }
 type BoxNodeData = { box: ScopeBox }
@@ -287,9 +288,9 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
 export default function MemoryGraph(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpen: (id: string) => void; mobile?: boolean }) {
     return (
         <ReactFlowProvider>
-            <div className="h-full w-full overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)]">
+            <Card className="h-full w-full overflow-hidden">
                 <GraphCanvas memories={props.memories} links={props.links} onOpen={props.onOpen} mobile={props.mobile} />
-            </div>
+            </Card>
         </ReactFlowProvider>
     )
 }

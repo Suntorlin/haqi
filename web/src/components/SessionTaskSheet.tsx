@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { SessionTask } from '@/types/api'
-import { BottomSheet, SheetNote, SheetSection } from '@/components/mobile/BottomSheet'
+import { BottomSheet, SheetNote, SheetOption, SheetSection } from '@/components/mobile/BottomSheet'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -48,30 +48,17 @@ export function SessionTaskSheet(props: {
                             {tasks.map((task) => {
                                 const linked = props.taskIds.includes(task.id)
                                 return (
-                                    <button
+                                    <SheetOption
                                         key={task.id}
-                                        type="button"
-                                        role="checkbox"
-                                        aria-checked={linked}
-                                        onClick={() => props.onToggle(task, !linked)}
-                                        className="social-pressable flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left [&+&]:border-t [&+&]:border-[var(--social-border)]"
-                                    >
-                                        <span className={cn('min-w-0 flex-1 truncate text-body', linked ? 'font-semibold' : '', task.status === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
-                                            {task.title}
-                                        </span>
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            className={cn('h-[18px] w-[18px] shrink-0 transition-opacity', linked ? 'opacity-100' : 'opacity-0')}
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2.4"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            aria-hidden="true"
-                                        >
-                                            <polyline points="5 12.5 10 17.5 19 7" />
-                                        </svg>
-                                    </button>
+                                        multiple
+                                        selected={linked}
+                                        onSelect={() => props.onToggle(task, !linked)}
+                                        label={(
+                                            <span className={cn('block truncate', task.status === 'done' ? 'text-[var(--social-fg-muted)]' : null)}>
+                                                {task.title}
+                                            </span>
+                                        )}
+                                    />
                                 )
                             })}
                         </SheetSection>

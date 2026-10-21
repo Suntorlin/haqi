@@ -1,25 +1,41 @@
-import type { ReactNode } from 'react'
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
+import { CountBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
-/** Square-ish quick action (icon over a caption) for the grid at the top of the session info sheet. */
-export function ActionTile(props: {
+/**
+ * Square-ish quick action (icon over a caption) for action grids: the top of the session info
+ * card and the composer "+" panel. Without `onClick` (and no `disabled` given) the tile is disabled.
+ * Extra button props pass through, so a primitive with `asChild` can render it.
+ */
+export function ActionTile({
+    icon,
+    label,
+    badge,
+    className,
+    disabled,
+    ref,
+    ...rest
+}: Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children'> & {
     icon: ReactNode
     label: string
-    onClick?: () => void
-    className?: string
+    /** Count shown as a red badge on the top-right corner (hidden when 0). */
+    badge?: number
+    ref?: Ref<HTMLButtonElement>
 }) {
     return (
         <button
+            ref={ref}
             type="button"
-            disabled={!props.onClick}
-            onClick={props.onClick}
+            {...rest}
+            disabled={disabled ?? !rest.onClick}
             className={cn(
-                'flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[var(--social-border)] px-1 py-3 text-caption text-[var(--social-fg)] transition-[background-color,transform] duration-150 hover:bg-[var(--social-hover)] active:scale-[0.98] active:bg-[var(--social-muted)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
-                props.className
+                'relative flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-[var(--social-border)] px-1 py-3 text-caption text-[var(--social-fg)] transition-[background-color,transform] duration-150 hover:bg-[var(--social-hover)] active:scale-[0.98] active:bg-[var(--social-muted)] disabled:pointer-events-none disabled:opacity-40 [-webkit-tap-highlight-color:transparent]',
+                className
             )}
         >
-            {props.icon}
-            <span className="max-w-full truncate">{props.label}</span>
+            {icon}
+            <span className="line-clamp-2 max-w-full break-words text-center leading-tight">{label}</span>
+            {badge ? <CountBadge count={badge} className="absolute -right-1 -top-1" /> : null}
         </button>
     )
 }
