@@ -14,7 +14,7 @@ import { GroupStore } from './groupStore'
 import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
-import { MEMORY_SCHEMA_SQL } from './memories'
+import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
 import { MessageClassStore } from './messageClassStore'
 import { TaskEventStore } from './taskEventStore'
 import { createConversationTurnsSchema } from './turns'
@@ -174,6 +174,7 @@ export class Store {
         this.ensureRequiredTablesPresent()
         this.ensureGroupMessageColumnsPresent()
         this.ensureGroupColumnsPresent()
+        this.ensureMemoryColumnsPresent()
         this.mergeSessionTasksIntoGroups()
     }
 
@@ -1336,6 +1337,13 @@ export class Store {
         } catch (error) {
             this.db.exec('ROLLBACK')
             throw error
+        }
+    }
+
+    private ensureMemoryColumnsPresent(): void {
+        for (const { table, column, type } of MEMORY_ADDED_COLUMNS) {
+            const columns = new Set((this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((row) => row.name))
+            if (columns.size > 0 && !columns.has(column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
         }
     }
 

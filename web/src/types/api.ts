@@ -526,11 +526,30 @@ export type MemoriesResponse = {
     recent: MemoryEvent[]
     /** For memories on trial: mentions in the last 30 days and when it last came up. */
     trial: Record<string, { recent: number; lastAt: number }>
+    /** Merges that can be undone, by the memory they went into. */
+    merges: Record<string, MemoryMerge>
     stats: { addedToday: number; skippedToday: number; skippedReasons: Record<string, number>; judged: number; corrected: number; costTodayUsd: number }
     settings: MemoryCaptureSettings & { jevReady: boolean; knownProjects: Array<{ name: string; path: string | null; sessions: number }> }
 }
 
 export type MemoryHit = MemoryItem & { score: number }
+
+/** A memory that may be the same as another: `same` is Jev's yes, null when Jev was not asked. */
+export type MemoryRelatedHit = MemoryHit & { same: number | null }
+
+export type MemoryMerge = { eventId: string; createdAt: number; drops: Array<{ id: string; text: string }> }
+
+/** What merging would give: the memory that stays and the text written again (`rewritten` false: its own text). */
+export type MemoryMergePreview = {
+    keepId: string
+    text: string
+    rewritten: boolean
+    level: MemoryLevel
+    scope: string
+    status: MemoryItem['status']
+    support: number
+    costUsd: number
+}
 
 export type MemoryMaintainResult = { moved: number; embedded: number; merged: number; promoted: number; expired: number; offered: number; costUsd: number }
 

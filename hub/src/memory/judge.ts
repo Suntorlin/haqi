@@ -5,8 +5,11 @@ export type MemoryStatus = 'active' | 'pending' | 'candidate' | 'archived'
 
 export const LEVEL_RANK: Record<MemoryLevel, number> = { fact: 0, experience: 1, principle: 2 }
 
-/** Thresholds of the rule: below keepMin a candidate is not kept; Jev must be sure (>= SURE) about level and scope or it says so in the reason. */
-export const THRESHOLDS = { secret: 0.5, keepMin: 0.6, writtenKeepMin: 0.3, sure: 0.6, match: 0.8 } as const
+/**
+ * Thresholds of the rule: below keepMin a candidate is not kept; Jev must be sure (>= SURE) about level and scope or it says so in the reason.
+ * Two memories are merged without the user at `match`; between `maybe` and `match` the user is asked.
+ */
+export const THRESHOLDS = { secret: 0.5, keepMin: 0.6, writtenKeepMin: 0.3, sure: 0.6, match: 0.8, maybe: 0.4 } as const
 
 /**
  * Where a candidate comes from, which decides how far it can go on its own:
@@ -92,6 +95,25 @@ export function matchQuestion(similar: Array<{ id: string; text: string }>): Jev
         instructions: 'Which entry is about the same rule, lesson or fact as `candidate`? Two notes about the same topic that say different things do not count.',
         criteria
     }
+}
+
+/**
+ * "Is this entry the same memory as `candidate`?" as one yes/no per entry (keys `same0`, `same1`, ...),
+ * so two twins of `candidate` do not split one answer between them.
+ */
+export function sameQuestions(entries: Array<{ text: string }>): Record<string, JevQuestion> {
+    const questions: Record<string, JevQuestion> = {}
+    entries.forEach((entry, index) => {
+        questions[`same${index}`] = {
+            type: 'noul',
+            instructions: { entry: entry.text, question: 'Are `entry` and `candidate` notes about the same rule, lesson or fact, so that one note could replace both?' },
+            criteria: {
+                true: 'Yes: they say the same thing, maybe in other words or with more or fewer details.',
+                false: 'No: they are about different things, or about the same topic but say different things.'
+            }
+        }
+    })
+    return questions
 }
 
 export type JevVerdict = {

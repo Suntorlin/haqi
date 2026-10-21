@@ -13,10 +13,21 @@ function fakeVector(text: string): number[] {
     return [...TOPICS.map((words) => (words.some((word) => text.includes(word)) ? 1 : 0)), 0.01]
 }
 
-/** A fake Jev: answers by keywords in the candidate, and matches anything containing "备份" or "推送". Embedding requests get fake vectors. */
+const topicOf = (text: string) => TOPICS.findIndex((words) => words.some((word) => text.includes(word)))
+
+/**
+ * A fake Jev: answers by keywords in the candidate, and matches anything containing "备份" or "推送"; "the same memory?"
+ * is yes when both share a topic word. The chat model joins merged notes with " / ". Embedding requests get fake vectors.
+ */
 function fakeJev(calls: string[]): typeof fetch {
     return (async (url: string | URL | Request, init?: RequestInit) => {
         if (String(url).endsWith('/chat/completions')) {
+            const content = (JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> }).messages[1]!.content
+            if (content.startsWith('notes:')) {
+                const notes = content.split('\n\n')[0]!.split('\n').slice(1).map((line) => line.replace(/^\d+\. /, ''))
+                calls.push(`rewrite:${notes.length}`)
+                return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ text: notes.join(' / ') }) } }], usage: { cost: 0.0002 } }), { status: 200 })
+            }
             const message = (JSON.parse(String(init?.body)) as { messages: Array<{ content: string }> }).messages[1]!.content.split('message:\n')[1]!.split('\n\nWrite every')[0]!
             const rules = message.includes('以后') ? [{ text: `长期规则：${message.replace('以后', '')}`, quote: message }] : []
             return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ rules }) } }], usage: { cost: 0.0004 } }), { status: 200 })
@@ -32,6 +43,17 @@ function fakeJev(calls: string[]): typeof fetch {
             return new Response(JSON.stringify({ answers: { lasting: { type: 'noul', noul: yes } }, usage: { cost: 0.00005 }, model: 'jev-test' }), { status: 200 })
         }
         const text = body.state.candidate
+        const same = Object.keys(body.questions).filter((key) => key.startsWith('same'))
+        if (same.length > 0) {
+            calls.push(`same:${text}`)
+            const answers = Object.fromEntries(same.map((key) => {
+                const entry = (body.questions[key] as unknown as { instructions: { entry: string } }).instructions.entry
+                // "大概" (roughly) in either note makes Jev unsure: the user is asked, nothing merges by itself.
+                const yes = topicOf(text) < 0 || topicOf(text) !== topicOf(entry) ? 0.05 : text.includes('大概') || entry.includes('大概') ? 0.6 : 0.95
+                return [key, { type: 'noul', noul: yes }]
+            }))
+            return new Response(JSON.stringify({ answers, usage: { cost: 0.00005 }, model: 'jev-test' }), { status: 200 })
+        }
         calls.push(text)
         const level = text.includes('一律') ? 'principle' : text.includes('10-') ? 'fact' : 'experience'
         const matchId = Object.keys(body.questions.match?.criteria ?? {}).find((id) => id !== 'none' && (text.includes('备份') || text.includes('推送')))
@@ -217,9 +239,10 @@ describe('MemoryService.propose', () => {
         db.close()
     })
 
-    it('merges duplicates written in other words and finds memories by meaning', async () => {
+    it('merges duplicates written in other words, asks Jev once per neighbourhood, and finds memories by meaning', async () => {
         const store = new Store(':memory:')
-        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: fakeJev([]) })
+        const calls: string[] = []
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: fakeJev(calls) })
         const insert = (text: string, status: 'active' | 'candidate', scope: string) => store.memories.insert({
             namespace: 'default', text, level: 'experience', scope, status, reason: null, source: status === 'active' ? 'import' : 'claude_auto', sourceLabel: null,
             sessionId: null, said: false, support: 1, jev: null, overridden: null, replaces: null
@@ -227,14 +250,100 @@ describe('MemoryService.propose', () => {
         const kept = insert('禁止自动 push 到远程分支', 'active', '')
         const twin = insert('修复只本地提交，不要自己推送 push', 'candidate', 'haqi')
         const other = insert('回复一律用中文', 'active', '')
+        // The offer to make it a principle is the same text on purpose; it is not a duplicate.
+        const offer = store.memories.insert({ ...store.memories.get(kept.id, 'default')!, level: 'principle', status: 'pending', replaces: kept.id })
 
-        expect(await service.maintain('default')).toMatchObject({ embedded: 3, merged: 1 })
-        expect(store.memories.get(kept.id, 'default')).toMatchObject({ status: 'active', support: 2, scope: '' })
+        expect(await service.maintain('default')).toMatchObject({ embedded: 4, merged: 1 })
+        expect(store.memories.get(offer.id, 'default')?.status).toBe('pending')
+        // The agent's twin is not approved, so the user's text stays as it was.
+        expect(store.memories.get(kept.id, 'default')).toMatchObject({ status: 'active', support: 2, scope: '', text: '禁止自动 push 到远程分支' })
         expect(store.memories.get(twin.id, 'default')?.status).toBe('archived')
         expect(store.memories.get(other.id, 'default')?.status).toBe('active')
+        expect(calls.filter((call) => call.startsWith('rewrite'))).toEqual([])
 
-        expect((await service.search('default', '能不能推送')).map((hit) => hit.memory.id)).toEqual([kept.id])
+        // Nothing changed around any memory: Jev is not asked again.
+        calls.length = 0
+        await service.maintain('default')
+        expect(calls.filter((call) => call.startsWith('same'))).toEqual([])
+
+        expect((await service.search('default', '能不能推送')).map((hit) => hit.memory.id).sort()).toEqual([kept.id, offer.id].sort())
         expect((await service.search('default', '中文')).map((hit) => hit.memory.id)).toEqual([other.id])
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
+    it('merges what the user picks into one written again, and undoes it', async () => {
+        const store = new Store(':memory:')
+        const calls: string[] = []
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: fakeJev(calls) })
+        const insert = (text: string, status: 'active' | 'pending' | 'candidate', level: 'fact' | 'experience' | 'principle', scope: string) => store.memories.insert({
+            namespace: 'default', text, level, scope, status, reason: status === 'pending' ? '你说过' : null, source: 'import', sourceLabel: null,
+            sessionId: null, said: status !== 'candidate', support: 2, jev: null, overridden: null, replaces: null
+        })
+        const a = insert('发布前先备份 dist', 'active', 'principle', 'haqi')
+        const b = insert('备份大概放在 ~/.hapi/backups', 'pending', 'experience', '')
+        const c = insert('10-20 大概备份过一次', 'candidate', 'fact', 'haqi')
+        const unrelated = insert('回复一律用中文', 'active', 'principle', '')
+        store.memories.link('default', c.id, b.id)
+        // Jev is unsure about each pair, so housekeeping merges nothing.
+        expect(await service.maintain('default')).toMatchObject({ merged: 0 })
+
+        // Jev keeps only the ones that may be the same.
+        expect((await service.related('default', a.id)).map((hit) => hit.memory.id).sort()).toEqual([b.id, c.id].sort())
+
+        const preview = await service.previewMerge('default', [b.id, a.id, c.id])
+        expect(preview).toMatchObject({ keepId: a.id, rewritten: true, level: 'principle', scope: '', status: 'active', support: 6 })
+        expect(preview!.text).toContain('备份大概放在 ~/.hapi/backups')
+        expect(store.memories.get(b.id, 'default')?.status).toBe('pending')
+
+        const merged = await service.mergeMany('default', [b.id, a.id, c.id], '发布前先备份 dist，备份放在 ~/.hapi/backups')
+        expect(merged!.memory).toMatchObject({ id: a.id, text: '发布前先备份 dist，备份放在 ~/.hapi/backups', support: 6, scope: '', status: 'active', version: 2 })
+        expect([b.id, c.id].map((id) => store.memories.get(id, 'default')?.status)).toEqual(['archived', 'archived'])
+        expect(store.memories.links('default').map((l) => [l.fromId, l.toId])).toContainEqual([c.id, b.id])
+        expect(service.undoableMerges('default')[a.id]?.drops.map((d) => d.id).sort()).toEqual([b.id, c.id].sort())
+
+        expect(service.undoMerge('default', merged!.eventId)).toMatchObject({ id: a.id, text: '发布前先备份 dist', support: 2, scope: 'haqi', status: 'active' })
+        expect(store.memories.get(b.id, 'default')).toMatchObject({ status: 'pending', reason: '你说过' })
+        expect(store.memories.get(c.id, 'default')?.status).toBe('candidate')
+        expect(store.memories.links('default').map((l) => [l.fromId, l.toId])).toEqual([[c.id, b.id]])
+        expect(service.undoableMerges('default')).toEqual({})
+        expect(service.undoMerge('default', merged!.eventId)).toBeNull()
+
+        // Without a text from the preview, the merge writes one itself.
+        calls.length = 0
+        const again = await service.mergeMany('default', [a.id, b.id])
+        expect(again!.memory.text).toBe('发布前先备份 dist / 备份大概放在 ~/.hapi/backups')
+        expect(calls).toContain('rewrite:2')
+        expect(await service.mergeMany('default', [a.id, b.id])).toBeNull()
+
+        // Merges stack: only the newest one into a memory can be undone, so nothing after it is thrown away.
+        const third = await service.mergeMany('default', [a.id, c.id], '发布前先备份 dist，10-20 备份过')
+        expect(service.undoMerge('default', again!.eventId)).toBeNull()
+        expect(service.undoMerge('default', third!.eventId)?.text).toBe('发布前先备份 dist / 备份大概放在 ~/.hapi/backups')
+        expect(store.memories.get(c.id, 'default')?.status).toBe('candidate')
+        expect(service.undoMerge('default', again!.eventId)).toMatchObject({ text: '发布前先备份 dist', support: 2 })
+
+        expect(service.archiveMany('default', [c.id, unrelated.id, b.id])).toBe(3)
+        expect(store.memories.list('default').map((m) => m.id)).toEqual([a.id])
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
+    it('stops checking for duplicates after the first batch when Jev is down', async () => {
+        const store = new Store(':memory:')
+        let jevCalls = 0
+        const working = fakeJev([])
+        const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
+            if (String(url).endsWith('/systemone')) {
+                jevCalls += 1
+                return new Response('down', { status: 503 })
+            }
+            return await working(url, init)
+        }) as typeof fetch
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn })
+        for (let i = 0; i < 20; i++) {
+            store.memories.insert({ namespace: 'default', text: `不要自己推送 ${i}`, level: 'experience', scope: '', status: 'active', reason: null, source: 'import', sourceLabel: null, sessionId: null, said: false, support: 1, jev: null, overridden: null, replaces: null })
+        }
+        expect(await service.maintain('default')).toMatchObject({ embedded: 20, merged: 0 })
+        expect(jevCalls).toBe(6)
         ;(store as unknown as { db: Database }).db.close()
     })
 
