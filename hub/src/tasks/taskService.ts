@@ -32,7 +32,7 @@ export type TaskServiceHost = {
     /** Called after a task changed. */
     changed: (namespace: string, taskId: string) => void
     /** Posts a system line to the task group's timeline, where the user follows the guide step. */
-    timeline?: (namespace: string, taskId: string, text: string) => void
+    timeline?: (namespace: string, taskId: string, text: string, extra?: { report?: { markdown: string } }) => void
     /** Stops a session that is no longer needed (the planner after the guide step). Its history stays. */
     stopSession?: (namespace: string, sessionId: string) => Promise<void>
     /** How often the user stepped in, per task; null until messages are classified. */
@@ -68,7 +68,7 @@ export class TaskService {
         this.planner = new Planner(host.planner)
         this.runs = host.run ? new RunService(store, this.kernel, memory, {
             ...host.run,
-            timeline: (namespace, taskId, text) => host.timeline?.(namespace, taskId, text),
+            timeline: (namespace, taskId, text, extra) => host.timeline?.(namespace, taskId, text, extra),
             stopSession: async (namespace, sessionId) => { await host.stopSession?.(namespace, sessionId) },
             approve: host.run.approve ?? (async () => {}),
             load: (namespace, sessionIds, since) => host.load?.(namespace, sessionIds, since) ?? null

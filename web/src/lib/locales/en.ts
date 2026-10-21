@@ -127,6 +127,8 @@ export default {
   'taskRun.byPrecedent': 'By your earlier choice',
   'taskRun.byYou': 'You decided',
   'taskRun.fullReport': 'Open the full report',
+  'taskRun.reportCard': "The lead's report",
+  'taskRun.openShare': 'Open in the browser',
   'taskRun.changePlaceholder': 'What should change?',
   'taskRun.phase.planning': 'Splitting',
   'taskRun.phase.running': 'Running',

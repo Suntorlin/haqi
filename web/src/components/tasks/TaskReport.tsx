@@ -424,7 +424,7 @@ export function TaskReport(props: {
                     ) : null}
 
                     {!guiding && task.run ? (
-                        <RunReport task={task} run={task.run} onAnswer={(decisionId, label) => void run(() => answerDecision(task.id, decisionId, label))} onAsk={(question) => setMessage(t('taskRun.askPrefix', { question }))} />
+                        <RunReport task={task} run={task.run} onAnswer={(decisionId, label) => void run(() => answerDecision(task.id, decisionId, label))} onAsk={(question) => setMessage(t('taskRun.askPrefix', { question }))} onAllChats={task.run.phase === 'reporting' ? props.onAllChats : undefined} />
                     ) : null}
 
                     {!guiding && !task.run ? (

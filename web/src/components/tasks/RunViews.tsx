@@ -22,6 +22,7 @@ import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { ChevronLeftIcon } from '@/components/mobile/icons'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/InfoTip'
+import { ReportSheet } from './ReportSheet'
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
@@ -243,11 +244,14 @@ export function RunReport(props: {
     run: TaskRun
     onAnswer: (decisionId: string, label: string) => void
     onAsk: (question: string) => void
+    /** While the verdict buttons replace the composer, the way into the conversation sits here. */
+    onAllChats?: () => void
 }) {
     const { task, run } = props
     const { t } = useTranslation()
     const [subtaskId, setSubtaskId] = useState<string | null>(null)
     const [checkId, setCheckId] = useState<string | null>(null)
+    const [reportOpen, setReportOpen] = useState(false)
     const now = Date.now()
     const startedAt = run.subtasks.reduce((min, s) => Math.min(min, s.startedAt ?? min), task.updatedAt)
     const open = run.decisions.filter((d) => !d.answer)
@@ -275,7 +279,12 @@ export function RunReport(props: {
     const meta = [task.tag ? `#${task.tag}` : null, task.repoPath?.split('/').filter(Boolean).pop(), run.integration?.branch].filter(Boolean).join(' · ')
     const subtask = subtaskId ? run.subtasks.find((s) => s.id === subtaskId) ?? null : null
     const check = checkId ? task.acceptance.find((c) => c.id === checkId) ?? null : null
-    const sheet = <CheckSheet task={task} run={run} criterion={check} onClose={() => setCheckId(null)} t={t} />
+    const sheet = (
+        <>
+            <CheckSheet task={task} run={run} criterion={check} onClose={() => setCheckId(null)} t={t} />
+            {run.report ? <ReportSheet open={reportOpen} onOpenChange={setReportOpen} title={task.name} markdown={run.report.markdown} shareUrl={run.report.shareUrl} /> : null}
+        </>
+    )
 
     if (subtask) {
         return (
@@ -299,11 +308,14 @@ export function RunReport(props: {
     return (
         <>
             <ReportSummary headline={runHeadline(task, run, t)} lede={finished ? task.goal ?? undefined : undefined} stats={stats} />
-            {meta || run.report?.shareUrl ? (
+            {meta || run.report ? (
                 <p className="mx-5 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-[var(--social-fg-muted)]">
                     {meta ? <span>{meta}</span> : null}
-                    {run.report?.shareUrl ? (
-                        <a href={run.report.shareUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--social-fg)] underline underline-offset-4">{t('taskRun.fullReport')}</a>
+                    {run.report ? (
+                        <button type="button" onClick={() => setReportOpen(true)} className="font-semibold text-[var(--social-fg)] underline underline-offset-4">{t('taskRun.fullReport')}</button>
+                    ) : null}
+                    {props.onAllChats ? (
+                        <button type="button" onClick={props.onAllChats} className="font-semibold text-[var(--social-fg)] underline underline-offset-4">{t('report.composer.allChats')}</button>
                     ) : null}
                 </p>
             ) : null}
