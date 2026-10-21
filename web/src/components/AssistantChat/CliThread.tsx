@@ -76,7 +76,7 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
             <div className="relative flex min-h-0 flex-1 flex-col">
                 <div
                     ref={scrollRef}
-                    className="cli-thread flex-1 overflow-y-auto app-scrollbar px-4 py-3"
+                    className="cli-thread flex-1 overflow-y-auto px-4 py-3"
                 >
                     <div className="mx-auto max-w-content space-y-0.5">
                         {(props.hasMoreMessages || props.isLoadingMoreMessages) && (

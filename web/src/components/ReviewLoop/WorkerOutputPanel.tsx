@@ -5,7 +5,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import type { WorkerOutput } from '@/types/api'
 
-const CODE_BLOCK_CLASS = 'app-scrollbar min-w-0 overflow-auto rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-caption leading-relaxed text-[var(--social-fg)]'
+const CODE_BLOCK_CLASS = 'min-w-0 overflow-auto rounded-xl bg-[var(--social-muted)] px-3 py-2 font-mono text-caption leading-relaxed text-[var(--social-fg)]'
 
 function Section({
     title,

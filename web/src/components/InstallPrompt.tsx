@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
 import { usePlatform } from '@/hooks/usePlatform'
-import { CloseIcon, ShareIcon, PlusCircleIcon } from '@/components/icons'
+import { CloseIcon, ShareIcon, PlusCircleIcon } from '@/components/mobile/icons'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { BottomSheet } from '@/components/mobile/BottomSheet'

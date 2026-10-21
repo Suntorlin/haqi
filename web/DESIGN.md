@@ -71,7 +71,7 @@ Flat by default: cards, bubbles and tool cards have **no shadow**. Only floating
 
 Illustration palettes are tokens too: `--orb-<family>-<slot>` (18 avatar orb families, 4 colours each), `--orb-shade/edge/sheen/glaze-*/gloss` (orb lighting), `--ring-live` / `--ring-pending` (story rings), `--filetype-<ext>` (file-icon accents). Add a colour here, not as a hex in a component.
 
-Allowed raw colours (documented exceptions): xterm fallback colours in `Terminal/TerminalView.tsx` (xterm needs real colour strings when the token cannot be read) and the rainbow keyframes of the CLI loader in `index.css`.
+Allowed raw colours (documented exceptions): xterm fallback colours in `Terminal/TerminalView.tsx` (xterm needs real colour strings when the token cannot be read) and the rainbow keyframes of the ultrathink highlight (`LazyRainbowText`) in `index.css`.
 
 ### 2.3 Radius (only these)
 
@@ -115,26 +115,32 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 
 | Component | File | Use / key props |
 |---|---|---|
-| `Button` | `button.tsx` | `variant`: default (primary) / secondary / outline / ghost / destructive; `size`: default 44 / sm 36 / lg 48; pill. `buttonVariants()` for link-as-button. |
-| `IconButton` | `IconButton.tsx` | Icon-only, `label` **required** (aria + tooltip); `variant` ghost / muted / filled; `size` default 44 / sm 36. |
+| `Button` | `button.tsx` | `variant`: default (primary) / secondary / outline / ghost / destructive; `size`: default 44 / sm 36 / lg 48 / xs 28 (keeps a 44px hit area); pill. `buttonVariants()` for link-as-button. |
+| `IconButton` | `IconButton.tsx` | Icon-only, `label` **required** (aria + tooltip); `variant` ghost / muted / filled; `size` default 44 / sm 36 / xs 28 (code blocks, attachments, card headers; keeps a 44px hit area). Never shrink it with `h-6`/`h-7`. |
 | `TextField` | `TextField.tsx` | 44px, 16px. `variant` field (bordered, 12px) / pill (borderless address / search bar); `leading`, `trailing`, `invalid`. Textareas: use `DIALOG_INPUT_CLASS` (`RenameSessionDialog.tsx`). |
-| `FormField`, `FieldHint`, `SelectInput`, `ChoiceChips`, `SegmentedControl`, `SuggestionChip` | `FormControls.tsx` | Caption + control + hint; native select skin; single-choice pills; 2-3 option segmented control; fill-a-field shortcuts. |
-| `Chip` | `Chip.tsx` | 32px pill, `selected` = filled. Filters, choices, shortcuts. `tagChipClass()` (`tagChip.ts`) = same look for session tags. |
+| `FormField`, `FieldHint`, `SelectInput`, `ChoiceChips`, `SegmentedControl` | `FormControls.tsx` | Caption + control + hint; native select skin; single-choice pills; 2-3 option segmented control. |
+| `Chip` | `Chip.tsx` | 32px pill, `selected` = filled. Filters, choices, shortcuts. `size="sm"` (24px, `text-caption`, 44px hit area) for a chip inside a line of text. `tagChipClass()` (`tagChip.ts`) = same look for session tags. |
 | `Badge` | `badge.tsx` | **State** pill (no border): default / solid / info / success / warning / destructive; `dot`, `live`. Never for actions. |
 | `CountBadge`, `DotBadge` | `badge.tsx` | **Unread** (brand red). Position with `absolute -right-1 -top-1` on a `relative` parent. |
-| `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows. |
+| `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows.; `className` for a row outside a group. `FEED_ROW_CLASS` (same file) = avatar + two-line rows in the session, group and loop lists. |
 | `Switch`, `SwitchTrack` | `Switch.tsx` | Monochrome toggle. |
 | `SettingChip`, `ToggleChip` | `SettingChip.tsx` | Composer-toolbar setting that opens a sheet (phone) or menu (desktop). |
 | `SwitchChip` | `SettingChip.tsx` | Two-state setting shown as its value; one tap flips it (send mode: direct / queue). |
 | `Dialog*`, `ConfirmDialog` | `dialog.tsx`, `ConfirmDialog.tsx` | Radix dialog; bottom sheet on phones (`.app-dialog-content`). |
-| `Toast`, `Card*` | `Toast.tsx`, `card.tsx` | Transient message; plain card. |
-| `BottomSheet`, `SheetSection/Row/Option/SwitchRow`, `ContextMenu` | `components/mobile/` | Phone sheets and long-press / right-click menus (>= 44px rows, scroll when tall). |
+| `Toast` | `Toast.tsx` | Transient message. |
+| `Card*` | `card.tsx` | The only card: `rounded-2xl`, `border-[var(--social-border)]`, `bg-[var(--social-surface)]`, no shadow. Grouped settings lists use `ListGroup`; chat bubbles use `.social-bubble-self` / `.social-bubble-other` (`index.css`). |
+| `EmptyState` | `EmptyState.tsx` | Every empty list or pane. `variant` `inline` (default: one muted `text-footnote` line inside a list) or `page` (centred: `illustration`, `title`, `subtitle`, one primary `action` or custom `children`). Don't hand-write "No … yet" text. |
+| `Spinner` | `components/Spinner.tsx` | The only loading indicator. `size` xs 12 / sm 16 / md 20 / lg 24; `label={null}` when decorative. Don't hand-write `animate-spin rounded-full border`. |
+| Icons | `components/mobile/icons.tsx` | The only icon set. Same action = same icon everywhere (archive = `ArchiveBoxIcon`, close = `CloseIcon`, check = `CheckIcon`). Collapsible groups and trees use `DisclosureIcon`. Add a missing icon here, never a local `function XIcon()` in a component. |
+| `BottomSheet`, `SheetSection/Row/Option/SwitchRow`, `ContextMenu` | `components/mobile/` | Phone sheets and long-press / right-click menus (>= 44px rows, scroll when tall). `SheetOption multiple` = checkbox row. `CONTEXT_MENU_SURFACE` + `ContextMenuItem` is the one popover/menu look, also for autocomplete and the language switcher (`active` = keyboard highlight, `wrapDescription` = two-line hint). |
+| `ActionTile` | `components/mobile/ActionTile.tsx` | Icon-over-label tile for quick actions (session info card, composer "+" panel); `badge` for a count. |
+| `OptionRow` | `components/ToolCard/OptionRow.tsx` | Answer option in question / user-input prompts; `mode` single / multi. |
 | `InputHistory` | `ui/InputHistory.tsx` | Chevron on a text input that opens its history (recent paths, preview URLs) as a dropdown. Built on `CONTEXT_MENU_SURFACE` + `ContextMenuItem` (`components/mobile/ContextMenu.tsx`), the same surface and rows as menus. Never a row of chips. |
 | `.social-float-card`, `BottomSheet popoverAnchor` | `index.css`, `components/mobile/BottomSheet.tsx` | Opaque floating card anchored under a button (desktop session info). Phones keep the sheet. No frosted glass: content behind it hurts reading. |
 | `SessionDockLayout`, `useSessionDock` | `components/`, `hooks/` | Desktop: terminal / preview docked left or right of the chat, resizable, open on the right by default. |
-| `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. |
+| `SubPageHeader`, `SubPageHeaderButton`, `MobileTabBar`, `SessionAvatar`, `MobileSearchField` | `components/mobile/` | Page chrome. Full-screen detail pages on phones (tool card, turn details) use `SubPageHeader` too; never draw a custom back row. |
 | Settings helpers | `components/settings/SettingsParts.tsx` | `SettingsGroup`, `SettingsBlock`, `SettingsSelectRow`, ... built on `ListGroup` / `ListRow`. |
-| `HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. |
+| `HIT_AREA_CLASS`, `TEXT_HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. For a 28px button use `size="xs"` instead. |
 
 Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new primitive there (light + dark) in the same change.
 

@@ -1,4 +1,5 @@
 import { IconButton } from '@/components/ui/IconButton'
+import { MinusIcon, PlusIcon } from '@/components/mobile/icons'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
 import type { ReviewLoopUserPreference } from '@/types/api'
@@ -13,23 +14,6 @@ type LoopSettingsPanelProps = {
 }
 
 const PREFERENCES: ReviewLoopUserPreference[] = ['auto', 'verbose', 'silent']
-
-function MinusIcon({ className }: { className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
-            <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-    )
-}
-
-function PlusGlyph({ className }: { className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <line x1="12" y1="5" x2="12" y2="19" />
-        </svg>
-    )
-}
 
 export function LoopSettingsPanel({
     userPreference,
@@ -76,7 +60,7 @@ export function LoopSettingsPanel({
                     disabled={disabled}
                     onClick={() => onUpdateMaxRounds(maxRounds + 1)}
                 >
-                    <PlusGlyph className="h-4 w-4" />
+                    <PlusIcon className="h-4 w-4" />
                 </IconButton>
             </div>
         </div>

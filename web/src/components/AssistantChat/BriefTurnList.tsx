@@ -1158,7 +1158,7 @@ export function BriefTurnList(props: {
                     <div className="min-h-0 flex flex-1 flex-col pr-1">
                         <div
                             ref={scrollerRef}
-                            className="app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
+                            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden"
                         >
                             {props.isLoading && props.turns.length === 0 ? (
                                 <div className="text-caption text-[var(--social-fg-muted)]">{t('groups.brief.loading')}</div>

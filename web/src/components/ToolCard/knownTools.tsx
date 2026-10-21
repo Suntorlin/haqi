@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import type { SessionMetadataSummary } from '@/types/api'
 import { isObject } from '@hapi/protocol'
-import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, GlobeIcon, MessageSquareIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, UsersIcon, WrenchIcon } from '@/components/ToolCard/icons'
+import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, MessageSquareIcon, PuzzleIcon, QuestionIcon, RocketIcon, SearchIcon, TerminalIcon, UsersIcon, WebIcon, WrenchIcon } from '@/components/mobile/icons'
 import type { ChecklistItem } from '@/components/ToolCard/checklist'
 import { extractTodoChecklist, extractUpdatePlanChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
@@ -328,7 +328,7 @@ export const knownTools: Record<string, {
         minimal: true
     },
     WebFetch: {
-        icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
+        icon: () => <WebIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => {
             const url = getInputStringAny(opts.input, ['url'])
             if (!url) return opts.t('tool.title.webFetch')
@@ -346,7 +346,7 @@ export const knownTools: Record<string, {
         minimal: true
     },
     WebSearch: {
-        icon: () => <GlobeIcon className={DEFAULT_ICON_CLASS} />,
+        icon: () => <WebIcon className={DEFAULT_ICON_CLASS} />,
         title: (opts) => getWebSearchQueryFromPayload(opts.input)
             ?? getWebSearchQueryFromPayload(opts.result)
             ?? opts.t('tool.title.webSearch'),

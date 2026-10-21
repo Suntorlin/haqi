@@ -59,8 +59,10 @@ import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { TIME_SEPARATOR_GAP_MS } from '@/components/mobile/chatTimeline'
 import { GroupAvatar, SessionAvatar, getProjectName, getSessionProjectPath, type AvatarRing } from '@/components/mobile/SessionAvatar'
 import {
+    AlertCircleIcon,
     ChatBubbleIcon,
     ChevronRightIcon,
+    CloseIcon,
     DuplicateIcon,
     MegaphoneIcon,
     MoreHorizontalIcon,
@@ -95,27 +97,6 @@ function useDebounce<T>(value: T, delay: number): T {
     }, [value, delay])
 
     return debouncedValue
-}
-
-// ─── Icons ───────────────────────────────────────────────────────────────────
-
-function CloseIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-    )
-}
-
-function AttachmentErrorIcon(props: { className?: string }) {
-    return (
-        <svg className={props.className} viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="11" r="0.75" fill="currentColor" />
-        </svg>
-    )
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1238,7 +1219,7 @@ function TimelineBubble(props: {
                         style={isMobileLayout ? { WebkitTouchCallout: 'none' } : undefined}
                         className={cn(
                             'min-w-0 max-w-full rounded-2xl px-4 py-2.5 text-body leading-[1.55] break-words [overflow-wrap:anywhere]',
-                            isUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md',
+                            isUser ? 'social-bubble-self rounded-br-md' : 'social-bubble-other rounded-tl-md',
                             isMobileLayout ? 'select-none' : '',
                             isCommand ? 'whitespace-pre-wrap font-mono text-footnote' : ''
                         )}
@@ -1370,7 +1351,7 @@ function ComposerAttachmentList(props: {
                         ) : null}
                         {attachment.status === 'error' ? (
                             <span className="text-[var(--social-danger)]">
-                                <AttachmentErrorIcon className="h-4 w-4" />
+                                <AlertCircleIcon className="h-4 w-4" />
                             </span>
                         ) : null}
                         {isImage ? (
@@ -1416,7 +1397,7 @@ const TimelineScroller = forwardRef<HTMLDivElement, ComponentProps<'div'>>(
             <div
                 {...props}
                 ref={ref}
-                className={`app-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${props.className ?? ''}`.trim()}
+                className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${props.className ?? ''}`.trim()}
             />
         )
     }
@@ -1436,7 +1417,7 @@ function TimelineHistoryControl(props: {
         <div className="flex justify-center pb-1 pt-3">
             {props.isLoading ? (
                 <span className="inline-flex items-center gap-2 text-caption text-[var(--social-fg-subtle)]">
-                    <span className="social-spinner" aria-hidden="true" />
+                    <Spinner size="sm" label={null} />
                     {t('groups.timeline.loadingOlder')}
                 </span>
             ) : (
@@ -1930,7 +1911,7 @@ function GroupBriefTurnList(props: {
                                         </button>
                                         {isOpen ? (
                                             <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--social-fg-muted)]">
-                                                <span className="social-spinner" aria-hidden="true" />
+                                                <Spinner size="sm" label={null} />
                                                 {t('groups.brief.generating')}
                                             </span>
                                         ) : null}
@@ -1943,7 +1924,7 @@ function GroupBriefTurnList(props: {
                                             <div
                                                 className={cn(
                                                     'max-w-[88%] rounded-2xl px-4 py-2.5 text-body lg:max-w-[75%]',
-                                                    initiatorIsUser ? 'social-bubble-self rounded-br-md' : 'social-card rounded-tl-md'
+                                                    initiatorIsUser ? 'social-bubble-self rounded-br-md' : 'social-bubble-other rounded-tl-md'
                                                 )}
                                             >
                                                 <BriefCardMarkdownPreview content={initiatorPreview} />
@@ -1954,14 +1935,14 @@ function GroupBriefTurnList(props: {
                                             {isOpen ? (
                                                 <button
                                                     type="button"
-                                                    className="social-card w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
+                                                    className="social-bubble-other w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 text-left lg:max-w-[75%]"
                                                     onClick={() => openTurnDetails(turn.id)}
                                                     aria-label={t('groups.detail.openTurn')}
                                                 >
                                                     <BriefCardMarkdownPreview content={responderPreview} className="text-[var(--social-fg)]" />
                                                 </button>
                                             ) : (
-                                                <div className="social-card w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 lg:max-w-[75%]">
+                                                <div className="social-bubble-other w-full max-w-[88%] rounded-2xl rounded-tl-md px-4 py-3 lg:max-w-[75%]">
                                                     <BriefFullMarkdownContent content={responderPreview} />
                                                 </div>
                                             )}
@@ -2919,7 +2900,7 @@ export default function GroupDetailPage() {
             disabled={!canSendComposer}
         >
             {isPending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                <Spinner size="md" label={null} className="text-current" />
             ) : (
                 <SendArrowIcon className="h-[18px] w-[18px]" />
             )}
@@ -2936,7 +2917,7 @@ export default function GroupDetailPage() {
             placeholder={t('groups.detail.composerPlaceholder')}
             aria-label={t('groups.detail.composerPlaceholder')}
             rows={1}
-            className={cn('app-scrollbar block w-full resize-none bg-transparent text-headline leading-[1.375rem] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
+            className={cn('block w-full resize-none bg-transparent text-headline leading-[1.375rem] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
         />
     )
 

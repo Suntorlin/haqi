@@ -9,7 +9,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionAvatar } from '@/components/mobile/SessionAvatar'
-import { ArchiveBoxIcon, ChevronDownIcon, MoonIcon, PinOffIcon } from '@/components/mobile/icons'
+import { ArchiveBoxIcon, ChevronDownIcon, MoonIcon, PinOffIcon, PlusIcon } from '@/components/mobile/icons'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import { SnoozeOptions } from '@/components/SessionActionMenu'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
@@ -147,7 +147,7 @@ export function PinnedStoriesStrip(props: {
         <div className="pb-1" role="group" aria-label={t('mobile.stories.pinned')}>
             {/* The inner row carries the side padding (WebKit leaves a scroller's own end padding out of
                 its scroll width) and moves with the edge bounce. */}
-            <div ref={scrollerRef} className="social-scroll-x overflow-x-auto overscroll-x-none">
+            <div ref={scrollerRef} className="overflow-x-auto overscroll-x-none">
                 <div ref={rowRef} className="flex w-max gap-4 px-5 pb-3 pt-1">
                     <button
                         type="button"
@@ -155,10 +155,7 @@ export function PinnedStoriesStrip(props: {
                         className="flex w-14 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
                     >
                         <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]">
-                            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-                                <line x1="12" y1="5" x2="12" y2="19" />
-                                <line x1="5" y1="12" x2="19" y2="12" />
-                            </svg>
+                            <PlusIcon className="h-5 w-5" />
                         </span>
                         {/* mt-1.5 matches the story labels (they leave room for the status badge) so the row's captions line up */}
                         <span className="mt-1.5 w-full truncate text-center text-caption text-[var(--social-fg-muted)]">

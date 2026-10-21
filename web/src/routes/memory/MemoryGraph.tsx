@@ -17,7 +17,7 @@ import {
     type Node,
     type NodeProps
 } from '@xyflow/react'
-import { SearchIcon } from '@/components/mobile/icons'
+import { FitViewIcon, MinusIcon, PlusIcon, SearchIcon } from '@/components/mobile/icons'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
@@ -247,15 +247,15 @@ function GraphCanvas(props: { memories: MemoryItem[]; links: MemoryLink[]; onOpe
                     {props.mobile ? null : (
                         <>
                             <IconButton size="sm" label={t('memoryPage.graph.zoomOut')} onClick={() => void flow.zoomOut({ duration: 200 })}>
-                                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
+                                <MinusIcon className="h-5 w-5" />
                             </IconButton>
                             <IconButton size="sm" label={t('memoryPage.graph.zoomIn')} onClick={() => void flow.zoomIn({ duration: 200 })}>
-                                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                                <PlusIcon className="h-5 w-5" />
                             </IconButton>
                         </>
                     )}
                     <IconButton size={props.mobile ? 'default' : 'sm'} label={t('memoryPage.graph.showAll')} onClick={() => { setFocusId(null); showAll(300) }}>
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+                        <FitViewIcon className="h-5 w-5" />
                     </IconButton>
                 </div>
             </div>

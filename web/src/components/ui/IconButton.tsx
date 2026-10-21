@@ -15,7 +15,9 @@ const iconButtonVariants = cva(
                 // 44px hit area on phones; the glyph stays small.
                 default: 'h-11 w-11',
                 // Dense toolbars and inside inputs; 36px.
-                sm: 'h-9 w-9'
+                sm: 'h-9 w-9',
+                // Inline in content (code blocks, attachments, card headers): 28px visual, still a 44px hit area.
+                xs: "relative h-7 w-7 after:absolute after:-inset-2 after:content-['']"
             }
         },
         defaultVariants: { variant: 'ghost', size: 'default' }
