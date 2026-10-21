@@ -1,6 +1,6 @@
 export const queryKeys = {
     sessions: ['sessions'] as const,
-    sessionTasks: ['session-tasks'] as const,
+    tasks: ['tasks'] as const,
     session: (sessionId: string) => ['session', sessionId] as const,
     messages: (sessionId: string) => ['messages', sessionId] as const,
     turns: (sessionId: string) => ['turns', sessionId] as const,

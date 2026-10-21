@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { SessionTask } from '@/types/api'
+import type { TaskView } from '@/types/api'
+import { isTaskOpen } from '@/lib/tasks'
 import { BottomSheet, SheetNote, SheetSection } from '@/components/mobile/BottomSheet'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { useTranslation } from '@/lib/use-translation'
@@ -13,9 +14,9 @@ import { cn } from '@/lib/utils'
 export function SessionTaskSheet(props: {
     open: boolean
     onOpenChange: (open: boolean) => void
-    tasks: SessionTask[]
+    tasks: TaskView[]
     taskIds: string[]
-    onToggle: (task: SessionTask, linked: boolean) => void
+    onToggle: (task: TaskView, linked: boolean) => void
 }) {
     const { t } = useTranslation()
     const [query, setQuery] = useState('')
@@ -26,9 +27,9 @@ export function SessionTaskSheet(props: {
 
     const needle = query.trim().toLowerCase().replace(/^#/, '')
     const matches = needle
-        ? props.tasks.filter((task) => task.title.toLowerCase().includes(needle) || task.tag.toLowerCase().includes(needle))
+        ? props.tasks.filter((task) => task.name.toLowerCase().includes(needle) || task.tag.toLowerCase().includes(needle))
         : props.tasks
-    const groups = new Map<string, SessionTask[]>()
+    const groups = new Map<string, TaskView[]>()
     for (const task of matches) {
         groups.set(task.tag, [...(groups.get(task.tag) ?? []), task])
     }
@@ -56,8 +57,8 @@ export function SessionTaskSheet(props: {
                                         onClick={() => props.onToggle(task, !linked)}
                                         className="social-pressable flex min-h-12 w-full items-center gap-3 px-4 py-2 text-left [&+&]:border-t [&+&]:border-[var(--social-border)]"
                                     >
-                                        <span className={cn('min-w-0 flex-1 truncate text-[15px]', linked ? 'font-semibold' : '', task.status === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
-                                            {task.title}
+                                        <span className={cn('min-w-0 flex-1 truncate text-[15px]', linked ? 'font-semibold' : '', !isTaskOpen(task) ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
+                                            {task.name}
                                         </span>
                                         <svg
                                             viewBox="0 0 24 24"

@@ -16,7 +16,7 @@ import type { DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Virtuoso } from 'react-virtuoso'
-import type { SessionSummary, SessionTask } from '@/types/api'
+import type { SessionSummary, TaskView } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
 import { cn } from '@/lib/utils'
@@ -51,11 +51,12 @@ import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
-import { getSessionTaskIds, getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
+import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
 import { formatSnoozeStatus } from '@/lib/session-snooze'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessionPin, useSessionSnooze, useSessionTaskLink } from '@/hooks/mutations/useSessionPin'
-import { useSessionTasks } from '@/hooks/queries/useSessionTasks'
+import { useTasks } from '@/hooks/queries/useTasks'
+import { isTaskOpen, taskIdsOfSession } from '@/lib/tasks'
 
 type SessionGroup = {
     directory: string
@@ -460,7 +461,7 @@ function SessionItem(props: {
     const pinSession = useSessionPin(api)
     const snoozeSession = useSessionSnooze(api)
     const linkTask = useSessionTaskLink(api)
-    const { tasks } = useSessionTasks(api)
+    const { tasks } = useTasks(api)
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -484,10 +485,10 @@ function SessionItem(props: {
     const userTags = getUserTags(s)
     // Editing tags must not drop the pin or the snooze (both are stored as system tags).
     const saveUserTags = (tags: string[]) => setTags(withUserTags(s, tags))
-    const taskIds = getSessionTaskIds(s)
+    const taskIds = taskIdsOfSession(tasks, s.id)
     // Open tasks of the session's own tags first; a done task still shows while the session is in it.
     const menuTasks = tasks
-        .filter((task) => task.status === 'open' || taskIds.includes(task.id))
+        .filter((task) => isTaskOpen(task) || taskIds.includes(task.id))
         .sort((a, b) => Number(userTags.includes(b.tag)) - Number(userTags.includes(a.tag)))
     const effectiveActive = forceOffline ? false : s.active
     const effectiveThinking = forceOffline ? false : s.thinking
@@ -496,7 +497,7 @@ function SessionItem(props: {
         : 'bg-[var(--social-fg-muted)]'
     const isCompact = density === 'compact'
 
-    const toggleTask = (task: SessionTask, linked: boolean) => {
+    const toggleTask = (task: TaskView, linked: boolean) => {
         void linkTask(s, task, linked).catch((error) => {
             console.error('Failed to update session task', error)
         })

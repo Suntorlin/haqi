@@ -155,7 +155,7 @@ export function MemoryDetail(props: {
             ) : null}
 
             <p className="px-1 text-[13px] text-[var(--social-fg-muted)]">
-                {sourceLabel(memory)} · {formatWhen(memory.createdAt)} · {scopeLabel(memory.scope)}
+                {sourceLabel(memory)} · {formatWhen(memory.createdAt)} · {scopeLabel(memory.scope)}{memory.tags.length > 0 ? ` · ${memory.tags.map((tag) => `#${tag}`).join(' ')}` : ''}
                 {memory.support > 1 ? ` · 被提到 ${memory.support} 次` : ''}
                 {memory.version > 1 ? ` · 第 ${memory.version} 版` : ''}
             </p>

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
-import type { SessionTask } from '@/types/api'
+import type { TaskView } from '@/types/api'
 import { formatSnoozeWake, getSnoozePresets } from '@/lib/session-snooze'
 import { CONTEXT_MENU_SURFACE, ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import {
@@ -43,9 +43,9 @@ type SessionActionMenuProps = {
     onTagsChange?: (tags: string[]) => Promise<void>
     tagsPending?: boolean
     /** Open tasks offered under "Task"; the checked ones are those in `taskIds`. */
-    tasks?: SessionTask[]
+    tasks?: TaskView[]
     taskIds?: string[]
-    onTaskToggle?: (task: SessionTask, linked: boolean) => void
+    onTaskToggle?: (task: TaskView, linked: boolean) => void
     /** Phones: "Task" closes the menu and calls this to open the task sheet. */
     onTasks?: () => void
     onSpawnSameConfig?: () => void
@@ -112,9 +112,9 @@ function TagsSubmenu(props: {
 
 /** Task choices: tapping one joins the session to it, or takes it out. */
 function TaskOptions(props: {
-    tasks: SessionTask[]
+    tasks: TaskView[]
     taskIds: string[]
-    onToggle: (task: SessionTask, linked: boolean) => void
+    onToggle: (task: TaskView, linked: boolean) => void
 }) {
     const { t } = useTranslation()
     if (props.tasks.length === 0) {
@@ -127,7 +127,7 @@ function TaskOptions(props: {
                 return (
                     <ContextMenuItem
                         key={task.id}
-                        label={task.title}
+                        label={task.name}
                         description={`#${task.tag}`}
                         checked={linked}
                         onSelect={() => props.onToggle(task, !linked)}
