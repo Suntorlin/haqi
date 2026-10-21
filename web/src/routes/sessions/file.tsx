@@ -16,6 +16,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { IconButton } from '@/components/ui/IconButton'
 import { SegmentedControl } from '@/components/ui/FormControls'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const MAX_COPYABLE_FILE_BYTES = 1_000_000
 const GitDiffViewer = lazy(() => import('@/components/GitDiffViewer'))
@@ -337,7 +338,7 @@ export default function FilePage() {
                         </div>
                     ) : null}
                     {missingPath ? (
-                        <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.noPath')}</div>
+                        <EmptyState title={t('file.noPath')} />
                     ) : loading ? (
                         <FileContentSkeleton />
                     ) : displayMode === 'diff' && diffContent ? (
@@ -396,10 +397,10 @@ export default function FilePage() {
                                 </pre>
                             </div>
                         ) : (
-                            <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.empty')}</div>
+                            <EmptyState title={t('file.empty')} />
                         )
                     ) : (
-                        <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.noChanges')}</div>
+                        <EmptyState title={t('file.noChanges')} />
                     )}
                 </div>
             </div>

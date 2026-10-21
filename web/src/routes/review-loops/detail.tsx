@@ -15,6 +15,7 @@ import {
     RoundTimeline,
 } from '@/components/ReviewLoop'
 import type { ReviewLoopUserPreference } from '@/types/api'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────────
 
@@ -146,7 +147,7 @@ export default function ReviewLoopDetailPage() {
 
                 <Section title={t('loops.detail.timeline', { n: rounds.length })}>
                     {rounds.length === 0 ? (
-                        <div className="px-1 py-2 text-body text-[var(--social-fg-muted)]">{t('loops.detail.noRounds')}</div>
+                        <EmptyState title={t('loops.detail.noRounds')} />
                     ) : (
                         <RoundTimeline rounds={rounds} />
                     )}

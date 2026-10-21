@@ -11,6 +11,7 @@ import { matchesSessionSearch } from '@/lib/session-search'
 import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export type CreateLoopData = {
     workerSessionId: string
@@ -79,7 +80,7 @@ function SessionPicker(props: {
                     </div>
                     <div className="max-h-64 overflow-y-auto border-t border-[var(--social-border)]">
                         {candidates.length === 0 ? (
-                            <div className="px-4 py-3 text-body text-[var(--social-fg-muted)]">{t('loops.create.noMatch')}</div>
+                            <EmptyState title={t('loops.create.noMatch')} />
                         ) : candidates.map((session) => (
                             <button
                                 key={session.id}

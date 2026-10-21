@@ -29,6 +29,7 @@ import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { useHappyRuntime } from '@/lib/assistant-runtime'
 import { readSessionScrollSnapshot, writeSessionScrollSnapshot } from '@/lib/sessionScrollState'
 import type { ConversationTurn, DecryptedMessage, Session } from '@/types/api'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type TurnDetailState = {
     isLoading: boolean
@@ -1164,7 +1165,7 @@ export function BriefTurnList(props: {
                             ) : null}
 
                             {props.turns.length === 0 && !props.isLoading ? (
-                                <div className="text-caption text-[var(--social-fg-muted)]">{t('groups.brief.empty')}</div>
+                                <EmptyState title={t('groups.brief.empty')} />
                             ) : null}
 
                             {props.turns.length > 0 ? (
