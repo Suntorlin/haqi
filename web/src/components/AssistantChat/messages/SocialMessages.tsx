@@ -295,7 +295,7 @@ function LiveStatusCard(props: {
 
 /**
  * After the agent finishes: only the conclusion; the footer reveals the process.
- * Phones also long-press the conclusion; desktop keeps the text selectable and copies on hover.
+ * The reply stays selectable everywhere: on phones a long press is the system's select-and-copy.
  */
 export function SocialAssistantMessage() {
     const { t } = useTranslation()
@@ -438,7 +438,7 @@ export function SocialAssistantMessage() {
         },
         threshold: 450
     })
-    // Phones: the card is a long-press target (no text selection or callout). Desktop: plain selectable text.
+    // Phones: the running status card is a long-press target (it has no text worth copying).
     const pressProps = isMobileLayout
         ? { ...longPressHandlers, style: { WebkitTouchCallout: 'none' as const } }
         : {}
@@ -532,13 +532,11 @@ export function SocialAssistantMessage() {
                     <>
                         {layout.answerIndices.length > 0 ? (
                             <div
-                                {...pressProps}
                                 className={cn(
                                     'social-bubble-other min-w-0 max-w-full rounded-2xl rounded-tl-md px-4 py-3 [&>*+*]:mt-3',
                                     // Words keep the width they were measured at while they move: a brief-width card would
                                     // squeeze the longer text into a column. Only long replies morph, so the full row fits them.
-                                    showZoomMorph ? 'w-full' : 'w-fit',
-                                    pressClass
+                                    showZoomMorph ? 'w-full' : 'w-fit'
                                 )}
                             >
                                 {showZoomMorph && zoom && zoomVersions ? (
@@ -548,15 +546,12 @@ export function SocialAssistantMessage() {
                                 ))}
                             </div>
                         ) : (
-                            <div
-                                {...pressProps}
-                                className={cn('social-bubble-other w-fit rounded-2xl rounded-tl-md px-4 py-2.5 text-body text-[var(--social-fg-muted)]', pressClass)}
-                            >
+                            <div className="social-bubble-other w-fit rounded-2xl rounded-tl-md px-4 py-2.5 text-body text-[var(--social-fg-muted)]">
                                 {layout.steps > 0 ? t('mobile.turn.done', { n: layout.steps }) : t('mobile.turn.noReply')}
                             </div>
                         )}
 
-                        {zoomSnap !== ZOOM_BRIEF && (hasProcess || reportLinks.length > 0 || (!isMobileLayout && answerText)) ? (
+                        {zoomSnap !== ZOOM_BRIEF && (hasProcess || reportLinks.length > 0 || answerText) ? (
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-1 text-caption text-[var(--social-fg-subtle)]">
                                 {hasProcess ? (
                                     <button
@@ -582,11 +577,16 @@ export function SocialAssistantMessage() {
                                         {reportLinks.length > 1 ? t('mobile.turn.reportN', { n: index + 1 }) : t('mobile.turn.report')}
                                     </Chip>
                                 ))}
-                                {!isMobileLayout && answerText && !expanded ? (
+                                {answerText && !expanded ? (
                                     <button
                                         type="button"
                                         onClick={() => void copy(answerText)}
-                                        className={cn('opacity-0 transition-opacity hover:text-[var(--social-fg-muted)] focus-visible:opacity-100 group-hover/turn:opacity-100', TEXT_HIT_AREA_CLASS)}
+                                        // Phones have no hover, so the copy action is always shown there.
+                                        className={cn(
+                                            'transition-opacity hover:text-[var(--social-fg-muted)]',
+                                            !isMobileLayout && 'opacity-0 focus-visible:opacity-100 group-hover/turn:opacity-100',
+                                            TEXT_HIT_AREA_CLASS
+                                        )}
                                     >
                                         {copied ? t('mobile.turn.copied') : t('mobile.turn.copy')}
                                     </button>
