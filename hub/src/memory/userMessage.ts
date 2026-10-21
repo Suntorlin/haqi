@@ -20,6 +20,9 @@ const INJECTED_TEXT = [
     /^\[HAQI_TASK_GUIDE\]/
 ]
 
+/** A message that is only a slash command ("/compact", "/note refresh") runs a command; the user did not say anything. */
+const SLASH_COMMAND = /^\/[a-z][\w-]*(?::[\w-]+)?(?:[ \t][^\n]*)?$/
+
 type StoredMessage = {
     role?: unknown
     content?: { type?: unknown; text?: unknown }
@@ -44,5 +47,6 @@ export function realUserText(content: string | StoredMessage): string | null {
     if (INJECTED_META.some((key) => meta[key] !== undefined && meta[key] !== null)) return null
     const raw = message.content.text
     if (INJECTED_TEXT.some((pattern) => pattern.test(raw))) return null
+    if (SLASH_COMMAND.test(raw.trim())) return null
     return userText(raw)
 }
