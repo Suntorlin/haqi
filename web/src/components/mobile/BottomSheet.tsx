@@ -21,6 +21,8 @@ export function BottomSheet(props: {
     popoverAnchor?: { right: number; bottom: number } | null
     /** Keep focus off the first field on open, so a search box does not pop up the phone keyboard. */
     noAutoFocus?: boolean
+    /** Actions pinned under the scrolling content (side panel and phone sheet). */
+    footer?: ReactNode
 }) {
     const isMobileLayout = useIsMobileLayout()
     const { t } = useTranslation()
@@ -84,6 +86,7 @@ export function BottomSheet(props: {
                         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
                             {props.children}
                         </div>
+                        {props.footer}
                     </DialogPrimitive.Content>
                 </DialogPrimitive.Portal>
             </DialogPrimitive.Root>
@@ -113,6 +116,7 @@ export function BottomSheet(props: {
                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                         {props.children}
                     </div>
+                    {props.footer}
                 </DialogPrimitive.Content>
             </DialogPrimitive.Portal>
         </DialogPrimitive.Root>

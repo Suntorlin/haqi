@@ -93,180 +93,178 @@ export function TaskGuideSheet(props: {
 
     const working = task?.guide.state === 'starting' || task?.guide.state === 'drafting'
 
+    const footer = task?.status === 'guiding' ? (
+        <div className="shrink-0 space-y-2 border-t border-[var(--social-divider)] bg-[var(--social-surface)] px-4 pb-3 pt-3">
+            {revising ? (
+                <div className="space-y-2">
+                    <textarea
+                        autoFocus
+                        rows={2}
+                        value={feedback}
+                        maxLength={2000}
+                        placeholder={t('taskGuide.revisePlaceholder')}
+                        aria-label={t('taskGuide.revisePlaceholder')}
+                        onChange={(event) => setFeedback(event.target.value)}
+                        className={DIALOG_INPUT_CLASS}
+                    />
+                    <Button variant="secondary" className="w-full" disabled={pending || !feedback.trim()} onClick={sendFeedback}>
+                        {t('taskGuide.reviseSend')}
+                    </Button>
+                </div>
+            ) : null}
+            {draft && !working ? (
+                <Button className="w-full" disabled={pending || keptCount === 0} onClick={confirm}>
+                    {pending ? t('taskGuide.confirming') : t('taskGuide.confirm')}
+                </Button>
+            ) : null}
+            <div className={cn('flex gap-2', !draft || working ? 'justify-end' : '')}>
+                {draft && !working && !revising ? (
+                    <Button variant="secondary" className="flex-1" disabled={pending} onClick={() => setRevising(true)}>
+                        {t('taskGuide.revise')}
+                    </Button>
+                ) : null}
+                <Button
+                    variant="ghost"
+                    className={draft && !working ? 'flex-1' : ''}
+                    disabled={pending}
+                    onClick={() => void run(() => updateTask(task.id, { status: 'abandoned' }), true)}
+                >
+                    {t('taskGuide.abandon')}
+                </Button>
+            </div>
+        </div>
+    ) : null
+
     return (
-        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={draft ? t('taskGuide.version', { n: draft.version }) : t('taskGuide.title')}>
+        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} footer={footer} title={draft ? t('taskGuide.version', { n: draft.version }) : t('taskGuide.title')}>
             {!task ? null : (
-                <div className="flex min-h-full flex-col">
-                    <div className="flex-1">
-                        {task.guide.request ? (
-                            <SheetSection title={t('taskGuide.request')}>
-                                <p className="px-4 pb-2 text-[15px] leading-snug text-[var(--social-fg)]">{task.guide.request}</p>
-                            </SheetSection>
-                        ) : null}
+                <div>
+                    {task.guide.request ? (
+                        <SheetSection title={t('taskGuide.request')}>
+                            <p className="px-4 pb-2 text-[15px] leading-snug text-[var(--social-fg)]">{task.guide.request}</p>
+                        </SheetSection>
+                    ) : null}
 
-                        {working ? (
-                            <div className="px-4 py-6 text-center">
-                                <p className="flex items-center justify-center gap-2 text-[15px] text-[var(--social-fg)]">
-                                    <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--social-fg-muted)]" aria-hidden="true" />
-                                    {t('taskGuide.working')}
-                                </p>
-                                <p className="mt-2 text-[13px] text-[var(--social-fg-muted)]">{t('taskGuide.workingHint')}</p>
-                            </div>
-                        ) : null}
-
-                        {task.guide.state === 'failed' ? (
-                            <div className="space-y-3 px-4 py-4">
-                                <SheetNote tone="error">{task.guide.error}</SheetNote>
-                                <Button className="w-full" disabled={pending} onClick={() => void run(() => retryGuide(task.id))}>
-                                    {t('taskGuide.retry')}
-                                </Button>
-                            </div>
-                        ) : null}
-
-                        {draft && edits && !working ? (
-                            <>
-                                <SheetSection title={t('taskGuide.goal')}>
-                                    {editing === 'goal' ? (
-                                        <div className="px-4 pb-2">
-                                            <TextField
-                                                autoFocus
-                                                value={edits.goal ?? draft.goal}
-                                                maxLength={120}
-                                                aria-label={t('taskGuide.goal')}
-                                                onChange={(event) => patch({ goal: event.target.value })}
-                                                onBlur={() => setEditing(null)}
-                                                onKeyDown={(event) => { if (event.key === 'Enter') setEditing(null) }}
-                                            />
-                                        </div>
-                                    ) : (
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditing('goal')}
-                                            title={t('taskGuide.edit')}
-                                            className="mx-2 block min-h-11 w-[calc(100%-1rem)] rounded-xl px-2 py-2.5 text-left text-[15px] font-semibold leading-snug text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
-                                        >
-                                            {edits.goal ?? draft.goal}
-                                        </button>
-                                    )}
-                                    {draft.nonGoals.length > 0 ? (
-                                        <div className="px-4 pb-2 pt-1 text-[13px] text-[var(--social-fg-muted)]">
-                                            <span className="text-[12px] uppercase tracking-wide">{t('taskGuide.nonGoals')}</span>
-                                            <ul className="mt-1 space-y-0.5">
-                                                {draft.nonGoals.map((line) => <li key={line}>· {line}</li>)}
-                                            </ul>
-                                        </div>
-                                    ) : null}
-                                </SheetSection>
-
-                                <SheetSection title={t('taskGuide.criteria')}>
-                                    <p className="px-4 pb-1 text-[13px] text-[var(--social-fg-muted)]">{t('taskGuide.criteriaHint')}</p>
-                                    {draft.criteria.map((criterion) => {
-                                        const kept = edits.kept[criterion.id] !== false
-                                        const text = edits.texts[criterion.id] ?? criterion.text
-                                        if (editing === criterion.id) {
-                                            return (
-                                                <div key={criterion.id} className="px-4 py-1.5">
-                                                    <textarea
-                                                        autoFocus
-                                                        rows={2}
-                                                        value={text}
-                                                        maxLength={300}
-                                                        aria-label={t('taskGuide.edit')}
-                                                        onChange={(event) => patch({ texts: { ...edits.texts, [criterion.id]: event.target.value } })}
-                                                        onBlur={() => setEditing(null)}
-                                                        className={DIALOG_INPUT_CLASS}
-                                                    />
-                                                </div>
-                                            )
-                                        }
-                                        const changed = text !== criterion.text
-                                        return (
-                                            <CheckRow
-                                                key={criterion.id}
-                                                className="px-2"
-                                                checked={kept}
-                                                onCheckedChange={(checked) => patch({ kept: { ...edits.kept, [criterion.id]: checked } })}
-                                                label={text}
-                                                title={text}
-                                                subtitle={t('taskGuide.verify', { how: criterion.verify })}
-                                                onEdit={() => setEditing(criterion.id)}
-                                                editLabel={t('taskGuide.edit')}
-                                                trailing={(
-                                                    <Badge variant={changed || criterion.source === 'inferred' ? 'warning' : 'default'}>
-                                                        {t(changed ? SOURCE_KEY.inferred : SOURCE_KEY[criterion.source])}
-                                                    </Badge>
-                                                )}
-                                            />
-                                        )
-                                    })}
-                                    {keptCount === 0 ? <SheetNote tone="error">{t('taskGuide.keepOne')}</SheetNote> : null}
-                                </SheetSection>
-
-                                {draft.questions.length > 0 ? (
-                                    <SheetSection title={t('taskGuide.questions')}>
-                                        {draft.questions.map((question) => (
-                                            <div key={question.id} className="space-y-2 px-4 pb-3">
-                                                <p className="text-[15px] leading-snug text-[var(--social-fg)]">{question.text}</p>
-                                                <ChoiceChips
-                                                    label={question.text}
-                                                    value={edits.answers[question.id] ?? question.default}
-                                                    options={question.options.map((option) => ({ value: option.id, label: option.label }))}
-                                                    onChange={(value) => patch({ answers: { ...edits.answers, [question.id]: value } })}
-                                                />
-                                                {question.precedentRef && (edits.answers[question.id] ?? question.default) === question.default ? (
-                                                    <p className="text-[12px] text-[var(--social-fg-muted)]">{t('taskGuide.precedent')}</p>
-                                                ) : null}
-                                            </div>
-                                        ))}
-                                    </SheetSection>
-                                ) : null}
-                            </>
-                        ) : null}
-
-                        {error ? <SheetNote tone="error">{error}</SheetNote> : null}
-                    </div>
-
-                    {task.status === 'guiding' ? (
-                        <div className="sticky bottom-0 space-y-2 border-t border-[var(--social-divider)] bg-[var(--social-surface)] px-4 pb-3 pt-3">
-                            {revising ? (
-                                <div className="space-y-2">
-                                    <textarea
-                                        autoFocus
-                                        rows={2}
-                                        value={feedback}
-                                        maxLength={2000}
-                                        placeholder={t('taskGuide.revisePlaceholder')}
-                                        aria-label={t('taskGuide.revisePlaceholder')}
-                                        onChange={(event) => setFeedback(event.target.value)}
-                                        className={DIALOG_INPUT_CLASS}
-                                    />
-                                    <Button variant="secondary" className="w-full" disabled={pending || !feedback.trim()} onClick={sendFeedback}>
-                                        {t('taskGuide.reviseSend')}
-                                    </Button>
-                                </div>
-                            ) : null}
-                            {draft && !working ? (
-                                <Button className="w-full" disabled={pending || keptCount === 0} onClick={confirm}>
-                                    {pending ? t('taskGuide.confirming') : t('taskGuide.confirm')}
-                                </Button>
-                            ) : null}
-                            <div className={cn('flex gap-2', !draft || working ? 'justify-end' : '')}>
-                                {draft && !working && !revising ? (
-                                    <Button variant="secondary" className="flex-1" disabled={pending} onClick={() => setRevising(true)}>
-                                        {t('taskGuide.revise')}
-                                    </Button>
-                                ) : null}
-                                <Button
-                                    variant="ghost"
-                                    className={draft && !working ? 'flex-1' : ''}
-                                    disabled={pending}
-                                    onClick={() => void run(() => updateTask(task.id, { status: 'abandoned' }), true)}
-                                >
-                                    {t('taskGuide.abandon')}
-                                </Button>
-                            </div>
+                    {working ? (
+                        <div className="px-4 py-6 text-center">
+                            <p className="flex items-center justify-center gap-2 text-[15px] text-[var(--social-fg)]">
+                                <span className="h-2 w-2 animate-pulse rounded-full bg-[var(--social-fg-muted)]" aria-hidden="true" />
+                                {t('taskGuide.working')}
+                            </p>
+                            <p className="mt-2 text-[13px] text-[var(--social-fg-muted)]">{t('taskGuide.workingHint')}</p>
                         </div>
                     ) : null}
+
+                    {task.guide.state === 'failed' ? (
+                        <div className="space-y-3 px-4 py-4">
+                            <SheetNote tone="error">{task.guide.error}</SheetNote>
+                            <Button className="w-full" disabled={pending} onClick={() => void run(() => retryGuide(task.id))}>
+                                {t('taskGuide.retry')}
+                            </Button>
+                        </div>
+                    ) : null}
+
+                    {draft && edits && !working ? (
+                        <>
+                            <SheetSection title={t('taskGuide.goal')}>
+                                {editing === 'goal' ? (
+                                    <div className="px-4 pb-2">
+                                        <TextField
+                                            autoFocus
+                                            value={edits.goal ?? draft.goal}
+                                            maxLength={120}
+                                            aria-label={t('taskGuide.goal')}
+                                            onChange={(event) => patch({ goal: event.target.value })}
+                                            onBlur={() => setEditing(null)}
+                                            onKeyDown={(event) => { if (event.key === 'Enter') setEditing(null) }}
+                                        />
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditing('goal')}
+                                        title={t('taskGuide.edit')}
+                                        className="mx-2 block min-h-11 w-[calc(100%-1rem)] rounded-xl px-2 py-2.5 text-left text-[15px] font-semibold leading-snug text-[var(--social-fg)] transition-colors hover:bg-[var(--social-hover)]"
+                                    >
+                                        {edits.goal ?? draft.goal}
+                                    </button>
+                                )}
+                                {draft.nonGoals.length > 0 ? (
+                                    <div className="px-4 pb-2 pt-1 text-[13px] text-[var(--social-fg-muted)]">
+                                        <span className="text-[12px] uppercase tracking-wide">{t('taskGuide.nonGoals')}</span>
+                                        <ul className="mt-1 space-y-0.5">
+                                            {draft.nonGoals.map((line) => <li key={line}>· {line}</li>)}
+                                        </ul>
+                                    </div>
+                                ) : null}
+                            </SheetSection>
+
+                            <SheetSection title={t('taskGuide.criteria')}>
+                                <p className="px-4 pb-1 text-[13px] text-[var(--social-fg-muted)]">{t('taskGuide.criteriaHint')}</p>
+                                {draft.criteria.map((criterion) => {
+                                    const kept = edits.kept[criterion.id] !== false
+                                    const text = edits.texts[criterion.id] ?? criterion.text
+                                    if (editing === criterion.id) {
+                                        return (
+                                            <div key={criterion.id} className="px-4 py-1.5">
+                                                <textarea
+                                                    autoFocus
+                                                    rows={2}
+                                                    value={text}
+                                                    maxLength={300}
+                                                    aria-label={t('taskGuide.edit')}
+                                                    onChange={(event) => patch({ texts: { ...edits.texts, [criterion.id]: event.target.value } })}
+                                                    onBlur={() => setEditing(null)}
+                                                    className={DIALOG_INPUT_CLASS}
+                                                />
+                                            </div>
+                                        )
+                                    }
+                                    const changed = text !== criterion.text
+                                    return (
+                                        <CheckRow
+                                            key={criterion.id}
+                                            className="px-2"
+                                            checked={kept}
+                                            onCheckedChange={(checked) => patch({ kept: { ...edits.kept, [criterion.id]: checked } })}
+                                            label={text}
+                                            title={text}
+                                            subtitle={t('taskGuide.verify', { how: criterion.verify })}
+                                            onEdit={() => setEditing(criterion.id)}
+                                            editLabel={t('taskGuide.edit')}
+                                            trailing={(
+                                                <Badge variant={changed || criterion.source === 'inferred' ? 'warning' : 'default'}>
+                                                    {t(changed ? SOURCE_KEY.inferred : SOURCE_KEY[criterion.source])}
+                                                </Badge>
+                                            )}
+                                        />
+                                    )
+                                })}
+                                {keptCount === 0 ? <SheetNote tone="error">{t('taskGuide.keepOne')}</SheetNote> : null}
+                            </SheetSection>
+
+                            {draft.questions.length > 0 ? (
+                                <SheetSection title={t('taskGuide.questions')}>
+                                    {draft.questions.map((question) => (
+                                        <div key={question.id} className="space-y-2 px-4 pb-3">
+                                            <p className="text-[15px] leading-snug text-[var(--social-fg)]">{question.text}</p>
+                                            <ChoiceChips
+                                                label={question.text}
+                                                value={edits.answers[question.id] ?? question.default}
+                                                options={question.options.map((option) => ({ value: option.id, label: option.label }))}
+                                                onChange={(value) => patch({ answers: { ...edits.answers, [question.id]: value } })}
+                                            />
+                                            {question.precedentRef && (edits.answers[question.id] ?? question.default) === question.default ? (
+                                                <p className="text-[12px] text-[var(--social-fg-muted)]">{t('taskGuide.precedent')}</p>
+                                            ) : null}
+                                        </div>
+                                    ))}
+                                </SheetSection>
+                            ) : null}
+                        </>
+                    ) : null}
+
+                    {error ? <SheetNote tone="error">{error}</SheetNote> : null}
                 </div>
             )}
         </BottomSheet>
