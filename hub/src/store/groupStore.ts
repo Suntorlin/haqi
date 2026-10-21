@@ -21,7 +21,9 @@ import {
     removeGroupMember,
     updateGroup,
     updateGroupNote,
-    updateGroupTaskStatus
+    updateGroupTaskStatus,
+    updateTaskFields,
+    type TaskFieldsPatch
 } from './groups'
 import {
     appendGroupMessageToConversationTurns,
@@ -33,6 +35,8 @@ import {
 } from './groupTurns'
 import type {
     StoredGroup,
+    StoredGroupKind,
+    StoredTaskStatus,
     StoredGroupConversationTurn,
     StoredGroupMember,
     StoredGroupMessage,
@@ -58,8 +62,13 @@ export class GroupStore {
             userId?: number | null
             role?: string
         }>
+        task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null }
     }): StoredGroup {
         return createGroup(this.db, options)
+    }
+
+    updateTaskFields(options: { groupId: string; namespace: string; patch: TaskFieldsPatch }): StoredGroup | null {
+        return updateTaskFields(this.db, options)
     }
 
     deleteGroup(options: {
@@ -69,8 +78,8 @@ export class GroupStore {
         return deleteGroup(this.db, options)
     }
 
-    getGroupsByNamespace(namespace: string): StoredGroup[] {
-        return getGroupsByNamespace(this.db, namespace)
+    getGroupsByNamespace(namespace: string, kind?: StoredGroupKind): StoredGroup[] {
+        return getGroupsByNamespace(this.db, namespace, kind)
     }
 
     getAllGroups(): StoredGroup[] {

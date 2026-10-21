@@ -243,8 +243,9 @@ export class GroupService {
         this.taskTtlMs = options?.taskTtlMs ?? 30 * 60 * 1000
     }
 
+    /** Chat groups only: tasks are groups too, listed by the task routes. */
     getGroupsByNamespace(namespace: string): GroupWithDetails[] {
-        return this.store.groups.getGroupsByNamespace(namespace).map((group) => ({
+        return this.store.groups.getGroupsByNamespace(namespace, 'chat').map((group) => ({
             group,
             members: this.store.groups.getGroupMembersByNamespace(group.id, namespace),
             note: this.store.groups.getGroupNote(group.id, namespace)

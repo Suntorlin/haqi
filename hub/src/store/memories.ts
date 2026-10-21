@@ -71,6 +71,15 @@ export const MEMORY_SCHEMA_SQL = `
         FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_memory_vectors_namespace ON memory_vectors(namespace);
+
+    CREATE TABLE IF NOT EXISTS memory_tags (
+        memory_id TEXT NOT NULL,
+        namespace TEXT NOT NULL DEFAULT 'default',
+        tag TEXT NOT NULL,
+        PRIMARY KEY (memory_id, tag),
+        FOREIGN KEY (memory_id) REFERENCES memories(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_memory_tags_namespace_tag ON memory_tags(namespace, tag);
 `
 
 type DbMemoryRow = {
