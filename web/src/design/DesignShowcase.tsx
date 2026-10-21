@@ -16,6 +16,7 @@ import { ActionTile } from '@/components/mobile/ActionTile'
 import { OptionRow } from '@/components/ToolCard/OptionRow'
 import * as Icons from '@/components/mobile/icons'
 import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
+import { ReportKitSection } from './ReportKitSection'
 import {
     ClearIcon,
     CloseIcon,
@@ -371,6 +372,10 @@ export function DesignShowcase() {
                             )
                         })}
                 </div>
+            </Section>
+
+            <Section title="10 · 结果报告 Report kit" note="负责人实时报告的组件（components/report/）：决策卡、进度列表、验收清单、风险卡、底部对话与验收栏。业务页用真实数据接入；固定文案走 i18n（report.*）。">
+                <ReportKitSection />
             </Section>
         </div>
     )

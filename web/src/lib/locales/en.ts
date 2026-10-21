@@ -1491,4 +1491,20 @@ export default {
   'brief.turn.changes': 'Turn changes (+{additions} -{deletions})',
   'brief.turn.loadOlder': 'Load older turns',
   'brief.turn.loadingOlder': 'Loading older turns…',
+
+  // Report kit (components/report)
+  'report.option.recommended': 'Suggested',
+  'report.option.good': 'Upside: {text}',
+  'report.option.cost': 'Cost: {text}',
+  'report.decision.pick': 'Go with "{label}"',
+  'report.decision.ask': 'Ask first',
+  'report.decision.confirmed': 'OK — going with "{label}"',
+  'report.check.waiting': 'Your call',
+  'report.composer.lead': 'Lead',
+  'report.composer.me': 'You',
+  'report.composer.allChats': 'All chats',
+  'report.composer.placeholder': 'Message the lead…',
+  'report.composer.send': 'Send',
+  'report.verdict.approve': 'Approve',
+  'report.verdict.change': 'Needs changes',
 } as const
