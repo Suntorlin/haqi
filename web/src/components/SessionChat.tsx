@@ -476,6 +476,12 @@ export function SessionChat(props: {
 
     // Voice assistant integration
     const voice = useVoiceOptional()
+    // The project folder name is the word dictation most often gets wrong, so bias toward it.
+    const sessionPath = props.session.metadata?.path
+    const dictationHotwords = useMemo(() => {
+        const folder = sessionPath?.split('/').filter(Boolean).pop()
+        return folder ? [folder] : []
+    }, [sessionPath])
 
     // Register session store for voice client tools
     useEffect(() => {
@@ -1605,6 +1611,8 @@ export function SessionChat(props: {
                             voiceMicMuted={voice?.micMuted}
                             onVoiceToggle={voice ? handleVoiceToggle : undefined}
                             onVoiceMicToggle={voice ? handleVoiceMicToggle : undefined}
+                            dictationApi={props.api}
+                            dictationHotwords={dictationHotwords}
                             offlineWakeMessage={t('session.inactiveMessage')}
                             offlineWakeLabel={t('session.wake')}
                             offlineWakingLabel={t('session.waking')}

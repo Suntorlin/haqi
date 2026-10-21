@@ -26,6 +26,8 @@ import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
 import type { QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useActiveWord } from '@/hooks/useActiveWord'
+import { appendDictatedText, useDictation } from '@/hooks/useDictation'
+import type { ApiClient } from '@/api/client'
 import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
@@ -45,6 +47,8 @@ import {
     MobileComposerToolPanel,
     QueueStrip,
     VoiceCallBar,
+    DictationBar,
+    DictationButton,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
@@ -380,6 +384,9 @@ export function HappyComposer(props: {
     voiceMicMuted?: boolean
     onVoiceToggle?: () => void
     onVoiceMicToggle?: () => void
+    // Local speech-to-text into the draft; hidden when the hub has no dictation service
+    dictationApi?: ApiClient | null
+    dictationHotwords?: string[]
     offlineWakeMessage?: string
     offlineWakeLabel?: string
     offlineWakingLabel?: string
@@ -434,6 +441,8 @@ export function HappyComposer(props: {
         voiceMicMuted = false,
         onVoiceToggle,
         onVoiceMicToggle,
+        dictationApi,
+        dictationHotwords,
         offlineWakeMessage,
         offlineWakeLabel,
         offlineWakingLabel,
@@ -673,6 +682,15 @@ export function HappyComposer(props: {
     }, [controlledByUser])
 
     const { haptic: platformHaptic, isTouch } = usePlatform()
+    const dictation = useDictation({
+        api: dictationApi,
+        hotwords: dictationHotwords,
+        onText: (text) => {
+            api.composer().setText(appendDictatedText(composerText, text))
+            // On phones the user reviews and sends; focusing would pop the keyboard over the draft.
+            if (!isTouch) textareaRef.current?.focus()
+        }
+    })
     const { enterBehavior } = useEnterBehavior()
     const { isStandalone, isIOS } = usePWAInstall()
     const isIOSPWA = isIOS && isStandalone
@@ -1182,6 +1200,28 @@ export function HappyComposer(props: {
     const hasDraft = hasText || hasAnyAttachments
     const showStop = threadIsRunning && !(hasDraft && canSend)
     const voiceActive = voiceStatus === 'connected' || voiceStatus === 'connecting'
+    const dictationBar = dictation ? (
+        <DictationBar
+            status={dictation.status}
+            elapsedMs={dictation.elapsedMs}
+            error={dictation.error}
+            onCancel={dictation.cancel}
+            onFinish={dictation.finish}
+            onDismissError={dictation.clearError}
+        />
+    ) : null
+    const dictationButton = (className?: string) => dictation ? (
+        <DictationButton
+            status={dictation.status}
+            disabled={controlsDisabled}
+            onStart={() => {
+                haptic('light')
+                dictation.start()
+            }}
+            onFinish={dictation.finish}
+            className={className}
+        />
+    ) : null
     const voiceCallBar = voiceActive && onVoiceToggle ? (
         <VoiceCallBar
             status={voiceStatus}
@@ -1299,6 +1339,7 @@ export function HappyComposer(props: {
                     {attachmentsRow}
 
                     {voiceCallBar ? <div className="px-3 pt-2">{voiceCallBar}</div> : null}
+                    {dictationBar ? <div className="px-3 pt-2">{dictationBar}</div> : null}
 
                     <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
                         <div className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
@@ -1341,6 +1382,7 @@ export function HappyComposer(props: {
                                     onFocus={() => setShowToolPanel(false)}
                                     className={`w-full flex-1 resize-none bg-transparent text-headline leading-[1.375rem] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${cliMode ? 'font-mono' : ''}`}
                                 />
+                                {dictationButton('-my-1 -mr-2 ml-1 self-end')}
                             </div>
 
                             <MobileComposerAction
@@ -1389,6 +1431,7 @@ export function HappyComposer(props: {
                 {overlays}
 
                 {voiceCallBar ? <div className="pb-2">{voiceCallBar}</div> : null}
+                {dictationBar ? <div className="pb-2">{dictationBar}</div> : null}
                 {inlineQueuePanel ? <div className="pb-2">{inlineQueuePanel}</div> : null}
 
                 <ComposerPrimitive.AttachmentDropzone asChild disabled={controlsDisabled}>
@@ -1440,20 +1483,23 @@ export function HappyComposer(props: {
                             settings={settingChips}
                             extras={composerExtras}
                             action={(
-                                <MobileComposerAction
-                                    hasDraft={hasDraft}
-                                    canSend={canSend}
-                                    isSending={isSendButtonLoading}
-                                    showStop={showStop}
-                                    abortDisabled={abortDisabled}
-                                    isAborting={isAborting}
-                                    voiceEnabled={voiceEnabled}
-                                    voiceStatus={voiceStatus}
-                                    controlsDisabled={controlsDisabled}
-                                    onSend={() => { void sendComposerNow() }}
-                                    onAbort={handleAbort}
-                                    onVoiceToggle={onVoiceToggle ?? (() => {})}
-                                />
+                                <>
+                                    {dictationButton('mr-1.5')}
+                                    <MobileComposerAction
+                                        hasDraft={hasDraft}
+                                        canSend={canSend}
+                                        isSending={isSendButtonLoading}
+                                        showStop={showStop}
+                                        abortDisabled={abortDisabled}
+                                        isAborting={isAborting}
+                                        voiceEnabled={voiceEnabled}
+                                        voiceStatus={voiceStatus}
+                                        controlsDisabled={controlsDisabled}
+                                        onSend={() => { void sendComposerNow() }}
+                                        onAbort={handleAbort}
+                                        onVoiceToggle={onVoiceToggle ?? (() => {})}
+                                    />
+                                </>
                             )}
                         />
                     </div>
