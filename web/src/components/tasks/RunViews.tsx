@@ -52,12 +52,77 @@ function openDecisionOf(run: TaskRun, subtask: TaskSubtask): TaskDecision | unde
     return run.decisions.find((d) => !d.answer && (d.subtaskId === subtask.id || (subtask.sessionId && d.askedBy === subtask.sessionId)))
 }
 
+/** Same as the observer's first threshold: after this long without a message a session counts as not moving. */
+const SILENT_MS = 20 * 60_000
+
+function ago(at: number, now: number, t: Translate): string {
+    const minutes = Math.floor((now - at) / 60_000)
+    if (minutes < 1) return t('taskRun.ago.now')
+    return minutes < 60 ? t('taskRun.ago.minutes', { n: minutes }) : t('taskRun.ago.hours', { n: Math.floor(minutes / 60) })
+}
+
+/** One line on a subtask: what blocks it, or what its session does right now as the observer last saw it. */
 function subtaskStatus(run: TaskRun, subtask: TaskSubtask, now: number, t: Translate): { text: string; tone: ReportTone } {
     const waiting = openDecisionOf(run, subtask)
     if (waiting) return { text: t('taskRun.waitsFor', { what: waiting.question }), tone: 'wait' }
-    if (subtask.state === 'stuck') return { text: t('taskRun.noProgress', { time: duration(now - (subtask.startedAt ?? now), t) }), tone: 'stuck' }
     if (subtask.state === 'done') return { text: subtask.summary ?? t('taskRun.state.done'), tone: 'done' }
+    const live = subtask.live
+    if (live?.waiting) return { text: t('taskRun.live.approval', { what: live.waiting }), tone: 'wait' }
+    if (subtask.state === 'stopped' || (live && !live.active)) return { text: t('taskRun.live.stopped'), tone: 'stuck' }
+    const lastAt = live?.lastActivityAt ?? subtask.startedAt
+    if (subtask.state === 'stuck' || (subtask.state === 'running' && lastAt && now - lastAt >= SILENT_MS)) {
+        return { text: t('taskRun.noProgress', { time: duration(now - (lastAt ?? now), t) }), tone: 'stuck' }
+    }
+    if (subtask.state === 'running' && live) {
+        const what = live.step ?? (live.thinking ? t('taskRun.live.thinking') : t('taskRun.state.running'))
+        return { text: live.lastActivityAt ? `${what} · ${ago(live.lastActivityAt, now, t)}` : what, tone: 'live' }
+    }
     return { text: t(`taskRun.state.${subtask.state}`), tone: SUBTASK_TONE[subtask.state] }
+}
+
+/**
+ * What the observer did: when it last looked, and the log of what it flagged, reminded or pushed, newest first.
+ * Read-only requests it approved for the lead fold into one count.
+ */
+function WatchLog(props: { run: TaskRun; live: boolean; now: number; t: Translate }) {
+    const { t, now } = props
+    const [all, setAll] = useState(false)
+    const log = props.run.watch?.log ?? []
+    const approvals = log.filter((e) => e.kind === 'auto_approved').length
+    const entries = log.filter((e) => e.kind !== 'auto_approved').reverse()
+    const shown = all ? entries : entries.slice(0, 3)
+    const checkedAt = props.run.watch?.checkedAt ?? null
+    const checked = checkedAt === null
+        ? t('taskRun.watch.notYet')
+        : now - checkedAt < 60_000 ? t('taskRun.watch.checkedSeconds', { n: Math.max(1, Math.round((now - checkedAt) / 1000)) }) : t('taskRun.watch.checked', { time: ago(checkedAt, now, t) })
+    const summary = [props.live ? checked : null, approvals ? t('taskRun.watch.autoApproved', { n: approvals }) : null].filter(Boolean).join(' · ')
+    return (
+        <>
+            <SectionCaption trailing={<InfoTip text={t('taskRun.watch.rules')} align="end" />}>{t('taskRun.watch.title')}</SectionCaption>
+            <div className="mx-4 divide-y divide-[var(--social-divider)] overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                {summary ? (
+                    <p className="flex items-center gap-2 px-4 py-3 text-footnote text-[var(--social-fg-muted)]">
+                        {props.live ? <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-[var(--social-success)]" aria-hidden="true" /> : null}
+                        {summary}
+                    </p>
+                ) : null}
+                {shown.length === 0 ? (
+                    <p className="px-4 py-3 text-body text-[var(--social-fg-muted)]">{t('taskRun.watch.empty')}</p>
+                ) : shown.map((entry, index) => (
+                    <div key={`${entry.at}-${index}`} className="flex items-start gap-3 px-4 py-3">
+                        <span className="w-11 shrink-0 pt-px text-footnote tabular-nums text-[var(--social-fg-subtle)]">{clock(entry.at)}</span>
+                        <span className="min-w-0 flex-1 text-body leading-snug text-[var(--social-fg)]">{entry.text}</span>
+                        {entry.notified ? <span className="shrink-0 pt-px text-caption text-[var(--social-fg-subtle)]">{t('taskRun.watch.pushed')}</span> : null}
+                    </div>
+                ))}
+                {entries.length > 3 ? (
+                    <button type="button" onClick={() => setAll((value) => !value)} className="w-full px-4 py-3 text-left text-footnote font-semibold text-[var(--social-fg-muted)] hover:bg-[var(--social-muted)]">
+                        {all ? t('taskRun.watch.less') : t('taskRun.watch.more', { n: entries.length - 3 })}
+                    </button>
+                ) : null}
+            </div>
+        </>
+    )
 }
 
 /** One acceptance check: its state, trailing text, and the subtask responsible for it. */
@@ -345,6 +410,8 @@ export function RunReport(props: {
                     <div className="mx-4"><RiskNotice risks={risks} /></div>
                 </>
             ) : null}
+
+            {!finished || (run.watch?.log.length ?? 0) > 0 ? <WatchLog run={run} live={!finished} now={now} t={t} /> : null}
 
             {finished && items.length > 0 ? (
                 <>

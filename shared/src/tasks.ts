@@ -100,6 +100,29 @@ export type TaskSubtask = {
     summary: string | null
     startedAt: number | null
     doneAt: number | null
+    /** What the observer saw at its last look; absent until it looked. */
+    live?: SubtaskLive | null
+}
+
+/** One working session as the observer last saw it. */
+export type SubtaskLive = {
+    active: boolean
+    thinking: boolean
+    /** When the session last wrote a message. */
+    lastActivityAt: number | null
+    /** Its latest step, e.g. "运行 npm test" or "改 todo.js". */
+    step: string | null
+    /** The approval it waits on, if any. */
+    waiting: string | null
+}
+
+/** One thing the observer did or flagged, for the task page's log. */
+export type TaskWatchEntry = {
+    at: number
+    kind: TaskSignal['kind'] | 'auto_approved'
+    text: string
+    /** The user was pushed a notification for it. */
+    notified: boolean
 }
 
 export type TaskDecisionOption = { label: string; good?: string | null; cost?: string | null }
@@ -144,4 +167,6 @@ export type TaskRun = {
     integration: { branch: string; worktree: string; summary: string | null } | null
     review: TaskReview | null
     report: { conclusion: string; markdown: string; shareUrl: string | null; at: number } | null
+    /** The observer: when it last looked (null after a hub restart until the next look) and what it did, newest last. */
+    watch?: { checkedAt: number | null; log: TaskWatchEntry[] }
 }

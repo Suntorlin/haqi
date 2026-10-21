@@ -71,6 +71,11 @@ export class TaskKernel {
         return deleted
     }
 
+    /** Tells the pages a task changed without writing anything, e.g. after the observer's look. */
+    touch(namespace: string, taskId: string): void {
+        this.changed(namespace, taskId)
+    }
+
     log(namespace: string, taskId: string, type: TaskEventType, payload?: unknown): StoredTaskEvent {
         const event = this.store.taskEvents.add({ namespace, groupId: taskId, type, payload })
         this.changed(namespace, taskId)

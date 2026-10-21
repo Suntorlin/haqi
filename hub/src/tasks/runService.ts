@@ -4,7 +4,7 @@
  * user's verdict). The observer watches the working sessions; decisions the work needs go to the user, or are
  * answered by a precedent. Every step is a task event; the run state is read back from the log.
  */
-import type { TaskRun, TaskSubtask } from '@hapi/protocol/types'
+import type { SubtaskLive, TaskRun, TaskSubtask } from '@hapi/protocol/types'
 import { projectNameFor } from '../memory/harvest'
 import type { MemoryService } from '../memory/service'
 import type { Store } from '../store'
@@ -39,7 +39,7 @@ export type RunHost = {
     send: (sessionId: string, text: string, meta: Record<string, unknown>) => Promise<boolean>
     session: (namespace: string, sessionId: string) => RunSession | null
     /** When the session last wrote, and the shell commands it ran after `since`. */
-    activity: (sessionId: string, since: number) => { lastMessageAt: number; commands: string[] }
+    activity: (sessionId: string, since: number) => { lastMessageAt: number; commands: string[]; lastStep?: string | null }
     stopSession: (namespace: string, sessionId: string) => Promise<void>
     /** Grants a permission request on the user's behalf (only read-only requests are). */
     approve: (sessionId: string, requestId: string) => Promise<void>
@@ -61,6 +61,10 @@ export class RunService {
     private readonly scanned = new Map<string, number>()
     /** Lead approval requests already pushed to the user. */
     private readonly pushedRequests = new Set<string>()
+    /** Per session: what the observer saw at its last look, shown on the task page. Memory only; refilled within a tick. */
+    private readonly live = new Map<string, SubtaskLive>()
+    /** When the observer last looked. */
+    private checkedAt: number | null = null
 
     constructor(
         private readonly store: Store,
@@ -71,6 +75,15 @@ export class RunService {
 
     run(namespace: string, taskId: string): TaskRun | null {
         return readRun(this.kernel.events(namespace, taskId))
+    }
+
+    /** The run as the task page shows it: each working session's live state and when the observer last looked. */
+    decorate(run: TaskRun): TaskRun {
+        return {
+            ...run,
+            subtasks: run.subtasks.map((s) => ({ ...s, live: s.sessionId && s.state !== 'done' ? this.live.get(s.sessionId) ?? null : null })),
+            watch: { checkedAt: this.checkedAt, log: run.watch?.log ?? [] }
+        }
     }
 
     // ---- planning ---------------------------------------------------------------------------------------------
@@ -353,6 +366,7 @@ export class RunService {
 
     /** One look at every running task: approvals, stopped or silent sessions, risky commands. */
     async tick(namespace: string, now = Date.now()): Promise<void> {
+        this.checkedAt = now
         await this.watchLeads(namespace)
         for (const task of this.kernel.list(namespace)) {
             if (task.status !== 'active') continue
@@ -374,7 +388,17 @@ export class RunService {
                     pendingRequests: session.pendingRequests,
                     newCommands: activity.commands
                 })
+                const request = session.pendingRequests[0]
+                this.live.set(subtask.sessionId, {
+                    active: session.active,
+                    thinking: session.thinking,
+                    lastActivityAt: Math.max(activity.lastMessageAt, subtask.startedAt ?? 0) || null,
+                    step: activity.lastStep ?? null,
+                    waiting: request ? `${request.tool} ${request.detail}`.slice(0, 200) : null
+                })
             }
+            // The page shows each session's latest step and when the observer looked: refresh it after every look.
+            this.kernel.touch(namespace, task.id)
             for (const action of observe(watched, run.signals, now)) {
                 if (action.type === 'signal') this.signal(namespace, task, action.signal, action.notify)
                 else if (action.type === 'clear') this.kernel.log(namespace, task.id, RUN_EVENT.signal, { key: action.key, cleared: true })
@@ -397,7 +421,10 @@ export class RunService {
             if (!lead?.active) continue
             for (const request of lead.pendingRequests) {
                 if (isReadOnlyRequest(request.tool, request.args)) {
-                    await this.host.approve(lead.id, request.id).catch(() => {})
+                    const approved = await this.host.approve(lead.id, request.id).then(() => true, () => false)
+                    if (approved && task.status === 'active') {
+                        this.kernel.log(namespace, task.id, RUN_EVENT.watch, { kind: 'auto_approved', text: `替负责人批准了只读请求：${request.tool} ${request.detail}`.slice(0, 200) })
+                    }
                     continue
                 }
                 if (this.pushedRequests.has(request.id)) continue

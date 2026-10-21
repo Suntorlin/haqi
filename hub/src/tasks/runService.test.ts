@@ -74,7 +74,7 @@ function setup(dir: string) {
                 const s = sessions.get(id)
                 return s ? { id, active: s.active, thinking: s.thinking, path: s.path, worktree: s.worktree, pendingRequests: s.requests } : null
             },
-            activity: () => ({ lastMessageAt: Date.now(), commands: [] }),
+            activity: () => ({ lastMessageAt: Date.now(), commands: [], lastStep: '运行 npm test' }),
             push: async (_ns, notice) => { pushes.push(notice.title) },
             createReport: (_ns, input) => { reports.push(input.markdown); return { shareUrl: 'https://example.test/share/r/x' } },
             approve: async (sessionId, requestId) => { approved.push(`${sessionId}:${requestId}`); sessions.get(sessionId)!.requests = sessions.get(sessionId)!.requests.filter((r) => r.id !== requestId) }
@@ -227,7 +227,12 @@ describe('task run after the guide step', () => {
         await t.runs.tick('default')
         await t.runs.tick('default')
         expect(t.pushes.length - before).toBe(1)
-        expect(t.service.get('default', task.id)!.run!.signals.map((s) => s.kind)).toEqual(['approval'])
+        const run = t.service.get('default', task.id)!.run!
+        expect(run.signals.map((s) => s.kind)).toEqual(['approval'])
+        // The task page sees what the observer saw: the session's latest step, the approval, and the log.
+        expect(run.subtasks[0]!.live).toMatchObject({ active: true, step: '运行 npm test', waiting: 'Bash git push' })
+        expect(run.watch?.checkedAt).toBeGreaterThan(0)
+        expect(run.watch?.log.map((e) => [e.kind, e.notified])).toEqual([['approval', true]])
     })
 
     it('grants the lead read-only requests for the user, and pushes anything else once', async () => {
