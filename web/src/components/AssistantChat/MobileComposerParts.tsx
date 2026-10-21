@@ -18,26 +18,12 @@ import {
 import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { Button } from '@/components/ui/button'
 import { CountBadge, DotBadge } from '@/components/ui/badge'
+import { ActionTile } from '@/components/mobile/ActionTile'
 import { IconButton } from '@/components/ui/IconButton'
 import { HIT_AREA_28_CLASS, HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-
-const tileClass = 'flex flex-col items-center gap-1.5 text-caption text-[var(--social-fg-muted)] [-webkit-tap-highlight-color:transparent] disabled:opacity-40'
-const tileIconClass = 'relative flex h-14 w-14 items-center justify-center rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] transition-transform active:scale-95'
-
-function PanelTile(props: { icon: ReactNode; label: string; onClick: () => void; disabled?: boolean; badge?: number }) {
-    return (
-        <button type="button" onClick={props.onClick} disabled={props.disabled} className={tileClass}>
-            <span className={tileIconClass}>
-                {props.icon}
-                <CountBadge count={props.badge ?? 0} className="absolute -right-1 -top-1" />
-            </span>
-            {props.label}
-        </button>
-    )
-}
 
 /**
  * WeChat-style "+" panel: the conversation settings as chips (each opens its own drawer), then
@@ -59,27 +45,24 @@ export function MobileComposerToolPanel(props: {
                     {props.settings}
                 </div>
             ) : null}
-            <div className="grid grid-cols-4 gap-x-2 gap-y-3 px-5 pt-1 [&_svg]:stroke-[1.6]">
-                <ComposerPrimitive.AddAttachment disabled={props.controlsDisabled} className={tileClass}>
-                    <span className={tileIconClass}>
-                        <PaperclipIcon className="h-6 w-6" />
-                    </span>
-                    {t('mobile.composer.attach')}
+            <div className="grid grid-cols-4 gap-2 px-5 pt-1 [&_svg]:stroke-[1.6]">
+                <ComposerPrimitive.AddAttachment asChild disabled={props.controlsDisabled}>
+                    <ActionTile icon={<PaperclipIcon className="h-6 w-6" />} label={t('mobile.composer.attach')} />
                 </ComposerPrimitive.AddAttachment>
                 {props.showTerminalButton ? (
-                    <PanelTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
+                    <ActionTile icon={<TerminalIcon className="h-6 w-6" />} label={t('composer.terminal')} onClick={props.onTerminal} disabled={props.controlsDisabled} />
                 ) : null}
                 {compact ? (
-                    <PanelTile icon={<CompactIcon className="h-6 w-6" />} label={t('composer.compact')} onClick={compact.onRun} disabled={compact.disabled} />
+                    <ActionTile icon={<CompactIcon className="h-6 w-6" />} label={t('composer.compact')} onClick={compact.onRun} disabled={compact.disabled} />
                 ) : null}
                 {queue ? (
-                    <PanelTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={queue.onOpen} disabled={queue.disabled} badge={queue.pendingCount} />
+                    <ActionTile icon={<QueueListIcon className="h-6 w-6" />} label={t('composer.queue')} onClick={queue.onOpen} disabled={queue.disabled} badge={queue.pendingCount} />
                 ) : null}
                 {status ? (
-                    <PanelTile icon={<InfoCircleIcon className="h-6 w-6" />} label={t('composer.status')} onClick={status.onOpen} disabled={status.disabled} />
+                    <ActionTile icon={<InfoCircleIcon className="h-6 w-6" />} label={t('composer.status')} onClick={status.onOpen} disabled={status.disabled} />
                 ) : null}
                 {switchRemote ? (
-                    <PanelTile icon={<SwitchIcon className="h-6 w-6" />} label={t('composer.switchRemote')} onClick={switchRemote.onSwitch} disabled={switchRemote.disabled} />
+                    <ActionTile icon={<SwitchIcon className="h-6 w-6" />} label={t('composer.switchRemote')} onClick={switchRemote.onSwitch} disabled={switchRemote.disabled} />
                 ) : null}
             </div>
         </div>
