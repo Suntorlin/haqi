@@ -1211,15 +1211,19 @@ export function HappyComposer(props: {
             onDismissError={dictation.clearError}
         />
     ) : null
-    const dictationButton = (className?: string) => dictation ? (
+    const dictationControl = dictation ? {
+        status: dictation.status,
+        onStart: () => {
+            haptic('light')
+            dictation.start()
+        },
+        onFinish: dictation.finish
+    } : null
+    // The mic is the main action on an empty draft; while that action is "stop", a small mic keeps dictation reachable.
+    const dictationButton = (className?: string) => dictationControl && showStop ? (
         <DictationButton
-            status={dictation.status}
+            {...dictationControl}
             disabled={controlsDisabled}
-            onStart={() => {
-                haptic('light')
-                dictation.start()
-            }}
-            onFinish={dictation.finish}
             className={className}
         />
     ) : null
@@ -1402,6 +1406,7 @@ export function HappyComposer(props: {
                                 }}
                                 onAbort={handleAbort}
                                 onVoiceToggle={onVoiceToggle ?? (() => {})}
+                                dictation={dictationControl}
                             />
                         </div>
                     </ComposerPrimitive.AttachmentDropzone>
@@ -1499,6 +1504,7 @@ export function HappyComposer(props: {
                                         onSend={() => { void sendComposerNow() }}
                                         onAbort={handleAbort}
                                         onVoiceToggle={onVoiceToggle ?? (() => {})}
+                                        dictation={dictationControl}
                                     />
                                 </>
                             )}

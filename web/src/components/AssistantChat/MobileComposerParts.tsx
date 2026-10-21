@@ -99,6 +99,14 @@ export function MobileComposerToggle(props: { open: boolean; onClick: () => void
  * The one right-hand action, in both layouts: stop while the agent is running, send while there is
  * a draft, otherwise voice (like WeChat swapping the mic for "发送" once you type).
  */
+const primaryActionClass = cn('mb-[2px] h-9 w-9 transition-[transform,opacity] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)] disabled:opacity-100', HIT_AREA_CLASS)
+
+export type DictationControl = {
+    status: DictationStatus
+    onStart: () => void
+    onFinish: () => void
+}
+
 export function MobileComposerAction(props: {
     hasDraft: boolean
     canSend: boolean
@@ -112,9 +120,10 @@ export function MobileComposerAction(props: {
     onSend: () => void
     onAbort: () => void
     onVoiceToggle: () => void
+    // Local dictation; when present, the empty-draft action is its mic instead of the voice call.
+    dictation?: DictationControl | null
 }) {
     const { t } = useTranslation()
-    const base = cn('mb-[2px] h-9 w-9 transition-[transform,opacity] active:scale-95 disabled:bg-[var(--social-muted)] disabled:text-[var(--social-fg-subtle)] disabled:opacity-100', HIT_AREA_CLASS)
     const voiceActive = props.voiceStatus === 'connected' || props.voiceStatus === 'connecting'
 
     if (props.showStop) {
@@ -124,7 +133,7 @@ export function MobileComposerAction(props: {
                 label={t('mobile.composer.stop')}
                 onClick={props.onAbort}
                 disabled={props.abortDisabled}
-                className={base}
+                className={primaryActionClass}
             >
                 {props.isAborting ? (
                     <Spinner size="md" label={null} className="text-current" />
@@ -142,7 +151,7 @@ export function MobileComposerAction(props: {
                 label={t('composer.send')}
                 onClick={props.onSend}
                 disabled={!props.canSend || props.isSending}
-                className={base}
+                className={primaryActionClass}
             >
                 {props.isSending ? (
                     <Spinner size="md" label={null} className="text-current" />
@@ -153,6 +162,16 @@ export function MobileComposerAction(props: {
         )
     }
 
+    if (props.dictation && !voiceActive) {
+        return (
+            <DictationButton
+                {...props.dictation}
+                primary
+                disabled={props.controlsDisabled}
+            />
+        )
+    }
+
     if (props.voiceEnabled || voiceActive) {
         return (
             <IconButton
@@ -160,7 +179,7 @@ export function MobileComposerAction(props: {
                 label={voiceActive ? t('mobile.composer.stopVoice') : t('mobile.composer.voice')}
                 onClick={props.onVoiceToggle}
                 disabled={props.controlsDisabled && !voiceActive}
-                className={cn(base, voiceActive ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)]' : '')}
+                className={cn(primaryActionClass, voiceActive ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)]' : '')}
             >
                 {voiceActive ? <StopSquareIcon className="h-3.5 w-3.5" /> : <MicWaveIcon className="h-[18px] w-[18px]" />}
             </IconButton>
@@ -168,7 +187,7 @@ export function MobileComposerAction(props: {
     }
 
     return (
-        <IconButton variant="filled" label={t('composer.send')} disabled className={base}>
+        <IconButton variant="filled" label={t('composer.send')} disabled className={primaryActionClass}>
             <SendArrowIcon className="h-[18px] w-[18px]" />
         </IconButton>
     )
@@ -269,13 +288,12 @@ export function VoiceCallBar(props: {
 
 /**
  * Speech-to-text into the draft: tap to record, tap again (or "Done" in the bar) to turn it into text.
- * It sits inside the input, apart from the voice-call action, because it only fills the draft.
+ * `primary` is the composer's main action while the draft is empty; the small one only shows
+ * while the main action is "stop", so a reply can still be dictated during a run.
  */
-export function DictationButton(props: {
-    status: DictationStatus
+export function DictationButton(props: DictationControl & {
     disabled: boolean
-    onStart: () => void
-    onFinish: () => void
+    primary?: boolean
     className?: string
 }) {
     const { t } = useTranslation()
@@ -283,12 +301,13 @@ export function DictationButton(props: {
     const busy = props.status === 'starting' || props.status === 'transcribing'
     return (
         <IconButton
-            size="xs"
+            variant={props.primary ? 'filled' : undefined}
+            size={props.primary ? undefined : 'xs'}
             label={recording ? t('dictation.finish') : t('dictation.start')}
             onClick={recording ? props.onFinish : props.onStart}
             disabled={busy || (props.disabled && !recording)}
             aria-pressed={recording}
-            className={cn(recording ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)] hover:bg-[var(--social-badge)] hover:text-[var(--social-on-accent)]' : '', props.className)}
+            className={cn(props.primary && primaryActionClass, recording ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)] hover:bg-[var(--social-badge)] hover:text-[var(--social-on-accent)]' : '', props.className)}
         >
             {busy ? <Spinner size="sm" label={null} className="text-current" /> : <MicIcon className="h-[18px] w-[18px]" />}
         </IconButton>

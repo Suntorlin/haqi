@@ -55,6 +55,18 @@ describe('MobileComposerAction', () => {
         expect(screen.getByRole('button', { name: 'Stop' })).toBeInTheDocument()
     })
 
+    it('is the dictation mic on an empty draft and send once there is text', () => {
+        const dictation = { status: 'idle' as const, onStart: vi.fn(), onFinish: vi.fn() }
+        renderAction({ dictation })
+        fireEvent.click(screen.getByRole('button', { name: 'Dictate' }))
+        expect(dictation.onStart).toHaveBeenCalledOnce()
+        expect(screen.queryByRole('button', { name: 'Voice' })).toBeNull()
+        cleanup()
+        renderAction({ dictation, hasDraft: true, canSend: true })
+        expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Dictate' })).toBeNull()
+    })
+
     it('ends an active voice chat when the input is empty', () => {
         renderAction({ voiceStatus: 'connected' })
         expect(screen.getByRole('button', { name: 'End voice' })).toBeInTheDocument()
