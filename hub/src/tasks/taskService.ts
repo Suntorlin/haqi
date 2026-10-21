@@ -221,6 +221,7 @@ export class TaskService {
         if (patch.status) this.kernel.move(namespace, taskId, patch.status)
         if (patch.status === 'done' || patch.status === 'abandoned') {
             void this.stopPlanner(namespace, this.kernel.get(namespace, taskId)?.leadSessionId ?? null)
+            void this.runs?.stopAll(namespace, taskId)
         }
         return this.get(namespace, taskId)!
     }
