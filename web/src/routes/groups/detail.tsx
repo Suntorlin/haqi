@@ -79,6 +79,7 @@ import {
 import { useGroupInfoPanel } from './group-info'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
+import { TaskCard } from '@/components/tasks/TaskCard'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -2914,7 +2915,7 @@ export default function GroupDetailPage() {
             onChange={handleComposerChange}
             onPaste={handleComposerPaste}
             onKeyDown={handleComposerKeyDown}
-            placeholder={t('groups.detail.composerPlaceholder')}
+            placeholder={group?.group.kind === 'task' && group.group.status === 'guiding' ? t('taskGuide.composerPlaceholder') : t('groups.detail.composerPlaceholder')}
             aria-label={t('groups.detail.composerPlaceholder')}
             rows={1}
             className={cn('block w-full resize-none bg-transparent text-headline leading-[1.375rem] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
@@ -3000,6 +3001,8 @@ export default function GroupDetailPage() {
             {pendingMembers.length > 0 ? (
                 <PendingBanner items={pendingMembers} onOpen={handleOpenPendingQuickModal} />
             ) : null}
+
+            {group?.group.kind === 'task' ? <TaskCard key={groupId} taskId={groupId} api={api} /> : null}
 
             <div className="social-chat min-h-0 flex-1">
                 {timeline}

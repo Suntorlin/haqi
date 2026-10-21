@@ -555,6 +555,10 @@ export class SyncEngine {
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
+            timeline: (namespace, taskId, text) => {
+                void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text } })
+                    .catch((error) => console.error('[Tasks] timeline line failed', error))
+            },
             load: (namespace, sessionIds, since) => this.loadService.taskLoad(namespace, sessionIds, since)
         })
         if (store.getDatabasePath() !== ':memory:') {
@@ -742,7 +746,24 @@ export class SyncEngine {
         targetSessionIds?: string[] | null
         quotedMessageId?: string | null
     }) {
-        return this.groupService.addTimelineMessage(options)
+        const result = await this.groupService.addTimelineMessage(options)
+        await this.reviseTaskFromChat(options)
+        return result
+    }
+
+    /**
+     * While a task is in the guide step, what the user says in its group goes to the planner as a change request, so
+     * the group's own composer is where the user asks HAQI to change the draft.
+     */
+    private async reviseTaskFromChat(options: { groupId: string; namespace: string; type: string; payload: unknown; source?: string; actorSessionId?: string | null }): Promise<void> {
+        if (options.type !== 'chat' || options.actorSessionId || !(options.source ?? 'user:web').startsWith('user:')) return
+        const text = options.payload && typeof options.payload === 'object' && typeof (options.payload as { text?: unknown }).text === 'string'
+            ? (options.payload as { text: string }).text.trim()
+            : ''
+        if (!text) return
+        const task = this.taskService.kernel.get(options.namespace, options.groupId)
+        if (task?.status !== 'guiding') return
+        await this.taskService.revise(options.namespace, options.groupId, text)
     }
 
     getGroupNote(groupId: string, namespace: string) {

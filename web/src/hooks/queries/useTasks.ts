@@ -19,6 +19,19 @@ export function useTasks(api: ApiClient | null): { tasks: TaskView[]; isLoading:
     return { tasks: data?.tasks ?? [], isLoading }
 }
 
+/** One task: draft, guide state, acceptance list and load. Refreshed by `task-updated` (its key is under `tasks`). */
+export function useTask(api: ApiClient | null, taskId: string | null): { task: TaskView | null; isLoading: boolean } {
+    const { data, isLoading } = useQuery({
+        queryKey: queryKeys.task(taskId ?? ''),
+        queryFn: async () => {
+            if (!api || !taskId) throw new Error('No API client')
+            return await api.getTask(taskId)
+        },
+        enabled: Boolean(api && taskId)
+    })
+    return { task: data ?? null, isLoading }
+}
+
 /** Task actions; the list in the cache takes the server's answer at once. */
 export function useTaskActions(api: ApiClient | null) {
     const queryClient = useQueryClient()
@@ -32,6 +45,7 @@ export function useTaskActions(api: ApiClient | null) {
                     : [task, ...tasks]
             }
         })
+        queryClient.setQueryData(queryKeys.task(task.id), task)
         return task
     }, [queryClient])
 

@@ -273,7 +273,7 @@ export function DesignShowcase() {
                     </ListGroup>
                 </div>
                 <div className="max-w-md">
-                    <p className="pb-2 text-footnote text-[var(--social-fg-muted)]">CheckRow：可勾选的行（引导步骤里的验收标准）。取消勾选后划线但仍可见；点文字可改。</p>
+                    <p className="pb-2 text-footnote text-[var(--social-fg-muted)]">CheckRow：可勾选的行（任务卡里的验收标准）。取消勾选后划线但仍可见；点右侧铅笔改这一行。</p>
                     <div className="overflow-hidden rounded-2xl border border-[var(--social-border)] px-2">
                         {[
                             { id: 'a', text: 'bun run test 全部通过', how: '验证：bun run test', source: '仓库约定', warn: false },
@@ -289,7 +289,7 @@ export function DesignShowcase() {
                                 subtitle={row.how}
                                 onEdit={() => undefined}
                                 editLabel="改这一行"
-                                trailing={<Badge variant={row.warn ? 'warning' : 'default'}>{row.source}</Badge>}
+                                tag={<Badge variant={row.warn ? 'warning' : 'default'}>{row.source}</Badge>}
                             />
                         ))}
                     </div>

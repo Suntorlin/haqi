@@ -39,6 +39,7 @@ function setup(dir: string) {
     const sent: Array<{ sessionId: string; text: string; meta: Record<string, unknown> }> = []
     const spawned: Array<{ directory: string; name: string; tags: string[]; text: string }> = []
     const changes: string[] = []
+    const lines: string[] = []
     let spawnError: string | null = null
     let nextId = 1
     const addSession = (session: Partial<TaskSession> & { id: string }) => {
@@ -68,10 +69,11 @@ function setup(dir: string) {
         session: (_namespace, id) => sessions.get(id) ?? null,
         sessions: () => [...sessions.values()],
         machineOnline: (_namespace, machineId) => machineId !== 'offline',
-        changed: (_namespace, id) => changes.push(id)
+        changed: (_namespace, id) => changes.push(id),
+        timeline: (_namespace, _id, text) => lines.push(text)
     })
     return {
-        store, service, sessions, sent, spawned, changes, addSession,
+        store, service, sessions, sent, spawned, changes, lines, addSession,
         failSpawn: (message: string | null) => { spawnError = message },
         settle: () => service.whenIdle()
     }
@@ -131,6 +133,7 @@ describe('TaskService guide step', () => {
 
         const confirmed = await t.service.confirm('default', created.id, {
             criteria: [{ id: 'c1', kept: true }, { id: 'c2', kept: true, text: '报告结论先行，带关键数字' }, { id: 'c3', kept: false }],
+            added: [{ text: '不推送到远程' }],
             answers: { q1: 'b' }
         })
         expect(confirmed.status).toBe('active')
@@ -138,8 +141,12 @@ describe('TaskService guide step', () => {
         expect(confirmed.draft).toBeNull()
         expect(confirmed.acceptance.map((c) => [c.text, c.source])).toEqual([
             ['bun run test 全部通过', 'repo'],
-            ['报告结论先行，带关键数字', 'inferred']
+            ['报告结论先行，带关键数字', 'user'],
+            ['不推送到远程', 'user']
         ])
+        // The user follows the guide step in the task group's timeline.
+        const heads = ['HAQI 正在读你的记忆', '第 1 版草稿好了', '第 2 版草稿好了', '你确认了目标和 3 条验收标准']
+        expect(t.lines.map((line, index) => line.startsWith(heads[index] ?? '-'))).toEqual([true, true, true, true])
         expect(t.sent.at(-1)?.text).toContain('用户已确认')
 
         const decisions = t.store.memories.list('default').filter((m) => m.source === 'decision')
@@ -162,6 +169,7 @@ describe('TaskService guide step', () => {
         const task = await t.service.create('default', { text: '修一个 bug', tag: 'haqi' })
         await t.settle()
         expect(t.service.get('default', task.id)!.guide).toEqual({ state: 'failed', error: '机器不在线', request: '修一个 bug' })
+        expect(t.lines.at(-1)).toBe('起草失败：机器不在线')
         t.failSpawn(null)
         await t.service.retry('default', task.id)
         await t.settle()
