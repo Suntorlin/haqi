@@ -268,12 +268,13 @@ export async function startHappyServer(client: ApiSessionClient) {
         description: MEMORY_SEARCH_DESCRIPTION,
         title: 'Search Memory',
         inputSchema: memorySearchInputSchema
-    }, async (args: { query: string; limit?: number }) => {
+    }, async (args: { query: string; limit?: number; tag?: string }) => {
         try {
             const query = new URLSearchParams({ q: args.query, limit: String(args.limit ?? 8) });
+            if (args.tag) query.set('tag', args.tag);
             const payload = await requestHubJson(`/api/memories/search?${query.toString()}`);
             const hits = Array.isArray(payload.hits) ? payload.hits as JsonObject[] : [];
-            const lines = hits.map((hit) => `- [${String(hit.level)} · ${hit.scope ? String(hit.scope) : 'global'} · ${String(hit.status)}] ${String(hit.text)}`);
+            const lines = hits.map((hit) => `- [${String(hit.level)} · ${hit.scope ? String(hit.scope) : 'global'} · ${String(hit.status)}] ${String(hit.text)}${Array.isArray(hit.tags) && hit.tags.length > 0 ? ` #${hit.tags.join(' #')}` : ''}`);
             return { content: [{ type: 'text' as const, text: lines.length > 0 ? lines.join('\n') : 'No matching memory.' }], isError: false };
         } catch (error) {
             return buildToolError('Failed to search memory', error);

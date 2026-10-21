@@ -283,3 +283,98 @@ describe('MemoryService.propose', () => {
         ;(store as unknown as { db: Database }).db.close()
     })
 })
+
+describe('MemoryService decisions and tags', () => {
+    let dir = ''
+    const previousKey = process.env.JEV_API_KEY
+    beforeAll(() => {
+        dir = mkdtempSync(join(tmpdir(), 'haqi-memory-tags-'))
+        process.env.JEV_API_KEY = 'test-key'
+    })
+    afterAll(() => {
+        rmSync(dir, { recursive: true, force: true })
+        if (previousKey === undefined) delete process.env.JEV_API_KEY
+        else process.env.JEV_API_KEY = previousKey
+    })
+
+    function setup() {
+        const store = new Store(':memory:')
+        const calls: string[] = []
+        const service = new MemoryService(store, {
+            paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }),
+            onChange: () => {},
+            fetchFn: fakeJev(calls)
+        })
+        const now = Date.now()
+        ;(store as unknown as { db: Database }).db.prepare(
+            "INSERT INTO sessions (id, tag, namespace, created_at, updated_at, metadata, metadata_version, agent_state_version, active, active_at, seq) VALUES ('s1', NULL, 'default', ?, ?, ?, 1, 1, 0, ?, 0)"
+        ).run(now, now, JSON.stringify({ path: '/tmp/x', tags: ['Agent', 'task:abcabcabcabc'] }), now)
+        return { store, service, calls }
+    }
+
+    it('records a choice as an active experience without asking Jev, and housekeeping keeps it active', async () => {
+        const { store, service, calls } = setup()
+        const result = await service.recordDecision({
+            namespace: 'default',
+            situation: '截图放哪里',
+            options: ['Linear 工单', 'Obsidian'],
+            chosen: 'Linear 工单',
+            project: 'haqi',
+            tags: ['haqi'],
+            sessionId: null,
+            sourceRef: 'task:abcabcabcabc#q1'
+        })
+        expect(result.action).toBe('added')
+        const memory = store.memories.get(result.memoryId!, 'default')!
+        expect([memory.text, memory.level, memory.scope, memory.status, memory.source, memory.tags]).toEqual([
+            '情境：截图放哪里；选项：Linear 工单/Obsidian；你选了：Linear 工单', 'experience', 'haqi', 'active', 'decision', ['haqi']
+        ])
+        expect(calls.filter((call) => !call.startsWith('gate:'))).toEqual([])
+        expect(store.memories.events('default', 10)[0]?.sourceRef).toBe('task:abcabcabcabc#q1')
+
+        await service.maintain('default')
+        expect(store.memories.get(memory.id, 'default')?.status).toBe('active')
+
+        const again = await service.recordDecision({
+            namespace: 'default', situation: '截图放哪里', options: ['Linear 工单', 'Obsidian'], chosen: 'Linear 工单',
+            project: 'haqi', tags: ['haqi'], sessionId: null, sourceRef: 'task:abcabcabcabc#q1'
+        })
+        expect(again.action).toBe('duplicate')
+    })
+
+    it('cuts each part of a long choice so it fits one memory', async () => {
+        const { service } = setup()
+        const { decisionText } = await import('./service')
+        const text = decisionText({ situation: '长'.repeat(500), options: ['A'.repeat(200), 'B'], chosen: 'C'.repeat(100) })
+        expect(text.length).toBeLessThanOrEqual(400)
+        expect(text).toContain('你选了：')
+        expect(service).toBeDefined()
+    })
+
+    it('tags a memory with the user tags of its session and filters search by tag, status and project', async () => {
+        const { store, service } = setup()
+        const said = await service.propose({ namespace: 'default', text: '一律先跑测试再提交', said: true, source: 'propose', sourceLabel: null, sessionId: 's1', project: 'haqi' })
+        expect(store.memories.get(said.memoryId!, 'default')?.tags).toEqual(['agent'])
+        await service.recordDecision({
+            namespace: 'default', situation: '测试失败怎么办', options: ['先修', '先提交'], chosen: '先修',
+            project: 'other', tags: ['prod'], sessionId: null, sourceRef: 'task:x#q1'
+        })
+
+        const all = await service.search('default', '测试', 10)
+        expect(all.length).toBe(2)
+        expect((await service.search('default', '测试', 10, { tag: 'agent' })).map((h) => h.memory.id)).toEqual([said.memoryId!])
+        expect((await service.search('default', '测试', 10, { statuses: ['active'] })).every((h) => h.memory.status === 'active')).toBe(true)
+        expect((await service.search('default', '测试', 10, { project: 'haqi' })).every((h) => h.memory.scope !== 'other')).toBe(true)
+    })
+
+    it('gives older memories the tags of their session at housekeeping', async () => {
+        const { store, service } = setup()
+        const old = store.memories.insert({
+            namespace: 'default', text: '旧的一条经验', level: 'experience', scope: '', status: 'candidate', reason: null,
+            source: 'propose', sourceLabel: null, sessionId: 's1', said: false, support: 1, jev: null, overridden: null, replaces: null
+        })
+        expect(old.tags).toEqual([])
+        await service.maintain('default')
+        expect(store.memories.get(old.id, 'default')?.tags).toEqual(['agent'])
+    })
+})
