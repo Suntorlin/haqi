@@ -553,6 +553,7 @@ export class SyncEngine {
                 return session ? toTaskSession(session) : null
             },
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
+            machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
             load: (namespace, sessionIds, since) => this.loadService.taskLoad(namespace, sessionIds, since)
         })

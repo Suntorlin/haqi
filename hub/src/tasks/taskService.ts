@@ -25,6 +25,7 @@ export type TaskServiceHost = {
     planner: PlannerHost
     session: (namespace: string, sessionId: string) => TaskSession | null
     sessions: (namespace: string) => TaskSession[]
+    machineOnline: (namespace: string, machineId: string) => boolean
     /** Called after a task changed. */
     changed: (namespace: string, taskId: string) => void
     /** How often the user stepped in, per task; null until messages are classified. */
@@ -85,7 +86,7 @@ export class TaskService {
         })
         this.kernel.log(namespace, task.id, TASK_EVENT.guideStarted, { text: input.text, fromSessionId: from?.id ?? null })
         if (!place) {
-            this.kernel.log(namespace, task.id, TASK_EVENT.guideFailed, { error: '找不到仓库目录：请选一个目录再重试。' })
+            this.kernel.log(namespace, task.id, TASK_EVENT.guideFailed, { error: '找不到在线机器上的仓库目录：先在这个 tag 下开一个会话，再重试。' })
         } else {
             this.startInBackground(namespace, task.id)
         }
@@ -266,11 +267,14 @@ export class TaskService {
         }
     }
 
-    /** Where a new task runs: the given place, else its source session, else the newest session with the tag. */
+    /**
+     * Where a new task runs: the given place, else its source session, else the newest session with the tag; always
+     * on a machine that is online now.
+     */
     private placeFor(namespace: string, tag: string, from: TaskSession | null, machineId?: string, directory?: string): { machineId: string; directory: string } | null {
         if (machineId && directory) return { machineId, directory }
         const candidates = [from, ...this.host.sessions(namespace).filter((s) => s.tags.includes(tag)).sort((a, b) => b.updatedAt - a.updatedAt)]
-        const session = candidates.find((s): s is TaskSession => Boolean(s?.machineId && s.path))
+        const session = candidates.find((s): s is TaskSession => Boolean(s?.machineId && s.path && this.host.machineOnline(namespace, s.machineId)))
         return session ? { machineId: session.machineId!, directory: directory ?? session.path! } : null
     }
 
