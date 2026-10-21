@@ -63,7 +63,7 @@ export function guidePrompt(request: GuideRequest): string {
         `6. 调用 task_draft_submit 提交，task_id 填 "${request.taskId}"。工具报错就按报错改了再交。`,
         '7. 提交后停下，等用户确认或要你修改。不要开始实现。',
         '',
-        '读文件和搜索只用 Read、Glob、Grep 工具，不要用 Bash：Bash 要用户批准，会让用户等你。',
+        '读文件和搜索只用 Read、Glob、Grep 工具，不要用 Bash，也不要派子 agent（Agent、Task 工具）：自己读。',
         '用中文写，句子短，一句话只说一件事。'
     ]
     if (request.resume) {

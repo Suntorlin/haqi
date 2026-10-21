@@ -38,7 +38,7 @@ export type TaskServiceHost = {
     /** How often the user stepped in, per task; null until messages are classified. */
     load?: (namespace: string, sessionIds: string[], since: number) => TaskLoad | null
     /** What the run after the guide step needs (spawning executors, push, reports); tests may leave it out. */
-    run?: Omit<RunHost, 'load' | 'timeline' | 'stopSession'>
+    run?: Omit<RunHost, 'load' | 'timeline' | 'stopSession' | 'approve'> & { approve?: RunHost['approve'] }
 }
 
 export { TaskError }
@@ -70,6 +70,7 @@ export class TaskService {
             ...host.run,
             timeline: (namespace, taskId, text) => host.timeline?.(namespace, taskId, text),
             stopSession: async (namespace, sessionId) => { await host.stopSession?.(namespace, sessionId) },
+            approve: host.run.approve ?? (async () => {}),
             load: (namespace, sessionIds, since) => host.load?.(namespace, sessionIds, since) ?? null
         }) : null
     }

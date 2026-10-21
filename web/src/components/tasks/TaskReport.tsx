@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { ApiClient } from '@/api/client'
-import type { CriterionSource, TaskDraft, TaskView } from '@/types/api'
+import type { CriterionSource, TaskDraft, TaskRun, TaskSubtask, TaskView } from '@/types/api'
 import { useTask, useTaskActions } from '@/hooks/queries/useTasks'
 import { useSession } from '@/hooks/queries/useSession'
 import { useTranslation } from '@/lib/use-translation'
@@ -11,11 +11,17 @@ import {
     DecisionCard,
     DecisionConfirmation,
     LeadComposer,
+    ProgressList,
     ReportSummary,
     RiskNotice,
     SectionCaption,
-    type LatestMessage
+    VerdictBar,
+    type CheckItem,
+    type LatestMessage,
+    type ProgressItem,
+    type ReportTone
 } from '@/components/report'
+import { useNavigate } from '@tanstack/react-router'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -279,6 +285,132 @@ function DraftReport(props: {
     )
 }
 
+const SUBTASK_TONE: Record<TaskSubtask['state'], ReportTone> = { waiting: 'wait', running: 'live', done: 'done', stuck: 'stuck', stopped: 'stuck' }
+
+/** The headline of a running task: one sentence on where it is and what waits for the user. */
+function runHeadline(task: TaskView, run: TaskRun, t: Translate): string {
+    const open = run.decisions.filter((d) => !d.answer).length
+    const workers = run.subtasks.filter((s) => !s.fix && s.id !== 'merge')
+    const done = workers.filter((s) => s.state === 'done').length
+    const waiting = open > 0 ? t('taskRun.waitingYou', { n: open }) : ''
+    switch (run.phase) {
+        case 'planning': return t('taskRun.planning')
+        case 'running': return t('taskRun.running', { n: workers.length, done }) + waiting
+        case 'integrating': return t('taskRun.integrating') + waiting
+        case 'reviewing': return t('taskRun.reviewing') + waiting
+        case 'fixing': return t('taskRun.fixing', { n: run.review?.results.filter((r) => r.status === 'not_met').length ?? 0 }) + waiting
+        case 'reporting': return run.report?.conclusion ?? t('taskRun.reporting')
+        case 'accepted': return task.goal ?? task.name
+    }
+}
+
+/**
+ * The task after the guide step, laid out like the report kit's lead report: one sentence on where it is, the
+ * decisions that wait for the user, every subtask's progress, the acceptance checks, and the risks.
+ */
+function RunReport(props: { task: TaskView; run: TaskRun; onAnswer: (decisionId: string, label: string) => void; pending: boolean; t: Translate }) {
+    const { task, run, t } = props
+    const navigate = useNavigate()
+    const open = run.decisions.filter((d) => !d.answer)
+    const answered = run.decisions.filter((d) => d.answer)
+    const results = new Map((run.review?.results ?? []).map((r) => [r.criterionId, r]))
+    const owner = (criterionId: string) => run.subtasks.find((s) => !s.fix && s.criteria.includes(criterionId))
+    const items: ProgressItem[] = run.subtasks.map((s) => ({
+        id: s.id,
+        seed: s.sessionId ?? s.id,
+        name: s.title,
+        status: s.state === 'done' ? (s.summary ?? t('taskRun.state.done')) : t(`taskRun.state.${s.state}`),
+        tone: SUBTASK_TONE[s.state],
+        done: s.state === 'done' ? 1 : 0,
+        total: 1,
+        when: s.doneAt ? new Date(s.doneAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : undefined
+    }))
+    const checks: CheckItem[] = task.acceptance.map((c) => {
+        const result = results.get(c.id)
+        if (result) {
+            return {
+                title: c.text,
+                subtitle: result.evidence,
+                state: result.status === 'met' ? 'done' : 'wait',
+                trailing: result.status === 'met' ? undefined : t(`taskRun.verdict.${result.status}`)
+            }
+        }
+        const by = owner(c.id)
+        return { title: c.text, subtitle: c.verify ? t('taskGuide.verify', { how: c.verify }) : undefined, state: by?.state === 'done' ? 'live' : by?.state === 'running' ? 'live' : 'todo' }
+    })
+    const risks = run.signals.filter((s) => s.kind !== 'reminded').map((s) => s.text)
+    const lede = [t(`taskRun.phase.${run.phase}`), task.tag ? `#${task.tag}` : null, repoName(task.repoPath), run.integration ? run.integration.branch : null].filter(Boolean).join(' · ')
+
+    return (
+        <>
+            <ReportSummary headline={runHeadline(task, run, t)} lede={lede} />
+            {run.report?.shareUrl ? (
+                <a href={run.report.shareUrl} target="_blank" rel="noreferrer" className="mx-5 mt-2 inline-block text-footnote font-semibold text-[var(--social-fg)] underline underline-offset-4">
+                    {t('taskRun.fullReport')}
+                </a>
+            ) : null}
+
+            {open.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskReport.waiting')}</SectionCaption>
+                    <div className="mx-4 flex flex-col gap-2">
+                        {open.map((d) => (
+                            <DecisionCard
+                                key={d.id}
+                                showSource={Boolean(d.subtaskId)}
+                                decision={{
+                                    id: d.id,
+                                    question: d.question,
+                                    context: d.context ?? undefined,
+                                    source: d.subtaskId ? { seed: d.askedBy ?? d.id, name: run.subtasks.find((s) => s.id === d.subtaskId)?.title ?? d.subtaskId } : undefined,
+                                    options: d.options.map((o) => ({ label: o.label, good: o.good ?? '', cost: o.cost ?? '', recommended: o.label === d.recommended }))
+                                }}
+                                onAnswer={(option) => props.onAnswer(d.id, option.label)}
+                            />
+                        ))}
+                    </div>
+                </>
+            ) : null}
+
+            {risks.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.risks')}</SectionCaption>
+                    <div className="mx-4"><RiskNotice risks={risks} /></div>
+                </>
+            ) : null}
+
+            {items.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.progress')}</SectionCaption>
+                    <div className="mx-4">
+                        <ProgressList items={items} onOpen={(item) => {
+                            const sessionId = run.subtasks.find((s) => s.id === item.id)?.sessionId
+                            if (sessionId) void navigate({ to: '/sessions/$sessionId', params: { sessionId } })
+                        }} />
+                    </div>
+                </>
+            ) : null}
+
+            <SectionCaption>{t('taskGuide.criteria')}</SectionCaption>
+            <div className="mx-4"><Checklist items={checks} /></div>
+
+            {answered.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskRun.decided')}</SectionCaption>
+                    <Group>
+                        {answered.map((d) => (
+                            <div key={d.id} className="px-4 py-3">
+                                <p className="text-body text-[var(--social-fg)]">{d.question} → {d.answer!.label}</p>
+                                <p className="mt-0.5 text-footnote text-[var(--social-fg-muted)]">{d.answer!.by === 'precedent' ? t('taskRun.byPrecedent') : t('taskRun.byYou')}</p>
+                            </div>
+                        ))}
+                    </Group>
+                </>
+            ) : null}
+        </>
+    )
+}
+
 /** The confirmed task: goal, numbers, the acceptance list and what it does not do. */
 function ConfirmedReport(props: { task: TaskView; onToggleDone: () => void; pending: boolean; t: Translate }) {
     const { task, t } = props
@@ -336,7 +468,8 @@ export function TaskReport(props: {
     const { task } = useTask(props.api, props.taskId)
     const { session: lead } = useSession(props.api, task?.leadSessionId ?? null)
     const waitingRequest = Object.entries(lead?.agentState?.requests ?? {})[0] ?? null
-    const { confirmTask, retryGuide, updateTask } = useTaskActions(props.api)
+    const { confirmTask, retryGuide, updateTask, answerDecision, verdict } = useTaskActions(props.api)
+    const [changing, setChanging] = useState(false)
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
     const [message, setMessage] = useState('')
@@ -422,7 +555,11 @@ export function TaskReport(props: {
                         />
                     ) : null}
 
-                    {!guiding ? (
+                    {!guiding && task.run ? (
+                        <RunReport task={task} run={task.run} pending={pending} t={t} onAnswer={(decisionId, label) => void run(() => answerDecision(task.id, decisionId, label))} />
+                    ) : null}
+
+                    {!guiding && !task.run ? (
                         <ConfirmedReport
                             task={task}
                             pending={pending}
@@ -434,14 +571,29 @@ export function TaskReport(props: {
                     {error ? <p className={cn('px-5 pt-3 text-footnote text-[var(--social-danger)]')}>{error}</p> : null}
                 </div>
             </div>
-            <LeadComposer
-                latest={props.latest ?? { from: 'lead', text: t('taskReport.noMessages'), when: '' }}
-                draft={message}
-                onDraft={setMessage}
-                onSend={send}
-                onAllChats={props.onAllChats}
-                placeholder={guiding ? t('taskGuide.composerPlaceholder') : undefined}
-            />
+            {task.run?.phase === 'reporting' && !changing ? (
+                <VerdictBar
+                    onApprove={() => void run(() => verdict(task.id, { approved: true }))}
+                    onRequestChanges={() => setChanging(true)}
+                />
+            ) : (
+                <LeadComposer
+                    latest={props.latest ?? { from: 'lead', text: t('taskReport.noMessages'), when: '' }}
+                    draft={message}
+                    onDraft={setMessage}
+                    onSend={changing && task.run?.phase === 'reporting'
+                        ? () => {
+                            const text = message.trim()
+                            if (!text) return
+                            setMessage('')
+                            setChanging(false)
+                            void run(() => verdict(task.id, { approved: false, text }))
+                        }
+                        : send}
+                    onAllChats={props.onAllChats}
+                    placeholder={guiding ? t('taskGuide.composerPlaceholder') : changing ? t('taskRun.changePlaceholder') : undefined}
+                />
+            )}
         </div>
     )
 }

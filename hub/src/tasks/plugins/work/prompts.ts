@@ -43,7 +43,7 @@ export function planPrompt(brief: TaskBrief): string {
         ...criteriaLines(brief.acceptance),
         '',
         '## 要做的事',
-        `1. 读仓库 ${brief.repoPath} 里和这件事有关的代码，只读。读文件只用 Read、Glob、Grep。`,
+        `1. 读仓库 ${brief.repoPath} 里和这件事有关的代码，只读。读文件只用 Read、Glob、Grep，不要用 Bash，不要派子 agent。`,
         '2. 拆成 1–5 个子任务。每个子任务交给一个执行会话，在它自己的 git worktree 里独立完成。能一个会话做完就只拆 1 个；会改同一批文件的不要拆开。',
         '3. 每个子任务写：id（英文短词）、title（不超过 20 字）、brief（要改什么、在哪里改、怎么验证；执行会话只看得到这段）、criteria（它负责的验收标准 id）、depends_on（必须先做完的子任务 id）。所有验收标准都要有子任务负责。',
         `4. 调用 task_plan_submit 提交，task_id 填 "${brief.taskId}"。工具报错就按报错改了再交。`,

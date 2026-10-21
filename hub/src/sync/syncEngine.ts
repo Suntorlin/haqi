@@ -107,7 +107,7 @@ const MAX_GROUP_MIRROR_TEXT_LENGTH = 8_000
 const GROUP_NOTE_FILE_SYNC_INTERVAL_MS = 3 * 60 * 1000
 const MEMORY_HARVEST_INTERVAL_MS = 15 * 60 * 1000
 /** How often the task observer looks at running tasks. */
-const TASK_OBSERVER_INTERVAL_MS = 60 * 1000
+const TASK_OBSERVER_INTERVAL_MS = 20 * 1000
 const MEMORY_HARVEST_FIRST_DELAY_MS = 60 * 1000
 const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'tool-call',
@@ -597,11 +597,12 @@ export class SyncEngine {
                         pendingRequests: Object.entries(session.agentState?.requests ?? {}).map(([id, request]) => {
                             const args = request.arguments as { command?: unknown; file_path?: unknown } | null
                             const detail = typeof args?.command === 'string' ? args.command : typeof args?.file_path === 'string' ? args.file_path : ''
-                            return { id, tool: request.tool, detail: detail.slice(0, 200) }
+                            return { id, tool: request.tool, detail: detail.slice(0, 200), args: request.arguments }
                         })
                     }
                 },
                 activity: (sessionId, since) => sessionActivity(this.store.messages.getMessages(sessionId, 60), since),
+                approve: async (sessionId, requestId) => { await this.approvePermission(sessionId, requestId, undefined, undefined, 'approved', undefined, undefined, 'auto') },
                 push: async (namespace, notice) => { await this.pushNotifier?.(namespace, { ...notice, tag: `task:${notice.url}` }) },
                 createReport: (namespace, input) => {
                     const report = this.store.reports.createReport({ namespace, title: input.title, markdown: input.markdown, status: 'final' })

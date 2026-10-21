@@ -16,7 +16,7 @@ export function ProgressRow(props: { item: ProgressItem; onOpen: () => void }) {
                 )}
                 {item.unread ? <DotBadge className="absolute -right-1 -top-1" /> : null}
             </span>
-            <span className="w-[72px] shrink-0 truncate text-body text-[var(--social-fg)]">{item.name}</span>
+            <span className="w-24 shrink-0 truncate text-body text-[var(--social-fg)]">{item.name}</span>
             <span className={cn('min-w-0 flex-1 truncate text-footnote', attention ? 'text-[var(--app-badge-warning-text)]' : 'text-[var(--social-fg-muted)]')}>
                 {item.status}
             </span>

@@ -16,6 +16,7 @@ import {
 } from './kernel/run'
 import { matchPrecedent } from './plugins/decisions/precedent'
 import { observe, type WatchedSession } from './plugins/observer/observer'
+import { isReadOnlyRequest } from './plugins/observer/readonly'
 import { composeReport } from './plugins/report/report'
 import {
     answerPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, workPrompt, type TaskBrief
@@ -27,7 +28,7 @@ export type RunSession = {
     thinking: boolean
     path: string | null
     worktree: { branch: string; path: string | null } | null
-    pendingRequests: Array<{ id: string; tool: string; detail: string }>
+    pendingRequests: Array<{ id: string; tool: string; detail: string; args?: unknown }>
 }
 
 export type RunHost = {
@@ -40,6 +41,8 @@ export type RunHost = {
     /** When the session last wrote, and the shell commands it ran after `since`. */
     activity: (sessionId: string, since: number) => { lastMessageAt: number; commands: string[] }
     stopSession: (namespace: string, sessionId: string) => Promise<void>
+    /** Grants a permission request on the user's behalf (only read-only requests are). */
+    approve: (sessionId: string, requestId: string) => Promise<void>
     timeline: (namespace: string, taskId: string, text: string) => void
     push: (namespace: string, notice: { title: string; body: string; url: string }) => Promise<void>
     createReport: (namespace: string, input: { title: string; markdown: string }) => { shareUrl: string | null }
@@ -55,6 +58,8 @@ function meta(taskId: string, step: string): Record<string, unknown> {
 export class RunService {
     /** Per session: when the observer last scanned its commands. */
     private readonly scanned = new Map<string, number>()
+    /** Lead approval requests already pushed to the user. */
+    private readonly pushedRequests = new Set<string>()
 
     constructor(
         private readonly store: Store,
@@ -337,6 +342,7 @@ export class RunService {
 
     /** One look at every running task: approvals, stopped or silent sessions, risky commands. */
     async tick(namespace: string, now = Date.now()): Promise<void> {
+        await this.watchLeads(namespace)
         for (const task of this.kernel.list(namespace)) {
             if (task.status !== 'active') continue
             const run = this.run(namespace, task.id)
@@ -365,6 +371,27 @@ export class RunService {
                 else if (action.type === 'remind' && action.subtask.sessionId) {
                     await this.host.send(action.subtask.sessionId, remindPrompt(task.id, action.subtask), meta(task.id, 'remind')).catch(() => false)
                 }
+            }
+        }
+    }
+
+    /**
+     * The lead runs with default permissions while it drafts and splits. A read-only request (it or a sub-agent it
+     * started wants to list or search files) is granted on the user's behalf; anything else is pushed once.
+     */
+    private async watchLeads(namespace: string): Promise<void> {
+        for (const task of this.kernel.list(namespace)) {
+            if ((task.status !== 'guiding' && task.status !== 'active') || !task.leadSessionId) continue
+            const lead = this.host.session(namespace, task.leadSessionId)
+            if (!lead?.active) continue
+            for (const request of lead.pendingRequests) {
+                if (isReadOnlyRequest(request.tool, request.args)) {
+                    await this.host.approve(lead.id, request.id).catch(() => {})
+                    continue
+                }
+                if (this.pushedRequests.has(request.id)) continue
+                this.pushedRequests.add(request.id)
+                void this.host.push(namespace, { title: `负责人等你批准：${task.name}`, body: `${request.tool} ${request.detail}`.slice(0, 200), url: `/groups/${task.id}` }).catch(() => {})
             }
         }
     }
