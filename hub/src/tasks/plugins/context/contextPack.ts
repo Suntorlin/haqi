@@ -23,6 +23,9 @@ export type ContextInput = {
     project: string | null
     repoPath: string | null
     fromSessionId: string | null
+    /** Set while the planner still has to pick the repository: the folder it starts in and the candidates. */
+    workspace?: string
+    repos?: Array<{ path: string; project: string; sessions: string[] }>
 }
 
 export type ContextPack = {
@@ -47,7 +50,15 @@ export async function buildContextPack(input: ContextInput, sources: ContextSour
         sections.push([`## 当前会话：${session.name ?? '（未命名）'}`, messages.length ? '你最近说的话：' : '（没有你的消息）', ...messages].join('\n'))
     }
 
-    sections.push(`## 仓库\n${input.repoPath ? `目录：${input.repoPath}${input.project ? `（项目 ${input.project}）` : ''}。约定文件（AGENTS.md、CLAUDE.md、HARNESS.md 等）请自己读。` : '没有仓库目录。'}`)
+    if (input.repoPath) {
+        sections.push(`## 仓库\n目录：${input.repoPath}${input.project ? `（项目 ${input.project}）` : ''}。约定文件（AGENTS.md、CLAUDE.md、HARNESS.md 等）请自己读。`)
+    } else {
+        sections.push([
+            `## 可选的仓库（你来判断在哪个做）`,
+            `你现在在 ${input.workspace ?? '（未知）'}，下面的仓库都在它里面。按需求、项目名和最近的会话名判断。`,
+            ...(input.repos ?? []).map((repo) => `- ${repo.path}（项目 ${repo.project}）${repo.sessions.length ? `：最近的会话 ${repo.sessions.join('、')}` : ''}`)
+        ].join('\n'))
+    }
 
     const tags = sources.knownTags?.() ?? []
     sections.push(input.tag
@@ -56,7 +67,7 @@ export async function buildContextPack(input: ContextInput, sources: ContextSour
 
     const related = sources.relatedTasks(input.project, input.tag, input.taskId).slice(0, CONTEXT_LIMITS.relatedTasks)
     if (related.length) {
-        sections.push(['## 同仓库或同 tag 的近期任务', ...related.map((task) => [
+        sections.push([input.project || input.tag ? '## 同仓库或同 tag 的近期任务' : '## 近期任务', ...related.map((task) => [
             `- [task:${task.id}] ${task.name}${task.goal ? `：${task.goal}` : ''}`,
             ...task.acceptance.map((line) => `  - 验收：${line}`)
         ].join('\n'))].join('\n'))

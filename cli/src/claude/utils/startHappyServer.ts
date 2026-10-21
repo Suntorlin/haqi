@@ -408,6 +408,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     }, async (args: {
         task_id: string
         tag?: string
+        repo_path?: string
         goal: string
         non_goals?: string[]
         criteria: Array<{ text: string; source: 'principle' | 'repo' | 'inferred'; source_ref?: string; verify: string }>
@@ -418,6 +419,7 @@ export async function startHappyServer(client: ApiSessionClient) {
                 method: 'POST',
                 body: JSON.stringify({
                     tag: args.tag,
+                    repoPath: args.repo_path,
                     goal: args.goal,
                     nonGoals: args.non_goals ?? [],
                     criteria: args.criteria.map((criterion) => ({

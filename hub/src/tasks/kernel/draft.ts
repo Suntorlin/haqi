@@ -28,6 +28,8 @@ const questionSchema = z.object({
 
 export const draftInputSchema = z.object({
     tag: taskTagSchema.nullish(),
+    /** The repository the planner picked: an absolute path. */
+    repoPath: z.string().trim().regex(/^\//, 'repo_path must be an absolute path').max(500).nullish(),
     goal: z.string().trim().min(1).max(DRAFT_LIMITS.goal),
     nonGoals: z.array(z.string().trim().min(1).max(200)).max(DRAFT_LIMITS.nonGoals).default([]),
     criteria: z.array(z.object({
@@ -49,6 +51,7 @@ export function toTaskDraft(input: DraftInput, version: number): TaskDraft {
     return {
         version,
         tag: input.tag ?? null,
+        repoPath: input.repoPath ?? null,
         goal: input.goal,
         nonGoals: input.nonGoals,
         criteria: input.criteria.map((criterion, index) => ({

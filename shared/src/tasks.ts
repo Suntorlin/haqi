@@ -33,6 +33,8 @@ export type TaskDraft = {
     version: number
     /** The tag the planner picked for the task. */
     tag?: string | null
+    /** The repository the planner picked. */
+    repoPath?: string | null
     goal: string
     nonGoals: string[]
     criteria: AcceptanceCriterion[]
