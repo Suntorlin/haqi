@@ -4,6 +4,7 @@ import { BottomSheet, SheetNote, SheetSection } from '@/components/mobile/Bottom
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { CheckIcon } from '@/components/mobile/icons'
 
 /**
  * Phone "Task" picker: a sheet instead of rows expanded inside the menu, so a long task list
@@ -59,18 +60,7 @@ export function SessionTaskSheet(props: {
                                         <span className={cn('min-w-0 flex-1 truncate text-body', linked ? 'font-semibold' : '', task.status === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
                                             {task.title}
                                         </span>
-                                        <svg
-                                            viewBox="0 0 24 24"
-                                            className={cn('h-[18px] w-[18px] shrink-0 transition-opacity', linked ? 'opacity-100' : 'opacity-0')}
-                                            fill="none"
-                                            stroke="currentColor"
-                                            strokeWidth="2.4"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            aria-hidden="true"
-                                        >
-                                            <polyline points="5 12.5 10 17.5 19 7" />
-                                        </svg>
+                                        <CheckIcon className={cn('h-[18px] w-[18px] shrink-0 transition-opacity', linked ? 'opacity-100' : 'opacity-0')} />
                                     </button>
                                 )
                             })}

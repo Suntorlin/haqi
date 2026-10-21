@@ -1,46 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import { FileIcon } from '@/components/FileIcon'
+import { DisclosureIcon, FolderIcon } from '@/components/mobile/icons'
 import { useSessionDirectory } from '@/hooks/queries/useSessionDirectory'
 import { useTranslation } from '@/lib/use-translation'
-
-function ChevronIcon(props: { className?: string; collapsed: boolean }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`${props.className ?? ''} transition-transform duration-200 ${props.collapsed ? '' : 'rotate-90'}`}
-        >
-            <polyline points="9 18 15 12 9 6" />
-        </svg>
-    )
-}
-
-function FolderIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        </svg>
-    )
-}
 
 function DirectorySkeleton(props: { depth: number; rows?: number }) {
     const rows = props.rows ?? 4
@@ -105,8 +68,8 @@ function DirectoryNode(props: {
                 className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
                 style={{ paddingLeft: indent }}
             >
-                <ChevronIcon collapsed={!isExpanded} className="text-[var(--social-fg-muted)]" />
-                <FolderIcon className="text-[var(--social-fg)]" />
+                <DisclosureIcon open={isExpanded} className="h-4 w-4 text-[var(--social-fg-muted)]" />
+                <FolderIcon className="h-[22px] w-[22px] text-[var(--social-fg)]" />
                 <div className="min-w-0 flex-1">
                     <div className="truncate font-semibold">{props.label}</div>
                 </div>

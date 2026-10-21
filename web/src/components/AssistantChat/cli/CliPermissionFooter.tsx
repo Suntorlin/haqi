@@ -39,7 +39,7 @@ function CliBtn(props: {
             disabled={props.disabled}
             onClick={props.onClick}
         >
-            {props.loading && <Spinner size="sm" label={null} className="h-3 w-3 text-current" />}
+            {props.loading && <Spinner size="xs" label={null} className="text-current" />}
             {props.label}
         </Button>
     )

@@ -22,12 +22,12 @@ import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { AllTasksView, TagTasksSection } from '@/components/SessionTasksPanel'
-import { MobileHeaderIconButton, MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, FolderStackIcon, MoreHorizontalIcon, PlusCircleIcon, QueueListIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
+import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { ChevronLeftIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, QueueListIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
-import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
@@ -618,20 +618,21 @@ function SessionsPage() {
 
     const listActions = (
         <>
-            <MobileHeaderIconButton label={t('sessions.search.open')} onClick={toggleSessionSearch}>
+            <IconButton className="text-[var(--social-fg)]" label={t('sessions.search.open')} onClick={toggleSessionSearch}>
                 <SearchIcon className="h-[22px] w-[22px]" />
-            </MobileHeaderIconButton>
-            <MobileHeaderIconButton
+            </IconButton>
+            <IconButton
+                className="text-[var(--social-fg)]"
                 label={mobileListMode === 'recent' ? t('mobile.list.switchToProjects') : t('mobile.list.switchToRecent')}
                 onClick={toggleListMode}
             >
                 {mobileListMode === 'recent'
-                    ? <FolderStackIcon className="h-[22px] w-[22px]" />
+                    ? <FolderIcon className="h-[22px] w-[22px]" />
                     : <RecentIcon className="h-[22px] w-[22px]" />}
-            </MobileHeaderIconButton>
-            <MobileHeaderIconButton label={t('sessions.new')} onClick={() => openNewSession()}>
+            </IconButton>
+            <IconButton className="text-[var(--social-fg)]" label={t('sessions.new')} onClick={() => openNewSession()}>
                 <PlusCircleIcon className="h-[24px] w-[24px]" />
-            </MobileHeaderIconButton>
+            </IconButton>
         </>
     )
     const listError = error ? (
@@ -1269,9 +1270,9 @@ function GroupsLayout() {
             title={t('mobile.tab.groups')}
             subtitle={t('mobile.groups.summary', { n: visibleGroups.length, m: totalMemberCount })}
             actions={(
-                <MobileHeaderIconButton label={t('mobile.groups.new')} onClick={() => setShowCreateModal(true)}>
+                <IconButton className="text-[var(--social-fg)]" label={t('mobile.groups.new')} onClick={() => setShowCreateModal(true)}>
                     <PlusCircleIcon className="h-[24px] w-[24px]" />
-                </MobileHeaderIconButton>
+                </IconButton>
             )}
         />
     )
@@ -1395,9 +1396,9 @@ function GroupsLayout() {
                             onTitleClick={() => setGroupInfoOpen(true)}
                             titleLabel={groupInfoLabel}
                             actions={(
-                                <DesktopIconButton label={groupInfoLabel} onClick={() => setGroupInfoOpen(true)}>
+                                <IconButton size="sm" label={groupInfoLabel} onClick={() => setGroupInfoOpen(true)}>
                                     <MoreHorizontalIcon className="h-[21px] w-[21px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             )}
                         />
                         <div className="min-h-0 flex-1">
@@ -1512,9 +1513,9 @@ function ReviewLoopsLayout() {
             title={t('mobile.tab.loops')}
             subtitle={t('mobile.loops.summary', { n: visibleLoops.length, active: activeCount })}
             actions={(
-                <MobileHeaderIconButton label={t('mobile.loops.new')} onClick={() => setCreateModalOpen(true)}>
+                <IconButton className="text-[var(--social-fg)]" label={t('mobile.loops.new')} onClick={() => setCreateModalOpen(true)}>
                     <PlusCircleIcon className="h-[24px] w-[24px]" />
-                </MobileHeaderIconButton>
+                </IconButton>
             )}
         />
     )
