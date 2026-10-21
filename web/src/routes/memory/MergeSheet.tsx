@@ -16,6 +16,8 @@ export function MergeSheet(props: {
     ids: string[]
     all: MemoryItem[]
     busy: boolean
+    /** Why the last merge failed, if it did. */
+    error: string | null
     onMerge: (text: string) => void
     onCancel: () => void
 }) {
@@ -49,6 +51,7 @@ export function MergeSheet(props: {
             ) : (
                 <MergeDraft key={preview.data.text} preview={preview.data} busy={props.busy} onMerge={props.onMerge} onCancel={props.onCancel} />
             )}
+            {props.error ? <p className="px-1 text-footnote text-[var(--social-danger)]">{t('memoryPage.merge.mergeFailed', { error: props.error })}</p> : null}
         </div>
     )
 }

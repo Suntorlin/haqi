@@ -315,8 +315,35 @@ describe('MemoryService.propose', () => {
         expect(calls).toContain('rewrite:2')
         expect(await service.mergeMany('default', [a.id, b.id])).toBeNull()
 
-        expect(service.archiveMany('default', [c.id, unrelated.id, b.id])).toBe(2)
+        // Merges stack: only the newest one into a memory can be undone, so nothing after it is thrown away.
+        const third = await service.mergeMany('default', [a.id, c.id], '发布前先备份 dist，10-20 备份过')
+        expect(service.undoMerge('default', again!.eventId)).toBeNull()
+        expect(service.undoMerge('default', third!.eventId)?.text).toBe('发布前先备份 dist / 备份大概放在 ~/.hapi/backups')
+        expect(store.memories.get(c.id, 'default')?.status).toBe('candidate')
+        expect(service.undoMerge('default', again!.eventId)).toMatchObject({ text: '发布前先备份 dist', support: 2 })
+
+        expect(service.archiveMany('default', [c.id, unrelated.id, b.id])).toBe(3)
         expect(store.memories.list('default').map((m) => m.id)).toEqual([a.id])
+        ;(store as unknown as { db: Database }).db.close()
+    })
+
+    it('stops checking for duplicates after the first batch when Jev is down', async () => {
+        const store = new Store(':memory:')
+        let jevCalls = 0
+        const working = fakeJev([])
+        const fetchFn = (async (url: string | URL | Request, init?: RequestInit) => {
+            if (String(url).endsWith('/systemone')) {
+                jevCalls += 1
+                return new Response('down', { status: 503 })
+            }
+            return await working(url, init)
+        }) as typeof fetch
+        const service = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn })
+        for (let i = 0; i < 20; i++) {
+            store.memories.insert({ namespace: 'default', text: `不要自己推送 ${i}`, level: 'experience', scope: '', status: 'active', reason: null, source: 'import', sourceLabel: null, sessionId: null, said: false, support: 1, jev: null, overridden: null, replaces: null })
+        }
+        expect(await service.maintain('default')).toMatchObject({ embedded: 20, merged: 0 })
+        expect(jevCalls).toBe(6)
         ;(store as unknown as { db: Database }).db.close()
     })
 

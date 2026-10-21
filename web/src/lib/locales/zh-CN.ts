@@ -806,6 +806,7 @@ export default {
   'memoryPage.merge.picked': '要合并的 {count} 条',
   'memoryPage.merge.writing': 'AI 正在把它们写成一条…',
   'memoryPage.merge.failed': '没写出来：{error}',
+  'memoryPage.merge.mergeFailed': '合并没成功：{error}。可能有条目刚被归档或合并，关掉重选一次。',
   'memoryPage.merge.textLabel': '合并后的内容',
   'memoryPage.merge.rewritten': 'AI 把几条写成了一条，可以直接改。',
   'memoryPage.merge.notRewritten': 'AI 没写出来，先用了保留那条的原文，可以自己改。',

@@ -804,6 +804,7 @@ export default {
   'memoryPage.merge.picked': '{count} memories to merge',
   'memoryPage.merge.writing': 'AI is writing them as one…',
   'memoryPage.merge.failed': 'Could not write it: {error}',
+  'memoryPage.merge.mergeFailed': 'The merge failed: {error}. One of them may have just been archived or merged. Close this and pick again.',
   'memoryPage.merge.textLabel': 'Merged text',
   'memoryPage.merge.rewritten': 'AI wrote them as one. You can change it.',
   'memoryPage.merge.notRewritten': 'AI could not write it, so this is the text of the memory that stays. You can change it.',
