@@ -10,10 +10,15 @@ import { useTranslation } from '@/lib/use-translation'
  * markdown, so the block becomes an ordinary section; the leading "# name" goes, the sheet already shows it.
  */
 export function reportMarkdownForApp(markdown: string): string {
-    return criteriaTableAsList(markdown)
+    return escapeTildes(criteriaTableAsList(markdown))
         .replace(/^# .*\n+/, '')
         .replace(/<details><summary>(.*?)<\/summary>/g, '## $1')
         .replace(/<\/details>/g, '')
+}
+
+/** Paths like ~/dev/x come in pairs in a report; GFM would strike the text between them. Code spans stay as they are. */
+function escapeTildes(markdown: string): string {
+    return markdown.split(/(`[^`\n]*`)/).map((part, index) => index % 2 === 1 ? part : part.replace(/~/g, '\\~')).join('')
 }
 
 const CRITERIA_HEADER = /^\| # \| 标准 \| 结论 \| 证据 \|$/
