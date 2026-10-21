@@ -11,7 +11,9 @@ describe('read-only requests', () => {
             'cat AGENTS.md CLAUDE.md 2>/dev/null',
             'find . -name "*.ts" | wc -l',
             'git -C /repo diff main...HEAD --stat',
-            'sed -n 1,40p src/a.ts'
+            'sed -n 1,40p src/a.ts',
+            'for d in /u/dev/tg-sandbox /u/dev/radar; do echo "== $d"; ls -a $d; done; echo; grep -rliE "todo|待办" --exclude-dir=node_modules --exclude-dir=.git /u/dev/tg-sandbox 2>/dev/null | head -50',
+            "grep -n 'a > b' notes.md"
         ]) expect([command, isReadOnlyCommand(command)]).toEqual([command, true])
     })
 
@@ -28,7 +30,8 @@ describe('read-only requests', () => {
             'npm install',
             'curl -X POST https://example.com',
             'ls $(rm -rf /tmp/x)',
-            'grep x f | tee out'
+            'grep x f | tee out',
+            'echo "$(rm -rf /tmp/x)"'
         ]) expect([command, isReadOnlyCommand(command)]).toEqual([command, false])
         expect(isReadOnlyRequest('Write', { file_path: '/x' })).toBe(false)
         expect(isReadOnlyRequest('Edit', {})).toBe(false)
