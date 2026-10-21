@@ -14,45 +14,8 @@ import { usePlatform } from '@/hooks/usePlatform'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
-
-function SelectionMark(props: { checked: boolean }) {
-    const mark = props.checked ? '●' : '○'
-    return (
-        <span className="mt-0.5 w-4 shrink-0 text-center text-[var(--social-fg-muted)]">
-            {mark}
-        </span>
-    )
-}
-
-function OptionRow(props: {
-    checked: boolean
-    disabled: boolean
-    title: string
-    description?: string | null
-    onClick: () => void
-}) {
-    return (
-        <button
-            type="button"
-            className={cn(
-                'flex min-h-11 w-full items-start gap-2 rounded-xl px-3 py-2 text-left text-body transition-colors hover:bg-[var(--social-hover)] disabled:pointer-events-none disabled:opacity-50',
-                props.checked ? 'bg-[var(--social-hover)]' : null
-            )}
-            disabled={props.disabled}
-            onClick={props.onClick}
-        >
-            <SelectionMark checked={props.checked} />
-            <span className="min-w-0 flex-1">
-                <div className="font-semibold text-[var(--social-fg)] break-words">{props.title}</div>
-                {props.description ? (
-                    <div className="mt-0.5 text-xs text-[var(--social-fg-muted)] break-words">
-                        {props.description}
-                    </div>
-                ) : null}
-            </span>
-        </button>
-    )
-}
+import { OptionRow } from '@/components/ToolCard/OptionRow'
+import { Card } from '@/components/ui/card'
 
 type QuestionState = {
     selected: string | null
@@ -183,7 +146,7 @@ export function RequestUserInputFooter(props: {
     const isPureTextQuestion = currentQuestion && currentQuestion.options.length === 0
 
     return (
-        <div className="mt-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
+        <Card className="mt-3 p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -302,6 +265,6 @@ export function RequestUserInputFooter(props: {
                     )}
                 </div>
             </div>
-        </div>
+        </Card>
     )
 }

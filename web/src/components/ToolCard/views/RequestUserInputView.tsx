@@ -6,6 +6,7 @@ import {
 import { maskSecretValue } from '@/components/ToolCard/questionTools'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 function getSelectionMark(isSelected: boolean): string {
     return isSelected ? '●' : '○'
@@ -43,7 +44,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                 const isPureTextQuestion = q.options.length === 0
 
                 return (
-                    <div key={q.id} className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
+                    <Card key={q.id} className="p-3">
                         {q.header ? (
                             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                 {q.header}
@@ -155,7 +156,7 @@ export function RequestUserInputView(props: ToolViewProps) {
                                 ) : null}
                             </div>
                         )}
-                    </div>
+                    </Card>
                 )
             })}
         </div>

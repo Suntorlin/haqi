@@ -12,6 +12,7 @@ import { TextField } from '@/components/ui/TextField'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import { CheckIcon, ChevronDownIcon, MoreHorizontalIcon, PencilIcon, PlusIcon, TrashIcon } from '@/components/mobile/icons'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 /** Sessions of each task, keyed by task id. */
 function useSessionsByTask(sessions: SessionSummary[]): Map<string, SessionSummary[]> {
@@ -416,9 +417,11 @@ export function AllTasksView(props: {
             {props.header}
             <TaskComposer tags={props.tagOrder} onCreate={createTask} />
             {tags.length === 0 ? (
-                <div className="px-5 py-8 text-center text-footnote text-[var(--social-fg-muted)]">
-                    {props.isLoading ? t('mobile.feed.loading') : t('tasks.empty')}
-                </div>
+                props.isLoading ? (
+                    <div className="px-5 py-8 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
+                ) : (
+                    <EmptyState variant="page" title={t('tasks.empty')} />
+                )
             ) : tags.map((tag) => {
                 const tagTasks = props.tasks.filter((task) => task.tag === tag)
                 const openCount = tagTasks.filter((task) => task.status === 'open').length
