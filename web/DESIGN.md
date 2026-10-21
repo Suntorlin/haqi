@@ -107,7 +107,7 @@ Weights: **400** and **600** only (`font-semibold`). System font stack (SF / Pin
 
 - Spacing: multiples of 4; gaps between sibling controls >= 8.
 - Heights: touch min `--touch-min` 44; button 44 (sm 36, lg 48); chip 32 (hit area 44); badge 24; count badge 18; list row >= 52.
-- Motion: `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-ease` `cubic-bezier(.2,0,0,1)`. Press feedback `active:scale-[.98]` on buttons. No decorative animation; `animate-pulse` only for live state.
+- Motion: `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-ease` `cubic-bezier(.2,0,0,1)`. Press feedback `active:scale-[.98]` on buttons. No decorative animation; `animate-pulse` only for live state. Exception: surfaces that travel across the screen take longer — bottom sheet `animate-sheet-up` 280ms, side panel `animate-panel-in` 260ms. Menus and popovers use `animate-menu-pop` (180ms).
 
 ## 3. Components
 
