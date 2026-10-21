@@ -28,7 +28,8 @@ export const memoryProposeInputSchema: z.ZodTypeAny = z.object({
 
 export const memorySearchInputSchema: z.ZodTypeAny = z.object({
     query: z.string().min(1).max(500).describe('What to look up, in any language'),
-    limit: z.number().int().min(1).max(20).optional().describe('Most results to return (default 8)')
+    limit: z.number().int().min(1).max(20).optional().describe('Most results to return (default 8)'),
+    tag: z.string().min(1).max(40).optional().describe('Only memories with this tag, such as the tag of the current task')
 })
 
 export const MEMORY_SEARCH_DESCRIPTION = "Search the user's long-term memory by meaning (Chinese and English both match). Use it to look up the user's rules, preferences and lessons about this project before you decide how to do something. Each result shows its level (fact, experience, principle), scope and status (active; pending = waiting for the user; candidate = on trial, not yet confirmed)."

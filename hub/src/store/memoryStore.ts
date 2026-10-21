@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite'
 
 import {
     addMemoryEvent,
+    addMemoryTags,
     approvedMemoryIds,
     memoryIdsBackedByUser,
     addMemoryLink,
@@ -48,4 +49,5 @@ export class MemoryStore {
     hasReplacement(namespace: string, id: string): boolean { return hasReplacement(this.db, namespace, id) }
     setVector(namespace: string, vector: StoredVector): void { setMemoryVector(this.db, namespace, vector) }
     vectors(namespace: string): StoredVector[] { return listMemoryVectors(this.db, namespace) }
+    addTags(namespace: string, memoryId: string, tags: string[]): void { addMemoryTags(this.db, namespace, memoryId, tags) }
 }

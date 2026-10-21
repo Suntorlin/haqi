@@ -121,7 +121,7 @@ type DbEventRow = {
     created_at: number
 }
 
-function toStoredMemory(row: DbMemoryRow): StoredMemory {
+function toStoredMemory(row: DbMemoryRow, tags: string[] = []): StoredMemory {
     return {
         id: row.id,
         namespace: row.namespace,
@@ -138,6 +138,7 @@ function toStoredMemory(row: DbMemoryRow): StoredMemory {
         jev: row.jev ? safeJsonParse(row.jev) : null,
         overridden: row.overridden ? safeJsonParse(row.overridden) as StoredMemory['overridden'] : null,
         replaces: row.replaces,
+        tags,
         version: row.version,
         createdAt: row.created_at,
         updatedAt: row.updated_at
@@ -164,7 +165,7 @@ function toStoredEvent(row: DbEventRow): StoredMemoryEvent {
     }
 }
 
-export type NewMemory = Omit<StoredMemory, 'id' | 'version' | 'createdAt' | 'updatedAt'>
+export type NewMemory = Omit<StoredMemory, 'id' | 'tags' | 'version' | 'createdAt' | 'updatedAt'> & { tags?: string[] }
 
 export function insertMemory(db: Database, input: NewMemory): StoredMemory {
     const now = Date.now()
@@ -190,6 +191,7 @@ export function insertMemory(db: Database, input: NewMemory): StoredMemory {
         replaces: input.replaces,
         now
     })
+    if (input.tags?.length) addMemoryTags(db, input.namespace, id, input.tags)
     const stored = getMemory(db, id, input.namespace)
     if (!stored) throw new Error('Failed to insert memory')
     return stored
@@ -197,12 +199,28 @@ export function insertMemory(db: Database, input: NewMemory): StoredMemory {
 
 export function getMemory(db: Database, id: string, namespace: string): StoredMemory | null {
     const row = db.prepare('SELECT * FROM memories WHERE id = ? AND namespace = ?').get(id, namespace) as DbMemoryRow | null
-    return row ? toStoredMemory(row) : null
+    if (!row) return null
+    const tags = db.prepare('SELECT tag FROM memory_tags WHERE memory_id = ? ORDER BY tag').all(id) as Array<{ tag: string }>
+    return toStoredMemory(row, tags.map((t) => t.tag))
 }
 
 export function listMemories(db: Database, namespace: string): StoredMemory[] {
     const rows = db.prepare("SELECT * FROM memories WHERE namespace = ? AND status != 'archived' ORDER BY created_at DESC").all(namespace) as DbMemoryRow[]
-    return rows.map(toStoredMemory)
+    const tags = memoryTagsByMemory(db, namespace)
+    return rows.map((row) => toStoredMemory(row, tags.get(row.id) ?? []))
+}
+
+/** Adds tags to a memory; a tag it already has is kept once. */
+export function addMemoryTags(db: Database, namespace: string, memoryId: string, tags: string[]): void {
+    const insert = db.prepare('INSERT OR IGNORE INTO memory_tags (memory_id, namespace, tag) VALUES (?, ?, ?)')
+    for (const tag of new Set(tags.map((t) => t.trim().toLowerCase()).filter(Boolean))) insert.run(memoryId, namespace, tag)
+}
+
+function memoryTagsByMemory(db: Database, namespace: string): Map<string, string[]> {
+    const rows = db.prepare('SELECT memory_id, tag FROM memory_tags WHERE namespace = ? ORDER BY tag').all(namespace) as Array<{ memory_id: string; tag: string }>
+    const byMemory = new Map<string, string[]>()
+    for (const row of rows) byMemory.set(row.memory_id, [...(byMemory.get(row.memory_id) ?? []), row.tag])
+    return byMemory
 }
 
 export type MemoryPatch = Partial<Pick<StoredMemory, 'text' | 'level' | 'scope' | 'status' | 'reason' | 'support' | 'said' | 'overridden' | 'replaces'>> & { bumpVersion?: boolean }

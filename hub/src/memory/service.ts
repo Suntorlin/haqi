@@ -12,7 +12,8 @@ import { buildQuestions, decide, matchQuestion, parseVerdict, REVIEW, THRESHOLDS
 import { mostSimilar, similarity } from './similarity'
 
 export type MemoryMode = 'off' | 'record'
-export type MemorySource = 'propose' | 'claude_auto' | 'import' | 'user_message'
+/** decision: the user's answer to a question in a task's guide step. */
+export type MemorySource = 'propose' | 'claude_auto' | 'import' | 'user_message' | 'decision'
 
 export type MemoryCaptureSettings = { mode: MemoryMode; projects: string[] }
 
@@ -27,6 +28,30 @@ export type ProposeInput = {
     /** Repository the candidate came from; null = no project (global candidates only). */
     project: string | null
     sourceRef?: string | null
+    /** Tags for the memory; by default the user tags of `sessionId`. */
+    tags?: string[]
+}
+
+/** One choice the user made in a task's guide step: the situation, the options, and what they chose. */
+export type DecisionInput = {
+    namespace: string
+    situation: string
+    options: string[]
+    chosen: string
+    /** Repository name; '' = global. */
+    project: string | null
+    tags: string[]
+    sessionId: string | null
+    /** Where the choice was made, such as `task:<id>#<questionId>`. */
+    sourceRef: string
+}
+
+export type SearchFilter = {
+    levels?: MemoryLevel[]
+    statuses?: StoredMemory['status'][]
+    /** Global memories plus the ones scoped to this repository. */
+    project?: string
+    tag?: string
 }
 
 export type ProposeResult = {
@@ -87,7 +112,8 @@ function trialMessage(): string {
 
 /** Only what the user wrote or typed counts as theirs; whatever an agent passes on is the agent's. */
 function originOf(source: MemorySource): Origin {
-    if (source === 'import') return 'written'
+    // A choice the user clicked counts as written by them: it goes in active and the housekeeping rule keeps it so.
+    if (source === 'import' || source === 'decision') return 'written'
     if (source === 'user_message') return 'said'
     return 'agent'
 }
@@ -153,6 +179,7 @@ export class MemoryService {
         const origin = originOf(input.source)
         const said = origin !== 'agent'
         const text = normalize(input.text)
+        const tags = input.tags ?? this.sessionTags(input.namespace, input.sessionId)
         if (text.length < 4) return { action: 'skipped', memoryId: null, message: '没记：内容太短。' }
         const hash = textHash(text)
         if (this.store.memories.hasEventHash(input.namespace, hash)) {
@@ -200,7 +227,7 @@ export class MemoryService {
             const memory = this.store.memories.insert({
                 namespace: input.namespace, text, level: said ? 'principle' : 'experience', scope: said ? '' : input.project ?? '',
                 status, reason: `Jev 没判断：${jevProblem}`, source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId,
-                said, support: 1, jev: null, overridden: null, replaces: null
+                said, support: 1, jev: null, overridden: null, replaces: null, tags
             })
             this.saveVector(input.namespace, memory, vector)
             this.log({ ...base, memoryId: memory.id, action: status, text, reason: memory.reason, jev: null, costUsd: 0, latencyMs: 0 })
@@ -229,6 +256,7 @@ export class MemoryService {
                 ...(said ? { said: true } : {}),
                 ...(lifted ? { status: 'pending', reason: '你说过（之前 agent 也记过）' } : {})
             })
+            this.store.memories.addTags(input.namespace, matched.id, tags)
             this.log({ ...base, memoryId: matched.id, action: 'reinforced', text, reason: null, jev, ...jevMeta })
             const promoted = !lifted && matched.status === 'candidate' && this.promoteIfDue(input.namespace, matched.id)
             if (promoted || lifted) this.options.onChange(input.namespace)
@@ -241,7 +269,7 @@ export class MemoryService {
         const memory = this.store.memories.insert({
             namespace: input.namespace, text, level: decision.level, scope, status: decision.status, reason: decision.reason,
             source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId, said, support: 1,
-            jev, overridden: null, replaces: null
+            jev, overridden: null, replaces: null, tags
         })
         this.saveVector(input.namespace, memory, vector)
         if (decision.link) {
@@ -254,6 +282,42 @@ export class MemoryService {
         if (decision.status === 'active') return { action: 'added', memoryId: memory.id, message: `已记下：${where}。` }
         if (decision.status === 'pending') return { action: 'pending', memoryId: memory.id, message: `已放进“等你审批”（${where}）：${decision.reason}。` }
         return { action: 'candidate', memoryId: memory.id, message: `已记下（${where}），${decision.reason}。${trialMessage()}` }
+    }
+
+    /**
+     * The user's choice becomes an active experience right away: no Jev verdict, because the user made it. Dedupe, the
+     * secret check, the vector and the log still apply; duplicates are merged by the housekeeping like any other.
+     */
+    async recordDecision(input: DecisionInput): Promise<ProposeResult> {
+        const settings = await this.getSettings()
+        if (settings.mode === 'off') return { action: 'off', memoryId: null, message: '记忆采集已关闭。' }
+        const text = decisionText(input)
+        const hash = textHash(text)
+        if (this.store.memories.hasEventHash(input.namespace, hash)) {
+            return { action: 'duplicate', memoryId: null, message: '这条已经记过。' }
+        }
+        const base = { namespace: input.namespace, source: 'decision', sourceLabel: '你在任务里的选择', sourceRef: input.sourceRef, hash, sessionId: input.sessionId }
+        if (SECRET_PATTERNS.some((pattern) => pattern.test(text))) {
+            this.log({ ...base, memoryId: null, action: 'rejected', text: '（含密钥，原文没有保存）', reason: '含密钥', jev: null, costUsd: 0, latencyMs: 0 })
+            return { action: 'rejected', memoryId: null, message: '没记：内容里像是有密钥。' }
+        }
+        const memory = this.store.memories.insert({
+            namespace: input.namespace, text, level: 'experience', scope: input.project ?? '', status: 'active', reason: null,
+            source: 'decision', sourceLabel: base.sourceLabel, sessionId: input.sessionId, said: true, support: 1,
+            jev: null, overridden: null, replaces: null, tags: input.tags
+        })
+        const apiKey = resolveJevApiKey(settings.jevApiKey)
+        this.saveVector(input.namespace, memory, apiKey ? await this.embedOne(apiKey, text) : null)
+        this.log({ ...base, memoryId: memory.id, action: 'added', text, reason: null, jev: null, costUsd: 0, latencyMs: 0 })
+        return { action: 'added', memoryId: memory.id, message: `已记下：经验 · ${memory.scope || '全局'}。` }
+    }
+
+    /** The user tags of a session; system tags such as `task:<id>` are left out. */
+    private sessionTags(namespace: string, sessionId: string | null): string[] {
+        if (!sessionId) return []
+        const metadata = this.store.sessions.getSessionByNamespace(sessionId, namespace)?.metadata as { tags?: unknown } | null | undefined
+        const tags = Array.isArray(metadata?.tags) ? metadata.tags : []
+        return tags.filter((tag): tag is string => typeof tag === 'string' && !tag.includes(':'))
     }
 
     edit(namespace: string, id: string, patch: { text?: string; level?: MemoryLevel; scope?: string }): StoredMemory | null {
@@ -498,10 +562,10 @@ export class MemoryService {
     }
 
     /** Memories close to `query` in meaning (or containing it word for word), best first. */
-    async search(namespace: string, query: string, limit = 8): Promise<SearchHit[]> {
+    async search(namespace: string, query: string, limit = 8, filter: SearchFilter = {}): Promise<SearchHit[]> {
         const needle = query.trim()
         if (!needle) return []
-        const memories = this.store.memories.list(namespace)
+        const memories = this.store.memories.list(namespace).filter((memory) => matchesFilter(memory, filter))
         const apiKey = resolveJevApiKey((await this.getSettings()).jevApiKey)
         const vector = apiKey ? await this.embedOne(apiKey, needle) : null
         const vectors = new Map(this.store.memories.vectors(namespace).map((v) => [v.memoryId, v.vector]))
@@ -530,6 +594,10 @@ export class MemoryService {
             const approved = this.store.memories.approved(namespace)
             const backed = this.store.memories.backedByUser(namespace)
             for (const memory of this.store.memories.list(namespace)) {
+                // Memories from before tags: the tags of the session they came from, while it still exists.
+                if (memory.tags.length === 0 && memory.sessionId) {
+                    this.store.memories.addTags(namespace, memory.id, this.sessionTags(namespace, memory.sessionId))
+                }
                 const next = this.underRule(memory, approved, backed)
                 if (!next) continue
                 this.store.memories.update(memory.id, namespace, next)
@@ -776,6 +844,26 @@ export class MemoryService {
         this.store.memories.addEvent(event)
         this.options.onChange(event.namespace)
     }
+}
+
+const DECISION_PART_CHARS = { situation: 200, options: 120, chosen: 60 } as const
+
+/** "情境：…；选项：A/B；你选了：A", each part cut so the whole stays within one memory. */
+export function decisionText(input: Pick<DecisionInput, 'situation' | 'options' | 'chosen'>): string {
+    const cut = (text: string, max: number) => {
+        const flat = normalize(text)
+        return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
+    }
+    const text = `情境：${cut(input.situation, DECISION_PART_CHARS.situation)}；选项：${cut(input.options.join('/'), DECISION_PART_CHARS.options)}；你选了：${cut(input.chosen, DECISION_PART_CHARS.chosen)}`
+    return text.slice(0, MAX_TEXT)
+}
+
+function matchesFilter(memory: StoredMemory, filter: SearchFilter): boolean {
+    if (filter.levels && !filter.levels.includes(memory.level)) return false
+    if (filter.statuses && !filter.statuses.includes(memory.status)) return false
+    if (filter.project !== undefined && memory.scope !== '' && memory.scope !== filter.project) return false
+    if (filter.tag && !memory.tags.includes(filter.tag.toLowerCase())) return false
+    return true
 }
 
 function parseJson(raw: string | null): unknown {

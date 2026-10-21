@@ -328,6 +328,8 @@ export type StoredMemory = {
     jev: unknown | null
     overridden: { level?: string; scope?: string } | null
     replaces: string | null
+    /** Lowercase tags, like session tags: the tags of the session or task the memory came from. */
+    tags: string[]
     version: number
     createdAt: number
     updatedAt: number

@@ -20,9 +20,17 @@ const editSchema = z.object({
     scope: z.string().trim().max(255).optional()
 }).refine((value) => value.text !== undefined || value.level !== undefined || value.scope !== undefined, 'Nothing to change')
 
+const csv = <T extends string>(values: readonly [T, ...T[]]) => z.string().optional()
+    .transform((raw) => raw ? raw.split(',').map((part) => part.trim()).filter(Boolean) : undefined)
+    .pipe(z.array(z.enum(values)).optional())
+
 const searchSchema = z.object({
     q: z.string().trim().min(1).max(500),
-    limit: z.coerce.number().int().min(1).max(30).optional()
+    limit: z.coerce.number().int().min(1).max(30).optional(),
+    level: csv(['fact', 'experience', 'principle'] as const),
+    status: csv(['active', 'pending', 'candidate', 'archived'] as const),
+    project: z.string().trim().min(1).max(200).optional(),
+    tag: z.string().trim().toLowerCase().min(1).max(40).optional()
 })
 
 const mergeSchema = z.object({ into: z.string().trim().min(1).max(64) })
@@ -112,9 +120,17 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
     app.get('/memories/search', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) return engine
-        const parsed = searchSchema.safeParse({ q: c.req.query('q'), limit: c.req.query('limit') })
+        const parsed = searchSchema.safeParse({
+            q: c.req.query('q'),
+            limit: c.req.query('limit'),
+            level: c.req.query('level'),
+            status: c.req.query('status'),
+            project: c.req.query('project'),
+            tag: c.req.query('tag')
+        })
         if (!parsed.success) return c.json({ error: 'Invalid query' }, 400)
-        const hits = await engine.getMemoryService().search(c.get('namespace'), parsed.data.q, parsed.data.limit)
+        const { q, limit, level, status, project, tag } = parsed.data
+        const hits = await engine.getMemoryService().search(c.get('namespace'), q, limit, { levels: level, statuses: status, project, tag })
         return c.json({ hits: hits.map((hit) => ({ ...hit.memory, score: hit.score })) })
     })
 
