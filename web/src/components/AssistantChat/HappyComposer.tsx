@@ -47,13 +47,13 @@ import {
     VoiceCallBar,
     type ComposerExtras
 } from '@/components/AssistantChat/MobileComposerParts'
-import { HIT_AREA_24_CLASS, HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
+import { CloseIcon } from '@/components/mobile/icons'
 import { SettingChip, SwitchChip, ToggleChip } from '@/components/ui/SettingChip'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
-import { cn } from '@/lib/utils'
 import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
 
 export interface TextInputState {
@@ -1159,14 +1159,13 @@ export function HappyComposer(props: {
                         {attachment.filename}
                     </span>
                     <IconButton
-                        size="sm"
+                        size="xs"
                         label={t('composer.attachment.remove')}
-                        className={cn('h-6 w-6', HIT_AREA_24_CLASS)}
                         onClick={() => {
                             handleRemoveDraftAttachment(attachment)
                         }}
                     >
-                        ×
+                        <CloseIcon className="h-3.5 w-3.5" />
                     </IconButton>
                 </div>
             ))}

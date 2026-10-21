@@ -7,9 +7,8 @@ import { cn } from '@/lib/utils'
 import { useShikiHighlighter } from '@/lib/shiki'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
 import { isMermaidLanguage, MermaidBlock } from '@/components/assistant-ui/mermaid-block'
-import { CopyIcon, CheckIcon } from '@/components/icons'
+import { CopyIcon, CheckIcon } from '@/components/mobile/icons'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_24_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 
 function CliCodeBlockInner(props: { language: string; code: string }) {
@@ -21,7 +20,7 @@ function CliCodeBlockInner(props: { language: string; code: string }) {
         <div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-2xl border border-[var(--social-border)]">
             <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
                 <span className="text-xs text-[var(--social-fg-muted)]">{props.language}</span>
-                <IconButton size="sm" label={t('code.copy')} onClick={() => copy(props.code)} className={cn('h-6 w-6', HIT_AREA_24_CLASS)}>
+                <IconButton size="xs" label={t('code.copy')} onClick={() => copy(props.code)}>
                     {copied ? <CheckIcon className="h-3 w-3" /> : <CopyIcon className="h-3 w-3" />}
                 </IconButton>
             </div>

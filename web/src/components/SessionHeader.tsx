@@ -15,7 +15,7 @@ import { ZOOM_ALL, ZOOM_BRIEF, ZOOM_REPLY } from '@/components/AssistantChat/cha
 import type { SemanticZoomController } from '@/vendor/semantic-zoom'
 import { IconButton } from '@/components/ui/IconButton'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
-import { DesktopIconButton, DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import {
     ArchiveBoxIcon,
     DuplicateIcon,
@@ -522,23 +522,23 @@ export function SessionHeader(props: {
                     actions={(
                         <>
                             {props.onViewFiles ? (
-                                <DesktopIconButton label={t('mobile.chat.files')} onClick={props.onViewFiles}>
+                                <IconButton size="sm" label={t('mobile.chat.files')} onClick={props.onViewFiles}>
                                     <FileIcon className="h-[19px] w-[19px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             ) : null}
                             {props.onViewTerminal ? (
-                                <DesktopIconButton label={t('mobile.chat.terminal')} onClick={props.onViewTerminal}>
+                                <IconButton size="sm" label={t('mobile.chat.terminal')} onClick={props.onViewTerminal}>
                                     <TerminalIcon className="h-[19px] w-[19px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             ) : null}
                             {props.onViewPreview ? (
-                                <DesktopIconButton label={t('mobile.chat.preview')} onClick={props.onViewPreview}>
+                                <IconButton size="sm" label={t('mobile.chat.preview')} onClick={props.onViewPreview}>
                                     <GlobeIcon className="h-[19px] w-[19px]" />
-                                </DesktopIconButton>
+                                </IconButton>
                             ) : null}
-                            <DesktopIconButton label={t('mobile.chat.info')} onClick={openDesktopInfo} buttonRef={infoButtonRef}>
+                            <IconButton size="sm" label={t('mobile.chat.info')} onClick={openDesktopInfo} ref={infoButtonRef}>
                                 <MoreHorizontalIcon className="h-[21px] w-[21px]" />
-                            </DesktopIconButton>
+                            </IconButton>
                         </>
                     )}
                 />

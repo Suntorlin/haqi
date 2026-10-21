@@ -1,24 +1,7 @@
-import type { ReactNode, Ref } from 'react'
+import type { ReactNode } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
+import { SidebarIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
-
-function SidebarToggleIcon(props: { className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" className={props.className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="16" rx="3" />
-            <path d="M9.5 4v16" />
-        </svg>
-    )
-}
-
-/** Round icon button used in desktop pane headers. */
-export function DesktopIconButton(props: { label: string; onClick?: () => void; children: ReactNode; disabled?: boolean; buttonRef?: Ref<HTMLButtonElement> }) {
-    return (
-        <IconButton ref={props.buttonRef} size="sm" label={props.label} onClick={props.onClick} disabled={props.disabled}>
-            {props.children}
-        </IconButton>
-    )
-}
 
 /**
  * One-line header of a desktop content pane (chat, group, loop): list toggle, avatar,
@@ -55,9 +38,9 @@ export function DesktopPaneHeader(props: {
     return (
         <header className="relative z-20 flex h-[60px] shrink-0 items-center gap-1.5 border-b border-[var(--social-border)] bg-[var(--social-surface)] pl-3 pr-4">
             {props.onToggleList ? (
-                <DesktopIconButton label={toggleLabel} onClick={props.onToggleList}>
-                    <SidebarToggleIcon className="h-[19px] w-[19px]" />
-                </DesktopIconButton>
+                <IconButton size="sm" label={toggleLabel} onClick={props.onToggleList}>
+                    <SidebarIcon className="h-[19px] w-[19px]" />
+                </IconButton>
             ) : null}
             {props.onTitleClick ? (
                 <button

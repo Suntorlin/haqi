@@ -29,6 +29,7 @@ import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { SessionTaskSheet } from '@/components/SessionTaskSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
+import { BulbIcon, DisclosureIcon, GripIcon, PlusIcon } from '@/components/mobile/icons'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
@@ -237,26 +238,6 @@ function flattenSessionRows(
     return rows
 }
 
-function PlusIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-    )
-}
-
 type ListHeaderContext = { header?: ReactNode }
 
 const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div'> & { context?: ListHeaderContext }>(
@@ -274,65 +255,6 @@ const SessionListScroller = forwardRef<HTMLDivElement, React.ComponentProps<'div
 
 function ListHeader(props: { context?: ListHeaderContext }) {
     return <>{props.context?.header ?? null}</>
-}
-
-function GripIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={props.className}
-            aria-hidden="true"
-        >
-            <circle cx="9" cy="6" r="1.8" />
-            <circle cx="15" cy="6" r="1.8" />
-            <circle cx="9" cy="12" r="1.8" />
-            <circle cx="15" cy="12" r="1.8" />
-            <circle cx="9" cy="18" r="1.8" />
-            <circle cx="15" cy="18" r="1.8" />
-        </svg>
-    )
-}
-
-function BulbIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M9 18h6" />
-            <path d="M10 22h4" />
-            <path d="M12 2a7 7 0 0 0-4 12c.6.6 1 1.2 1 2h6c0-.8.4-1.4 1-2a7 7 0 0 0-4-12Z" />
-        </svg>
-    )
-}
-
-function ChevronIcon(props: { className?: string; collapsed?: boolean }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={`${props.className ?? ''} transition-transform duration-200 ${props.collapsed ? '' : 'rotate-90'}`}
-        >
-            <polyline points="9 18 15 12 9 6" />
-        </svg>
-    )
 }
 
 function getTodoProgress(session: SessionSummary): { completed: number; total: number } | null {
@@ -931,9 +853,9 @@ function SessionGroupRow(props: {
                 onClick={() => onToggleGroup(group.directory, isCollapsed)}
                 className={`flex min-w-0 flex-1 items-center gap-2 rounded-xl px-1 py-1 text-left transition-colors hover:bg-[var(--social-muted)] ${minimal ? 'min-h-11' : ''}`}
             >
-                <ChevronIcon
+                <DisclosureIcon
                     className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--social-fg-muted)]'}
-                    collapsed={isCollapsed}
+                    open={!isCollapsed}
                 />
                 <div className="flex min-w-0 flex-1 items-center gap-2">
                     <span
@@ -999,9 +921,9 @@ function OfflineSectionRow(props: {
             aria-expanded={!isCollapsed}
             className={`flex w-full items-center gap-2 text-left text-xs text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)] ${props.minimal ? 'min-h-11 px-5 py-2' : `border-b border-[var(--social-divider)] ${density === 'compact' ? 'px-2.5 py-1.5' : 'px-3 py-2'}`}`}
         >
-            <ChevronIcon
+            <DisclosureIcon
                 className="h-3.5 w-3.5 text-[var(--social-fg-muted)]"
-                collapsed={isCollapsed}
+                open={!isCollapsed}
             />
             <span className="uppercase tracking-wide">{label ?? t('misc.offline')}</span>
             <span className="text-[var(--social-fg-muted)]">

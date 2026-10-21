@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router'
 import type { FileSearchItem, GitFileStatus } from '@/types/api'
 import { FileIcon } from '@/components/FileIcon'
+import { FolderIcon, GitBranchIcon, RefreshIcon, SearchIcon } from '@/components/mobile/icons'
 import { DirectoryTree } from '@/components/SessionFiles/DirectoryTree'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
@@ -16,87 +17,6 @@ import { SubPageHeader, SubPageHeaderButton } from '@/components/mobile/SubPageH
 import { Badge } from '@/components/ui/badge'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/FormControls'
-
-function RefreshIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M21 12a9 9 0 1 1-3-6.7" />
-            <polyline points="21 3 21 9 15 9" />
-        </svg>
-    )
-}
-
-function SearchIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-    )
-}
-
-function GitBranchIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <line x1="6" y1="3" x2="6" y2="15" />
-            <circle cx="6" cy="18" r="3" />
-            <circle cx="18" cy="6" r="3" />
-            <path d="M18 9a9 9 0 0 1-9 9" />
-        </svg>
-    )
-}
-
-function FolderIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-        >
-            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        </svg>
-    )
-}
 
 function StatusBadge(props: { status: GitFileStatus['status'] }) {
     const { label, color } = useMemo(() => {
@@ -180,7 +100,7 @@ function SearchResultRow(props: {
     const subtitle = props.file.filePath || 'project root'
     const icon = props.file.fileType === 'file'
         ? <FileIcon fileName={props.file.fileName} size={22} />
-        : <FolderIcon className="text-[var(--social-fg)]" />
+        : <FolderIcon className="h-[22px] w-[22px] text-[var(--social-fg)]" />
 
     return (
         <button
@@ -361,7 +281,7 @@ export default function FilesPage() {
                 onBack={goBack}
                 actions={(
                     <SubPageHeaderButton label={t('files.refresh')} onClick={handleRefresh}>
-                        <RefreshIcon />
+                        <RefreshIcon className="h-[18px] w-[18px]" />
                     </SubPageHeaderButton>
                 )}
             />
@@ -373,7 +293,7 @@ export default function FilesPage() {
                         value={searchQuery}
                         onChange={(event) => setSearchQuery(event.target.value)}
                         placeholder={t('files.search')}
-                        leading={<SearchIcon />}
+                        leading={<SearchIcon className="h-4 w-4" />}
                         autoCapitalize="none"
                         autoCorrect="off"
                     />
@@ -395,7 +315,7 @@ export default function FilesPage() {
                 <div className="bg-[var(--social-surface)]">
                     <div className="mx-auto w-full max-w-content px-3 py-2 border-b border-[var(--social-divider)]">
                         <div className="flex items-center gap-2 text-footnote">
-                            <GitBranchIcon className="text-[var(--social-fg-muted)]" />
+                            <GitBranchIcon className="h-4 w-4 text-[var(--social-fg-muted)]" />
                             <span className="font-semibold">{branchLabel}</span>
                         </div>
                         <div className="text-caption text-[var(--social-fg-muted)]">

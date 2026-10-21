@@ -23,7 +23,9 @@ import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtil
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_28_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { CheckCircleIcon, ChevronRightIcon, LockIcon, XCircleIcon } from '@/components/mobile/icons'
+import { Spinner } from '@/components/Spinner'
+import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { formatRunningAgentNames, formatTaskChildStateSummary, getRunningAgentsForTaskBlock, getTaskChildStateSummary } from '@/components/ToolCard/taskSummary'
 import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
@@ -144,17 +146,13 @@ function formatTaskChildLabel(child: ToolCallBlock, metadata: SessionMetadataSum
     return presentation.title
 }
 
+/** Same glyphs as the tool card status (check / cross / lock / spinner). */
 function TaskStateIcon(props: { state: ToolCallBlock['tool']['state'] }) {
-    if (props.state === 'completed') {
-        return <span className="text-[var(--app-badge-success-text)]">✓</span>
-    }
-    if (props.state === 'error') {
-        return <span className="text-[var(--social-danger)]">✕</span>
-    }
-    if (props.state === 'pending') {
-        return <span className="text-[var(--app-badge-warning-text)]">🔐</span>
-    }
-    return <span className="text-[var(--app-badge-warning-text)] animate-pulse">●</span>
+    return (
+        <span className={cn('inline-flex', statusColorClass(props.state))}>
+            <StatusIcon state={props.state} />
+        </span>
+    )
 }
 
 function getTaskSummaryChildren(block: ToolCallBlock): { visible: ToolCallBlock[]; remaining: number } | null {
@@ -343,35 +341,15 @@ function renderToolInput(block: ToolCallBlock): ReactNode {
 
 function StatusIcon(props: { state: ToolCallBlock['tool']['state'] }) {
     if (props.state === 'completed') {
-        return (
-            <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M5.2 8.3l1.8 1.8 3.8-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-        )
+        return <CheckCircleIcon className="h-3 w-3" />
     }
     if (props.state === 'error') {
-        return (
-            <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
-                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
+        return <XCircleIcon className="h-3 w-3" />
     }
     if (props.state === 'pending') {
-        return (
-            <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
-                <rect x="4.5" y="7" width="7" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M6 7V5.8a2 2 0 0 1 4 0V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-        )
+        return <LockIcon className="h-3 w-3" />
     }
-    return (
-        <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.25" />
-            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" opacity="0.75" />
-        </svg>
-    )
+    return <Spinner size="xs" label={null} className="text-current" />
 }
 
 function statusColorClass(state: ToolCallBlock['tool']['state']): string {
@@ -402,14 +380,6 @@ function statusBadgeVariant(
     if (state === 'error') return 'destructive'
     if (state === 'pending') return 'warning'
     return 'default'
-}
-
-function DetailsIcon(props: { className?: string }) {
-    return (
-        <svg className={props.className ?? 'h-4 w-4'} viewBox="0 0 16 16" fill="none">
-            <path d="M6 3l5 5-5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    )
 }
 
 type ToolCardProps = {
@@ -810,7 +780,7 @@ function ToolCardInner(props: ToolCardProps) {
                                         {statusLabel}
                                     </Badge>
                                     <span className="shrink-0 text-[var(--social-fg-muted)]">
-                                        <DetailsIcon className="h-3.5 w-3.5" />
+                                        <ChevronRightIcon className="h-3.5 w-3.5" />
                                     </span>
                                 </div>
                             </button>
@@ -850,7 +820,7 @@ function ToolCardInner(props: ToolCardProps) {
                                                 {statusLabel}
                                             </Badge>
                                             <span className="shrink-0 text-[var(--social-fg-muted)]">
-                                                <DetailsIcon className="h-3.5 w-3.5" />
+                                                <ChevronRightIcon className="h-3.5 w-3.5" />
                                             </span>
                                         </div>
                                     </button>
@@ -898,7 +868,7 @@ function ToolCardInner(props: ToolCardProps) {
                                                 'shrink-0 text-[var(--social-fg-muted)] transition-transform',
                                                 isExpanded ? 'rotate-90' : 'rotate-0'
                                             )}>
-                                                <DetailsIcon className="h-3.5 w-3.5" />
+                                                <ChevronRightIcon className="h-3.5 w-3.5" />
                                             </span>
                                         ) : null}
                                     </div>
@@ -906,12 +876,11 @@ function ToolCardInner(props: ToolCardProps) {
                                 {isDiffTool ? (
                                     <>
                                         <IconButton
-                                            size="sm"
+                                            size="xs"
                                             label={t('session.more')}
                                             onClick={openDiffDetail}
-                                            className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                                         >
-                                            <DetailsIcon className="h-4 w-4" />
+                                            <ChevronRightIcon className="h-4 w-4" />
                                         </IconButton>
                                         {renderDiffDetailLayer()}
                                     </>
@@ -919,11 +888,10 @@ function ToolCardInner(props: ToolCardProps) {
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <IconButton
-                                                size="sm"
+                                                size="xs"
                                                 label={t('session.more')}
-                                                className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                                             >
-                                                <DetailsIcon className="h-4 w-4" />
+                                                <ChevronRightIcon className="h-4 w-4" />
                                             </IconButton>
                                         </DialogTrigger>
                                         {renderDialogContent()}
@@ -963,7 +931,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <StatusIcon state={props.block.tool.state} />
                                         </span>
                                         <span className="text-[var(--social-fg-muted)]">
-                                            <DetailsIcon className="h-4 w-4" />
+                                            <ChevronRightIcon className="h-4 w-4" />
                                         </span>
                                     </div>
                                 </div>
@@ -1009,7 +977,7 @@ function ToolCardInner(props: ToolCardProps) {
                                             <StatusIcon state={props.block.tool.state} />
                                         </span>
                                         <span className="text-[var(--social-fg-muted)]">
-                                            <DetailsIcon className="h-4 w-4" />
+                                            <ChevronRightIcon className="h-4 w-4" />
                                         </span>
                                     </div>
                                 </div>
@@ -1055,7 +1023,7 @@ function ToolCardInner(props: ToolCardProps) {
                                                 <StatusIcon state={props.block.tool.state} />
                                             </span>
                                             <span className="text-[var(--social-fg-muted)]">
-                                                <DetailsIcon className="h-4 w-4" />
+                                                <ChevronRightIcon className="h-4 w-4" />
                                             </span>
                                         </div>
                                     </div>

@@ -19,7 +19,8 @@ import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { Button } from '@/components/ui/button'
 import { CountBadge, DotBadge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
-import { HIT_AREA_28_CLASS, HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { Spinner } from '@/components/Spinner'
+import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -142,7 +143,7 @@ export function MobileComposerAction(props: {
                 className={base}
             >
                 {props.isAborting ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                    <Spinner size="md" label={null} className="text-current" />
                 ) : (
                     <StopSquareIcon className="h-3.5 w-3.5" />
                 )}
@@ -160,7 +161,7 @@ export function MobileComposerAction(props: {
                 className={base}
             >
                 {props.isSending ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                    <Spinner size="md" label={null} className="text-current" />
                 ) : (
                     <SendArrowIcon className="h-[18px] w-[18px]" />
                 )}
@@ -215,10 +216,9 @@ export function QueueStrip(props: {
                 {props.onOpen ? (
                     <Button
                         variant="secondary"
-                        size="sm"
+                        size="xs"
                         onClick={props.onOpen}
                         disabled={props.disabled}
-                        className={cn('h-7 px-3', HIT_AREA_28_CLASS)}
                     >
                         {t('queue.inline.open')}
                     </Button>
@@ -265,19 +265,17 @@ export function VoiceCallBar(props: {
             <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
             {props.onToggleMic && !connecting ? (
                 <IconButton
-                    size="sm"
+                    size="xs"
                     label={props.micMuted ? t('voice.unmute') : t('voice.mute')}
                     onClick={props.onToggleMic}
-                    className={cn('h-7 w-7', HIT_AREA_28_CLASS)}
                 >
                     <MicIcon muted={props.micMuted} className="h-4 w-4" />
                 </IconButton>
             ) : null}
             <Button
                 variant="destructive"
-                size="sm"
+                size="xs"
                 onClick={props.onEnd}
-                className={cn('h-7 px-3', HIT_AREA_28_CLASS)}
             >
                 {t('voice.end')}
             </Button>

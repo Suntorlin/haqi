@@ -6,6 +6,7 @@ import { permissionModeText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { IconButton } from '@/components/ui/IconButton'
+import { ArrowDownIcon, ArrowUpIcon, CloseIcon } from '@/components/mobile/icons'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -180,9 +181,9 @@ function QueueEntryRow(props: {
                 </div>
             </div>
             <div className="flex shrink-0 items-center">
-                <IconButton label={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}>↑</IconButton>
-                <IconButton label={t('queue.entry.moveDown')} disabled={props.disabled || index >= props.count - 1} onClick={() => props.onMove(entry.id, index + 1)}>↓</IconButton>
-                <IconButton label={t('queue.entry.remove')} className="hover:text-[var(--social-danger)]" disabled={props.disabled} onClick={() => props.onRemove(entry.id)}>✕</IconButton>
+                <IconButton label={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}><ArrowUpIcon className="h-[18px] w-[18px]" /></IconButton>
+                <IconButton label={t('queue.entry.moveDown')} disabled={props.disabled || index >= props.count - 1} onClick={() => props.onMove(entry.id, index + 1)}><ArrowDownIcon className="h-[18px] w-[18px]" /></IconButton>
+                <IconButton label={t('queue.entry.remove')} className="hover:text-[var(--social-danger)]" disabled={props.disabled} onClick={() => props.onRemove(entry.id)}><CloseIcon className="h-[18px] w-[18px]" /></IconButton>
             </div>
         </div>
     )

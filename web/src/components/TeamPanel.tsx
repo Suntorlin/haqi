@@ -5,6 +5,7 @@ import { FormField, SelectInput } from '@/components/ui/FormControls'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { ChevronDownIcon, UsersIcon } from '@/components/mobile/icons'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -207,12 +208,7 @@ export function TeamPanel(props: {
                 aria-expanded={expanded}
                 className="flex min-h-11 w-full items-center gap-2 rounded-2xl bg-[var(--social-muted)] px-4 py-2 text-left text-body transition-colors hover:bg-[var(--social-border)] [-webkit-tap-highlight-color:transparent]"
             >
-                <svg className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
+                <UsersIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
                 <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold text-[var(--social-fg)]">
                         {teamState ? t('team.title', { name: title }) : title}
@@ -221,17 +217,7 @@ export function TeamPanel(props: {
                         {summary}
                     </span>
                 </span>
-                <svg
-                    className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', expanded && 'rotate-180')}
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                    <path d="m6 9 6 6 6-6" />
-                </svg>
+                <ChevronDownIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', expanded && 'rotate-180')} />
             </button>
 
             {expanded && (

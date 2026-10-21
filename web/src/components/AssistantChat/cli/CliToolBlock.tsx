@@ -143,7 +143,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
                 {/* Status indicator */}
                 <span className={`shrink-0 w-3.5 text-center ${stateColor}`}>
                     {isRunning ? (
-                        <Spinner size="sm" label={null} className="h-3 w-3" />
+                        <Spinner size="xs" label={null} />
                     ) : isError ? (
                         '✗'
                     ) : isPending ? (

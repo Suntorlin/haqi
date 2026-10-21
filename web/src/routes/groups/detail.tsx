@@ -59,8 +59,10 @@ import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { TIME_SEPARATOR_GAP_MS } from '@/components/mobile/chatTimeline'
 import { GroupAvatar, SessionAvatar, getProjectName, getSessionProjectPath, type AvatarRing } from '@/components/mobile/SessionAvatar'
 import {
+    AlertCircleIcon,
     ChatBubbleIcon,
     ChevronRightIcon,
+    CloseIcon,
     DuplicateIcon,
     MegaphoneIcon,
     MoreHorizontalIcon,
@@ -93,27 +95,6 @@ function useDebounce<T>(value: T, delay: number): T {
     }, [value, delay])
 
     return debouncedValue
-}
-
-// ─── Icons ───────────────────────────────────────────────────────────────────
-
-function CloseIcon(props: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}>
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-    )
-}
-
-function AttachmentErrorIcon(props: { className?: string }) {
-    return (
-        <svg className={props.className} viewBox="0 0 16 16" fill="none">
-            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M8 5v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="8" cy="11" r="0.75" fill="currentColor" />
-        </svg>
-    )
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1368,7 +1349,7 @@ function ComposerAttachmentList(props: {
                         ) : null}
                         {attachment.status === 'error' ? (
                             <span className="text-[var(--social-danger)]">
-                                <AttachmentErrorIcon className="h-4 w-4" />
+                                <AlertCircleIcon className="h-4 w-4" />
                             </span>
                         ) : null}
                         {isImage ? (
@@ -1434,7 +1415,7 @@ function TimelineHistoryControl(props: {
         <div className="flex justify-center pb-1 pt-3">
             {props.isLoading ? (
                 <span className="inline-flex items-center gap-2 text-caption text-[var(--social-fg-subtle)]">
-                    <span className="social-spinner" aria-hidden="true" />
+                    <Spinner size="sm" label={null} />
                     {t('groups.timeline.loadingOlder')}
                 </span>
             ) : (
@@ -1930,7 +1911,7 @@ function GroupBriefTurnList(props: {
                                         </button>
                                         {isOpen ? (
                                             <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--social-fg-muted)]">
-                                                <span className="social-spinner" aria-hidden="true" />
+                                                <Spinner size="sm" label={null} />
                                                 {t('groups.brief.generating')}
                                             </span>
                                         ) : null}
@@ -2922,7 +2903,7 @@ export default function GroupDetailPage() {
             disabled={!canSendComposer}
         >
             {isPending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/40 border-t-current" />
+                <Spinner size="md" label={null} className="text-current" />
             ) : (
                 <SendArrowIcon className="h-[18px] w-[18px]" />
             )}
