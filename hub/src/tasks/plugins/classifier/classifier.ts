@@ -27,9 +27,9 @@ const QUESTION = {
     },
     criteria: {
         progress: 'Chasing progress or status: asks whether the work is done, how far it got, what happened, or to report back; includes "继续", "好了吗", "进展如何".',
-        correction: 'Correcting the agent: points out a mistake, a wrong result or a misunderstanding, or asks to redo or undo work the agent already did.',
-        decision: 'Making a call the agent asked for or was waiting on: approves, picks an option, answers a question, gives permission, such as "可以", "按方案 2", "推送吧".',
-        request: 'A new request: a new task, a new requirement or more scope, a question for information, or pasted material to work with.'
+        correction: 'Correcting the agent: points out a mistake, a wrong result or a misunderstanding, asks to redo or undo work the agent already did, or disagrees with what the agent did or proposed, even mildly or as a question, such as "其实不合理", "我感觉这个不应该在这里", "太长了，说短一点", "会不会太严格", "这是什么鬼".',
+        decision: 'Making a call the agent asked for or was waiting on: approves, picks an option, answers a question, gives permission, or tells the agent to go on with the step it reached, such as "可以", "按方案 2", "推送吧", "合并成一个 commit 推送到 dev".',
+        request: 'A new request: a new task, a new requirement or more scope, a question for information that does not push back on the agent\'s work, or pasted material to work with.'
     }
 } as const
 

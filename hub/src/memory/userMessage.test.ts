@@ -26,6 +26,14 @@ describe('realUserText', () => {
         expect(realUserText(message('[HAQI_TASK_GUIDE] Draft the acceptance criteria for task abc.'))).toBeNull()
     })
 
+    it('drops a message that is only a slash command, but keeps a path or a sentence about one', () => {
+        expect(realUserText(message('/compact'))).toBeNull()
+        expect(realUserText(message('/note refresh'))).toBeNull()
+        expect(realUserText(message('/plugin:skill run it'))).toBeNull()
+        expect(realUserText(message('/var/log/hub.log 里报错了，看看'))).toBe('/var/log/hub.log 里报错了，看看')
+        expect(realUserText(message('跑一下 /compact 再继续'))).toBe('跑一下 /compact 再继续')
+    })
+
     it('drops what is not a typed user message', () => {
         expect(realUserText(message('the agent said this one', {}, 'agent'))).toBeNull()
         expect(realUserText(JSON.stringify({ role: 'user', content: { type: 'event', text: 'x' } }))).toBeNull()
