@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ComponentType, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
@@ -8,6 +8,12 @@ import { Switch } from '@/components/ui/Switch'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { SwitchChip } from '@/components/ui/SettingChip'
+import { Card } from '@/components/ui/card'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Spinner } from '@/components/Spinner'
+import { ActionTile } from '@/components/mobile/ActionTile'
+import { OptionRow } from '@/components/ToolCard/OptionRow'
+import * as Icons from '@/components/mobile/icons'
 import { CONTEXT_MENU_SURFACE, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import {
     ClearIcon,
@@ -91,7 +97,7 @@ export function DesignShowcase() {
                 </p>
             </header>
 
-            <Section title="1 · 颜色 Token" note="--social-* 是唯一来源；旧的 --app-* 全部改为别名指向它，Telegram 主题变量已移除。亮 / 暗两套同名。">
+            <Section title="1 · 颜色 Token" note="--social-* 是唯一来源；旧的 --app-* 别名已删除，Telegram 主题变量已移除。亮 / 暗两套同名。">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                     {SWATCHES.map(([name, label, cls]) => (
                         <div key={name} className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
@@ -105,7 +111,7 @@ export function DesignShowcase() {
                 </div>
             </Section>
 
-            <Section title="2 · 圆角 · 字号 · 触控" note="圆角只有四档；字号 12/13/15/16 + 20/32 标题，字重只用 400 与 600；任何可点元素的点击区不小于 44px。">
+            <Section title="2 · 圆角 · 字号 · 触控" note="圆角只有四档；字号只用命名档 text-caption / footnote / body / headline / title / display（rem，跟随字号设置），字重只用 400 与 600；任何可点元素的点击区不小于 44px。">
                 <div className="grid gap-6 sm:grid-cols-2">
                     <Spec label="圆角 4 档">
                         <div className="flex flex-col gap-2">
@@ -279,9 +285,67 @@ export function DesignShowcase() {
                     </Spec>
                     <Spec label="浮层卡片 .social-float-card">
                         <div className="social-float-card max-w-xs rounded-2xl p-4 text-footnote text-[var(--social-fg)]">
-                            悬浮在内容之上，半透明加模糊；只用于锚在按钮下方的小卡片。
+                            不透明底色加浮层阴影；只用于锚在按钮下方的小卡片。底下内容不能透出来，否则影响阅读。
                         </div>
                     </Spec>
+                </div>
+            </Section>
+
+            <Section title="8 · 卡片 · 空状态 · 加载 · 小号控件" note="卡片只有 Card 一种；空列表和空面板一律用 EmptyState；加载只用 Spinner；28px 的小按钮用 size=&quot;xs&quot;，点击区仍是 44px。">
+                <div className="grid gap-6 md:grid-cols-3">
+                    <Spec label="Card">
+                        <Card className="p-4 text-footnote">白底、细边框、16px 圆角、无阴影。</Card>
+                    </Spec>
+                    <Spec label="EmptyState · inline">
+                        <Card><EmptyState title="还没有评审循环" /></Card>
+                    </Spec>
+                    <Spec label="EmptyState · page">
+                        <Card>
+                            <EmptyState variant="page" title="选一个会话开始" subtitle="运行中的会话头像带彩色外圈。" action={{ label: '新会话', onClick: () => undefined }} />
+                        </Card>
+                    </Spec>
+                    <Spec label="Spinner · xs / sm / md / lg">
+                        <div className="flex items-center gap-4">
+                            <Spinner size="xs" label={null} />
+                            <Spinner size="sm" label={null} />
+                            <Spinner size="md" label={null} />
+                            <Spinner size="lg" label={null} />
+                        </div>
+                    </Spec>
+                    <Spec label="小号 · Button xs / IconButton xs / Chip sm">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Button size="xs" variant="secondary">复制</Button>
+                            <IconButton size="xs" label="关闭"><CloseIcon className="h-4 w-4" /></IconButton>
+                            <Chip size="sm">报告</Chip>
+                        </div>
+                    </Spec>
+                    <Spec label="ActionTile · OptionRow">
+                        <div className="flex flex-col gap-3">
+                            <div className="grid grid-cols-3 gap-2">
+                                <ActionTile icon={<FileIcon className="h-5 w-5" />} label="文件" onClick={() => undefined} />
+                                <ActionTile icon={<TerminalIcon className="h-5 w-5" />} label="终端" onClick={() => undefined} />
+                                <ActionTile icon={<GlobeIcon className="h-5 w-5" />} label="预览" badge={2} onClick={() => undefined} />
+                            </div>
+                            <OptionRow checked title="方案 A" description="改动最小" disabled={false} onClick={() => undefined} />
+                            <OptionRow checked={false} title="方案 B" disabled={false} onClick={() => undefined} />
+                        </div>
+                    </Spec>
+                </div>
+            </Section>
+
+            <Section title="9 · 图标" note="只从 components/mobile/icons.tsx 引入；同一动作全站用同一个图标。缺图标就加到这个文件，不在组件里另写。">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+                    {Object.entries(Icons)
+                        .filter(([name, Icon]) => name.endsWith('Icon') && typeof Icon === 'function')
+                        .map(([name, Icon]) => {
+                            const Glyph = Icon as ComponentType<{ className?: string }>
+                            return (
+                                <div key={name} className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--social-border)] px-1 py-3">
+                                    <Glyph className="h-5 w-5" />
+                                    <span className="w-full truncate text-center text-caption text-[var(--social-fg-muted)]">{name.replace(/Icon$/, '')}</span>
+                                </div>
+                            )
+                        })}
                 </div>
             </Section>
         </div>

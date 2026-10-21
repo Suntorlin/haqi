@@ -7,6 +7,7 @@ import { getSessionTaskIds } from '@/lib/session-pins'
 import { getSessionTitle } from '@/lib/session-title'
 import { cn } from '@/lib/utils'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Chip } from '@/components/ui/Chip'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
@@ -226,8 +227,7 @@ function TaskComposer(props: { tags: string[]; onCreate: (input: { tag: string; 
                 onChange={(event) => setTitle(event.target.value)}
                 leading={<PlusIcon className="h-4 w-4" />}
                 trailing={tag ? (
-                    <button
-                        type="button"
+                    <Chip
                         onClick={(event) => {
                             const rect = event.currentTarget.getBoundingClientRect()
                             setMenuPoint({ x: rect.left + rect.width / 2, y: rect.bottom })
@@ -235,11 +235,11 @@ function TaskComposer(props: { tags: string[]; onCreate: (input: { tag: string; 
                         aria-haspopup="menu"
                         aria-expanded={menuPoint !== null}
                         aria-label={t('tasks.pickTag')}
-                        className="relative flex h-8 max-w-40 shrink-0 items-center gap-1 rounded-full bg-[var(--social-surface)] pl-3 pr-2 text-footnote text-[var(--social-fg)] after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
+                        className="relative max-w-40 shrink-0 gap-1 border-transparent bg-[var(--social-surface)] pl-3 pr-2 after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-['']"
                     >
                         <span className="truncate">#{tag}</span>
                         <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 text-[var(--social-fg-muted)]" />
-                    </button>
+                    </Chip>
                 ) : null}
             />
             <ContextMenu

@@ -340,7 +340,7 @@ export function HappyThread(props: {
                         scrollToBottomOnInitialize={isSocial ? false : undefined}
                         scrollToBottomOnThreadSwitch={isSocial ? false : undefined}
                         className={cn(
-                            'app-scrollbar min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
+                            'min-h-0 min-w-0 w-full flex-1 overflow-y-auto overflow-x-hidden',
                             // The zoom makes the chat focusable for its keyboard shortcuts; no focus ring around the whole chat.
                             isSocial ? 'social-chat outline-none' : ''
                         )}

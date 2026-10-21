@@ -1,51 +1,9 @@
 import { useState } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
+import { ArchiveBoxIcon, CheckIcon } from '@/components/mobile/icons'
+import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
-
-function TrashIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-            aria-hidden="true"
-        >
-            <path d="M3 6h18" />
-            <path d="M8 6V4h8v2" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-        </svg>
-    )
-}
-
-function CheckIcon(props: { className?: string }) {
-    return (
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className={props.className}
-            aria-hidden="true"
-        >
-            <path d="m5 13 4 4L19 7" />
-        </svg>
-    )
-}
 
 export function SessionQuickArchiveButton(props: {
     enabled: boolean
@@ -106,11 +64,11 @@ export function SessionQuickArchiveButton(props: {
             label={confirming ? t('session.action.confirmArchive') : t('session.action.archive')}
         >
             {isPending ? (
-                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+                <Spinner size="sm" label={null} className="text-current" />
             ) : confirming ? (
                 <CheckIcon className="h-4 w-4" />
             ) : (
-                <TrashIcon className="h-4 w-4" />
+                <ArchiveBoxIcon className="h-4 w-4" />
             )}
         </IconButton>
     )

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { IconButton } from '@/components/ui/IconButton'
+import { CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/mobile/icons'
 import { SwitchTrack } from '@/components/ui/Switch'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -74,10 +75,7 @@ export function BottomSheet(props: {
                             </DialogPrimitive.Title>
                             <DialogPrimitive.Close asChild>
                                 <IconButton size="sm" label={t('button.close')} className="ml-auto">
-                                    <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                    </svg>
+                                    <CloseIcon className="h-[18px] w-[18px]" />
                                 </IconButton>
                             </DialogPrimitive.Close>
                         </div>
@@ -177,9 +175,7 @@ export function SheetRow(props: {
                 {props.value}
             </span>
             {props.chevron ? (
-                <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />
             ) : null}
         </>
     )
@@ -200,14 +196,6 @@ export function SheetRow(props: {
     }
 
     return <div className={className}>{content}</div>
-}
-
-function CheckIcon() {
-    return (
-        <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <polyline points="5 12.5 10 17.5 19 7" />
-        </svg>
-    )
 }
 
 /**
@@ -241,7 +229,7 @@ export function SheetOption(props: {
                 ) : null}
             </span>
             <span className={cn('shrink-0 text-[var(--social-fg)] transition-opacity', props.selected ? 'opacity-100' : 'opacity-0')}>
-                <CheckIcon />
+                <CheckIcon className="h-[18px] w-[18px]" />
             </span>
         </button>
     )
