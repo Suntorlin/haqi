@@ -772,7 +772,7 @@ function ToolCardInner(props: ToolCardProps) {
         <Card
             className={cn(
                 'overflow-hidden',
-                chatContext.layout === 'social' && 'border border-[var(--social-border)] bg-transparent shadow-none'
+                chatContext.layout === 'social' && 'bg-transparent'
             )}
         >
             <CardHeader className={cn('space-y-0', isCompact ? 'p-2.5' : 'p-3')}>
@@ -1108,14 +1108,14 @@ function ToolCardInner(props: ToolCardProps) {
                     ) : null}
 
                     {isQuestionTool && permission?.status === 'pending' ? (
-                        <div className="mt-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-3 py-3">
+                        <Card className="mt-3 px-3 py-3">
                             <div className="text-caption font-semibold text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.inlineTitle')}
                             </div>
                             <div className="mt-1 text-footnote text-[var(--social-fg)]">
                                 {t('tool.questionOverlay.inlineDescription')}
                             </div>
-                        </div>
+                        </Card>
                     ) : (
                         <PermissionFooter
                             api={props.api}

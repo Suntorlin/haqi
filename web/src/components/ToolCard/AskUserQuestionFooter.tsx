@@ -10,6 +10,7 @@ import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { OptionRow } from '@/components/ToolCard/OptionRow'
+import { Card } from '@/components/ui/card'
 
 function computeAnswersForQuestion(
     question: AskUserQuestionQuestion,
@@ -218,7 +219,7 @@ export function AskUserQuestionFooter(props: {
     }
 
     return (
-        <div className="mt-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
+        <Card className="mt-3 p-3">
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -356,6 +357,6 @@ export function AskUserQuestionFooter(props: {
                     )}
                 </div>
             </div>
-        </div>
+        </Card>
     )
 }

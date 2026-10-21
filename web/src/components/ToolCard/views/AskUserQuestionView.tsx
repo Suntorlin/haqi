@@ -3,6 +3,7 @@ import type { ToolViewProps } from '@/components/ToolCard/views/_all'
 import { getAskUserQuestionAnswerKey, parseAskUserQuestionInput } from '@/components/ToolCard/askUserQuestion'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 type AnswersFormat = Record<string, string[]> | Record<string, { answers: string[] }>
 
@@ -120,7 +121,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                 const customAnswers = trimmedAnswers.filter((answer) => answer !== 'skipped' && !optionLabels.has(answer))
 
                 return (
-                    <div key={q.id} className="rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3">
+                    <Card key={q.id} className="p-3">
                         {q.header ? (
                             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]">
                                 {q.header}
@@ -188,7 +189,7 @@ export function AskUserQuestionView(props: ToolViewProps) {
                             // Freeform question (no options) - show the answer directly
                             renderFreeformAnswers(questionAnswers)
                         ) : null}
-                    </div>
+                    </Card>
                 )
             })}
         </div>

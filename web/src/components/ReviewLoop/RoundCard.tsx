@@ -6,6 +6,7 @@ import { WorkerOutputPanel } from './WorkerOutputPanel'
 import { ProgressBar } from './ProgressBar'
 import { CriteriaChecklist } from './CriteriaChecklist'
 import { roundStatusLabel, roundStatusVariant } from './roundStatus'
+import { Card } from '@/components/ui/card'
 
 const verdictActionVariant: Record<string, 'info' | 'warning' | 'success' | 'destructive'> = {
     continue: 'warning',
@@ -30,12 +31,7 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
     const actionVariant = verdictAction ? verdictActionVariant[verdictAction] : undefined
 
     return (
-        <div
-            className={cn(
-                'min-w-0 overflow-hidden rounded-2xl border',
-                isLatest ? 'border-[var(--social-fg-subtle)]' : 'border-[var(--social-border)]'
-            )}
-        >
+        <Card className={cn('min-w-0 overflow-hidden', isLatest && 'border-[var(--social-fg-subtle)]')}>
             {/* Header */}
             <div className="flex min-w-0 flex-wrap items-center gap-2 border-b border-[var(--social-divider)] bg-[var(--social-muted)] px-4 py-2.5">
                 <span className="shrink-0 text-body font-semibold text-[var(--social-fg)]">{t('loops.round.title', { n: round.round })}</span>
@@ -79,6 +75,6 @@ export function RoundCard({ round, isLatest }: { round: ReviewRound; isLatest: b
                     </div>
                 )}
             </div>
-        </div>
+        </Card>
     )
 }

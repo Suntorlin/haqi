@@ -16,6 +16,7 @@ import {
 } from '@/components/ReviewLoop'
 import type { ReviewLoopUserPreference } from '@/types/api'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 // ─── Layout helpers ──────────────────────────────────────────────────────────────
 
@@ -26,10 +27,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
             {children}
         </section>
     )
-}
-
-function Card({ children }: { children: ReactNode }) {
-    return <div className="min-w-0 rounded-2xl border border-[var(--social-border)] p-4">{children}</div>
 }
 
 // ─── Main Detail Page ────────────────────────────────────────────────────────────
@@ -88,7 +85,7 @@ export default function ReviewLoopDetailPage() {
     return (
         <div className="flex h-full min-w-0 flex-col overflow-y-auto">
             <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-col gap-5 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-                <Card>
+                <Card className="min-w-0 p-4">
                     <div className="whitespace-pre-wrap text-body leading-relaxed text-[var(--social-fg)]">
                         {loop.requirement.length > 300
                             ? loop.requirement.slice(0, 300) + '...'
@@ -106,20 +103,20 @@ export default function ReviewLoopDetailPage() {
 
                 {loop.acceptanceCriteria && latestVerdict?.criteriaStatus && latestVerdict.criteriaStatus.length > 0 ? (
                     <Section title={t('loops.create.criteria')}>
-                        <Card>
+                        <Card className="min-w-0 p-4">
                             <CriteriaChecklist criteria={latestVerdict.criteriaStatus} />
                         </Card>
                     </Section>
                 ) : loop.acceptanceCriteria ? (
                     <Section title={t('loops.create.criteria')}>
-                        <Card>
+                        <Card className="min-w-0 p-4">
                             <div className="whitespace-pre-wrap text-body text-[var(--social-fg)]">{loop.acceptanceCriteria}</div>
                         </Card>
                     </Section>
                 ) : null}
 
                 <Section title={t('settings.title')}>
-                    <Card>
+                    <Card className="min-w-0 p-4">
                         <LoopSettingsPanel
                             userPreference={loop.userPreference}
                             maxRounds={loop.maxRounds}
@@ -133,7 +130,7 @@ export default function ReviewLoopDetailPage() {
 
                 {isTerminal ? null : (
                     <Section title={t('loops.detail.controls')}>
-                        <Card>
+                        <Card className="min-w-0 p-4">
                             <LoopControls
                                 status={loop.status}
                                 onContinue={handleContinue}

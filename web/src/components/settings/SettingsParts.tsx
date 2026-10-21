@@ -7,6 +7,7 @@ import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
 
 const BLOCK_TITLE_CLASS = 'px-4 text-caption font-semibold uppercase tracking-wide text-[var(--social-fg-muted)]'
 
@@ -69,7 +70,7 @@ export function SettingsPanel(props: { title?: ReactNode; description?: ReactNod
 /** Bordered card inside a SettingsPanel (usage per provider, credential profile, ...). */
 export function SettingsCard(props: { title?: ReactNode; trailing?: ReactNode; children: ReactNode; className?: string }) {
     return (
-        <div className={cn('flex flex-col gap-2 rounded-2xl border border-[var(--social-border)] p-4', props.className)}>
+        <Card className={cn('flex flex-col gap-2 p-4', props.className)}>
             {props.title ? (
                 <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0 text-body font-semibold text-[var(--social-fg)]">{props.title}</div>
@@ -77,7 +78,7 @@ export function SettingsCard(props: { title?: ReactNode; trailing?: ReactNode; c
                 </div>
             ) : null}
             {props.children}
-        </div>
+        </Card>
     )
 }
 

@@ -76,6 +76,7 @@ import {
 } from '@/components/mobile/icons'
 import { useGroupInfoPanel } from './group-info'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { Card } from '@/components/ui/card'
 
 // ─── Custom Hooks ──────────────────────────────────────────────────────────────
 
@@ -1024,7 +1025,7 @@ function PendingRequestsSheet(props: {
                 <SheetNote>{t('groups.pending.loading')}</SheetNote>
             ) : props.requests.map((request) => (
                 <section key={request.id} className="px-4 pb-3">
-                    <div className="overflow-hidden rounded-2xl border border-[var(--social-border)]">
+                    <Card className="overflow-hidden">
                         <div className="flex items-baseline gap-2 px-4 pt-3">
                             <span className="min-w-0 flex-1 truncate text-body font-semibold text-[var(--social-fg)]">{request.tool}</span>
                             {request.createdAt ? (
@@ -1052,7 +1053,7 @@ function PendingRequestsSheet(props: {
                                 {props.activeRequestId === request.id ? t('groups.detail.processing') : t('groups.detail.approve')}
                             </Button>
                         </div>
-                    </div>
+                    </Card>
                 </section>
             ))}
             <SheetSection>
