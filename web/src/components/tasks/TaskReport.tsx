@@ -323,7 +323,7 @@ function RunReport(props: { task: TaskView; run: TaskRun; onAnswer: (decisionId:
         tone: SUBTASK_TONE[s.state],
         done: s.state === 'done' ? 1 : 0,
         total: 1,
-        when: s.doneAt ? new Date(s.doneAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : undefined
+        when: s.doneAt ? new Date(s.doneAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }) : undefined
     }))
     const checks: CheckItem[] = task.acceptance.map((c) => {
         const result = results.get(c.id)
