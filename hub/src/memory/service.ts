@@ -6,7 +6,8 @@ import type { Store, StoredMemory, StoredMemoryEvent, StoredMemoryLink } from '.
 import { cosine, embedTexts, EmbedError } from './embed'
 import { listClaudeMemoryFiles, listMemoryMdBullets, projectNameFor } from './harvest'
 import { askJev, JevError, resolveJevApiKey } from './jev'
-import { extractRules, ExtractError, gate, GATE, userText } from './extract'
+import { extractRules, ExtractError, gate, GATE } from './extract'
+import { realUserText } from './userMessage'
 import { buildQuestions, decide, matchQuestion, parseVerdict, REVIEW, THRESHOLDS, TRIAL, type JevVerdict, type MemoryLevel, type Origin } from './judge'
 import { mostSimilar, similarity } from './similarity'
 
@@ -418,7 +419,7 @@ export class MemoryService {
                 const turns = this.store.memories.userTurns(namespace, cursor, MESSAGE_PAGE)
                 if (turns.length === 0) break
                 const items = turns.map((turn) => {
-                    const text = messageText(turn.content)
+                    const text = realUserText(turn.content)
                     const path = (parseJson(turn.sessionMetadata) as { path?: unknown } | null)?.path
                     const project = typeof path === 'string' ? projectNameFor(path) : null
                     const usable = text !== null && (!project || settings.projects.includes(project))
@@ -784,11 +785,4 @@ function parseJson(raw: string | null): unknown {
     } catch {
         return null
     }
-}
-
-/** The text of a message the user typed, or null for anything else. */
-function messageText(content: string): string | null {
-    const message = parseJson(content) as { role?: unknown; content?: { type?: unknown; text?: unknown } } | null
-    if (message?.role !== 'user' || message.content?.type !== 'text' || typeof message.content.text !== 'string') return null
-    return userText(message.content.text)
 }
