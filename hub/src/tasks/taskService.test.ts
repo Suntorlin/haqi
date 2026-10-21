@@ -144,7 +144,7 @@ describe('TaskService guide step', () => {
 
         const decisions = t.store.memories.list('default').filter((m) => m.source === 'decision')
         expect(decisions.map((m) => [m.text, m.status, m.level, m.tags]).sort()).toEqual([
-            ['情境：截图放哪里？；选项：Linear 工单/Obsidian；你选了：Obsidian', 'active', 'experience', ['haqi']],
+            ['情境：截图放哪里；选项：Linear 工单/Obsidian；你选了：Obsidian', 'active', 'experience', ['haqi']],
             ['情境：验收标准“引导面板 3 秒内出现”；选项：保留/去掉；你选了：去掉', 'active', 'experience', ['haqi']]
         ])
         const refs = t.store.memories.events('default', 20).filter((e) => e.source === 'decision').map((e) => e.sourceRef).sort()
