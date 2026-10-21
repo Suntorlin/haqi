@@ -2157,6 +2157,9 @@ export default function GroupDetailPage() {
             count: session?.pendingRequestsCount ?? 0
         }]
     }), [members, sessionMap])
+    // The task report shows the lead's own approval card; the banner keeps the other members.
+    const leadSessionId = members.find((member) => member.role === 'lead')?.sessionId ?? null
+    const bannerPending = showTaskReport ? pendingMembers.filter((item) => item.sessionId !== leadSessionId) : pendingMembers
     const noteExecutorOptions = useMemo(() => {
         const options = members
             .filter((member) => typeof member.sessionId === 'string' && member.sessionId.length > 0)
@@ -3018,8 +3021,8 @@ export default function GroupDetailPage() {
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
-            {pendingMembers.length > 0 ? (
-                <PendingBanner items={pendingMembers} onOpen={handleOpenPendingQuickModal} />
+            {bannerPending.length > 0 ? (
+                <PendingBanner items={bannerPending} onOpen={handleOpenPendingQuickModal} />
             ) : null}
 
             {showTaskReport ? (

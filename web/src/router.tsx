@@ -78,7 +78,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary, TaskStatus, TaskView } from '@/types/api'
 import { Badge, DotBadge } from '@/components/ui/badge'
-import { NewTaskForm, type TaskPlace } from '@/components/tasks/NewTaskForm'
+import { NewTaskForm } from '@/components/tasks/NewTaskForm'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
@@ -1045,22 +1045,6 @@ function GroupsLayout() {
     const { tasks } = useTasks(api)
     const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
     const { createTask } = useTaskActions(api)
-    const { machines } = useMachines(api, true)
-    // Where a new task can run: the newest session directories on machines that are online.
-    const taskPlaces = useMemo<TaskPlace[]>(() => {
-        const online = new Set(machines.filter((machine) => machine.active).map((machine) => machine.id))
-        const seen = new Set<string>()
-        const places: TaskPlace[] = []
-        for (const session of [...allSessions].sort((a, b) => b.updatedAt - a.updatedAt)) {
-            const machineId = session.metadata?.machineId
-            const directory = session.metadata?.path
-            if (!machineId || !directory || !online.has(machineId) || seen.has(`${machineId}:${directory}`)) continue
-            seen.add(`${machineId}:${directory}`)
-            places.push({ machineId, directory, label: directory.split('/').filter(Boolean).pop() ?? directory })
-            if (places.length === 6) break
-        }
-        return places
-    }, [allSessions, machines])
 
     const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
@@ -1152,7 +1136,6 @@ function GroupsLayout() {
                     </DialogHeader>
                     <div className="mt-4">
                         <NewTaskForm
-                            places={taskPlaces}
                             onCancel={() => setShowCreateModal(false)}
                             onCreate={async (input) => {
                                 const task = await createTask(input)

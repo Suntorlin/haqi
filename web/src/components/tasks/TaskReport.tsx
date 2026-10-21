@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { ApiClient } from '@/api/client'
 import type { CriterionSource, TaskDraft, TaskView } from '@/types/api'
 import { useTask, useTaskActions } from '@/hooks/queries/useTasks'
+import { useSession } from '@/hooks/queries/useSession'
 import { useTranslation } from '@/lib/use-translation'
 import { carryOver, confirmInputFrom, keptCount, type DraftEdits } from '@/lib/tasks'
 import { cn } from '@/lib/utils'
@@ -29,6 +30,11 @@ const SOURCE_KEY: Record<CriterionSource, string> = {
     repo: 'taskGuide.source.repo',
     inferred: 'taskGuide.source.inferred',
     user: 'taskGuide.source.user'
+}
+
+/** The repository's folder name, shown next to the tag. */
+function repoName(path: string | null): string | null {
+    return path ? path.split('/').filter(Boolean).pop() ?? path : null
 }
 
 function SourceBadge(props: { source: CriterionSource; t: Translate }) {
@@ -79,6 +85,28 @@ function LineRow(props: { text: string; onEdit: () => void; onRemove: () => void
     )
 }
 
+/**
+ * The lead asks to run a tool that needs the user's approval (a planner should not, but a stuck one would wait
+ * forever where the user cannot see it): show the request with Allow and Deny.
+ */
+function ApprovalCard(props: { tool: string; args: unknown; onAllow: () => void; onDeny: () => void; pending: boolean; t: Translate }) {
+    const args = props.args as { command?: unknown; file_path?: unknown } | null
+    const detail = typeof args?.command === 'string' ? args.command : typeof args?.file_path === 'string' ? args.file_path : JSON.stringify(props.args)
+    return (
+        <>
+            <SectionCaption>{props.t('taskReport.approval')}</SectionCaption>
+            <div className="mx-4 rounded-2xl bg-[var(--social-muted)] p-4">
+                <p className="text-body font-semibold text-[var(--social-fg)]">{props.t('taskReport.approvalTitle', { tool: props.tool })}</p>
+                <pre className="mt-2 line-clamp-4 whitespace-pre-wrap break-all rounded-xl bg-[var(--social-surface)] px-3 py-2 font-mono text-footnote text-[var(--social-fg)]">{detail}</pre>
+                <div className="mt-3 flex gap-2">
+                    <Button variant="secondary" disabled={props.pending} onClick={props.onDeny}>{props.t('taskReport.deny')}</Button>
+                    <Button className="flex-1" disabled={props.pending} onClick={props.onAllow}>{props.t('taskReport.allow')}</Button>
+                </div>
+            </div>
+        </>
+    )
+}
+
 /** The draft as a report: goal, decisions waiting for the user, criteria to tick and edit, non-goals, confirm. */
 function DraftReport(props: {
     task: TaskView
@@ -118,7 +146,8 @@ function DraftReport(props: {
         t('taskGuide.version', { n: draft.version }),
         t('taskReport.criteriaCount', { n: kept }),
         waiting > 0 ? t('taskReport.waitingCount', { n: waiting }) : null,
-        props.task.tag ? `#${props.task.tag}` : null
+        props.task.tag ? `#${props.task.tag}` : null,
+        repoName(props.task.repoPath)
     ].filter(Boolean).join(' · ')
 
     return (
@@ -259,7 +288,7 @@ function ConfirmedReport(props: { task: TaskView; onToggleDone: () => void; pend
         <>
             <ReportSummary
                 headline={task.goal ?? task.name}
-                lede={[status, task.tag ? `#${task.tag}` : null].filter(Boolean).join(' · ')}
+                lede={[status, task.tag ? `#${task.tag}` : null, repoName(task.repoPath)].filter(Boolean).join(' · ')}
                 stats={[
                     { value: String(task.acceptance.length), label: t('taskReport.stat.criteria') },
                     { value: String(load ?? 0), label: t('taskReport.stat.load') },
@@ -305,6 +334,8 @@ export function TaskReport(props: {
 }) {
     const { t } = useTranslation()
     const { task } = useTask(props.api, props.taskId)
+    const { session: lead } = useSession(props.api, task?.leadSessionId ?? null)
+    const waitingRequest = Object.entries(lead?.agentState?.requests ?? {})[0] ?? null
     const { confirmTask, retryGuide, updateTask } = useTaskActions(props.api)
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
@@ -342,6 +373,16 @@ export function TaskReport(props: {
         <div className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto pb-8">
                 <div className="mx-auto w-full max-w-2xl">
+                    {waitingRequest && lead && props.api ? (
+                        <ApprovalCard
+                            tool={waitingRequest[1].tool}
+                            args={waitingRequest[1].arguments}
+                            pending={pending}
+                            t={t}
+                            onAllow={() => void run(() => props.api!.approvePermission(lead.id, waitingRequest[0]))}
+                            onDeny={() => void run(() => props.api!.denyPermission(lead.id, waitingRequest[0], { decision: 'denied', reason: t('taskReport.denyReason') }))}
+                        />
+                    ) : null}
                     {working ? <ReportSummary headline={t('taskReport.drafting')} lede={t('taskGuide.workingHint')} /> : null}
 
                     {guiding && task.guide.state === 'failed' ? (

@@ -43,6 +43,7 @@ export class TaskError extends Error {
 }
 
 const NAME_CHARS = 60
+const RECENT_REPOS = 12
 const RELATED_TASKS = 5
 
 /**
@@ -74,19 +75,23 @@ export class TaskService {
     }
 
     /**
-     * Creates a task in the guide step and starts its planner in the background. Without a directory, the task goes
-     * where its source session runs, or else where the newest session with the tag runs.
+     * Creates a task in the guide step and starts its planner in the background. The planner decides the repository:
+     * it starts in the folder that holds the user's recent repositories and names the one it picked in its draft.
+     * A given directory, or the source session's, is used as is.
      */
     async create(namespace: string, input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string }): Promise<TaskView> {
         const from = input.fromSessionId ? this.host.session(namespace, input.fromSessionId) : null
         if (input.fromSessionId && !from) throw new TaskError('Session not found', 404)
         const tag = input.tag ?? ''
-        const place = this.placeFor(namespace, tag, from, input.machineId, input.directory)
+        const known = input.machineId && input.directory
+            ? { machineId: input.machineId, directory: input.directory }
+            : from?.machineId && from.path && this.host.machineOnline(namespace, from.machineId) ? { machineId: from.machineId, directory: from.path } : null
+        const workspace = known ? null : this.workspaceFor(namespace)
         const task = this.kernel.create(namespace, {
             name: firstLine(input.text, NAME_CHARS),
             tag,
-            repoPath: place?.directory ?? null,
-            machineId: place?.machineId ?? null,
+            repoPath: known?.directory ?? null,
+            machineId: known?.machineId ?? workspace?.machineId ?? null,
             members: from ? [from.id] : []
         })
         // Without the guide step a task is a plain discussion: no goal, no acceptance list, no planner.
@@ -95,8 +100,8 @@ export class TaskService {
             this.kernel.move(namespace, task.id, 'active')
             return this.get(namespace, task.id)!
         }
-        this.kernel.log(namespace, task.id, TASK_EVENT.guideStarted, { text: input.text, fromSessionId: from?.id ?? null })
-        if (!place) {
+        this.kernel.log(namespace, task.id, TASK_EVENT.guideStarted, { text: input.text, fromSessionId: from?.id ?? null, workspace: workspace?.directory ?? null })
+        if (!known && !workspace) {
             this.fail(namespace, task.id, '找不到在线机器上的仓库目录：先在要改的仓库里开一个会话，再重试。')
         } else {
             this.host.timeline?.(namespace, task.id, 'HAQI 正在读你的记忆和仓库约定，起草目标和验收标准。')
@@ -128,6 +133,8 @@ export class TaskService {
         this.kernel.log(namespace, taskId, TASK_EVENT.draftSubmitted, toTaskDraft(parsed.data, version))
         // The planner tags the task; a tag the user set stays.
         if (parsed.data.tag && !task.tag) this.kernel.update(namespace, taskId, { tag: parsed.data.tag })
+        // The planner names the repository; a later draft may move the task to another one.
+        if (parsed.data.repoPath && parsed.data.repoPath !== task.repoPath) this.kernel.update(namespace, taskId, { repoPath: parsed.data.repoPath })
         this.host.timeline?.(namespace, taskId, `第 ${version} 版草稿好了：在任务页里勾选、修改，再确认。要改就在这里跟我说。`)
         return { version, message: `Draft ${version} submitted. Wait for the user to confirm it or ask for changes; do not start the work.` }
     }
@@ -256,16 +263,21 @@ export class TaskService {
     private async startPlanner(namespace: string, taskId: string, resume?: { feedback: string }): Promise<void> {
         const task = this.kernel.get(namespace, taskId)
         if (!task) return
-        const started = this.kernel.latest(namespace, taskId, TASK_EVENT.guideStarted)?.payload as { text?: string; fromSessionId?: string | null } | null
+        const started = this.kernel.latest(namespace, taskId, TASK_EVENT.guideStarted)?.payload as { text?: string; fromSessionId?: string | null; workspace?: string | null } | null
         const text = started?.text ?? task.name
-        if (!task.machineId || !task.repoPath) {
-            this.fail(namespace, taskId, '找不到仓库目录：请选一个目录再重试。')
+        // Until the planner names the repository it works from the folder that holds the user's repositories.
+        const directory = task.repoPath ?? started?.workspace ?? null
+        if (!task.machineId || !directory) {
+            this.fail(namespace, taskId, '找不到在线机器上的仓库：先在要改的仓库里开一个会话，再重试。')
             return
         }
         try {
-            const project = projectNameFor(task.repoPath)
+            const project = task.repoPath ? projectNameFor(task.repoPath) : null
             const pack = await buildContextPack(
-                { taskId, text, tag: task.tag ?? '', project, repoPath: task.repoPath, fromSessionId: started?.fromSessionId ?? null },
+                {
+                    taskId, text, tag: task.tag ?? '', project, repoPath: task.repoPath, fromSessionId: started?.fromSessionId ?? null,
+                    ...(task.repoPath ? {} : { workspace: directory, repos: this.recentRepos(namespace, task.machineId) })
+                },
                 this.contextSources(namespace)
             )
             const result = await this.planner.start({
@@ -274,7 +286,8 @@ export class TaskService {
                 tag: task.tag ?? '',
                 text,
                 machineId: task.machineId,
-                repoPath: task.repoPath,
+                repoPath: directory,
+                chooseRepo: !task.repoPath,
                 contextText: pack.text,
                 ...(resume ? { resume: { draft: this.latestDraft(namespace, taskId), feedback: resume.feedback } } : {})
             })
@@ -296,16 +309,35 @@ export class TaskService {
     }
 
     /**
-     * Where a new task runs: the given place, else its source session, else the newest session with the tag; always
-     * on a machine that is online now.
+     * Where the planner starts before it has picked a repository: the machine of the newest session on an online
+     * machine, in the deepest folder that holds that machine's recent repositories (so it can read each of them).
      */
-    private placeFor(namespace: string, tag: string, from: TaskSession | null, machineId?: string, directory?: string): { machineId: string; directory: string } | null {
-        if (machineId && directory) return { machineId, directory }
-        const recent = this.host.sessions(namespace).sort((a, b) => b.updatedAt - a.updatedAt)
-        // Sessions with the task's tag first, then the newest of all (a new task has no tag yet).
-        const candidates = [from, ...recent.filter((s) => tag && s.tags.includes(tag)), ...recent]
-        const session = candidates.find((s): s is TaskSession => Boolean(s?.machineId && s.path && this.host.machineOnline(namespace, s.machineId)))
-        return session ? { machineId: session.machineId!, directory: directory ?? session.path! } : null
+    private workspaceFor(namespace: string): { machineId: string; directory: string } | null {
+        const newest = this.workSessions(namespace)
+            .filter((s) => s.machineId && s.path && this.host.machineOnline(namespace, s.machineId))
+            .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+        if (!newest?.machineId) return null
+        const repos = this.recentRepos(namespace, newest.machineId).map((repo) => repo.path)
+        return { machineId: newest.machineId, directory: commonFolder(repos) ?? newest.path! }
+    }
+
+    /** Sessions that work in a repository: planners start in the shared folder, so they are left out. */
+    private workSessions(namespace: string): TaskSession[] {
+        const leads = new Set(this.kernel.list(namespace).map((task) => task.leadSessionId).filter(Boolean))
+        return this.host.sessions(namespace).filter((session) => !leads.has(session.id))
+    }
+
+    /** The machine's recent repositories, newest first, with the names of their latest sessions. */
+    private recentRepos(namespace: string, machineId: string): Array<{ path: string; project: string; sessions: string[] }> {
+        const byPath = new Map<string, string[]>()
+        for (const session of this.workSessions(namespace).sort((a, b) => b.updatedAt - a.updatedAt)) {
+            if (session.machineId !== machineId || !session.path) continue
+            const names = byPath.get(session.path) ?? []
+            if (!byPath.has(session.path) && byPath.size >= RECENT_REPOS) continue
+            if (session.name && names.length < 3) names.push(session.name)
+            byPath.set(session.path, names)
+        }
+        return [...byPath].map(([path, sessions]) => ({ path, project: projectNameFor(path) ?? path, sessions }))
     }
 
     private contextSources(namespace: string): ContextSources {
@@ -318,8 +350,9 @@ export class TaskService {
                     .filter((text): text is string => text !== null)
                 return { name: session.name, userMessages }
             },
+            // Without a repository or tag yet, the newest tasks: the planner can spot overlaps itself.
             relatedTasks: (project, tag, excludeId) => this.kernel.list(namespace)
-                .filter((task) => (tag && task.tag === tag) || (project && task.repoPath && projectNameFor(task.repoPath) === project))
+                .filter((task) => (!project && !tag) || (tag && task.tag === tag) || (project && task.repoPath && projectNameFor(task.repoPath) === project))
                 .filter((task) => task.id !== excludeId && task.status !== 'guiding')
                 .slice(0, RELATED_TASKS)
                 .map((task) => ({ id: task.id, name: task.name, goal: task.goal, acceptance: task.acceptance.map((c) => c.text) })),
@@ -420,4 +453,19 @@ function guideState(task: StoredGroup, events: StoredTaskEvent[]): { state: Task
 function firstLine(text: string, max: number): string {
     const line = text.trim().split('\n')[0]!.trim()
     return line.length > max ? `${line.slice(0, max - 1)}…` : line
+}
+
+/** The deepest folder that holds every path; null when they only share the root. */
+export function commonFolder(paths: string[]): string | null {
+    if (paths.length === 0) return null
+    const parts = paths.map((path) => path.split('/').filter(Boolean))
+    const shared: string[] = []
+    for (let i = 0; i < parts[0]!.length; i += 1) {
+        const segment = parts[0]![i]
+        if (!parts.every((p) => p[i] === segment)) break
+        shared.push(segment!)
+    }
+    // A single repository: its parent, so a sibling repository is readable too.
+    if (paths.length === 1 || new Set(paths).size === 1) shared.pop()
+    return shared.length > 0 ? `/${shared.join('/')}` : null
 }

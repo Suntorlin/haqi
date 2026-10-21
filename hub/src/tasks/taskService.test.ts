@@ -8,7 +8,7 @@ import { MemoryService } from '../memory/service'
 import { realUserText } from '../memory/userMessage'
 import { Store } from '../store'
 import { TaskTransitionError } from './kernel/stateMachine'
-import { TaskError, TaskService, type TaskSession } from './taskService'
+import { commonFolder, TaskError, TaskService, type TaskSession } from './taskService'
 
 const DRAFT = {
     goal: '创建任务时多一步引导，起草验收标准',
@@ -202,20 +202,26 @@ describe('TaskService guide step', () => {
         expect(t.spawned[1]!.text).toContain(DRAFT.goal)
     })
 
-    it('creates a task without a tag: the planner picks one, from the newest session on an online machine', async () => {
+    it('creates a task with only the text: the planner picks the repository and the tag', async () => {
         const t = setup(dir)
         t.addSession({ id: 'old', path: '/repo/old', tags: ['old'], updatedAt: 1 })
-        t.addSession({ id: 'new', path: '/repo/haqi', tags: ['web'], updatedAt: 2 })
+        t.addSession({ id: 'new', path: '/repo/haqi', name: '修引导', tags: ['web'], updatedAt: 2 })
         const task = await t.service.create('default', { text: '修一个 bug' })
         await t.settle()
-        expect([task.tag, task.repoPath]).toEqual(['', '/repo/haqi'])
+        expect([task.tag, task.repoPath, task.machineId]).toEqual(['', null, 'm1'])
+        // It starts in the folder that holds the recent repositories and is told to pick one.
+        expect(t.spawned[0]!.directory).toBe('/repo')
         expect(t.spawned[0]!.tags).toEqual([])
+        expect(t.spawned[0]!.text).toContain('可选的仓库（你来判断在哪个做）')
+        expect(t.spawned[0]!.text).toContain('- /repo/haqi（项目 haqi）：最近的会话 修引导')
+        expect(t.spawned[0]!.text).toContain('repo_path')
         expect(t.spawned[0]!.text).toContain('已有的 tag（给任务选一个）')
         expect(t.spawned[0]!.text).toContain('old、web')
-        const withOptions = { ...DRAFT, tag: 'Web', questions: [{ ...DRAFT.questions[0]!, options: [{ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' }, { id: 'b', label: 'Obsidian' }] }] }
+        const withOptions = { ...DRAFT, tag: 'Web', repoPath: '/repo/haqi', questions: [{ ...DRAFT.questions[0]!, options: [{ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' }, { id: 'b', label: 'Obsidian' }] }] }
         t.service.submitDraft('default', task.id, withOptions)
         const ready = t.service.get('default', task.id)!
-        expect(ready.tag).toBe('web')
+        expect([ready.tag, ready.repoPath]).toEqual(['web', '/repo/haqi'])
+        expect(() => t.service.submitDraft('default', task.id, { ...DRAFT, repoPath: 'repo/haqi' })).toThrow(TaskError)
         expect(ready.draft?.questions[0]?.options[0]).toEqual({ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' })
     })
 
@@ -231,6 +237,13 @@ describe('TaskService guide step', () => {
         t.service.update('default', task.id, { status: 'abandoned' })
         await Promise.resolve()
         expect(t.stopped).toEqual(['planner-1'])
+    })
+
+    it('finds the folder that holds the repositories', () => {
+        expect(commonFolder(['/u/p/haqi', '/u/p/shop', '/u/p/haqi-wt'])).toBe('/u/p')
+        expect(commonFolder(['/u/p/haqi'])).toBe('/u/p')
+        expect(commonFolder(['/a/x', '/b/y'])).toBeNull()
+        expect(commonFolder([])).toBeNull()
     })
 
     it('keeps the state machine: no going back to guiding, done can be reopened', async () => {
