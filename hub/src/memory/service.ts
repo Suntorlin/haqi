@@ -854,7 +854,9 @@ export function decisionText(input: Pick<DecisionInput, 'situation' | 'options' 
         const flat = normalize(text)
         return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
     }
-    const text = `情境：${cut(input.situation, DECISION_PART_CHARS.situation)}；选项：${cut(input.options.join('/'), DECISION_PART_CHARS.options)}；你选了：${cut(input.chosen, DECISION_PART_CHARS.chosen)}`
+    // A question's own "？" or "。" before "；" reads as doubled punctuation.
+    const situation = input.situation.trim().replace(/[。.？?！!；;：:，,]+$/u, '')
+    const text = `情境：${cut(situation, DECISION_PART_CHARS.situation)}；选项：${cut(input.options.join('/'), DECISION_PART_CHARS.options)}；你选了：${cut(input.chosen, DECISION_PART_CHARS.chosen)}`
     return text.slice(0, MAX_TEXT)
 }
 
