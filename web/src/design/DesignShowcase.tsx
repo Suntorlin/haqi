@@ -294,7 +294,7 @@ export function DesignShowcase() {
             <Section title="8 · 卡片 · 空状态 · 加载 · 小号控件" note="卡片只有 Card 一种；空列表和空面板一律用 EmptyState；加载只用 Spinner；28px 的小按钮用 size=&quot;xs&quot;，点击区仍是 44px。">
                 <div className="grid gap-6 md:grid-cols-3">
                     <Spec label="Card">
-                        <Card className="p-4 text-footnote">白底、细边框、16px 圆角、无阴影。</Card>
+                        <Card className="p-4 text-footnote">页面底色、细边框、16px 圆角、无阴影。</Card>
                     </Spec>
                     <Spec label="EmptyState · inline">
                         <Card><EmptyState title="还没有评审循环" /></Card>

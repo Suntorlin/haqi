@@ -1371,6 +1371,7 @@ export default {
   'install.ios.confirm.after': '（位于右上角）',
   'file.diffLoadFailed': '加载差异失败',
   'file.readFailed': '读取文件失败',
+  'file.imageLoading': '正在加载图片…',
   'file.imagePreview': '图片预览',
   'file.imagePreviewFailed': '图片预览失败。',
   'file.imageTooLarge': '图片预览上限为 8 MB。',

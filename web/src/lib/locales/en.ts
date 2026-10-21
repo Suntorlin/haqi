@@ -1369,6 +1369,7 @@ export default {
   'install.ios.confirm.after': 'in the top right corner',
   'file.diffLoadFailed': 'Failed to load diff',
   'file.readFailed': 'Failed to read file',
+  'file.imageLoading': 'Loading image…',
   'file.imagePreview': 'Image preview',
   'file.imagePreviewFailed': 'Failed to preview image.',
   'file.imageTooLarge': 'Image preview is limited to 8 MB.',
