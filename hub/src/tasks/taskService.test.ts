@@ -67,6 +67,7 @@ function setup(dir: string) {
         },
         session: (_namespace, id) => sessions.get(id) ?? null,
         sessions: () => [...sessions.values()],
+        machineOnline: (_namespace, machineId) => machineId !== 'offline',
         changed: (_namespace, id) => changes.push(id)
     })
     return {
@@ -167,8 +168,9 @@ describe('TaskService guide step', () => {
         expect(t.service.get('default', task.id)!.guide.state).toBe('drafting')
     })
 
-    it('fails the guide step when no repository is known', async () => {
+    it('fails the guide step when no repository is known on a machine that is online', async () => {
         const t = setup(dir)
+        t.addSession({ id: 'old', machineId: 'offline', tags: ['nowhere'] })
         const task = await t.service.create('default', { text: '没有仓库的任务', tag: 'nowhere' })
         expect(task.guide.state).toBe('failed')
         expect(t.spawned).toHaveLength(0)
