@@ -107,6 +107,27 @@ export const reviewLoopWorkerSubmitInputSchema: z.ZodTypeAny = z.object({
     exit_status: z.enum(['success', 'error']).describe('Overall execution status')
 })
 
+export const taskDraftSubmitInputSchema: z.ZodTypeAny = z.object({
+    task_id: z.string().min(1).max(40).describe('The task id from the guide message'),
+    goal: z.string().min(1).max(120).describe('One sentence: what the task achieves'),
+    non_goals: z.array(z.string().min(1).max(200)).max(3).optional().describe('What the task does not do (at most 3)'),
+    criteria: z.array(z.object({
+        text: z.string().min(1).max(300).describe('One acceptance criterion that can be checked'),
+        source: z.enum(['principle', 'repo', 'inferred']).describe('principle = from a user principle; repo = from a repository convention file; inferred = your own guess'),
+        source_ref: z.string().min(1).max(200).optional().describe('The principle id or the file name'),
+        verify: z.string().min(1).max(300).describe('How to check it: a command, a page or data')
+    })).min(3).max(6).describe('3 to 6 acceptance criteria'),
+    questions: z.array(z.object({
+        id: z.string().min(1).max(40),
+        text: z.string().min(1).max(200).describe('Only what the context and the repository cannot settle'),
+        options: z.array(z.object({ id: z.string().min(1).max(40), label: z.string().min(1).max(80) })).min(2).max(4),
+        default: z.string().min(1).max(40).describe('The id of the default option'),
+        precedent_ref: z.string().min(1).max(80).optional().describe('The experience id the default comes from')
+    })).max(3).optional().describe('At most 3 choice questions for the user')
+})
+
+export const TASK_DRAFT_SUBMIT_DESCRIPTION = 'Submit the goal and acceptance criteria you drafted for a HAQI task, during its guide step. The user ticks the criteria and answers the questions in the HAQI web app. Call it again with a new draft when the user asks for changes. Do not start the work.'
+
 export const reviewLoopReviewerSubmitInputSchema: z.ZodTypeAny = z.object({
     loop_id: z.string().min(1).describe('The review loop ID'),
     round_id: z.string().min(1).describe('The current round ID'),
@@ -175,6 +196,12 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         title: 'Create Report Share',
         description: 'Create a public share link for a report. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
         inputSchema: reportCreateShareInputSchema
+    },
+    {
+        name: 'task_draft_submit',
+        title: 'Submit Task Draft',
+        description: TASK_DRAFT_SUBMIT_DESCRIPTION,
+        inputSchema: taskDraftSubmitInputSchema
     },
     {
         name: 'review_loop_worker_submit',
