@@ -1,3 +1,4 @@
+import { chat, hasChinese, jsonIn } from './chat'
 import { askJev, yesProbability, JevError } from './jev'
 
 /**
@@ -6,9 +7,6 @@ import { askJev, yesProbability, JevError } from './jev'
  * 2. Jev answers "does this message state a lasting rule or preference?"; only a sure yes goes on.
  * 3. A small model rewrites what the user said into standalone sentences, each with the user's exact words.
  */
-
-export const CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions'
-export const EXTRACT_MODEL = 'anthropic/claude-haiku-4.5'
 
 /** Jev must be at least this sure that a message states a lasting rule. */
 export const GATE = 0.7
@@ -61,51 +59,25 @@ const SYSTEM = [
     'Answer with JSON only: {"rules":[{"text":"...","quote":"..."}]}. At most 3 rules. If there is none, answer {"rules":[]}.'
 ].join('\n')
 
-export class ExtractError extends Error {}
+export { ChatError as ExtractError } from './chat'
 
 export async function extractRules(options: { apiKey: string; message: string; before: string | null; fetchFn?: typeof fetch; timeoutMs?: number }): Promise<{ rules: ExtractedRule[]; costUsd: number }> {
-    const fetchFn = options.fetchFn ?? fetch
-    let response: Response
-    try {
-        response = await fetchFn(CHAT_URL, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${options.apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: EXTRACT_MODEL,
-                provider: { data_collection: 'deny' },
-                temperature: 0,
-                max_tokens: 600,
-                usage: { include: true },
-                messages: [
-                    { role: 'system', content: SYSTEM },
-                    { role: 'user', content: `agent_before:\n${options.before?.slice(-BEFORE_CHARS) ?? '(none)'}\n\nmessage:\n${options.message}\n\nWrite every "text" in ${/[\u4e00-\u9fff]/.test(options.message) ? 'Simplified Chinese' : 'the language of the message'}.` }
-                ]
-            }),
-            signal: AbortSignal.timeout(options.timeoutMs ?? 30_000)
-        })
-    } catch (error) {
-        throw new ExtractError(error instanceof Error ? error.message : 'Extract request failed')
-    }
-    if (!response.ok) {
-        const body = await response.text().catch(() => '')
-        throw new ExtractError(`Extract HTTP ${response.status}${body ? `: ${body.slice(0, 200)}` : ''}`)
-    }
-    const body = await response.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { cost?: number } }
-    const content = body.choices?.[0]?.message?.content ?? ''
-    const json = content.match(/\{[\s\S]*\}/)?.[0]
-    let rules: ExtractedRule[] = []
-    try {
-        const parsed = json ? JSON.parse(json) as { rules?: Array<{ text?: unknown; quote?: unknown }> } : {}
-        rules = (parsed.rules ?? [])
-            .filter((rule): rule is { text: string; quote: string } => typeof rule.text === 'string' && typeof rule.quote === 'string')
-            .map((rule) => ({ text: rule.text.trim(), quote: rule.quote.trim() }))
-            // The quote must really be in the message: the user's own words are the whole point.
-            .filter((rule) => rule.text && rule.quote && options.message.includes(rule.quote.slice(0, 12)))
-            .slice(0, 3)
-    } catch {
-        rules = []
-    }
-    return { rules, costUsd: body.usage?.cost ?? 0 }
+    const reply = await chat({
+        apiKey: options.apiKey,
+        system: SYSTEM,
+        user: `agent_before:\n${options.before?.slice(-BEFORE_CHARS) ?? '(none)'}\n\nmessage:\n${options.message}\n\nWrite every "text" in ${hasChinese(options.message) ? 'Simplified Chinese' : 'the language of the message'}.`,
+        maxTokens: 600,
+        fetchFn: options.fetchFn,
+        timeoutMs: options.timeoutMs
+    })
+    const parsed = jsonIn(reply.content) as { rules?: Array<{ text?: unknown; quote?: unknown }> } | null
+    const rules = (parsed?.rules ?? [])
+        .filter((rule): rule is { text: string; quote: string } => typeof rule.text === 'string' && typeof rule.quote === 'string')
+        .map((rule) => ({ text: rule.text.trim(), quote: rule.quote.trim() }))
+        // The quote must really be in the message: the user's own words are the whole point.
+        .filter((rule) => rule.text && rule.quote && options.message.includes(rule.quote.slice(0, 12)))
+        .slice(0, 3)
+    return { rules, costUsd: reply.costUsd }
 }
 
 export { JevError }

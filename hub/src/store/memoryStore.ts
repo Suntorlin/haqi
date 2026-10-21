@@ -7,6 +7,7 @@ import {
     addMemoryLink,
     deleteMemory,
     getMemory,
+    getMemoryEvent,
     hasMemoryEventWithHash,
     hasReplacement,
     insertMemory,
@@ -15,8 +16,12 @@ import {
     listMemoryEventsSince,
     listMemoryLinks,
     listMemoryVectors,
+    listMergeEvents,
     listUserTurns,
     mentionStats,
+    removeMemoryLink,
+    setMemoryChecked,
+    setMemoryEventAction,
     setMemoryVector,
     updateMemory,
     type MemoryPatch,
@@ -36,8 +41,12 @@ export class MemoryStore {
     update(id: string, namespace: string, patch: MemoryPatch): StoredMemory | null { return updateMemory(this.db, id, namespace, patch) }
     delete(id: string, namespace: string): boolean { return deleteMemory(this.db, id, namespace) }
     link(namespace: string, fromId: string, toId: string): void { addMemoryLink(this.db, namespace, fromId, toId) }
+    unlink(namespace: string, fromId: string, toId: string): void { removeMemoryLink(this.db, namespace, fromId, toId) }
     links(namespace: string): StoredMemoryLink[] { return listMemoryLinks(this.db, namespace) }
     addEvent(input: NewMemoryEvent): StoredMemoryEvent { return addMemoryEvent(this.db, input) }
+    event(id: string, namespace: string): StoredMemoryEvent | null { return getMemoryEvent(this.db, id, namespace) }
+    setEventAction(id: string, namespace: string, action: string): void { setMemoryEventAction(this.db, id, namespace, action) }
+    merges(namespace: string): StoredMemoryEvent[] { return listMergeEvents(this.db, namespace) }
     events(namespace: string, limit: number): StoredMemoryEvent[] { return listMemoryEvents(this.db, namespace, limit) }
     eventsSince(namespace: string, since: number): StoredMemoryEvent[] { return listMemoryEventsSince(this.db, namespace, since) }
     hasEventHash(namespace: string, hash: string): boolean { return hasMemoryEventWithHash(this.db, namespace, hash) }
@@ -48,4 +57,5 @@ export class MemoryStore {
     hasReplacement(namespace: string, id: string): boolean { return hasReplacement(this.db, namespace, id) }
     setVector(namespace: string, vector: StoredVector): void { setMemoryVector(this.db, namespace, vector) }
     vectors(namespace: string): StoredVector[] { return listMemoryVectors(this.db, namespace) }
+    setChecked(namespace: string, memoryId: string, checked: string): void { setMemoryChecked(this.db, namespace, memoryId, checked) }
 }

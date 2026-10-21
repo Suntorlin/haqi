@@ -11,6 +11,10 @@ export function levelLabel(level: Level, t: Translate): string {
     return t(`memoryPage.level.${level}`)
 }
 
+export function statusLabel(status: MemoryItem['status'], t: Translate): string {
+    return t(`memoryPage.status.${status}`)
+}
+
 /** Source -> i18n key. `import` shows the file name, which is the same in every language. */
 const SOURCE_KEY: Record<string, string> = {
     propose: 'memoryPage.source.propose',
@@ -84,7 +88,7 @@ export function formatWhen(timestamp: number, t: Translate, now = Date.now()): s
 }
 
 /** Event actions that get a row in "Recent", each with its label. */
-const ACTIONS = ['added', 'pending', 'candidate', 'promoted', 'expired', 'merged', 'reinforced', 'edited', 'confirmed', 'dismissed', 'deleted'] as const
+const ACTIONS = ['added', 'pending', 'candidate', 'promoted', 'expired', 'merged', 'unmerged', 'archived', 'reinforced', 'edited', 'confirmed', 'dismissed', 'deleted'] as const
 
 export function hasActionLabel(action: string): boolean {
     return (ACTIONS as readonly string[]).includes(action)

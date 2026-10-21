@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
-import { MoreHorizontalIcon } from '@/components/mobile/icons'
+import { CheckIcon, MoreHorizontalIcon } from '@/components/mobile/icons'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
 import { Badge } from '@/components/ui/badge'
@@ -15,8 +15,10 @@ import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
+import { cn } from '@/lib/utils'
 import type { MemoriesResponse, MemoryItem } from '@/types/api'
 import { MemoryDetail, type MemoryEdit } from './MemoryDetail'
+import { MergeSheet } from './MergeSheet'
 import { actionLabel, evidenceOf, formatWhen, levelLabel, recentRows, scopeLabel, scopesInOrder, sourceLabel, trialLabel, type Level, type Translate } from './model'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -44,6 +46,15 @@ function Clamp(props: { text: string }) {
     return <span className="line-clamp-3">{props.text}</span>
 }
 
+/** The round mark of a row in select mode. */
+function SelectMark(props: { on: boolean }) {
+    return (
+        <span className={cn('flex h-5 w-5 items-center justify-center rounded-full border', props.on ? 'border-[var(--social-primary)] bg-[var(--social-primary)] text-[var(--social-primary-fg)]' : 'border-[var(--social-fg-subtle)]')}>
+            {props.on ? <CheckIcon className="h-3.5 w-3.5" /> : null}
+        </span>
+    )
+}
+
 function skippedSummary(reasons: Record<string, number>, t: Translate): string {
     return Object.entries(reasons).map(([reason, count]) => t('memoryPage.recent.skippedReason', { reason, count })).join(t('memoryPage.listSeparator'))
 }
@@ -61,6 +72,12 @@ export function MemoryPage() {
     const [notice, setNotice] = useState<string | null>(null)
     const [search, setSearch] = useState('')
     const [trialOpen, setTrialOpen] = useState(false)
+    /** Ids picked in select mode; null when not selecting. */
+    const [selected, setSelected] = useState<Set<string> | null>(null)
+    const [mergeIds, setMergeIds] = useState<string[] | null>(null)
+    const [archiveOpen, setArchiveOpen] = useState(false)
+    /** The merge the notice can undo. */
+    const [undoId, setUndoId] = useState<string | null>(null)
     const needle = useDebounced(search.trim(), 300)
 
     const query = useQuery({
@@ -98,17 +115,30 @@ export function MemoryPage() {
         if (!api) return
         action.mutate(job, { onSuccess: () => after?.() })
     }
+    const say = (text: string, undo: string | null = null) => {
+        setNotice(text)
+        setUndoId(undo)
+    }
+    /** A memory row opens the edit sheet, or in select mode picks the memory. */
+    const pick = (m: MemoryItem) => selected
+        ? { icon: <SelectMark on={selected.has(m.id)} />, chevron: false, onClick: () => setSelected((prev) => {
+            const next = new Set(prev)
+            if (next.has(m.id)) next.delete(m.id)
+            else next.add(m.id)
+            return next
+        }) }
+        : { onClick: () => setOpenId(m.id) }
 
     const empty = (
         <EmptyState variant="page" title={t('memoryPage.empty.title')} subtitle={t('memoryPage.empty.description')}>
             <div className="flex flex-wrap justify-center gap-2">
                 <Button variant="secondary" disabled={action.isPending} onClick={() => run(async () => {
                     const result = await api!.importMemoryMd()
-                    setNotice(t('memoryPage.notice.imported', { found: result.found, proposed: result.proposed }))
+                    say(t('memoryPage.notice.imported', { found: result.found, proposed: result.proposed }))
                 })}>{t('memoryPage.importMemoryMd')}</Button>
                 <Button variant="secondary" disabled={action.isPending} onClick={() => run(async () => {
                     const result = await api!.harvestClaudeMemories()
-                    setNotice(t('memoryPage.notice.harvested', { checked: result.checked, proposed: result.proposed }))
+                    say(t('memoryPage.notice.harvested', { checked: result.checked, proposed: result.proposed }))
                 })}>{t('memoryPage.empty.harvest')}</Button>
             </div>
         </EmptyState>
@@ -123,7 +153,7 @@ export function MemoryPage() {
                 {pending.length > 0 ? (
                     <ListGroup title={t('memoryPage.recent.pendingTitle', { count: pending.length })}>
                         {pending.map((m) => (
-                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={[levelLabel(m.level, t), scopeLabel(m.scope, t), m.source === 'user_message' ? sourceLabel(m, t) : m.reason ?? t('memoryPage.status.pending')].join(' · ')} onClick={() => setOpenId(m.id)} />
+                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={[levelLabel(m.level, t), scopeLabel(m.scope, t), m.source === 'user_message' ? sourceLabel(m, t) : m.reason ?? t('memoryPage.status.pending')].join(' · ')} {...pick(m)} />
                         ))}
                         <ListRow
                             title={t('memoryPage.recent.approveAll')}
@@ -132,7 +162,7 @@ export function MemoryPage() {
                             disabled={action.isPending}
                             onClick={() => run(async () => {
                                 const result = await api!.confirmAllMemoryItems(pending.map((m) => m.id))
-                                setNotice(t('memoryPage.notice.approved', { count: result.confirmed }))
+                                say(t('memoryPage.notice.approved', { count: result.confirmed }))
                             })}
                         />
                     </ListGroup>
@@ -140,7 +170,7 @@ export function MemoryPage() {
                 {onTrial.length > 0 ? (
                     <ListGroup title={t('memoryPage.recent.trialTitle', { count: onTrial.length })}>
                         {trialOpen ? onTrial.map((m) => (
-                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={`${levelLabel(m.level, t)} · ${trialLabel(data?.trial[m.id], t)}`} onClick={() => setOpenId(m.id)} />
+                            <ListRow key={m.id} wrap title={<Clamp text={m.text} />} subtitle={`${levelLabel(m.level, t)} · ${trialLabel(data?.trial[m.id], t)}`} {...pick(m)} />
                         )) : null}
                         <ListRow
                             title={trialOpen ? t('memoryPage.recent.collapse') : t('memoryPage.recent.expand')}
@@ -188,7 +218,7 @@ export function MemoryPage() {
                                     title={<Clamp text={m.text} />}
                                     subtitle={[backing ? t('memoryPage.list.backing', { count: backing }) : null, m.support > 1 ? t('memoryPage.mentioned', { count: m.support }) : null, sourceLabel(m, t)].filter(Boolean).join(' · ')}
                                     trailing={m.status === 'pending' ? <Badge variant="warning">{t('memoryPage.status.pending')}</Badge> : m.status === 'candidate' ? <Badge>{t('memoryPage.status.candidate')}</Badge> : undefined}
-                                    onClick={() => setOpenId(m.id)}
+                                    {...pick(m)}
                                 />
                             )
                         })}
@@ -248,7 +278,7 @@ export function MemoryPage() {
                         wrap
                         title={<Clamp text={m.text} />}
                         subtitle={[levelLabel(m.level, t), scopeLabel(m.scope, t), m.status === 'pending' ? t('memoryPage.status.pending') : m.status === 'candidate' ? t('memoryPage.status.candidate') : null, t('memoryPage.search.relevance', { score: m.score.toFixed(2) })].filter(Boolean).join(' · ')}
-                        onClick={() => setOpenId(m.id)}
+                        {...pick(m)}
                     />
                 ))}
             </ListGroup>
@@ -295,8 +325,30 @@ export function MemoryPage() {
                             <MobileSearchField value={search} onChange={setSearch} placeholder={t('memoryPage.search.placeholder')} />
                         </div>
                         {search.trim() ? null : chips(true)}
-                        {notice ? <p className="px-1 pt-2 text-footnote text-[var(--social-fg-muted)]">{notice}</p> : null}
+                        {memories.length > 0 ? (
+                            <div className="flex items-center justify-between gap-2 px-1 pt-2">
+                                <span className="text-footnote text-[var(--social-fg-muted)]">{selected ? t('memoryPage.select.hint', { count: selected.size }) : ''}</span>
+                                <Button variant="ghost" size="xs" onClick={() => setSelected(selected ? null : new Set())}>{selected ? t('memoryPage.select.done') : t('memoryPage.select.start')}</Button>
+                            </div>
+                        ) : null}
+                        {notice ? (
+                            <p className="px-1 pt-2 text-footnote text-[var(--social-fg-muted)]">
+                                {notice}
+                                {undoId ? (
+                                    <Button variant="ghost" size="xs" className="ml-1 text-[var(--social-fg)]" disabled={action.isPending} onClick={() => run(async () => {
+                                        await api!.undoMemoryMerge(undoId)
+                                        say(t('memoryPage.notice.unmerged'))
+                                    })}>{t('memoryPage.notice.undo')}</Button>
+                                ) : null}
+                            </p>
+                        ) : null}
                         <div className="pt-3">{body}</div>
+                        {selected && selected.size > 0 ? (
+                            <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex gap-2 border-t border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3">
+                                <Button variant="secondary" className="flex-1" disabled={action.isPending} onClick={() => setArchiveOpen(true)}>{t('memoryPage.select.archive', { count: selected.size })}</Button>
+                                <Button className="flex-1" disabled={action.isPending || selected.size < 2} onClick={() => setMergeIds([...selected])}>{t('memoryPage.select.merge', { count: selected.size })}</Button>
+                            </div>
+                        ) : null}
                     </div>
                 </div>
             )}
@@ -316,11 +368,55 @@ export function MemoryPage() {
                         onConfirm={(patch) => saveThen(open, patch, () => api!.confirmMemoryItem(open.id))}
                         onDismiss={() => run(() => api!.dismissMemoryItem(open.id), () => setOpenId(null))}
                         trial={data?.trial[open.id]}
-                        onMerge={(into) => run(() => api!.mergeMemoryItem(open.id, into), () => setOpenId(into))}
+                        onMerge={(other) => {
+                            setOpenId(null)
+                            setMergeIds([open.id, other])
+                        }}
+                        merged={data?.merges[open.id]}
+                        onUndoMerge={(eventId) => run(async () => {
+                            await api!.undoMemoryMerge(eventId)
+                            say(t('memoryPage.notice.unmerged'))
+                        }, () => setOpenId(null))}
                         onDelete={() => setDeleteId(open.id)}
                     />
                 ) : null}
             </BottomSheet>
+
+            <BottomSheet open={Boolean(mergeIds)} onOpenChange={(value) => { if (!value) setMergeIds(null) }} title={t('memoryPage.merge.title')}>
+                {mergeIds ? (
+                    <MergeSheet
+                        ids={mergeIds}
+                        all={memories}
+                        busy={action.isPending}
+                        onCancel={() => setMergeIds(null)}
+                        onMerge={(text) => run(async () => {
+                            const result = await api!.mergeMemories(mergeIds, text)
+                            say(t('memoryPage.notice.merged', { count: mergeIds.length }), result.eventId)
+                        }, () => {
+                            setMergeIds(null)
+                            setSelected(null)
+                        })}
+                    />
+                ) : null}
+            </BottomSheet>
+
+            <ConfirmDialog
+                isOpen={archiveOpen}
+                onClose={() => setArchiveOpen(false)}
+                title={t('memoryPage.archiveDialog.title', { count: selected?.size ?? 0 })}
+                description={t('memoryPage.archiveDialog.description')}
+                confirmLabel={t('memoryPage.archiveDialog.confirm')}
+                confirmingLabel={t('memoryPage.archiveDialog.archiving')}
+                isPending={action.isPending}
+                onConfirm={async () => {
+                    if (!selected || !api) return
+                    const result = await api.archiveMemories([...selected])
+                    setArchiveOpen(false)
+                    setSelected(null)
+                    say(t('memoryPage.notice.archived', { count: result.archived }))
+                    await refresh()
+                }}
+            />
 
             <ConfirmDialog
                 isOpen={Boolean(deleteId)}
@@ -374,19 +470,19 @@ export function MemoryPage() {
                         <ListRow title={t('memoryPage.settings.jevAccuracy')} trailing={t('memoryPage.settings.jevAccuracyValue', { judged: data?.stats.judged ?? 0, corrected: data?.stats.corrected ?? 0 })} />
                         <ListRow title={t('memoryPage.importMemoryMd')} subtitle={t('memoryPage.settings.importHint')} wrap disabled={action.isPending} onClick={() => run(async () => {
                             const result = await api!.importMemoryMd()
-                            setNotice(t('memoryPage.notice.imported', { found: result.found, proposed: result.proposed }))
+                            say(t('memoryPage.notice.imported', { found: result.found, proposed: result.proposed }))
                         })} />
                         <ListRow title={t('memoryPage.settings.maintain')} subtitle={t('memoryPage.settings.maintainHint')} wrap disabled={action.isPending} onClick={() => run(async () => {
                             const r = await api!.maintainMemories()
-                            setNotice(t('memoryPage.notice.maintained', { merged: r.merged, promoted: r.promoted, expired: r.expired, moved: r.moved, offered: r.offered }))
+                            say(t('memoryPage.notice.maintained', { merged: r.merged, promoted: r.promoted, expired: r.expired, moved: r.moved, offered: r.offered }))
                         })} />
                         <ListRow title={t('memoryPage.settings.readMessages')} subtitle={t('memoryPage.settings.readMessagesHint')} wrap disabled={action.isPending} onClick={() => run(async () => {
                             const r = await api!.readUserMessagesForMemory()
-                            setNotice(t('memoryPage.notice.readMessages', { read: r.read, passed: r.passed, proposed: r.proposed, cost: r.costUsd.toFixed(3) }))
+                            say(t('memoryPage.notice.readMessages', { read: r.read, passed: r.passed, proposed: r.proposed, cost: r.costUsd.toFixed(3) }))
                         })} />
                         <ListRow title={t('memoryPage.settings.harvest')} subtitle={t('memoryPage.settings.harvestHint')} wrap disabled={action.isPending} onClick={() => run(async () => {
                             const result = await api!.harvestClaudeMemories()
-                            setNotice(t('memoryPage.notice.harvested', { checked: result.checked, proposed: result.proposed }))
+                            say(t('memoryPage.notice.harvested', { checked: result.checked, proposed: result.proposed }))
                         })} />
                     </ListGroup>
                     {action.isPending ? <FieldHint>{t('memoryPage.settings.working')}</FieldHint> : notice ? <FieldHint>{notice}</FieldHint> : null}
