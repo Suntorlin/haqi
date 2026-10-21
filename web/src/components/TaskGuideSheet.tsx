@@ -93,10 +93,11 @@ export function TaskGuideSheet(props: {
 
     const working = task?.guide.state === 'starting' || task?.guide.state === 'drafting'
 
+    // One primary action at a time: "Create task", or "Send to HAQI" while the user writes a change request.
     const footer = task?.status === 'guiding' ? (
         <div className="shrink-0 space-y-2 border-t border-[var(--social-divider)] bg-[var(--social-surface)] px-4 pb-3 pt-3">
             {revising ? (
-                <div className="space-y-2">
+                <>
                     <textarea
                         autoFocus
                         rows={2}
@@ -107,36 +108,42 @@ export function TaskGuideSheet(props: {
                         onChange={(event) => setFeedback(event.target.value)}
                         className={DIALOG_INPUT_CLASS}
                     />
-                    <Button variant="secondary" className="w-full" disabled={pending || !feedback.trim()} onClick={sendFeedback}>
+                    <Button className="w-full" disabled={pending || !feedback.trim()} onClick={sendFeedback}>
                         {t('taskGuide.reviseSend')}
                     </Button>
-                </div>
-            ) : null}
-            {draft && !working ? (
-                <Button className="w-full" disabled={pending || keptCount === 0} onClick={confirm}>
-                    {pending ? t('taskGuide.confirming') : t('taskGuide.confirm')}
-                </Button>
-            ) : null}
-            <div className={cn('flex gap-2', !draft || working ? 'justify-end' : '')}>
-                {draft && !working && !revising ? (
-                    <Button variant="secondary" className="flex-1" disabled={pending} onClick={() => setRevising(true)}>
-                        {t('taskGuide.revise')}
+                    <Button variant="ghost" className="w-full" disabled={pending} onClick={() => setRevising(false)}>
+                        {t('button.cancel')}
                     </Button>
-                ) : null}
-                <Button
-                    variant="ghost"
-                    className={draft && !working ? 'flex-1' : ''}
-                    disabled={pending}
-                    onClick={() => void run(() => updateTask(task.id, { status: 'abandoned' }), true)}
-                >
-                    {t('taskGuide.abandon')}
-                </Button>
-            </div>
+                </>
+            ) : (
+                <>
+                    {draft && !working ? (
+                        <Button className="w-full" disabled={pending || keptCount === 0} onClick={confirm}>
+                            {pending ? t('taskGuide.confirming') : t('taskGuide.confirm')}
+                        </Button>
+                    ) : null}
+                    <div className={cn('flex gap-2', !draft || working ? 'justify-end' : '')}>
+                        {draft && !working ? (
+                            <Button variant="secondary" className="flex-1" disabled={pending} onClick={() => setRevising(true)}>
+                                {t('taskGuide.revise')}
+                            </Button>
+                        ) : null}
+                        <Button
+                            variant="ghost"
+                            className={draft && !working ? 'flex-1' : ''}
+                            disabled={pending}
+                            onClick={() => void run(() => updateTask(task.id, { status: 'abandoned' }), true)}
+                        >
+                            {t('taskGuide.abandon')}
+                        </Button>
+                    </div>
+                </>
+            )}
         </div>
     ) : null
 
     return (
-        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} footer={footer} title={draft ? t('taskGuide.version', { n: draft.version }) : t('taskGuide.title')}>
+        <BottomSheet open={props.open} onOpenChange={props.onOpenChange} noAutoFocus footer={footer} title={draft ? t('taskGuide.version', { n: draft.version }) : t('taskGuide.title')}>
             {!task ? null : (
                 <div>
                     {task.guide.request ? (
