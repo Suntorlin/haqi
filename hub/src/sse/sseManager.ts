@@ -169,6 +169,7 @@ export class SSEManager {
             || event.type === 'group-removed'
             || event.type === 'group-task-updated'
             || event.type === 'group-note-updated'
+            || event.type === 'task-updated'
         ) {
             if (connection.groupId) {
                 return connection.groupId === event.groupId

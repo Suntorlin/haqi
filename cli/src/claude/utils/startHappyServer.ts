@@ -26,6 +26,8 @@ import {
     reportListInputSchema,
     reportUpdateInputSchema,
     reviewLoopWorkerSubmitInputSchema,
+    taskDraftSubmitInputSchema,
+    TASK_DRAFT_SUBMIT_DESCRIPTION,
     reviewLoopReviewerSubmitInputSchema
 } from "@/mcp/hapiMcpTools";
 
@@ -399,6 +401,45 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool<any, any>('task_draft_submit', {
+        description: TASK_DRAFT_SUBMIT_DESCRIPTION,
+        title: 'Submit Task Draft',
+        inputSchema: taskDraftSubmitInputSchema
+    }, async (args: {
+        task_id: string
+        goal: string
+        non_goals?: string[]
+        criteria: Array<{ text: string; source: 'principle' | 'repo' | 'inferred'; source_ref?: string; verify: string }>
+        questions?: Array<{ id: string; text: string; options: Array<{ id: string; label: string }>; default: string; precedent_ref?: string }>
+    }) => {
+        try {
+            const payload = await requestHubJson(`/api/tasks/${encodeURIComponent(args.task_id)}/draft`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    goal: args.goal,
+                    nonGoals: args.non_goals ?? [],
+                    criteria: args.criteria.map((criterion) => ({
+                        text: criterion.text,
+                        source: criterion.source,
+                        sourceRef: criterion.source_ref,
+                        verify: criterion.verify
+                    })),
+                    questions: (args.questions ?? []).map((question) => ({
+                        id: question.id,
+                        text: question.text,
+                        options: question.options,
+                        default: question.default,
+                        precedentRef: question.precedent_ref
+                    }))
+                })
+            });
+            const message = typeof payload.message === 'string' ? payload.message : 'Draft submitted.';
+            return { content: [{ type: 'text' as const, text: message }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to submit the task draft', error);
+        }
+    });
+
     mcp.registerTool<any, any>('review_loop_worker_submit', {
         description: 'Submit your execution results for the current ReviewLoop round',
         title: 'Submit Review Loop Worker Output',
@@ -525,6 +566,7 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_list',
             'report_add_asset',
             'report_create_share',
+            'task_draft_submit',
             'review_loop_worker_submit',
             'review_loop_reviewer_submit'
         ],

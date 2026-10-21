@@ -639,6 +639,10 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
     SessionEventBaseSchema.extend({
         type: z.literal('memories-updated')
     }),
+    GroupChangedSchema.extend({
+        /** A task (a group with kind "task") changed: its fields, members, draft or guide state. */
+        type: z.literal('task-updated')
+    }),
     ReviewLoopChangedSchema.extend({
         type: z.literal('review-loop-removed')
     }),

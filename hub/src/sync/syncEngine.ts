@@ -36,6 +36,7 @@ import {
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
+import { TaskService, type TaskSession } from '../tasks/taskService'
 import { configuration } from '../configuration'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
@@ -471,6 +472,7 @@ export class SyncEngine {
     private memoryHarvestTimer: NodeJS.Timeout | null = null
     private memoryHarvestKickoff: NodeJS.Timeout | null = null
     private readonly memoryService: MemoryService
+    private readonly taskService: TaskService
     private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
 
     constructor(
@@ -517,6 +519,28 @@ export class SyncEngine {
             onChange: (namespace) => this.eventPublisher.emit({ type: 'memories-updated', namespace }),
             notify: async (namespace, notice) => { await this.memoryNotifier?.(namespace, notice) }
         })
+        this.taskService = new TaskService(store, this.memoryService, {
+            planner: {
+                spawnAndPrompt: async (input) => {
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta })
+                    if (result.type === 'error') return { error: result.message }
+                    await this.renameSession(result.sessionId, input.name).catch(() => {})
+                    await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
+                    return { sessionId: result.sessionId }
+                },
+                send: async (sessionId, text, meta) => {
+                    if (!this.getSession(sessionId)?.active) return false
+                    await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta })
+                    return true
+                }
+            },
+            session: (namespace, sessionId) => {
+                const session = this.getSessionByNamespace(sessionId, namespace)
+                return session ? toTaskSession(session) : null
+            },
+            sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
+            changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId })
+        })
         if (store.getDatabasePath() !== ':memory:') {
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
             this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
@@ -525,6 +549,10 @@ export class SyncEngine {
 
     getMemoryService(): MemoryService {
         return this.memoryService
+    }
+
+    getTaskService(): TaskService {
+        return this.taskService
     }
 
     /** The hub hands in push delivery once it exists; the engine is created first. */
@@ -2330,6 +2358,44 @@ ${note.content}
         return { type: 'success', sessionId: spawnResult.sessionId }
     }
 
+    /**
+     * Starts a session and sends it a first message once it runs. The message is stored like one from the web, with
+     * `meta`, so memory can tell it is not the user's.
+     */
+    async spawnAndPrompt(
+        machineId: string,
+        directory: string,
+        options: {
+            agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
+            model?: string
+            thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
+            yolo?: boolean
+            claudeAccount?: ClaudeAccountSelection
+        },
+        prompt: { text: string; meta?: Record<string, unknown> }
+    ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
+        const spawned = await this.spawnSession(
+            machineId,
+            directory,
+            options.agent ?? 'claude',
+            options.model,
+            options.thinkEffort,
+            undefined,
+            options.yolo,
+            'simple',
+            undefined,
+            undefined,
+            undefined,
+            options.claudeAccount
+        )
+        if (spawned.type === 'error') return spawned
+        if (!await this.waitForSessionActive(spawned.sessionId)) {
+            return { type: 'error', message: '会话没能在 15 秒内启动' }
+        }
+        await this.sendMessage(spawned.sessionId, { text: prompt.text, sentFrom: 'webapp', meta: prompt.meta })
+        return spawned
+    }
+
     async waitForSessionActive(sessionId: string, timeoutMs: number = 15_000): Promise<boolean> {
         const start = Date.now()
         while (Date.now() - start < timeoutMs) {
@@ -2900,5 +2966,18 @@ Remember: Call review_loop_reviewer_submit when you have formed your assessment.
                 url: `/review-loops/${payload.loopId}`
             }
         })
+    }
+}
+
+function toTaskSession(session: Session): TaskSession {
+    const metadata = session.metadata
+    return {
+        id: session.id,
+        active: session.active,
+        machineId: metadata?.machineId ?? null,
+        path: metadata?.path ?? null,
+        name: metadata?.name ?? metadata?.summary?.text ?? null,
+        tags: metadata?.tags ?? [],
+        updatedAt: session.updatedAt
     }
 }
