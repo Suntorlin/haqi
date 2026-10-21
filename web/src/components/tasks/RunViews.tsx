@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import type { AcceptanceCriterion, TaskDecision, TaskRun, TaskSubtask, TaskView } from '@/types/api'
 import { useTranslation } from '@/lib/use-translation'
 import {
+    CheckRing,
     Checklist,
     DecisionCard,
     DecisionConfirmation,
@@ -82,7 +83,10 @@ function CheckSheet(props: { task: TaskView; run: TaskRun; criterion: Acceptance
         <BottomSheet open={criterion !== null} onOpenChange={(open) => { if (!open) props.onClose() }} title={criterion?.text ?? ''}>
             {criterion && check ? (
                 <div className="space-y-4 px-5 pb-6">
-                    <p className="text-title font-semibold leading-snug text-[var(--social-fg)]">{stateLabel}</p>
+                    <p className="flex items-center gap-2 text-body font-semibold text-[var(--social-fg)]">
+                        <CheckRing state={check.state} />
+                        {stateLabel}
+                    </p>
                     {criterion.verify ? (
                         <div>
                             <p className="text-caption font-semibold text-[var(--social-fg-muted)]">{t('taskRun.howVerified')}</p>
