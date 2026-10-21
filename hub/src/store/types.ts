@@ -64,14 +64,58 @@ export type StoredConversationTurn = {
     updatedAt: number
 }
 
+export type StoredGroupKind = 'chat' | 'task'
+
+export type StoredTaskStatus = 'guiding' | 'active' | 'done' | 'abandoned'
+
+/** One acceptance criterion, as the user confirmed it. */
+export type StoredAcceptanceCriterion = {
+    id: string
+    text: string
+    /** principle: from a memory; repo: from a repository convention file; inferred: the planner's guess. */
+    source: 'principle' | 'repo' | 'inferred'
+    sourceRef: string | null
+    verify: string
+}
+
+/** A group is a chat group or a task. The task fields are null on a chat group. */
 export type StoredGroup = {
     id: string
     namespace: string
     name: string
     description: string | null
     noteSessionId: string | null
+    kind: StoredGroupKind
+    tag: string | null
+    status: StoredTaskStatus | null
+    goal: string | null
+    nonGoals: string[]
+    acceptance: StoredAcceptanceCriterion[]
+    repoPath: string | null
+    machineId: string | null
+    leadSessionId: string | null
+    completedAt: number | null
     createdAt: number
     updatedAt: number
+}
+
+export type StoredTaskEvent = {
+    id: string
+    namespace: string
+    groupId: string
+    type: string
+    payload: unknown
+    createdAt: number
+}
+
+export type StoredMessageClass = {
+    messageId: string
+    namespace: string
+    sessionId: string
+    class: string
+    confidence: number
+    jevCostUsd: number
+    createdAt: number
 }
 
 export type StoredGroupMember = {

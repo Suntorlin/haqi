@@ -3,13 +3,16 @@ import { randomUUID } from 'node:crypto'
 
 import { safeJsonParse } from './json'
 import type {
+    StoredAcceptanceCriterion,
     StoredGroup,
+    StoredGroupKind,
     StoredGroupMember,
     StoredGroupMessage,
     StoredGroupMessageType,
     StoredGroupNote,
     StoredGroupTask,
-    StoredGroupTaskStatus
+    StoredGroupTaskStatus,
+    StoredTaskStatus
 } from './types'
 
 type DbGroupRow = {
@@ -18,8 +21,30 @@ type DbGroupRow = {
     name: string
     description: string | null
     note_session_id: string | null
+    kind: string | null
+    tag: string | null
+    status: string | null
+    goal: string | null
+    non_goals: string | null
+    acceptance: string | null
+    repo_path: string | null
+    machine_id: string | null
+    lead_session_id: string | null
+    completed_at: number | null
     created_at: number
     updated_at: number
+}
+
+const TASK_STATUSES: readonly StoredTaskStatus[] = ['guiding', 'active', 'done', 'abandoned']
+
+function parseStringArray(value: string | null): string[] {
+    const parsed = value ? safeJsonParse(value) : null
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []
+}
+
+function parseAcceptance(value: string | null): StoredAcceptanceCriterion[] {
+    const parsed = value ? safeJsonParse(value) : null
+    return Array.isArray(parsed) ? parsed as StoredAcceptanceCriterion[] : []
 }
 
 type DbGroupMemberRow = {
@@ -84,6 +109,16 @@ function toStoredGroup(row: DbGroupRow): StoredGroup {
         name: row.name,
         description: row.description,
         noteSessionId: row.note_session_id,
+        kind: row.kind === 'task' ? 'task' : 'chat',
+        tag: row.tag,
+        status: TASK_STATUSES.includes(row.status as StoredTaskStatus) ? row.status as StoredTaskStatus : null,
+        goal: row.goal,
+        nonGoals: parseStringArray(row.non_goals),
+        acceptance: parseAcceptance(row.acceptance),
+        repoPath: row.repo_path,
+        machineId: row.machine_id,
+        leadSessionId: row.lead_session_id,
+        completedAt: row.completed_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at
     }
@@ -175,18 +210,20 @@ export function createGroup(
             userId?: number | null
             role?: string
         }>
+        /** A task: 12 characters, so `task:<id>` style references stay short. */
+        task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null }
     }
 ): StoredGroup {
     const now = Date.now()
-    const id = randomUUID()
+    const id = options.task?.id ?? randomUUID()
 
     try {
         db.exec('BEGIN')
         db.prepare(`
             INSERT INTO groups (
-                id, namespace, name, description, note_session_id, created_at, updated_at
+                id, namespace, name, description, note_session_id, kind, tag, status, repo_path, machine_id, created_at, updated_at
             ) VALUES (
-                @id, @namespace, @name, @description, @note_session_id, @created_at, @updated_at
+                @id, @namespace, @name, @description, @note_session_id, @kind, @tag, @status, @repo_path, @machine_id, @created_at, @updated_at
             )
         `).run({
             id,
@@ -194,29 +231,25 @@ export function createGroup(
             name: options.name,
             description: options.description ?? null,
             note_session_id: options.noteSessionId ?? null,
+            kind: options.task ? 'task' : 'chat',
+            tag: options.task?.tag ?? null,
+            status: options.task?.status ?? null,
+            repo_path: options.task?.repoPath ?? null,
+            machine_id: options.task?.machineId ?? null,
             created_at: now,
             updated_at: now
         })
 
-        if (options.members && options.members.length > 0) {
-            const insertMember = db.prepare(`
-                INSERT OR IGNORE INTO group_members (
-                    group_id, namespace, member_type, session_id, user_id, role, created_at
-                ) VALUES (
-                    @group_id, @namespace, @member_type, @session_id, @user_id, @role, @created_at
-                )
-            `)
-            for (const member of options.members) {
-                insertMember.run({
-                    group_id: id,
-                    namespace: options.namespace,
-                    member_type: member.memberType,
-                    session_id: member.sessionId ?? null,
-                    user_id: member.userId ?? null,
-                    role: member.role ?? 'member',
-                    created_at: now
-                })
-            }
+        for (const member of options.members ?? []) {
+            insertMemberOnce(db, {
+                groupId: id,
+                namespace: options.namespace,
+                memberType: member.memberType,
+                sessionId: member.sessionId ?? null,
+                userId: member.userId ?? null,
+                role: member.role ?? 'member',
+                createdAt: now
+            })
         }
 
         db.prepare(`
@@ -243,11 +276,95 @@ export function createGroup(
     return created
 }
 
-export function getGroupsByNamespace(db: Database, namespace: string): StoredGroup[] {
-    const rows = db.prepare(
-        'SELECT * FROM groups WHERE namespace = ? ORDER BY updated_at DESC'
-    ).all(namespace) as DbGroupRow[]
+export function getGroupsByNamespace(db: Database, namespace: string, kind?: StoredGroupKind): StoredGroup[] {
+    const rows = kind
+        ? db.prepare(
+            "SELECT * FROM groups WHERE namespace = ? AND COALESCE(kind, 'chat') = ? ORDER BY updated_at DESC"
+        ).all(namespace, kind) as DbGroupRow[]
+        : db.prepare(
+            'SELECT * FROM groups WHERE namespace = ? ORDER BY updated_at DESC'
+        ).all(namespace) as DbGroupRow[]
     return rows.map(toStoredGroup)
+}
+
+/**
+ * The unique index on group_members includes user_id, which is NULL for a session member, and SQLite does not treat
+ * two NULLs as equal: INSERT OR IGNORE alone adds the same session twice.
+ */
+function insertMemberOnce(
+    db: Database,
+    member: {
+        groupId: string
+        namespace: string
+        memberType: 'session' | 'human'
+        sessionId: string | null
+        userId: number | null
+        role: string
+        createdAt: number
+    }
+): boolean {
+    const result = db.prepare(`
+        INSERT INTO group_members (group_id, namespace, member_type, session_id, user_id, role, created_at)
+        SELECT @group_id, @namespace, @member_type, @session_id, @user_id, @role, @created_at
+        WHERE NOT EXISTS (
+            SELECT 1 FROM group_members
+            WHERE group_id = @group_id AND member_type = @member_type
+                AND session_id IS @session_id AND user_id IS @user_id
+        )
+    `).run({
+        group_id: member.groupId,
+        namespace: member.namespace,
+        member_type: member.memberType,
+        session_id: member.sessionId,
+        user_id: member.userId,
+        role: member.role,
+        created_at: member.createdAt
+    })
+    return result.changes > 0
+}
+
+export type TaskFieldsPatch = {
+    name?: string
+    tag?: string
+    status?: StoredTaskStatus
+    goal?: string | null
+    nonGoals?: string[]
+    acceptance?: StoredAcceptanceCriterion[]
+    repoPath?: string | null
+    machineId?: string | null
+    leadSessionId?: string | null
+}
+
+/** Changes the task fields of a task group; `completed_at` follows the status. */
+export function updateTaskFields(db: Database, options: { groupId: string; namespace: string; patch: TaskFieldsPatch }): StoredGroup | null {
+    const current = getGroupByNamespace(db, options.groupId, options.namespace)
+    if (!current || current.kind !== 'task') return null
+    const patch = options.patch
+    const now = Date.now()
+    const status = patch.status ?? current.status
+    const completedAt = status === 'done' ? (current.status === 'done' ? current.completedAt : now) : null
+    db.prepare(`
+        UPDATE groups
+        SET name = @name, tag = @tag, status = @status, goal = @goal, non_goals = @non_goals, acceptance = @acceptance,
+            repo_path = @repo_path, machine_id = @machine_id, lead_session_id = @lead_session_id,
+            completed_at = @completed_at, updated_at = @updated_at
+        WHERE id = @id AND namespace = @namespace
+    `).run({
+        id: options.groupId,
+        namespace: options.namespace,
+        name: patch.name ?? current.name,
+        tag: patch.tag ?? current.tag,
+        status,
+        goal: patch.goal !== undefined ? patch.goal : current.goal,
+        non_goals: JSON.stringify(patch.nonGoals ?? current.nonGoals),
+        acceptance: JSON.stringify(patch.acceptance ?? current.acceptance),
+        repo_path: patch.repoPath !== undefined ? patch.repoPath : current.repoPath,
+        machine_id: patch.machineId !== undefined ? patch.machineId : current.machineId,
+        lead_session_id: patch.leadSessionId !== undefined ? patch.leadSessionId : current.leadSessionId,
+        completed_at: completedAt,
+        updated_at: now
+    })
+    return getGroupByNamespace(db, options.groupId, options.namespace)
 }
 
 export function getAllGroups(db: Database): StoredGroup[] {
@@ -548,18 +665,14 @@ export function addGroupMember(
 ): StoredGroupMember {
     const now = Date.now()
 
-    db.prepare(`
-        INSERT OR IGNORE INTO group_members (
-            group_id, namespace, member_type, session_id, user_id, role, created_at
-        ) VALUES (
-            @group_id, @namespace, 'session', @session_id, NULL, @role, @created_at
-        )
-    `).run({
-        group_id: options.groupId,
+    insertMemberOnce(db, {
+        groupId: options.groupId,
         namespace: options.namespace,
-        session_id: options.sessionId,
+        memberType: 'session',
+        sessionId: options.sessionId,
+        userId: null,
         role: options.role ?? 'member',
-        created_at: now
+        createdAt: now
     })
 
     db.prepare(`
