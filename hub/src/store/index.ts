@@ -14,7 +14,7 @@ import { GroupStore } from './groupStore'
 import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
-import { MEMORY_SCHEMA_SQL } from './memories'
+import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
 
@@ -274,6 +274,7 @@ export class Store {
 
         this.ensureRequiredTablesPresent()
         this.ensureGroupMessageColumnsPresent()
+        this.ensureMemoryColumnsPresent()
     }
 
     private createSchema(): void {
@@ -1195,6 +1196,13 @@ export class Store {
         }
 
         this.db.exec('ALTER TABLE group_messages ADD COLUMN quoted_message_id TEXT')
+    }
+
+    private ensureMemoryColumnsPresent(): void {
+        for (const { table, column, type } of MEMORY_ADDED_COLUMNS) {
+            const columns = new Set((this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).map((row) => row.name))
+            if (columns.size > 0 && !columns.has(column)) this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`)
+        }
     }
 
     private getMissingRequiredTables(): string[] {

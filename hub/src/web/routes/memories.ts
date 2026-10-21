@@ -25,7 +25,8 @@ const searchSchema = z.object({
     limit: z.coerce.number().int().min(1).max(30).optional()
 })
 
-const mergeSchema = z.object({ into: z.string().trim().min(1).max(64) })
+const idsSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).min(1).max(50) })
+const mergeSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).min(2).max(20), text: z.string().max(2000).optional() })
 
 const confirmAllSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).max(500).optional() })
 
@@ -127,17 +128,41 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
     app.get('/memories/:id/related', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) return engine
-        const hits = engine.getMemoryService().related(c.get('namespace'), c.req.param('id'))
-        return c.json({ hits: hits.map((hit) => ({ ...hit.memory, score: hit.score })) })
+        const hits = await engine.getMemoryService().related(c.get('namespace'), c.req.param('id'))
+        return c.json({ hits: hits.map((hit) => ({ ...hit.memory, score: hit.score, same: hit.same })) })
     })
 
-    app.post('/memories/:id/merge', async (c) => {
+    app.post('/memories/merge/preview', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) return engine
         const parsed = mergeSchema.safeParse(await c.req.json().catch(() => null))
         if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
-        const memory = engine.getMemoryService().merge(c.get('namespace'), c.req.param('id'), parsed.data.into)
-        return memory ? c.json({ memory }) : c.json({ error: 'Memory not found' }, 404)
+        const preview = await engine.getMemoryService().previewMerge(c.get('namespace'), parsed.data.ids)
+        return preview ? c.json(preview) : c.json({ error: 'Need two memories that are not archived' }, 404)
+    })
+
+    app.post('/memories/merge', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const parsed = mergeSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+        const merged = await engine.getMemoryService().mergeMany(c.get('namespace'), parsed.data.ids, parsed.data.text)
+        return merged ? c.json(merged) : c.json({ error: 'Need two memories that are not archived' }, 404)
+    })
+
+    app.post('/memories/merge/:eventId/undo', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const memory = engine.getMemoryService().undoMerge(c.get('namespace'), c.req.param('eventId'))
+        return memory ? c.json({ memory }) : c.json({ error: 'Merge not found' }, 404)
+    })
+
+    app.post('/memories/archive', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) return engine
+        const parsed = idsSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: 'Invalid body' }, 400)
+        return c.json({ archived: engine.getMemoryService().archiveMany(c.get('namespace'), parsed.data.ids) })
     })
 
     app.patch('/memories/:id', async (c) => {
