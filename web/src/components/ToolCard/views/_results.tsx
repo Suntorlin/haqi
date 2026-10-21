@@ -965,7 +965,7 @@ const ImageViewResultView: ToolViewComponent = (props: ToolViewProps) => {
                     />
                 </div>
             ) : loading ? (
-                <div className="text-footnote text-[var(--social-fg-muted)]">Loading image…</div>
+                <div className="text-footnote text-[var(--social-fg-muted)]">{t('file.imageLoading')}</div>
             ) : errorMessage ? (
                 <div className="text-footnote text-[var(--social-danger)]">{errorMessage}</div>
             ) : (

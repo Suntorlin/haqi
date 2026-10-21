@@ -38,6 +38,7 @@ type CliThreadProps = {
 
 export const CliThread = memo(function CliThread(props: CliThreadProps) {
     const scrollRef = useRef<HTMLDivElement>(null)
+    const { t } = useTranslation()
     useNestedScrollPassthrough(scrollRef)
     const {
         isNearBottom,
@@ -84,11 +85,11 @@ export const CliThread = memo(function CliThread(props: CliThreadProps) {
                                 {props.isLoadingMoreMessages ? (
                                     <div className="inline-flex h-7 items-center justify-center gap-1.5 rounded-full bg-[var(--social-primary)] px-2.5 text-xs text-[var(--social-primary-fg)]">
                                         <Spinner size="sm" label={null} className="text-current" />
-                                        Loading…
+                                        {t('misc.loading')}
                                     </div>
                                 ) : (
                                     <Button variant="secondary" size="sm" onClick={props.onLoadMore} className={HIT_AREA_CLASS}>
-                                        Load older
+                                        {t('misc.loadOlder')}
                                     </Button>
                                 )}
                             </div>
