@@ -624,7 +624,7 @@ export async function startRunner(): Promise<void> {
         return spawnResult;
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        logger.debug('[RUNNER RUN] Failed to spawn session:', error);
+        logger.debug(`[RUNNER RUN] Failed to spawn session: ${errorMessage}`);
         await maybeCleanupWorktree('exception');
         reportSpawnOutcomeToHub?.({
           type: 'error',
