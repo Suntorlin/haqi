@@ -1,0 +1,406 @@
+import { useEffect, useState, type ReactNode } from 'react'
+import type { ApiClient } from '@/api/client'
+import type { CriterionSource, TaskDraft, TaskView } from '@/types/api'
+import { useTask, useTaskActions } from '@/hooks/queries/useTasks'
+import { useTranslation } from '@/lib/use-translation'
+import { carryOver, confirmInputFrom, keptCount, type DraftEdits } from '@/lib/tasks'
+import { cn } from '@/lib/utils'
+import {
+    Checklist,
+    DecisionCard,
+    DecisionConfirmation,
+    LeadComposer,
+    ReportSummary,
+    RiskNotice,
+    SectionCaption,
+    type LatestMessage
+} from '@/components/report'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { CheckRow } from '@/components/ui/CheckRow'
+import { IconButton } from '@/components/ui/IconButton'
+import { CloseIcon, PencilIcon, PlusIcon } from '@/components/mobile/icons'
+
+type Translate = ReturnType<typeof useTranslation>['t']
+
+const SOURCE_KEY: Record<CriterionSource, string> = {
+    principle: 'taskGuide.source.principle',
+    repo: 'taskGuide.source.repo',
+    inferred: 'taskGuide.source.inferred',
+    user: 'taskGuide.source.user'
+}
+
+function SourceBadge(props: { source: CriterionSource; t: Translate }) {
+    const variant = props.source === 'inferred' ? 'warning' : props.source === 'user' ? 'info' : 'default'
+    return <Badge variant={variant}>{props.t(SOURCE_KEY[props.source])}</Badge>
+}
+
+/** A grouped card, same frame as the report kit's Checklist. */
+function Group(props: { children: ReactNode }) {
+    return <div className="mx-4 divide-y divide-[var(--social-divider)] overflow-hidden rounded-2xl border border-[var(--social-border)]">{props.children}</div>
+}
+
+function AddButton(props: { label: string; onClick: () => void }) {
+    return (
+        <Button size="sm" variant="ghost" className="-my-1 gap-1" onClick={props.onClick}>
+            <PlusIcon className="h-4 w-4" />{props.label}
+        </Button>
+    )
+}
+
+/** One open editor: a growing text field with Save and Cancel. */
+function InlineEditor(props: { value: string; label: string; maxLength: number; onSave: (text: string) => void; onCancel: () => void; t: Translate }) {
+    const [text, setText] = useState(props.value)
+    const save = () => props.onSave(text.trim())
+    return (
+        <div className="space-y-2 px-3 py-3">
+            <AutoTextarea autoFocus value={text} maxLength={props.maxLength} aria-label={props.label} onChange={(event) => setText(event.target.value)} onSubmitKey={save} />
+            <div className="flex justify-end gap-2">
+                <Button size="sm" variant="ghost" onClick={props.onCancel}>{props.t('button.cancel')}</Button>
+                <Button size="sm" disabled={!text.trim()} onClick={save}>{props.t('taskGuide.save')}</Button>
+            </div>
+        </div>
+    )
+}
+
+/** A plain line with edit and remove buttons (a non-goal). */
+function LineRow(props: { text: string; onEdit: () => void; onRemove: () => void; t: Translate }) {
+    return (
+        <div className="flex min-h-[52px] items-center gap-1 py-1 pl-4 pr-1">
+            <p className="min-w-0 flex-1 py-2 text-body leading-snug text-[var(--social-fg)]">{props.text}</p>
+            <IconButton label={props.t('taskGuide.edit')} onClick={props.onEdit} className="shrink-0 text-[var(--social-fg-muted)]">
+                <PencilIcon className="h-[18px] w-[18px]" />
+            </IconButton>
+            <IconButton label={props.t('taskGuide.remove')} onClick={props.onRemove} className="shrink-0 text-[var(--social-fg-muted)]">
+                <CloseIcon className="h-[18px] w-[18px]" />
+            </IconButton>
+        </div>
+    )
+}
+
+/** The draft as a report: goal, decisions waiting for the user, criteria to tick and edit, non-goals, confirm. */
+function DraftReport(props: {
+    task: TaskView
+    draft: TaskDraft
+    edits: DraftEdits
+    onChange: (edits: DraftEdits) => void
+    onConfirm: () => void
+    onAbandon: () => void
+    pending: boolean
+    t: Translate
+}) {
+    const { draft, edits, t } = props
+    const [editing, setEditing] = useState<string | null>(null)
+    const [answered, setAnswered] = useState<Record<string, boolean>>({})
+    const patch = (next: Partial<DraftEdits>) => props.onChange({ ...edits, ...next })
+    const goal = edits.goal ?? draft.goal
+    const nonGoals = edits.nonGoals ?? draft.nonGoals
+    const kept = keptCount(draft, edits)
+    const waiting = draft.questions.filter((question) => !answered[question.id]).length
+
+    // A new draft version asks again.
+    useEffect(() => { setAnswered({}) }, [draft.version])
+
+    const editor = (key: string, value: string, maxLength: number, onSave: (text: string) => void, onCancel?: () => void) => (
+        <InlineEditor
+            key={key}
+            value={value}
+            label={t('taskGuide.edit')}
+            maxLength={maxLength}
+            t={t}
+            onSave={(text) => { onSave(text); setEditing(null) }}
+            onCancel={() => { onCancel?.(); setEditing(null) }}
+        />
+    )
+
+    const lede = [
+        t('taskGuide.version', { n: draft.version }),
+        t('taskReport.criteriaCount', { n: kept }),
+        waiting > 0 ? t('taskReport.waitingCount', { n: waiting }) : null,
+        props.task.tag ? `#${props.task.tag}` : null
+    ].filter(Boolean).join(' · ')
+
+    return (
+        <>
+            {editing === 'goal' ? (
+                <div className="px-1 pt-3">{editor('goal', goal, 300, (text) => patch({ goal: text }))}</div>
+            ) : (
+                <div className="relative">
+                    <ReportSummary headline={<span className="block pr-10">{goal}</span>} lede={lede} />
+                    <IconButton label={t('taskReport.editGoal')} onClick={() => setEditing('goal')} className="absolute right-2 top-3 text-[var(--social-fg-muted)]">
+                        <PencilIcon className="h-[18px] w-[18px]" />
+                    </IconButton>
+                </div>
+            )}
+
+            {draft.questions.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskReport.waiting')}</SectionCaption>
+                    <div className="mx-4 flex flex-col gap-2">
+                        {draft.questions.map((question) => {
+                            const answer = edits.answers[question.id] ?? question.default
+                            const label = question.options.find((option) => option.id === answer)?.label ?? ''
+                            if (answered[question.id]) {
+                                return (
+                                    <button key={question.id} type="button" className="text-left" onClick={() => setAnswered({ ...answered, [question.id]: false })} aria-label={t('taskReport.changeAnswer', { question: question.text })}>
+                                        <DecisionConfirmation label={label} />
+                                    </button>
+                                )
+                            }
+                            return (
+                                <DecisionCard
+                                    key={`${draft.version}:${question.id}`}
+                                    decision={{
+                                        id: question.id,
+                                        question: question.text,
+                                        context: question.precedentRef ? t('taskGuide.precedent') : undefined,
+                                        options: question.options.map((option) => ({
+                                            label: option.label,
+                                            good: option.good ?? '',
+                                            cost: option.cost ?? '',
+                                            recommended: option.id === question.default
+                                        }))
+                                    }}
+                                    onAnswer={(option) => {
+                                        const picked = question.options.find((item) => item.label === option.label)
+                                        if (picked) patch({ answers: { ...edits.answers, [question.id]: picked.id } })
+                                        setAnswered({ ...answered, [question.id]: true })
+                                    }}
+                                />
+                            )
+                        })}
+                    </div>
+                </>
+            ) : null}
+
+            <SectionCaption trailing={edits.added.length < 4 ? <AddButton label={t('taskGuide.addCriterion')} onClick={() => { patch({ added: [...edits.added, ''] }); setEditing(`add:${edits.added.length}`) }} /> : undefined}>
+                {t('taskGuide.criteria')}
+            </SectionCaption>
+            <p className="px-5 pb-2 text-footnote text-[var(--social-fg-muted)]">{t('taskGuide.criteriaHint')}</p>
+            <Group>
+                {draft.criteria.map((criterion) => {
+                    const key = `c:${criterion.id}`
+                    const text = edits.texts[criterion.id] ?? criterion.text
+                    if (editing === key) return editor(key, text, 300, (next) => patch({ texts: { ...edits.texts, [criterion.id]: next } }))
+                    return (
+                        <CheckRow
+                            key={key}
+                            className="pl-1.5 pr-1"
+                            checked={edits.kept[criterion.id] !== false}
+                            onCheckedChange={(checked) => patch({ kept: { ...edits.kept, [criterion.id]: checked } })}
+                            label={text}
+                            title={text}
+                            subtitle={criterion.verify ? t('taskGuide.verify', { how: criterion.verify }) : undefined}
+                            tag={<SourceBadge source={text !== criterion.text ? 'user' : criterion.source} t={t} />}
+                            onEdit={() => setEditing(key)}
+                            editLabel={t('taskGuide.edit')}
+                        />
+                    )
+                })}
+                {edits.added.map((text, index) => {
+                    const key = `add:${index}`
+                    const setAdded = (next: string | null) => patch({
+                        added: next === null ? edits.added.filter((_, i) => i !== index) : edits.added.map((item, i) => (i === index ? next : item))
+                    })
+                    if (editing === key) return editor(key, text, 300, (next) => setAdded(next), () => { if (!text.trim()) setAdded(null) })
+                    return (
+                        <CheckRow
+                            key={key}
+                            className="pl-1.5 pr-1"
+                            checked
+                            onCheckedChange={() => setAdded(null)}
+                            label={text}
+                            title={text}
+                            tag={<SourceBadge source="user" t={t} />}
+                            onEdit={() => setEditing(key)}
+                            editLabel={t('taskGuide.edit')}
+                        />
+                    )
+                })}
+            </Group>
+            {kept === 0 ? <p className="px-5 pt-2 text-footnote text-[var(--social-danger)]">{t('taskGuide.keepOne')}</p> : null}
+
+            <SectionCaption trailing={nonGoals.length < 6 ? <AddButton label={t('taskGuide.addNonGoal')} onClick={() => { patch({ nonGoals: [...nonGoals, ''] }); setEditing(`ng:${nonGoals.length}`) }} /> : undefined}>
+                {t('taskGuide.nonGoals')}
+            </SectionCaption>
+            {nonGoals.length > 0 ? (
+                <Group>
+                    {nonGoals.map((line, index) => {
+                        const key = `ng:${index}`
+                        const setLine = (text: string | null) => patch({
+                            nonGoals: text === null ? nonGoals.filter((_, i) => i !== index) : nonGoals.map((item, i) => (i === index ? text : item))
+                        })
+                        if (editing === key) return editor(key, line, 200, (text) => setLine(text), () => { if (!line.trim()) setLine(null) })
+                        return <LineRow key={key} text={line} t={t} onEdit={() => setEditing(key)} onRemove={() => setLine(null)} />
+                    })}
+                </Group>
+            ) : (
+                <p className="px-5 text-footnote text-[var(--social-fg-muted)]">{t('taskReport.noNonGoals')}</p>
+            )}
+
+            <div className="mx-4 mt-8 flex gap-2">
+                <Button variant="secondary" disabled={props.pending} onClick={props.onAbandon}>{t('taskGuide.abandon')}</Button>
+                <Button className="flex-1" disabled={props.pending || kept === 0} onClick={props.onConfirm}>
+                    {props.pending ? t('taskGuide.confirming') : t('taskGuide.confirm')}
+                </Button>
+            </div>
+            <p className="px-5 pt-2 text-center text-caption text-[var(--social-fg-muted)]">{t('taskReport.confirmHint')}</p>
+        </>
+    )
+}
+
+/** The confirmed task: goal, numbers, the acceptance list and what it does not do. */
+function ConfirmedReport(props: { task: TaskView; onToggleDone: () => void; pending: boolean; t: Translate }) {
+    const { task, t } = props
+    const load = task.load ? task.load.progress + task.load.correction + task.load.decision : null
+    const status = t(`tasks.status.${task.status}`)
+    return (
+        <>
+            <ReportSummary
+                headline={task.goal ?? task.name}
+                lede={[status, task.tag ? `#${task.tag}` : null].filter(Boolean).join(' · ')}
+                stats={[
+                    { value: String(task.acceptance.length), label: t('taskReport.stat.criteria') },
+                    { value: String(load ?? 0), label: t('taskReport.stat.load') },
+                    { value: String(task.members.filter((member) => member.role !== 'lead').length), label: t('taskReport.stat.sessions') }
+                ]}
+            />
+            <SectionCaption>{t('taskGuide.criteria')}</SectionCaption>
+            <div className="mx-4">
+                <Checklist items={task.acceptance.map((criterion) => ({
+                    title: criterion.text,
+                    subtitle: criterion.verify ? t('taskGuide.verify', { how: criterion.verify }) : undefined,
+                    state: task.status === 'done' ? 'done' : 'todo'
+                }))} />
+            </div>
+            {task.nonGoals.length > 0 ? (
+                <>
+                    <SectionCaption>{t('taskGuide.nonGoals')}</SectionCaption>
+                    <Group>
+                        {task.nonGoals.map((line) => <p key={line} className="flex min-h-[52px] items-center px-4 text-body text-[var(--social-fg-muted)]">{line}</p>)}
+                    </Group>
+                </>
+            ) : null}
+            <div className="mx-4 mt-8 flex justify-center">
+                <Button variant="secondary" disabled={props.pending} onClick={props.onToggleDone}>
+                    {task.status === 'active' ? t('tasks.complete') : t('tasks.reopen')}
+                </Button>
+            </div>
+        </>
+    )
+}
+
+/**
+ * A task page as the lead's live report (report kit): what is being drafted, what waits for the user, the
+ * acceptance list; the lead's latest line and the input to talk to it at the bottom. The full group conversation is
+ * one tap away ("All chats").
+ */
+export function TaskReport(props: {
+    taskId: string
+    api: ApiClient | null
+    latest: LatestMessage | null
+    onSend: (text: string) => Promise<void>
+    onAllChats: () => void
+}) {
+    const { t } = useTranslation()
+    const { task } = useTask(props.api, props.taskId)
+    const { confirmTask, retryGuide, updateTask } = useTaskActions(props.api)
+    const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
+    const [edits, setEdits] = useState<DraftEdits | null>(null)
+    const [message, setMessage] = useState('')
+    const [pending, setPending] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (draft && edits?.version !== draft.version) setEdits((previous) => carryOver(draft, previous))
+    }, [draft, edits?.version])
+
+    const run = async (action: () => Promise<unknown>) => {
+        setPending(true)
+        setError(null)
+        try {
+            await action()
+        } catch (failure) {
+            setError(failure instanceof Error ? failure.message : String(failure))
+        } finally {
+            setPending(false)
+        }
+    }
+
+    if (!task) return <div className="min-h-0 flex-1" />
+    const guiding = task.status === 'guiding'
+    const working = guiding && (task.guide.state === 'starting' || task.guide.state === 'drafting')
+    const send = () => {
+        const text = message.trim()
+        if (!text) return
+        setMessage('')
+        void run(() => props.onSend(text))
+    }
+
+    return (
+        <div className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto pb-8">
+                <div className="mx-auto w-full max-w-2xl">
+                    {working ? <ReportSummary headline={t('taskReport.drafting')} lede={t('taskGuide.workingHint')} /> : null}
+
+                    {guiding && task.guide.state === 'failed' ? (
+                        <>
+                            <ReportSummary headline={t('taskReport.failed')} />
+                            <div className="mx-4 mt-4"><RiskNotice risks={[task.guide.error ?? '']} /></div>
+                            <div className="mx-4 mt-4 flex gap-2">
+                                <Button variant="secondary" disabled={pending} onClick={() => void run(() => updateTask(task.id, { status: 'abandoned' }))}>{t('taskGuide.abandon')}</Button>
+                                <Button className="flex-1" disabled={pending} onClick={() => void run(() => retryGuide(task.id))}>{t('taskGuide.retry')}</Button>
+                            </div>
+                        </>
+                    ) : null}
+
+                    {guiding && task.guide.request && !draft ? (
+                        <>
+                            <SectionCaption>{t('taskGuide.request')}</SectionCaption>
+                            <p className="mx-4 whitespace-pre-line rounded-2xl bg-[var(--social-muted)] px-4 py-3 text-body leading-relaxed text-[var(--social-fg)]">{task.guide.request}</p>
+                        </>
+                    ) : null}
+
+                    {working ? (
+                        <div className="mx-4 mt-6 space-y-2" aria-hidden="true">
+                            {[0, 1, 2].map((row) => <div key={row} className="h-[52px] animate-pulse rounded-2xl bg-[var(--social-muted)]" />)}
+                        </div>
+                    ) : null}
+
+                    {draft && edits ? (
+                        <DraftReport
+                            task={task}
+                            draft={draft}
+                            edits={edits}
+                            onChange={setEdits}
+                            pending={pending}
+                            t={t}
+                            onConfirm={() => void run(() => confirmTask(task.id, confirmInputFrom(draft, edits)))}
+                            onAbandon={() => void run(() => updateTask(task.id, { status: 'abandoned' }))}
+                        />
+                    ) : null}
+
+                    {!guiding ? (
+                        <ConfirmedReport
+                            task={task}
+                            pending={pending}
+                            t={t}
+                            onToggleDone={() => void run(() => updateTask(task.id, { status: task.status === 'active' ? 'done' : 'active' }))}
+                        />
+                    ) : null}
+
+                    {error ? <p className={cn('px-5 pt-3 text-footnote text-[var(--social-danger)]')}>{error}</p> : null}
+                </div>
+            </div>
+            <LeadComposer
+                latest={props.latest ?? { from: 'lead', text: t('taskReport.noMessages'), when: '' }}
+                draft={message}
+                onDraft={setMessage}
+                onSend={send}
+                onAllChats={props.onAllChats}
+                placeholder={guiding ? t('taskGuide.composerPlaceholder') : undefined}
+            />
+        </div>
+    )
+}

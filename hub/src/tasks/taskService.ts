@@ -30,6 +30,8 @@ export type TaskServiceHost = {
     changed: (namespace: string, taskId: string) => void
     /** Posts a system line to the task group's timeline, where the user follows the guide step. */
     timeline?: (namespace: string, taskId: string, text: string) => void
+    /** Stops a session that is no longer needed (the planner after the guide step). Its history stays. */
+    stopSession?: (namespace: string, sessionId: string) => Promise<void>
     /** How often the user stepped in, per task; null until messages are classified. */
     load?: (namespace: string, sessionIds: string[], since: number) => TaskLoad | null
 }
@@ -75,20 +77,27 @@ export class TaskService {
      * Creates a task in the guide step and starts its planner in the background. Without a directory, the task goes
      * where its source session runs, or else where the newest session with the tag runs.
      */
-    async create(namespace: string, input: { text: string; tag: string; machineId?: string; directory?: string; fromSessionId?: string }): Promise<TaskView> {
+    async create(namespace: string, input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string }): Promise<TaskView> {
         const from = input.fromSessionId ? this.host.session(namespace, input.fromSessionId) : null
         if (input.fromSessionId && !from) throw new TaskError('Session not found', 404)
-        const place = this.placeFor(namespace, input.tag, from, input.machineId, input.directory)
+        const tag = input.tag ?? ''
+        const place = this.placeFor(namespace, tag, from, input.machineId, input.directory)
         const task = this.kernel.create(namespace, {
             name: firstLine(input.text, NAME_CHARS),
-            tag: input.tag,
+            tag,
             repoPath: place?.directory ?? null,
             machineId: place?.machineId ?? null,
             members: from ? [from.id] : []
         })
+        // Without the guide step a task is a plain discussion: no goal, no acceptance list, no planner.
+        if (input.draft === false) {
+            this.store.groups.updateGroup({ groupId: task.id, namespace, description: input.text })
+            this.kernel.move(namespace, task.id, 'active')
+            return this.get(namespace, task.id)!
+        }
         this.kernel.log(namespace, task.id, TASK_EVENT.guideStarted, { text: input.text, fromSessionId: from?.id ?? null })
         if (!place) {
-            this.fail(namespace, task.id, '找不到在线机器上的仓库目录：先在这个 tag 下开一个会话，再重试。')
+            this.fail(namespace, task.id, '找不到在线机器上的仓库目录：先在要改的仓库里开一个会话，再重试。')
         } else {
             this.host.timeline?.(namespace, task.id, 'HAQI 正在读你的记忆和仓库约定，起草目标和验收标准。')
             this.startInBackground(namespace, task.id)
@@ -117,7 +126,9 @@ export class TaskService {
         }
         const version = this.kernel.count(namespace, taskId, TASK_EVENT.draftSubmitted) + 1
         this.kernel.log(namespace, taskId, TASK_EVENT.draftSubmitted, toTaskDraft(parsed.data, version))
-        this.host.timeline?.(namespace, taskId, `第 ${version} 版草稿好了：在上面的任务卡里勾选、修改，再确认。要 HAQI 改，直接在这里说。`)
+        // The planner tags the task; a tag the user set stays.
+        if (parsed.data.tag && !task.tag) this.kernel.update(namespace, taskId, { tag: parsed.data.tag })
+        this.host.timeline?.(namespace, taskId, `第 ${version} 版草稿好了：在任务页里勾选、修改，再确认。要改就在这里跟我说。`)
         return { version, message: `Draft ${version} submitted. Wait for the user to confirm it or ask for changes; do not start the work.` }
     }
 
@@ -181,9 +192,7 @@ export class TaskService {
         this.kernel.move(namespace, taskId, 'active', { goal, nonGoals, acceptance })
         this.kernel.log(namespace, taskId, TASK_EVENT.draftConfirmed, { version: draft.version, answers, acceptance, decisions })
         this.writeNote(namespace, taskId, goal, nonGoals, acceptance)
-        if (task.leadSessionId && this.host.session(namespace, task.leadSessionId)?.active) {
-            await this.planner.confirmed(task.leadSessionId, taskId, acceptance.map((criterion) => criterion.text))
-        }
+        await this.stopPlanner(namespace, task.leadSessionId)
         return this.get(namespace, taskId)!
     }
 
@@ -191,7 +200,19 @@ export class TaskService {
         this.requireTask(namespace, taskId)
         if (patch.tag !== undefined || patch.name !== undefined) this.kernel.update(namespace, taskId, { tag: patch.tag, name: patch.name })
         if (patch.status) this.kernel.move(namespace, taskId, patch.status)
+        if (patch.status === 'done' || patch.status === 'abandoned') {
+            void this.stopPlanner(namespace, this.kernel.get(namespace, taskId)?.leadSessionId ?? null)
+        }
         return this.get(namespace, taskId)!
+    }
+
+    /**
+     * After the guide step the planner has nothing to do until P4 hands it work, and each one holds about 185 MB. It
+     * stays the task's lead (member and history); it is stopped, and resumed when needed.
+     */
+    private async stopPlanner(namespace: string, sessionId: string | null): Promise<void> {
+        if (!sessionId || !this.host.session(namespace, sessionId)?.active) return
+        await this.host.stopSession?.(namespace, sessionId).catch(() => {})
     }
 
     addMember(namespace: string, taskId: string, sessionId: string): TaskView {
@@ -280,7 +301,9 @@ export class TaskService {
      */
     private placeFor(namespace: string, tag: string, from: TaskSession | null, machineId?: string, directory?: string): { machineId: string; directory: string } | null {
         if (machineId && directory) return { machineId, directory }
-        const candidates = [from, ...this.host.sessions(namespace).filter((s) => s.tags.includes(tag)).sort((a, b) => b.updatedAt - a.updatedAt)]
+        const recent = this.host.sessions(namespace).sort((a, b) => b.updatedAt - a.updatedAt)
+        // Sessions with the task's tag first, then the newest of all (a new task has no tag yet).
+        const candidates = [from, ...recent.filter((s) => tag && s.tags.includes(tag)), ...recent]
         const session = candidates.find((s): s is TaskSession => Boolean(s?.machineId && s.path && this.host.machineOnline(namespace, s.machineId)))
         return session ? { machineId: session.machineId!, directory: directory ?? session.path! } : null
     }
@@ -295,10 +318,15 @@ export class TaskService {
                     .filter((text): text is string => text !== null)
                 return { name: session.name, userMessages }
             },
-            relatedTasks: (tag, excludeId) => this.kernel.list(namespace, tag)
+            relatedTasks: (project, tag, excludeId) => this.kernel.list(namespace)
+                .filter((task) => (tag && task.tag === tag) || (project && task.repoPath && projectNameFor(task.repoPath) === project))
                 .filter((task) => task.id !== excludeId && task.status !== 'guiding')
                 .slice(0, RELATED_TASKS)
                 .map((task) => ({ id: task.id, name: task.name, goal: task.goal, acceptance: task.acceptance.map((c) => c.text) })),
+            knownTags: () => Array.from(new Set([
+                ...this.host.sessions(namespace).flatMap((s) => s.tags),
+                ...this.kernel.list(namespace).map((task) => task.tag ?? '')
+            ].filter((tag) => tag && !tag.includes(':')))).sort(),
             principles: (project, tag) => this.store.memories.list(namespace)
                 .filter((m) => m.level === 'principle' && m.status === 'active')
                 .filter((m) => m.scope === '' || m.scope === project || m.tags.includes(tag))

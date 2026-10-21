@@ -407,15 +407,17 @@ export async function startHappyServer(client: ApiSessionClient) {
         inputSchema: taskDraftSubmitInputSchema
     }, async (args: {
         task_id: string
+        tag?: string
         goal: string
         non_goals?: string[]
         criteria: Array<{ text: string; source: 'principle' | 'repo' | 'inferred'; source_ref?: string; verify: string }>
-        questions?: Array<{ id: string; text: string; options: Array<{ id: string; label: string }>; default: string; precedent_ref?: string }>
+        questions?: Array<{ id: string; text: string; options: Array<{ id: string; label: string; good?: string; cost?: string }>; default: string; precedent_ref?: string }>
     }) => {
         try {
             const payload = await requestHubJson(`/api/tasks/${encodeURIComponent(args.task_id)}/draft`, {
                 method: 'POST',
                 body: JSON.stringify({
+                    tag: args.tag,
                     goal: args.goal,
                     nonGoals: args.non_goals ?? [],
                     criteria: args.criteria.map((criterion) => ({

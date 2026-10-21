@@ -40,6 +40,7 @@ function setup(dir: string) {
     const spawned: Array<{ directory: string; name: string; tags: string[]; text: string }> = []
     const changes: string[] = []
     const lines: string[] = []
+    const stopped: string[] = []
     let spawnError: string | null = null
     let nextId = 1
     const addSession = (session: Partial<TaskSession> & { id: string }) => {
@@ -70,10 +71,11 @@ function setup(dir: string) {
         sessions: () => [...sessions.values()],
         machineOnline: (_namespace, machineId) => machineId !== 'offline',
         changed: (_namespace, id) => changes.push(id),
-        timeline: (_namespace, _id, text) => lines.push(text)
+        timeline: (_namespace, _id, text) => lines.push(text),
+        stopSession: async (_namespace, id) => { stopped.push(id); sessions.get(id)!.active = false }
     })
     return {
-        store, service, sessions, sent, spawned, changes, lines, addSession,
+        store, service, sessions, sent, spawned, changes, lines, stopped, addSession,
         failSpawn: (message: string | null) => { spawnError = message },
         settle: () => service.whenIdle()
     }
@@ -147,7 +149,9 @@ describe('TaskService guide step', () => {
         // The user follows the guide step in the task group's timeline.
         const heads = ['HAQI 正在读你的记忆', '第 1 版草稿好了', '第 2 版草稿好了', '你确认了目标和 3 条验收标准']
         expect(t.lines.map((line, index) => line.startsWith(heads[index] ?? '-'))).toEqual([true, true, true, true])
-        expect(t.sent.at(-1)?.text).toContain('用户已确认')
+        // The planner has nothing to do until P4: it is stopped and stays the lead.
+        expect(t.stopped).toEqual(['planner-1'])
+        expect(confirmed.leadSessionId).toBe('planner-1')
 
         const decisions = t.store.memories.list('default').filter((m) => m.source === 'decision')
         expect(decisions.map((m) => [m.text, m.status, m.level, m.tags]).sort()).toEqual([
@@ -196,6 +200,37 @@ describe('TaskService guide step', () => {
         expect(t.service.get('default', task.id)!.leadSessionId).toBe('planner-2')
         expect(t.spawned[1]!.text).toContain('目标写具体一点')
         expect(t.spawned[1]!.text).toContain(DRAFT.goal)
+    })
+
+    it('creates a task without a tag: the planner picks one, from the newest session on an online machine', async () => {
+        const t = setup(dir)
+        t.addSession({ id: 'old', path: '/repo/old', tags: ['old'], updatedAt: 1 })
+        t.addSession({ id: 'new', path: '/repo/haqi', tags: ['web'], updatedAt: 2 })
+        const task = await t.service.create('default', { text: '修一个 bug' })
+        await t.settle()
+        expect([task.tag, task.repoPath]).toEqual(['', '/repo/haqi'])
+        expect(t.spawned[0]!.tags).toEqual([])
+        expect(t.spawned[0]!.text).toContain('已有的 tag（给任务选一个）')
+        expect(t.spawned[0]!.text).toContain('old、web')
+        const withOptions = { ...DRAFT, tag: 'Web', questions: [{ ...DRAFT.questions[0]!, options: [{ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' }, { id: 'b', label: 'Obsidian' }] }] }
+        t.service.submitDraft('default', task.id, withOptions)
+        const ready = t.service.get('default', task.id)!
+        expect(ready.tag).toBe('web')
+        expect(ready.draft?.questions[0]?.options[0]).toEqual({ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' })
+    })
+
+    it('starts a task without the guide step as a plain discussion, and stops the planner when a task ends', async () => {
+        const t = setup(dir)
+        t.addSession({ id: 'work', tags: ['haqi'] })
+        const plain = await t.service.create('default', { text: '聊聊下周的发布\n先拉几个会话', draft: false })
+        expect([plain.status, plain.name, plain.leadSessionId, t.spawned.length]).toEqual(['active', '聊聊下周的发布', null, 0])
+        expect(t.store.groups.getGroupByNamespace(plain.id, 'default')?.description).toBe('聊聊下周的发布\n先拉几个会话')
+
+        const task = await t.service.create('default', { text: '修一个 bug' })
+        await t.settle()
+        t.service.update('default', task.id, { status: 'abandoned' })
+        await Promise.resolve()
+        expect(t.stopped).toEqual(['planner-1'])
     })
 
     it('keeps the state machine: no going back to guiding, done can be reopened', async () => {

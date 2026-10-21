@@ -78,8 +78,7 @@ import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary, TaskStatus, TaskView } from '@/types/api'
 import { Badge, DotBadge } from '@/components/ui/badge'
-import { SegmentedControl } from '@/components/ui/FormControls'
-import { NewTaskForm } from '@/components/tasks/NewTaskForm'
+import { NewTaskForm, type TaskPlace } from '@/components/tasks/NewTaskForm'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
@@ -968,6 +967,8 @@ function GroupRow(props: {
     })
     const hasLiveMember = members.some((member) => member.thinking)
     const status = item.group.kind === 'task' ? item.group.status ?? null : null
+    // "Active" is the normal state of a task: no badge.
+    const badge = status && status !== 'active' ? status : null
 
     return (
         <button
@@ -981,7 +982,7 @@ function GroupRow(props: {
             <div className="flex min-w-0 flex-1 flex-col justify-center">
                 <div className="flex items-baseline gap-2">
                     <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">{item.group.name}</span>
-                    {status ? <Badge variant={TASK_STATUS_BADGE[status]} className="shrink-0 self-center">{t(`tasks.status.${status}`)}</Badge> : null}
+                    {badge ? <Badge variant={TASK_STATUS_BADGE[badge]} className="shrink-0 self-center">{t(`tasks.status.${badge}`)}</Badge> : null}
                     <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
                 </div>
                 <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
@@ -992,7 +993,7 @@ function GroupRow(props: {
                         <DotBadge className="shrink-0" />
                     ) : null}
                     <span className="min-w-0 truncate">
-                        {status ? taskRowSubtitle(item, props.task, t) : (
+                        {status && (item.group.status === 'guiding' || item.group.goal || item.group.tag) ? taskRowSubtitle(item, props.task, t) : (
                             <>
                                 {t('mobile.groups.members', { n: item.members.length })}
                                 {item.group.description?.trim() ? ` · ${item.group.description}` : ''}
@@ -1029,13 +1030,7 @@ function GroupsLayout() {
     const { groups, isLoading } = useGroups(api)
     const { desktopSidebarHidden, setDesktopSidebarHidden, toggleDesktopSidebar } = useSessionSidebarVisibility()
     const [showCreateModal, setShowCreateModal] = useState(false)
-    // One "+" for both: a task (the default) or a plain chat group.
-    const [createKind, setCreateKind] = useState<'task' | 'chat'>('task')
     const [groupSearchQuery, setGroupSearchQuery] = useState('')
-    const [newGroupName, setNewGroupName] = useState('')
-    const [newGroupDesc, setNewGroupDesc] = useState('')
-    const [createError, setCreateError] = useState<string | null>(null)
-    const [isCreateSubmitting, setIsCreateSubmitting] = useState(false)
     const [actionMenuOpen, setActionMenuOpen] = useState(false)
     const [actionAnchorPoint, setActionAnchorPoint] = useState({ x: 0, y: 0 })
     const [actionGroupId, setActionGroupId] = useState<string | null>(null)
@@ -1043,7 +1038,6 @@ function GroupsLayout() {
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [groupInfoOpen, setGroupInfoOpen] = useState(false)
     const groupInfoPanel = useMemo(() => ({ open: groupInfoOpen, setOpen: setGroupInfoOpen }), [groupInfoOpen])
-    const { createGroup, isPending: isCreatingGroup } = useGroupActions(api, null)
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
     const isMobileLayout = useIsMobileLayout()
     const { sessions: allSessions } = useSessions(api)
@@ -1051,10 +1045,22 @@ function GroupsLayout() {
     const { tasks } = useTasks(api)
     const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
     const { createTask } = useTaskActions(api)
-    const taskTags = useMemo(
-        () => applySessionTagOrder(Array.from(new Set(allSessions.flatMap((session) => getUserTags(session)))).sort((a, b) => a.localeCompare(b)), loadSessionTagOrder()),
-        [allSessions]
-    )
+    const { machines } = useMachines(api, true)
+    // Where a new task can run: the newest session directories on machines that are online.
+    const taskPlaces = useMemo<TaskPlace[]>(() => {
+        const online = new Set(machines.filter((machine) => machine.active).map((machine) => machine.id))
+        const seen = new Set<string>()
+        const places: TaskPlace[] = []
+        for (const session of [...allSessions].sort((a, b) => b.updatedAt - a.updatedAt)) {
+            const machineId = session.metadata?.machineId
+            const directory = session.metadata?.path
+            if (!machineId || !directory || !online.has(machineId) || seen.has(`${machineId}:${directory}`)) continue
+            seen.add(`${machineId}:${directory}`)
+            places.push({ machineId, directory, label: directory.split('/').filter(Boolean).pop() ?? directory })
+            if (places.length === 6) break
+        }
+        return places
+    }, [allSessions, machines])
 
     const groupMatch = matchRoute({ to: '/groups/$groupId', fuzzy: true })
     const selectedGroupId = groupMatch ? groupMatch.groupId : null
@@ -1070,7 +1076,6 @@ function GroupsLayout() {
     const actionTarget = actionGroupId
         ? groups.find((item) => item.group.id === actionGroupId) ?? null
         : null
-    const isCreateRequestInFlight = isCreatingGroup || isCreateSubmitting
 
     // Calculate total member count across all groups
     const totalMemberCount = visibleGroups.reduce((acc, item) => acc + item.members.length, 0)
@@ -1109,33 +1114,6 @@ function GroupsLayout() {
         })
     }, [groups, isGroupsIndex, isLoading, isMobileLayout, navigate])
 
-    const handleCreate = async () => {
-        if (isCreateRequestInFlight) {
-            return
-        }
-        const trimmedName = newGroupName.trim()
-        if (!trimmedName) {
-            setCreateError(t('groups.dialog.nameRequired'))
-            return
-        }
-        setCreateError(null)
-        setIsCreateSubmitting(true)
-        try {
-            const groupId = await createGroup({
-                name: trimmedName,
-                description: newGroupDesc.trim() || undefined
-            })
-            setShowCreateModal(false)
-            setNewGroupName('')
-            setNewGroupDesc('')
-            navigate({ to: '/groups/$groupId', params: { groupId } })
-        } catch (error) {
-            setCreateError(error instanceof Error ? error.message : t('groups.dialog.createFailed'))
-        } finally {
-            setIsCreateSubmitting(false)
-        }
-    }
-
     const handleOpenGroupActions = (groupId: string, point: { x: number; y: number }) => {
         setActionGroupId(groupId)
         setActionAnchorPoint(point)
@@ -1167,71 +1145,22 @@ function GroupsLayout() {
 
     const groupModals = (
         <>
-            <Dialog
-                open={showCreateModal}
-                onOpenChange={(open) => {
-                    if (!open) {
-                        setShowCreateModal(false)
-                        setCreateError(null)
-                    }
-                }}
-            >
-                <DialogContent className={createKind === 'task' ? 'max-w-md' : 'max-w-sm'}>
+            <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+                <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>{t('mobile.groups.new')}</DialogTitle>
+                        <DialogTitle>{t('tasks.new')}</DialogTitle>
                     </DialogHeader>
                     <div className="mt-4">
-                        <SegmentedControl
-                            label={t('mobile.groups.new')}
-                            value={createKind}
-                            options={[{ value: 'task', label: t('groups.kind.task') }, { value: 'chat', label: t('groups.kind.chat') }]}
-                            onChange={setCreateKind}
+                        <NewTaskForm
+                            places={taskPlaces}
+                            onCancel={() => setShowCreateModal(false)}
+                            onCreate={async (input) => {
+                                const task = await createTask(input)
+                                setShowCreateModal(false)
+                                navigate({ to: '/groups/$groupId', params: { groupId: task.id } })
+                            }}
                         />
                     </div>
-                    {createKind === 'task' ? (
-                        <div className="mt-4">
-                            <NewTaskForm
-                                tags={taskTags}
-                                onCancel={() => setShowCreateModal(false)}
-                                onCreate={async (input) => {
-                                    const task = await createTask(input)
-                                    setShowCreateModal(false)
-                                    navigate({ to: '/groups/$groupId', params: { groupId: task.id } })
-                                }}
-                            />
-                        </div>
-                    ) : (
-                    <form
-                        className="mt-4 flex flex-col gap-3"
-                        onSubmit={(event) => {
-                            event.preventDefault()
-                            void handleCreate()
-                        }}
-                    >
-                        <TextField
-                            autoFocus
-                            value={newGroupName}
-                            onChange={(event) => setNewGroupName(event.target.value)}
-                            placeholder={t('groups.dialog.name')}
-                            aria-label={t('groups.dialog.name')}
-                        />
-                        <TextField
-                            value={newGroupDesc}
-                            onChange={(event) => setNewGroupDesc(event.target.value)}
-                            placeholder={t('groups.dialog.description')}
-                            aria-label={t('groups.dialog.description')}
-                        />
-                        {createError ? <div className="text-footnote text-[var(--social-danger)]">{createError}</div> : null}
-                        <div className="flex justify-end gap-2">
-                            <Button type="button" variant="secondary" onClick={() => { setShowCreateModal(false); setCreateError(null) }}>
-                                {t('button.cancel')}
-                            </Button>
-                            <Button type="submit" disabled={isCreateRequestInFlight || !newGroupName.trim()}>
-                                {isCreateRequestInFlight ? t('newSession.creating') : t('newSession.create')}
-                            </Button>
-                        </div>
-                    </form>
-                    )}
                 </DialogContent>
             </Dialog>
 

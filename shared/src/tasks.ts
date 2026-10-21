@@ -22,7 +22,8 @@ export type AcceptanceCriterion = {
 export type TaskDraftQuestion = {
     id: string
     text: string
-    options: Array<{ id: string; label: string }>
+    /** `good` and `cost`: one line each on what picking the option gains and costs. */
+    options: Array<{ id: string; label: string; good?: string | null; cost?: string | null }>
     default: string
     /** The experience the default comes from. */
     precedentRef: string | null
@@ -30,6 +31,8 @@ export type TaskDraftQuestion = {
 
 export type TaskDraft = {
     version: number
+    /** The tag the planner picked for the task. */
+    tag?: string | null
     goal: string
     nonGoals: string[]
     criteria: AcceptanceCriterion[]

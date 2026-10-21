@@ -6,8 +6,10 @@
 export type ContextSources = {
     /** The session the task was created from: its name and the user's last messages there. */
     currentSession: (sessionId: string) => { name: string | null; userMessages: string[] } | null
-    /** Recent tasks with the same tag. */
-    relatedTasks: (tag: string, excludeId: string) => Array<{ id: string; name: string; goal: string | null; acceptance: string[] }>
+    /** Recent tasks in the same repository or with the same tag. */
+    relatedTasks: (project: string | null, tag: string, excludeId: string) => Array<{ id: string; name: string; goal: string | null; acceptance: string[] }>
+    /** The user's tags, for the planner to pick the task's tag from. */
+    knownTags?: () => string[]
     /** Active principles: every global one, plus those for this repository or with this tag. */
     principles: (project: string | null, tag: string) => Array<{ id: string; text: string; scope: string }>
     /** Active experiences close in meaning to what the user asked for. */
@@ -47,9 +49,14 @@ export async function buildContextPack(input: ContextInput, sources: ContextSour
 
     sections.push(`## 仓库\n${input.repoPath ? `目录：${input.repoPath}${input.project ? `（项目 ${input.project}）` : ''}。约定文件（AGENTS.md、CLAUDE.md、HARNESS.md 等）请自己读。` : '没有仓库目录。'}`)
 
-    const related = sources.relatedTasks(input.tag, input.taskId).slice(0, CONTEXT_LIMITS.relatedTasks)
+    const tags = sources.knownTags?.() ?? []
+    sections.push(input.tag
+        ? `## 任务的 tag\n${input.tag}（用户定的，不用改）`
+        : `## 已有的 tag（给任务选一个）\n${tags.length ? tags.join('、') : '（没有）'}`)
+
+    const related = sources.relatedTasks(input.project, input.tag, input.taskId).slice(0, CONTEXT_LIMITS.relatedTasks)
     if (related.length) {
-        sections.push(['## 同 tag 的近期任务', ...related.map((task) => [
+        sections.push(['## 同仓库或同 tag 的近期任务', ...related.map((task) => [
             `- [task:${task.id}] ${task.name}${task.goal ? `：${task.goal}` : ''}`,
             ...task.acceptance.map((line) => `  - 验收：${line}`)
         ].join('\n'))].join('\n'))

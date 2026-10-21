@@ -12,7 +12,10 @@ const tagSchema = z.string().trim().toLowerCase().min(1).max(40)
 
 const createSchema = z.object({
     text: z.string().trim().min(1).max(4000),
-    tag: tagSchema,
+    /** The planner picks a tag when none is given. */
+    tag: tagSchema.optional(),
+    /** false: start right away, without the guide step (a plain discussion). */
+    draft: z.boolean().optional(),
     machineId: z.string().min(1).optional(),
     directory: z.string().min(1).optional(),
     fromSessionId: z.string().min(1).optional()

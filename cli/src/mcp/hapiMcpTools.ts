@@ -109,6 +109,7 @@ export const reviewLoopWorkerSubmitInputSchema: z.ZodTypeAny = z.object({
 
 export const taskDraftSubmitInputSchema: z.ZodTypeAny = z.object({
     task_id: z.string().min(1).max(40).describe('The task id from the guide message'),
+    tag: z.string().min(1).max(40).optional().describe('The tag you picked for the task (lowercase); leave out when the guide message says the user set it'),
     goal: z.string().min(1).max(120).describe('One sentence: what the task achieves'),
     non_goals: z.array(z.string().min(1).max(200)).max(3).optional().describe('What the task does not do (at most 3)'),
     criteria: z.array(z.object({
@@ -120,7 +121,12 @@ export const taskDraftSubmitInputSchema: z.ZodTypeAny = z.object({
     questions: z.array(z.object({
         id: z.string().min(1).max(40),
         text: z.string().min(1).max(200).describe('Only what the context and the repository cannot settle'),
-        options: z.array(z.object({ id: z.string().min(1).max(40), label: z.string().min(1).max(80) })).min(2).max(4),
+        options: z.array(z.object({
+            id: z.string().min(1).max(40),
+            label: z.string().min(1).max(80),
+            good: z.string().min(1).max(100).optional().describe('What picking this option gains'),
+            cost: z.string().min(1).max(100).optional().describe('What it costs')
+        })).min(2).max(4),
         default: z.string().min(1).max(40).describe('The id of the default option'),
         precedent_ref: z.string().min(1).max(80).optional().describe('The experience id the default comes from')
     })).max(3).optional().describe('At most 3 choice questions for the user')

@@ -26,8 +26,8 @@ function OptionBlock(props: { option: DecisionOption; selected: boolean; onSelec
                     <span className="text-body font-semibold text-[var(--social-fg)]">{option.label}</span>
                     {option.recommended ? <Badge className="h-5 px-2">{t('report.option.recommended')}</Badge> : null}
                 </span>
-                <span className="mt-1 block text-footnote leading-relaxed text-[var(--social-fg-muted)]">{t('report.option.good', { text: option.good })}</span>
-                <span className="block text-footnote leading-relaxed text-[var(--social-fg-muted)]">{t('report.option.cost', { text: option.cost })}</span>
+                {option.good ? <span className="mt-1 block text-footnote leading-relaxed text-[var(--social-fg-muted)]">{t('report.option.good', { text: option.good })}</span> : null}
+                {option.cost ? <span className={cn('block text-footnote leading-relaxed text-[var(--social-fg-muted)]', !option.good && 'mt-1')}>{t('report.option.cost', { text: option.cost })}</span> : null}
             </span>
             <span
                 className={cn(
@@ -128,8 +128,11 @@ export function Checklist(props: { items: CheckItem[] }) {
                 const content = (
                     <>
                         <CheckRing state={item.state} />
-                        <span className={cn('flex-1 text-body', item.state === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
-                            {item.title}
+                        <span className="min-w-0 flex-1">
+                            <span className={cn('block text-body leading-snug', item.state === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
+                                {item.title}
+                            </span>
+                            {item.subtitle ? <span className="mt-0.5 block text-footnote leading-snug text-[var(--social-fg-muted)]">{item.subtitle}</span> : null}
                         </span>
                         {item.waiting ? (
                             <Badge variant="warning">{t('report.check.waiting')}</Badge>
@@ -144,14 +147,14 @@ export function Checklist(props: { items: CheckItem[] }) {
                             key={item.title}
                             type="button"
                             onClick={item.onClick}
-                            className="flex min-h-[52px] w-full items-center gap-3 px-4 text-left transition-colors active:bg-[var(--social-hover)]"
+                            className="flex min-h-[52px] w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-[var(--social-hover)]"
                         >
                             {content}
                         </button>
                     )
                 }
                 return (
-                    <div key={item.title} className="flex min-h-[52px] items-center gap-3 px-4">
+                    <div key={item.title} className="flex min-h-[52px] items-center gap-3 px-4 py-3">
                         {content}
                     </div>
                 )

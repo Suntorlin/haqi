@@ -284,6 +284,20 @@ describe('GroupService createGroup', () => {
         expect(dispatched[0]?.command).toContain('@AgentB')
     })
 
+    it('leaves a task lead out of @all, and still reaches it with an explicit mention', async () => {
+        const store = new Store(':memory:')
+        const worker = store.sessions.getOrCreateSession('session-worker', { path: '/repo/w', name: 'Worker' }, null, 'default')
+        const lead = store.sessions.getOrCreateSession('session-lead', { path: '/repo/l', name: 'Lead' }, null, 'default')
+        const service = createService(store, { resolveSessionRoutingState: () => ({ active: true }) })
+        const created = service.createGroup({ namespace: 'default', name: 'Task', sessionMemberIds: [worker.id] })
+        store.groups.addGroupMember({ groupId: created.group.id, namespace: 'default', sessionId: lead.id, role: 'lead' })
+
+        const all = await service.addTimelineMessage({ groupId: created.group.id, namespace: 'default', type: 'command', payload: { text: '@all 开工' } })
+        expect(all.createdTasks.map((task) => task.targetSessionId)).toEqual([worker.id])
+        const direct = await service.addTimelineMessage({ groupId: created.group.id, namespace: 'default', type: 'command', payload: { text: '看一下' }, targetSessionIds: [lead.id] })
+        expect(direct.createdTasks.map((task) => task.targetSessionId)).toEqual([lead.id])
+    })
+
     it('excludes origin session from @all dispatch targets', async () => {
         const store = new Store(':memory:')
         const origin = store.sessions.getOrCreateSession(
