@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { ComposerPrimitive } from '@assistant-ui/react'
 import type { ConversationStatus } from '@/realtime/types'
+import type { DictationError, DictationStatus } from '@/hooks/useDictation'
 import {
     CompactIcon,
     InfoCircleIcon,
@@ -262,6 +263,92 @@ export function VoiceCallBar(props: {
             >
                 {t('voice.end')}
             </Button>
+        </div>
+    )
+}
+
+/**
+ * Speech-to-text into the draft: tap to record, tap again (or "Done" in the bar) to turn it into text.
+ * It sits inside the input, apart from the voice-call action, because it only fills the draft.
+ */
+export function DictationButton(props: {
+    status: DictationStatus
+    disabled: boolean
+    onStart: () => void
+    onFinish: () => void
+    className?: string
+}) {
+    const { t } = useTranslation()
+    const recording = props.status === 'recording'
+    const busy = props.status === 'starting' || props.status === 'transcribing'
+    return (
+        <IconButton
+            size="xs"
+            label={recording ? t('dictation.finish') : t('dictation.start')}
+            onClick={recording ? props.onFinish : props.onStart}
+            disabled={busy || (props.disabled && !recording)}
+            aria-pressed={recording}
+            className={cn(recording ? 'bg-[var(--social-badge)] text-[var(--social-on-accent)] hover:bg-[var(--social-badge)] hover:text-[var(--social-on-accent)]' : '', props.className)}
+        >
+            {busy ? <Spinner size="sm" label={null} className="text-current" /> : <MicIcon className="h-[18px] w-[18px]" />}
+        </IconButton>
+    )
+}
+
+function formatDictationTime(ms: number): string {
+    const seconds = Math.floor(ms / 1000)
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+}
+
+/**
+ * Shown above the input while dictating, the same slim bar as the voice call: recording time with
+ * cancel and done, then "converting", or why it failed.
+ */
+export function DictationBar(props: {
+    status: DictationStatus
+    elapsedMs: number
+    error: DictationError | null
+    onCancel: () => void
+    onFinish: () => void
+    onDismissError: () => void
+}) {
+    const { t } = useTranslation()
+    if (props.error && props.status === 'idle') {
+        return (
+            <div role="alert" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
+                <span className="min-w-0 flex-1 truncate text-[var(--social-danger)]">{t(`dictation.error.${props.error}`)}</span>
+                <Button variant="ghost" size="xs" onClick={props.onDismissError}>
+                    {t('button.close')}
+                </Button>
+            </div>
+        )
+    }
+    if (props.status !== 'recording' && props.status !== 'transcribing') {
+        return null
+    }
+    const recording = props.status === 'recording'
+    return (
+        <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
+            {recording ? (
+                <DotBadge className="h-2 w-2 shrink-0 animate-pulse bg-[var(--social-danger)] ring-0" />
+            ) : (
+                <Spinner size="sm" label={null} className="shrink-0 text-[var(--social-fg-muted)]" />
+            )}
+            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">
+                {recording
+                    ? t('dictation.recording', { time: formatDictationTime(props.elapsedMs) })
+                    : t('dictation.transcribing')}
+            </span>
+            {recording ? (
+                <>
+                    <Button variant="ghost" size="xs" onClick={props.onCancel}>
+                        {t('button.cancel')}
+                    </Button>
+                    <Button size="xs" onClick={props.onFinish}>
+                        {t('dictation.done')}
+                    </Button>
+                </>
+            ) : null}
         </div>
     )
 }

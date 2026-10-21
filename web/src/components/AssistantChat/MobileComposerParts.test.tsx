@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import { I18nProvider } from '@/lib/i18n-context'
-import { MobileComposerAction, VoiceCallBar } from './MobileComposerParts'
+import { DictationBar, DictationButton, MobileComposerAction, VoiceCallBar } from './MobileComposerParts'
 
 type ActionProps = ComponentProps<typeof MobileComposerAction>
 
@@ -71,5 +71,47 @@ describe('VoiceCallBar', () => {
         fireEvent.click(screen.getByRole('button', { name: 'End' }))
         expect(onToggleMic).toHaveBeenCalledOnce()
         expect(onEnd).toHaveBeenCalledOnce()
+    })
+})
+
+describe('Dictation controls', () => {
+    beforeEach(() => {
+        Object.defineProperty(window, 'localStorage', {
+            value: { getItem: vi.fn(() => 'en'), setItem: vi.fn(), removeItem: vi.fn() },
+            configurable: true
+        })
+    })
+
+    it('starts from the mic and finishes from the same button while recording', () => {
+        const onStart = vi.fn()
+        const onFinish = vi.fn()
+        const { rerender } = render(<I18nProvider><DictationButton status="idle" disabled={false} onStart={onStart} onFinish={onFinish} /></I18nProvider>)
+        fireEvent.click(screen.getByRole('button', { name: 'Dictate' }))
+        expect(onStart).toHaveBeenCalledTimes(1)
+        rerender(<I18nProvider><DictationButton status="recording" disabled={false} onStart={onStart} onFinish={onFinish} /></I18nProvider>)
+        fireEvent.click(screen.getByRole('button', { name: 'Finish dictation' }))
+        expect(onFinish).toHaveBeenCalledTimes(1)
+        rerender(<I18nProvider><DictationButton status="transcribing" disabled={false} onStart={onStart} onFinish={onFinish} /></I18nProvider>)
+        expect(screen.getByRole('button', { name: 'Dictate' })).toBeDisabled()
+    })
+
+    it('shows the recording time with cancel and done', () => {
+        const props = { status: 'recording' as const, elapsedMs: 65_400, error: null, onCancel: vi.fn(), onFinish: vi.fn(), onDismissError: vi.fn() }
+        render(<I18nProvider><DictationBar {...props} /></I18nProvider>)
+        expect(screen.getByRole('status').textContent).toContain('Listening 1:05')
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+        expect(props.onCancel).toHaveBeenCalledTimes(1)
+        expect(props.onFinish).toHaveBeenCalledTimes(1)
+    })
+
+    it('shows why dictation failed and hides when idle', () => {
+        const props = { status: 'idle' as const, elapsedMs: 0, onCancel: vi.fn(), onFinish: vi.fn(), onDismissError: vi.fn() }
+        const { container, rerender } = render(<I18nProvider><DictationBar {...props} error={null} /></I18nProvider>)
+        expect(container.textContent).toBe('')
+        rerender(<I18nProvider><DictationBar {...props} error="micPermission" /></I18nProvider>)
+        expect(screen.getByRole('alert').textContent).toContain('No microphone access')
+        fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+        expect(props.onDismissError).toHaveBeenCalledTimes(1)
     })
 })
