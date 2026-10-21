@@ -540,7 +540,7 @@ stdout 是 TTY？
   --cli-font: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   --cli-prompt-color: #3b82f6;        /* 用户输入提示符 ❯ 的颜色 — 对应 Info 蓝 */
   --cli-tool-icon-color: #8b5cf6;     /* 工具调用前缀符号颜色 — 对应 Primary 紫 */
-  --cli-panel-bg: var(--app-subtle-bg); /* 结果面板背景 */
+  --cli-panel-bg: var(--social-muted); /* 结果面板背景 */
 }
 ```
 
@@ -559,8 +559,8 @@ stdout 是 TTY？
 | ------------------------ | --------------------------- | ---------------------------- |
 | `colors.info` (#3B82F6)  | `--cli-prompt-color`        | 浅色主题下的提示符颜色       |
 | `colors.primary` (#7C3AED)| `--cli-tool-icon-color`    | 工具前缀符号（略偏亮紫）     |
-| `colors.surface` (#1F2937)| `--cli-panel-bg`           | 通过 `--app-subtle-bg` 间接引用 |
-| `colors.muted` (#6B7280) | `--app-hint`               | 辅助文字、完成态工具标题     |
+| `colors.surface` (#1F2937)| `--cli-panel-bg`           | 通过 `--social-muted` 间接引用 |
+| `colors.muted` (#6B7280) | `--social-fg-muted`               | 辅助文字、完成态工具标题     |
 | `colors.error` (#EF4444) | `--app-badge-error-text`   | 错误状态指示                 |
 | `colors.warning` (#EAB308)| `--app-badge-warning-text` | 等待态、权限请求             |
 
@@ -621,13 +621,13 @@ switch (block.kind) {
 ```tsx
 <div className="border-l-2 border-[var(--cli-prompt-color)] pl-3 py-1">
     <span className="text-[var(--cli-prompt-color)] mr-2 select-none">❯</span>
-    <span className="text-[var(--app-fg)] whitespace-pre-wrap break-words">{text}</span>
+    <span className="text-[var(--social-fg)] whitespace-pre-wrap break-words">{text}</span>
 </div>
 ```
 
 - 左边框宽度：`2px`，颜色跟随 `--cli-prompt-color`
 - 提示符 `❯`：不可选中（`select-none`），与文本间距 `mr-2`（8px）
-- 附件显示为 `[filename]` 标签，使用 `--app-hint` 颜色，`text-xs` 字号
+- 附件显示为 `[filename]` 标签，使用 `--social-fg-muted` 颜色，`text-xs` 字号
 
 #### 7.2.3 工具调用块（CliToolBlock）
 
@@ -651,14 +651,14 @@ switch (block.kind) {
 
 | 符号/组件    | 状态     | 颜色                                 |
 | ------------ | -------- | ------------------------------------ |
-| `<Spinner/>` | 运行中   | `--app-hint`                         |
-| `✓`          | 完成     | `--app-hint` + `opacity-60`（muted） |
+| `<Spinner/>` | 运行中   | `--social-fg-muted`                         |
+| `✓`          | 完成     | `--social-fg-muted` + `opacity-60`（muted） |
 | `✗`          | 错误     | `--app-badge-error-text`（红色）     |
 | `○`          | 等待     | `--app-badge-warning-text`（黄色）   |
 
 **交互行为：**
 - 整行可点击，点击展开/折叠结果面板
-- 有结果时 hover 显示 `bg-[var(--app-subtle-bg)]`
+- 有结果时 hover 显示 `bg-[var(--social-muted)]`
 - 无结果时 `cursor-default`，无 hover 效果
 - 耗时显示在最右侧，`ml-auto`，`opacity-50`
 
@@ -667,7 +667,7 @@ switch (block.kind) {
 **视觉结构：** 左边框 + 缩进 + 可折叠 + 截断
 
 ```
-│ ← border-l (--app-divider), ml-5, pl-3
+│ ← border-l (--social-divider), ml-5, pl-3
 │  结果文本（最多 20 行）
 │  show more…  ← 超出时显示展开链接
 ```
@@ -675,7 +675,7 @@ switch (block.kind) {
 **样式规范：**
 
 ```tsx
-<div className="ml-5 mt-0.5 border-l border-[var(--app-divider)] pl-3 text-xs text-[var(--app-hint)]">
+<div className="ml-5 mt-0.5 border-l border-[var(--social-divider)] pl-3 text-xs text-[var(--social-fg-muted)]">
     <pre className="whitespace-pre-wrap break-words leading-relaxed">
         {displayText}
     </pre>
@@ -683,7 +683,7 @@ switch (block.kind) {
 ```
 
 - 缩进：`ml-5`（20px），与工具行的状态图标对齐
-- 左边框：`1px`，使用 `--app-divider` 颜色
+- 左边框：`1px`，使用 `--social-divider` 颜色
 - 字号：`text-xs`（12px），低于正文层级
 - 最大行数：**20 行**（`MAX_RESULT_LINES`），超出显示 "show more…" 链接
 - 错误结果额外显示红色 "error" 标签
@@ -696,16 +696,17 @@ switch (block.kind) {
 
 | Tone      | 文字色          | 边框色               | Hover 背景            | 用途               |
 | --------- | --------------- | -------------------- | --------------------- | ------------------ |
-| `allow`   | `emerald-500`   | `emerald-500/40`     | `emerald-500/10`      | 允许、提交         |
-| `deny`    | `red-400`       | `red-400/40`         | `red-400/10`          | 拒绝、中止         |
-| `neutral` | `--app-link`    | `--app-border`       | `--app-subtle-bg`     | 会话级允许等       |
+| `allow`   | `--app-badge-success-text` | `--app-badge-success-border` | `--app-badge-success-bg` | 允许、提交 |
+| `deny`    | `--social-danger` | `--app-badge-error-border` | `--app-badge-error-bg` | 拒绝、停止 |
+| `neutral` | `--social-fg` | `--social-border` | `--social-hover` | 会话级允许等 |
+
+CliBtn 包装的是 `Button`（`variant="outline" size="sm"`），只换色调，不手写 `<button>`：
 
 ```tsx
-<button className="inline-flex items-center gap-1 rounded border px-2 py-0.5 text-xs
-    transition-colors disabled:opacity-40 disabled:pointer-events-none {color}">
-    {loading && <Spinner size="sm" />}
+<Button variant="outline" size="sm" className={cn('h-9 gap-1 px-3 text-footnote', HIT_AREA_CLASS, color)}>
+    {loading && <Spinner size="sm" label={null} className="h-3 w-3 text-current" />}
     {label}
-</button>
+</Button>
 ```
 
 **权限请求布局：**
@@ -726,19 +727,19 @@ switch (block.kind) {
 选项渲染为紧凑按钮组：
 
 ```tsx
-<button className={`inline-flex items-center rounded border px-2 py-0.5 text-xs
+<button className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs
     transition-colors ${selected
-        ? 'border-[var(--app-link)] bg-[var(--app-link)]/10 text-[var(--app-link)]'
-        : 'border-[var(--app-border)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+        ? 'border-[var(--social-fg)] bg-[var(--social-fg)]/10 text-[var(--social-fg)]'
+        : 'border-[var(--social-border)] text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
     }`}>
     {multiSelect ? (selected ? '☑ ' : '☐ ') : (selected ? '● ' : '○ ')}
     {label}
 </button>
 ```
 
-- 选中态：`--app-link` 色边框 + 10% 透明背景
-- 未选中态：`--app-border` + `--app-hint` 文字
-- 文本输入框：透明背景、`max-w-md`、`focus:border-[var(--app-link)]`
+- 选中态：`--social-fg` 色边框 + 10% 透明背景
+- 未选中态：`--social-border` + `--social-fg-muted` 文字
+- 文本输入框：透明背景、`max-w-md`、`focus:border-[var(--social-fg)]`
 - "other" 选项始终附加在选项列表末尾
 
 #### 7.2.7 推理块（CliReasoningBlock）
@@ -747,11 +748,11 @@ switch (block.kind) {
 
 ```tsx
 <details className="py-0.5 group">
-    <summary className="text-[var(--app-hint)] italic text-xs cursor-pointer select-none
-        hover:text-[var(--app-fg)] transition-colors">
+    <summary className="text-[var(--social-fg-muted)] italic text-xs cursor-pointer select-none
+        hover:text-[var(--social-fg)] transition-colors">
         thinking…
     </summary>
-    <div className="text-[var(--app-hint)] italic text-xs pl-4 border-l border-[var(--app-divider)]
+    <div className="text-[var(--social-fg-muted)] italic text-xs pl-4 border-l border-[var(--social-divider)]
         mt-1 whitespace-pre-wrap break-words">
         {text}
     </div>
@@ -770,7 +771,7 @@ switch (block.kind) {
 — rate limited (token): retrying
 ```
 
-- 普通事件：`--app-hint` 颜色
+- 普通事件：`--social-fg-muted` 颜色
 - 警告事件（rate-limit、limit-reached、api-error）：`--app-badge-warning-text`
 - 静默事件（ready、title-changed、switch、message）：不渲染
 
@@ -781,11 +782,11 @@ switch (block.kind) {
 | 参数       | 值                                              | 对应 CSS                    |
 | ---------- | ----------------------------------------------- | --------------------------- |
 | 字体       | `var(--cli-font)`（等宽字体栈）                  | `.cli-thread { font-family }` |
-| 基础字号   | `calc(0.8125rem * var(--app-font-scale, 1))`    | `.cli-thread { font-size }`  |
+| 基础字号   | `0.8125rem`    | `.cli-thread { font-size }`  |
 | 行高       | `1.6`                                           | `.cli-thread { line-height }` |
 | 文本溢出   | `break-word` + `overflow-wrap: break-word`       | `.cli-thread`               |
 
-`0.8125rem` = 13px（在默认 16px 根字号下），比常规 UI 字号略小，营造终端的紧凑感。`--app-font-scale` 允许用户通过全局设置调整。
+`0.8125rem` = 13px（在默认 16px 根字号下），比常规 UI 字号略小，营造终端的紧凑感。全局字号设置会改 `html` 的字号，rem 自动跟着缩放；不要再乘 `--app-font-scale`，否则会缩放两次。
 
 #### 7.3.2 间距系统
 
@@ -817,15 +818,15 @@ CLI 模式使用 `ReactMarkdown` + `remarkGfm`，通过自定义组件覆盖实�
 
 **行内代码：**
 ```tsx
-<code className="break-words rounded bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]">
+<code className="break-words rounded-md bg-[var(--app-inline-code-bg)] px-[0.3em] py-[0.1em] text-[0.9em]">
 ```
 
 **围栏代码块（带语法高亮）：**
 ```tsx
-<div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--app-border)]">
+<div className="my-1 min-w-0 w-full max-w-full overflow-hidden rounded-md border border-[var(--social-border)]">
     {/* 头部：语言标签 + 复制按钮 */}
     <div className="flex items-center justify-between bg-[var(--app-code-bg)] px-2 py-0.5">
-        <span className="text-xs text-[var(--app-hint)]">{language}</span>
+        <span className="text-xs text-[var(--social-fg-muted)]">{language}</span>
         <button>...</button>  {/* 复制按钮 */}
     </div>
     {/* 代码体：Shiki 高亮 */}
@@ -847,12 +848,12 @@ CLI 模式使用 `ReactMarkdown` + `remarkGfm`，通过自定义组件覆盖实�
 | `<ul>`   | `list-disc pl-5 my-0.5`，紧凑列表间距                                 |
 | `<ol>`   | `list-decimal pl-5 my-0.5`                                            |
 | `<li>`   | `my-0`，无额外间距                                                     |
-| `<blockquote>` | `border-l-4 border-[var(--app-hint)] pl-3 opacity-85`           |
+| `<blockquote>` | `border-l-4 border-[var(--social-fg-muted)] pl-3 opacity-85`           |
 | `<table>`| 包裹在 `overflow-x-auto` 容器中，`w-full border-collapse`             |
-| `<th>`   | `border border-[var(--app-border)] px-2 py-1 font-semibold bg-[var(--app-subtle-bg)]` |
-| `<td>`   | `border border-[var(--app-border)] px-2 py-1`                         |
-| `<hr>`   | `border-[var(--app-divider)] my-1`                                     |
-| `<a>`    | `text-[var(--app-link)] underline`                                     |
+| `<th>`   | `border border-[var(--social-border)] px-2 py-1 font-semibold bg-[var(--social-muted)]` |
+| `<td>`   | `border border-[var(--social-border)] px-2 py-1`                         |
+| `<hr>`   | `border-[var(--social-divider)] my-1`                                     |
+| `<a>`    | `text-[var(--social-fg)] underline`                                     |
 
 CLI 模式下 Markdown 继承线程的等宽字体和字号：
 
@@ -883,13 +884,13 @@ CLI 模式下 Markdown 继承线程的等宽字体和字号：
 **视觉变化：**
 
 ```
-┌─────────────────────────────────────┐  ← 直角边框（rounded → rounded border）
+┌─────────────────────────────────────┐  ← 直角边框（rounded-md border）
 │ ❯ 输入文本…                         │
 └─────────────────────────────────────┘
 ```
 
 对比普通模式的圆角药丸形（`rounded-[20px]`），CLI 模式使用：
-- 容器：`rounded border border-[var(--app-border)] bg-transparent`
+- 容器：`rounded-md border border-[var(--social-border)] bg-transparent`
 - 内边距：`px-2 py-1.5`（比普通模式的 `px-4 py-3` 更紧凑）
 - 提示符：`❯`，颜色 `--cli-prompt-color`，`font-semibold`，位于输入框左侧
 - 字体：`font-mono text-[0.8125rem]`
@@ -897,7 +898,7 @@ CLI 模式下 Markdown 继承线程的等宽字体和字号：
 ```css
 .cli-composer {
   font-family: var(--cli-font);
-  font-size: calc(0.8125rem * var(--app-font-scale, 1));
+  font-size: 0.8125rem;
 }
 .cli-composer .flex.items-center.justify-between {
   padding-top: 0.125rem;
@@ -949,7 +950,7 @@ import type { MyNewBlock } from '@/chat/types'
 
 export const CliMyNewBlock = memo(function CliMyNewBlock(props: { block: MyNewBlock }) {
     return (
-        <div className="py-0.5 text-xs text-[var(--app-hint)]">
+        <div className="py-0.5 text-xs text-[var(--social-fg-muted)]">
             {/* 遵循 py-0.5 块间距、text-xs 辅助字号的约定 */}
         </div>
     )
@@ -984,10 +985,10 @@ case 'my-new-block':
 ```css
 /* 示例：新增结果面板边框色 */
 .cli-session {
-  --cli-result-border: var(--app-divider);
+  --cli-result-border: var(--social-divider);
 }
 [data-theme="dark"] .cli-session {
-  --cli-result-border: var(--app-divider);  /* 深色下可使用不同值 */
+  --cli-result-border: var(--social-divider);  /* 深色下可使用不同值 */
 }
 ```
 
@@ -1002,7 +1003,7 @@ case 'my-new-block':
 - [ ] **等待态 `○`**：黄色/warning 色，与运行态 spinner 可区分
 - [ ] **结果面板**：左边框可见但不突兀，文字与背景对比度充足
 - [ ] **代码块**：`--app-code-bg` 在两个主题下都与周围区域有区分
-- [ ] **选中态按钮**：`--app-link` 色的 10% 透明背景在两个主题下都可见
+- [ ] **选中态按钮**：`--social-fg` 色的 10% 透明背景在两个主题下都可见
 - [ ] **输入框 focus**：边框色变化明显，可感知焦点状态
 - [ ] **Markdown 表格**：边框色在深色背景下可见
 
@@ -1013,6 +1014,6 @@ case 'my-new-block':
 | **信息密度优先**       | 块间距仅 2px，辅助信息用 opacity 降级而非隐藏               |
 | **渐进式披露**         | 结果面板默认折叠，20 行截断，点击展开                       |
 | **等宽字体贯穿**       | `.cli-session` 级联强制所有子元素继承 `--cli-font`          |
-| **色彩克制**           | 仅状态指示器和关键标记着色，正文使用 `--app-fg`/`--app-hint` |
+| **色彩克制**           | 仅状态指示器和关键标记着色，正文使用 `--social-fg`/`--social-fg-muted` |
 | **终端隐喻一致**       | `❯` 提示符、`$` `→` `←` 前缀、`✓` `✗` `○` 状态符号        |
 | **Web 增强**           | 可点击展开、hover 效果、Shiki 语法高亮、内联权限操作         |
