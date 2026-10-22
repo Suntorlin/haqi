@@ -11,6 +11,7 @@ import {
     DecisionCard,
     DecisionConfirmation,
     LeadComposer,
+    ReopenBar,
     ReportSummary,
     RiskNotice,
     SectionCaption,
@@ -336,7 +337,7 @@ export function TaskReport(props: {
     const { task } = useTask(props.api, props.taskId)
     const { session: lead } = useSession(props.api, task?.leadSessionId ?? null)
     const waitingRequest = Object.entries(lead?.agentState?.requests ?? {})[0] ?? null
-    const { confirmTask, retryGuide, updateTask, answerDecision, askDecision, verdict } = useTaskActions(props.api)
+    const { confirmTask, retryGuide, updateTask, answerDecision, askDecision, verdict, reopen } = useTaskActions(props.api)
     const [changing, setChanging] = useState(false)
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
@@ -433,7 +434,7 @@ export function TaskReport(props: {
                                 setError(failure instanceof Error ? failure.message : String(failure))
                                 throw failure
                             }
-                        }} onAllChats={task.run.phase === 'reporting' ? props.onAllChats : undefined} />
+                        }} onAllChats={task.run.phase === 'reporting' || task.run.phase === 'accepted' ? props.onAllChats : undefined} />
                     ) : null}
 
                     {!guiding && !task.run ? (
@@ -453,6 +454,9 @@ export function TaskReport(props: {
                     onApprove={() => void run(() => verdict(task.id, { approved: true }))}
                     onRequestChanges={() => setChanging(true)}
                 />
+            ) : task.run?.phase === 'accepted' ? (
+                // Words sent here would reach no one: the way on is to reopen the task.
+                <ReopenBar pending={pending} onReopen={() => void run(() => reopen(task.id))} />
             ) : (
                 <LeadComposer
                     latest={props.latest ?? { from: 'lead', text: t('taskReport.noMessages'), when: '' }}

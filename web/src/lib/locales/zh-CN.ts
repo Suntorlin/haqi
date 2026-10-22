@@ -1643,4 +1643,6 @@ export default {
   'report.composer.send': '发送',
   'report.verdict.approve': '通过',
   'report.verdict.change': '要改',
+  'report.reopen.note': '已通过，任务结束了',
+  'report.reopen.action': '重新打开',
 } as const

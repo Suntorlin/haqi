@@ -215,6 +215,17 @@ describe('task run after the guide step', () => {
 
         const accepted = await t.runs.verdict('default', task.id, { approved: true }).then(() => t.service.get('default', task.id)!)
         expect([accepted.status, accepted.run!.phase]).toEqual(['done', 'accepted'])
+
+        // Accepted by mistake: a word in the chat says how to go on, reopening brings the report back, and a change still works.
+        await t.runs.userMessage('default', task.id, '还有一处没改')
+        expect(t.lines.at(-1)!.text).toContain('先在任务页点“重新打开”')
+        await t.runs.reopen('default', task.id)
+        const reopened = t.service.get('default', task.id)!
+        expect([reopened.status, reopened.run!.phase]).toEqual(['active', 'reporting'])
+        await expect(t.runs.reopen('default', task.id)).rejects.toThrow('Only an accepted task can be reopened')
+        await t.runs.verdict('default', task.id, { approved: false, text: '还有一处没改' })
+        await t.settle()
+        expect(t.service.get('default', task.id)!.run!.phase).toBe('fixing')
     })
 
     it('asks the user mid-way, writes the answer as an experience, and answers the same question by precedent next time', async () => {

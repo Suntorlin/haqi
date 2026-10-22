@@ -6,4 +6,4 @@ export { SectionCaption, StatTiles, ReportSummary, RiskNotice, ShotRow } from '.
 export { DecisionCard, DecisionPeek, DecisionConfirmation, Checklist } from './DecisionCard'
 export { ProgressList, ProgressRow } from './ProgressList'
 export { LeadComposer } from './LeadComposer'
-export { VerdictBar } from './VerdictBar'
+export { ReopenBar, VerdictBar } from './VerdictBar'
