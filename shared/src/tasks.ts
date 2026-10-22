@@ -82,7 +82,7 @@ export type TaskView = {
  * merges their branches (integrating), a reviewer checks every criterion (reviewing), failed criteria go back to a
  * fixer (fixing), the report waits for the user's verdict (reporting), and the user accepts it (accepted).
  */
-export type TaskPhase = 'planning' | 'running' | 'integrating' | 'reviewing' | 'fixing' | 'reporting' | 'accepted'
+export type TaskPhase = 'planning' | 'running' | 'integrating' | 'reviewing' | 'fixing' | 'delivering' | 'reporting' | 'accepted'
 
 export type SubtaskState = 'waiting' | 'running' | 'done' | 'stuck' | 'stopped'
 
@@ -168,6 +168,8 @@ export type TaskRevision = {
     doneAt: number | null
 }
 
+export type TaskDelivery = { conclusion: string; body: string; at: number }
+
 export type TaskRun = {
     phase: TaskPhase
     subtasks: TaskSubtask[]
@@ -178,6 +180,8 @@ export type TaskRun = {
     report: { conclusion: string; markdown: string; shareUrl: string | null; at: number } | null
     /** The changes the user asked for at the report, oldest first. */
     revisions?: TaskRevision[]
+    /** What the lead hands the user, newest version: one-line conclusion and a short markdown body. */
+    delivery?: TaskDelivery | null
     /** The observer: when it last looked (null after a hub restart until the next look) and what it did, newest last. */
     watch?: { checkedAt: number | null; log: TaskWatchEntry[] }
 }

@@ -3,7 +3,7 @@
  * a report waits for the user. Every step is an event; the run state below is read back from the log, so the task
  * page and the report come from the same record.
  */
-import type { CriterionVerdict, SubtaskState, TaskDecision, TaskPhase, TaskRevision, TaskRun, TaskSignal, TaskSubtask, TaskWatchEntry } from '@hapi/protocol/types'
+import type { CriterionVerdict, SubtaskState, TaskDecision, TaskDelivery, TaskPhase, TaskRevision, TaskRun, TaskSignal, TaskSubtask, TaskWatchEntry } from '@hapi/protocol/types'
 import { z } from 'zod'
 import type { StoredTaskEvent } from '../../store/types'
 
@@ -86,6 +86,18 @@ export type PlanInput = z.infer<typeof planInputSchema>
 
 type Payload = Record<string, unknown>
 
+export const isFixId = (id: string) => id.startsWith('fix-')
+/** The lead's hand-over to the user, one per report. */
+export const isDeliverId = (id: string) => id.startsWith('deliver-')
+
+/** The lead's hand-over: its first line is the conclusion, the rest the body. */
+export function splitDelivery(text: string): { conclusion: string; body: string } {
+    const lines = text.trim().split('\n')
+    const first = lines.findIndex((line) => line.trim())
+    const conclusion = (lines[first] ?? '').replace(/^[#>*\s]+/, '').replace(/\*+$/, '').trim()
+    return { conclusion, body: lines.slice(first + 1).join('\n').trim() }
+}
+
 /** The id a session has now, after any `session_replaced` events. */
 export function currentSessionId(events: StoredTaskEvent[], sessionId: string): string {
     let id = sessionId
@@ -107,6 +119,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
     let review: TaskRun['review'] = null
     let report: TaskRun['report'] = null
     const revisions: TaskRevision[] = []
+    let delivery: TaskDelivery | null = null
 
     const addSubtask = (raw: Payload, fix: boolean) => {
         const id = String(raw.id)
@@ -140,12 +153,14 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 addSubtask(p, true)
                 // The fix that follows a change request is that request's fix.
                 const revision = revisions.at(-1)
-                if (revision && !revision.fixId) revision.fixId = String(p.id)
+                if (revision && !revision.fixId && isFixId(String(p.id))) revision.fixId = String(p.id)
                 break
             }
             case RUN_EVENT.subtaskStarted: {
                 const s = subtasks.get(String(p.id))
-                if (s) Object.assign(s, { state: 'running', sessionId: p.sessionId ?? null, branch: p.branch ?? null, startedAt: event.createdAt })
+                // A lead can hand in before its start is logged; done stays done.
+                if (s && s.state !== 'done') Object.assign(s, { state: 'running', sessionId: p.sessionId ?? null, branch: p.branch ?? null, startedAt: event.createdAt })
+                else if (s) Object.assign(s, { sessionId: p.sessionId ?? null, startedAt: event.createdAt })
                 break
             }
             case RUN_EVENT.subtaskDone: {
@@ -153,6 +168,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 if (s) Object.assign(s, { state: 'done', summary: p.summary ?? null, doneAt: event.createdAt })
                 const revision = revisions.find((r) => r.fixId === String(p.id))
                 if (revision) Object.assign(revision, { summary: (p.summary as string | null) ?? null, doneAt: event.createdAt })
+                if (isDeliverId(String(p.id)) && typeof p.summary === 'string') delivery = { ...splitDelivery(p.summary), at: event.createdAt }
                 break
             }
             case RUN_EVENT.subtaskState: {
@@ -233,6 +249,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
         review,
         report,
         revisions,
+        delivery,
         watch: { checkedAt: null, log: log.slice(-WATCH_LOG_MAX) }
     }
 }
@@ -242,6 +259,6 @@ export function readyToStart(run: TaskRun, limit = RUN_LIMITS.concurrency): Task
     const running = run.subtasks.filter((s) => s.state === 'running' || s.state === 'stuck').length
     const done = new Set(run.subtasks.filter((s) => s.state === 'done').map((s) => s.id))
     return run.subtasks
-        .filter((s) => s.state === 'waiting' && s.dependsOn.every((d) => done.has(d)))
+        .filter((s) => !s.fix && s.state === 'waiting' && s.dependsOn.every((d) => done.has(d)))
         .slice(0, Math.max(0, limit - running))
 }

@@ -133,6 +133,50 @@ export function fixPrompt(brief: TaskBrief, items: string[], worktree: string, s
     ].join('\n')
 }
 
+/** The summary limit of subtask_done; the hand-over has to fit in it. */
+const DELIVERY_MAX = 3000
+
+/**
+ * After review the lead hands the result to the user: it alone decides what the user sees, in the user's own
+ * writing rules. A new hand-over replaces the last one, so it says what changed since.
+ */
+export function deliverPrompt(brief: TaskBrief, input: {
+    subtaskId: string
+    results: string[]
+    materials: string[]
+    principles: string[]
+    worktree: string | null
+    previous: string | null
+}): string {
+    return [
+        ...header(brief, '评审做完了。你是负责人，请写交给用户的交付说明。'),
+        '',
+        '## 验收标准和评审结论',
+        ...input.results.map((line) => `- ${line}`),
+        '',
+        '## 各会话交的东西',
+        ...input.materials.map((line) => `- ${line}`),
+        ...(input.previous ? ['', '## 你上次交给用户的（这次要替换它）', input.previous] : []),
+        '',
+        '## 用户的原则（必须遵守）',
+        ...(input.principles.length ? input.principles.map((line) => `- ${line}`) : ['- 结论先行；一句话只说一件事，句子短；不复述过程。']),
+        '',
+        '## 要做的事',
+        `1. 读上面的材料。要核对时，只读${input.worktree ? `结果目录 ${input.worktree} 里的` : '相关'}文件，不改文件，不提交。`,
+        `2. 写交付说明（markdown，不超过 ${DELIVERY_MAX} 字）。用户只看这一份，你对它负责：`,
+        '   - 第一行：一句话结论，不超过 40 字，不加 # 或 **。',
+        '   - 「## 要你做的事」：编号，最多 3 条；没有就写「没有。」',
+        ...(brief.userMessages?.some((line) => line.startsWith('验收时要改：'))
+            ? ['   - 「## 按你的意见改了」：用户验收时要改的，每条一句：改了什么，在哪看。']
+            : []),
+        '   - 「## 交付物」：给公网链接（报告、截图），一行一个，写清是什么。不给 localhost 或本机路径以外的内网地址。',
+        '   - 「## 风险」：没有就不写这一节。',
+        '   - 只写结论和用户要用的东西，不写过程，不贴执行会话的原话。',
+        `3. 调用 subtask_done：task_id 填 "${brief.taskId}"，subtask_id 填 "${input.subtaskId}"，summary 填交付说明全文。`,
+        '4. 提交后停下。'
+    ].join('\n')
+}
+
 export function remindPrompt(taskId: string, subtask: TaskSubtask): string {
     return [
         `${WORK_MARKER} 任务 ${taskId}：你还在做子任务「${subtask.title}」吗？`,
