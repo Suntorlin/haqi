@@ -7,6 +7,7 @@ export function useExperimentalSettings(api: ApiClient | null, enabled: boolean)
         claudeLoginShell: boolean
         codexReportPromptEnabled: boolean
         previewEnabled: boolean
+        alwaysYolo: boolean
     }
     isLoading: boolean
     error: string | null
@@ -28,7 +29,8 @@ export function useExperimentalSettings(api: ApiClient | null, enabled: boolean)
         settings: {
             claudeLoginShell: query.data?.settings.claudeLoginShell ?? false,
             codexReportPromptEnabled: query.data?.settings.codexReportPromptEnabled ?? false,
-            previewEnabled: query.data?.settings.previewEnabled ?? true
+            previewEnabled: query.data?.settings.previewEnabled ?? true,
+            alwaysYolo: query.data?.settings.alwaysYolo ?? true
         },
         isLoading: query.isLoading,
         error: query.error instanceof Error ? query.error.message : query.error ? 'Failed to load experimental settings' : null,

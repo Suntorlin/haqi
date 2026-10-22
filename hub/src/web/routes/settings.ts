@@ -7,7 +7,8 @@ import {
     newSessionDefaultsSchema,
     type NewSessionDefaultsStore
 } from '../../config/newSessionDefaults'
-import { readSettingsOrThrow, writeSettings } from '../../config/settings'
+import { readSettingsOrThrow, writeSettings, type Settings } from '../../config/settings'
+import type { SyncEngine } from '../../sync/syncEngine'
 import type { Store } from '../../store'
 import type { WebAppEnv } from '../middleware/auth'
 
@@ -18,12 +19,14 @@ const updateProjectOfflineSchema = z.object({
 const updateExperimentalSettingsSchema = z.object({
     claudeLoginShell: z.boolean().optional(),
     codexReportPromptEnabled: z.boolean().optional(),
-    previewEnabled: z.boolean().optional()
+    previewEnabled: z.boolean().optional(),
+    alwaysYolo: z.boolean().optional()
 }).superRefine((value, ctx) => {
     if (
         value.claudeLoginShell === undefined
         && value.codexReportPromptEnabled === undefined
         && value.previewEnabled === undefined
+        && value.alwaysYolo === undefined
     ) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -35,6 +38,15 @@ const updateExperimentalSettingsSchema = z.object({
 const DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL = false
 const DEFAULT_CODEX_REPORT_PROMPT_ENABLED = false
 const DEFAULT_PREVIEW_ENABLED = true
+
+function experimentalView(settings: Settings) {
+    return {
+        claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
+        codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED,
+        previewEnabled: settings.previewEnabled ?? DEFAULT_PREVIEW_ENABLED,
+        alwaysYolo: settings.alwaysYolo !== false
+    }
+}
 
 function normalizeDirectories(directories: string[]): string[] {
     const seen = new Set<string>()
@@ -52,20 +64,15 @@ function normalizeDirectories(directories: string[]): string[] {
 
 export function createSettingsRoutes(
     store: Store,
-    getNewSessionDefaults: () => NewSessionDefaultsStore = getNewSessionDefaultsStore
+    getNewSessionDefaults: () => NewSessionDefaultsStore = getNewSessionDefaultsStore,
+    getSyncEngine?: () => SyncEngine | null
 ): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
     app.get('/settings/experimental', async (c) => {
         try {
             const settings = await readSettingsOrThrow(configuration.settingsFile)
-            return c.json({
-                settings: {
-                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
-                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED,
-                    previewEnabled: settings.previewEnabled ?? DEFAULT_PREVIEW_ENABLED
-                }
-            })
+            return c.json({ settings: experimentalView(settings) })
         } catch (error) {
             return c.json({
                 error: error instanceof Error ? error.message : 'Failed to load experimental settings'
@@ -91,14 +98,14 @@ export function createSettingsRoutes(
             if (parsed.data.previewEnabled !== undefined) {
                 settings.previewEnabled = parsed.data.previewEnabled
             }
+            const turnedOnYolo = parsed.data.alwaysYolo === true
+            if (parsed.data.alwaysYolo !== undefined) {
+                settings.alwaysYolo = parsed.data.alwaysYolo
+            }
             await writeSettings(configuration.settingsFile, settings)
-            return c.json({
-                settings: {
-                    claudeLoginShell: settings.experimentalClaudeLoginShell ?? DEFAULT_EXPERIMENTAL_CLAUDE_LOGIN_SHELL,
-                    codexReportPromptEnabled: settings.codexReportPromptEnabled ?? DEFAULT_CODEX_REPORT_PROMPT_ENABLED,
-                    previewEnabled: settings.previewEnabled ?? DEFAULT_PREVIEW_ENABLED
-                }
-            })
+            // Turned on: the sessions already running follow, not only the next ones.
+            const switched = turnedOnYolo ? await getSyncEngine?.()?.yoloRunningSessions(c.get('namespace')) ?? 0 : undefined
+            return c.json({ settings: experimentalView(settings), ...(switched !== undefined ? { switched } : {}) })
         } catch (error) {
             return c.json({
                 error: error instanceof Error ? error.message : 'Failed to update experimental settings'

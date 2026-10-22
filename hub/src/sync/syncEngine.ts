@@ -41,6 +41,7 @@ import { LoadService } from '../tasks/loadService'
 import { sessionActivity } from '../tasks/sessionActivity'
 import { resolveJevApiKey } from '../memory/jev'
 import { configuration } from '../configuration'
+import { readSettings } from '../config/settings'
 
 export type { Session, SyncEvent } from '@hapi/protocol/types'
 export type { Machine } from './machineCache'
@@ -2005,6 +2006,8 @@ ${note.content}
         sourceClaudeAccountId?: string
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
+        // The system switch overrides each caller: the task lead, a resume, the new-session form.
+        if (await this.alwaysYolo()) yolo = true
         const result = await this.rpcGateway.spawnSession(
             machineId,
             directory,
@@ -2448,9 +2451,9 @@ ${note.content}
 
         // A woken session must come back with the settings it was started with, not the defaults.
         const { model, thinkEffort, serviceTier } = this.readSpawnPreferences(metadata, flavor)
-        const yolo = session.permissionMode !== undefined
+        const yolo = await this.alwaysYolo() || (session.permissionMode !== undefined
             && YOLO_PERMISSION_MODES.has(session.permissionMode)
-            && isPermissionModeAllowedForFlavor(session.permissionMode, flavor)
+            && isPermissionModeAllowedForFlavor(session.permissionMode, flavor))
 
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
@@ -2498,6 +2501,35 @@ ${note.content}
      * Starts a session and sends it a first message once it runs. The message is stored like one from the web, with
      * `meta`, so memory can tell it is not the user's.
      */
+    /** The system switch "every session in YOLO" (settings.json `alwaysYolo`); on unless the user turned it off. */
+    async alwaysYolo(): Promise<boolean> {
+        try {
+            const settings = await readSettings(configuration.settingsFile)
+            return settings !== null && settings.alwaysYolo !== false
+        } catch {
+            // No readable settings (e.g. not configured): each caller's own choice stands.
+            return false
+        }
+    }
+
+    /** The switch was turned on: sessions already running switch to YOLO too. Returns how many did. */
+    async yoloRunningSessions(namespace: string): Promise<number> {
+        let switched = 0
+        for (const session of this.getSessionsByNamespace(namespace)) {
+            if (!session.active) continue
+            const flavor = session.metadata?.flavor ?? 'claude'
+            const mode = yoloPermissionModeForFlavor(flavor)
+            if (session.permissionMode === mode || !isPermissionModeAllowedForFlavor(mode, flavor)) continue
+            try {
+                await this.applySessionConfig(session.id, { permissionMode: mode })
+                switched += 1
+            } catch {
+                // A session that does not answer keeps its mode; it starts in YOLO next time.
+            }
+        }
+        return switched
+    }
+
     async spawnAndPrompt(
         machineId: string,
         directory: string,

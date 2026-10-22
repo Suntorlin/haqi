@@ -557,10 +557,14 @@ export type ExperimentalSettings = {
     claudeLoginShell: boolean
     codexReportPromptEnabled: boolean
     previewEnabled: boolean
+    /** System switch: every session starts with every permission granted. */
+    alwaysYolo: boolean
 }
 
 export type ExperimentalSettingsResponse = {
     settings: ExperimentalSettings
+    /** After turning "always YOLO" on: how many running sessions switched. */
+    switched?: number
 }
 
 export type ReportDomainSettings = {
