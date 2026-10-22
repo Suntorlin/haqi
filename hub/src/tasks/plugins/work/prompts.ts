@@ -139,8 +139,8 @@ export function fixPrompt(brief: TaskBrief, items: string[], worktree: string, s
     ].join('\n')
 }
 
-/** The summary limit of subtask_done; the hand-over has to fit in it. */
-const DELIVERY_MAX = 3000
+/** The user reads the hand-over on a phone: short, well inside subtask_done's summary limit. */
+const DELIVERY_MAX = 800
 
 /**
  * After review the lead hands the result to the user: it alone decides what the user sees, in the user's own
@@ -176,6 +176,7 @@ export function deliverPrompt(brief: TaskBrief, input: {
             ? ['   - 「## 按你的意见改了」：用户验收时要改的，每条一句：改了什么，在哪看。']
             : []),
         '   - 「## 交付物」：给公网链接（报告、截图），一行一个，写清是什么。不给 localhost 或本机路径以外的内网地址。',
+        '   - 「## 关键数字」：最多 3 条，只放影响用户决定的。',
         '   - 「## 风险」：没有就不写这一节。',
         '   - 只写结论和用户要用的东西，不写过程，不贴执行会话的原话。',
         `3. 调用 subtask_done：task_id 填 "${brief.taskId}"，subtask_id 填 "${input.subtaskId}"，summary 填交付说明全文。`,
