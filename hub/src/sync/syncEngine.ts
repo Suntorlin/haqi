@@ -825,23 +825,35 @@ export class SyncEngine {
         quotedMessageId?: string | null
     }) {
         const result = await this.groupService.addTimelineMessage(options)
-        await this.reviseTaskFromChat(options)
+        await this.taskFromChat(options)
         return result
     }
 
     /**
-     * While a task is in the guide step, what the user says in its group goes to the planner as a change request, so
-     * the group's own composer is where the user asks HAQI to change the draft.
+     * What the user says in a task's group without an @ goes to the task, so the task page's composer always reaches
+     * someone: in the guide step to the planner as a change request, while it runs to the sessions working now.
      */
-    private async reviseTaskFromChat(options: { groupId: string; namespace: string; type: string; payload: unknown; source?: string; actorSessionId?: string | null }): Promise<void> {
+    private async taskFromChat(options: { groupId: string; namespace: string; type: string; payload: unknown; source?: string; actorSessionId?: string | null }): Promise<void> {
         if (options.type !== 'chat' || options.actorSessionId || !(options.source ?? 'user:web').startsWith('user:')) return
         const text = options.payload && typeof options.payload === 'object' && typeof (options.payload as { text?: unknown }).text === 'string'
             ? (options.payload as { text: string }).text.trim()
             : ''
         if (!text) return
         const task = this.taskService.kernel.get(options.namespace, options.groupId)
-        if (task?.status !== 'guiding') return
-        await this.taskService.revise(options.namespace, options.groupId, text)
+        if (task?.status === 'guiding') {
+            await this.taskService.revise(options.namespace, options.groupId, text)
+            return
+        }
+        // An @ already routes the message to the named sessions.
+        if (task?.status === 'active' && !/\B@[A-Za-z0-9._:-]+/.test(text)) {
+            await this.taskService.runs?.userMessage(options.namespace, options.groupId, text).catch(() => {})
+        }
+    }
+
+    /** A resumed session that came back under a new id takes over the old one's rows and task roles. */
+    private async mergeSessions(oldSessionId: string, newSessionId: string, namespace: string): Promise<void> {
+        this.taskService.sessionReplaced(namespace, oldSessionId, newSessionId)
+        await this.sessionCache.mergeSessions(oldSessionId, newSessionId, namespace)
     }
 
     getGroupNote(groupId: string, namespace: string) {
@@ -2066,7 +2078,7 @@ ${note.content}
         )
         if (result.type !== 'success') return result
         if (!await this.waitForSessionActive(result.sessionId)) return { type: 'error', message: '切换后的会话未能启动' }
-        if (result.sessionId !== session.id) await this.sessionCache.mergeSessions(session.id, result.sessionId, namespace)
+        if (result.sessionId !== session.id) await this.mergeSessions(session.id, result.sessionId, namespace)
         return result
     }
 
@@ -2468,7 +2480,7 @@ ${note.content}
 
         if (spawnResult.sessionId !== access.sessionId) {
             try {
-                await this.sessionCache.mergeSessions(access.sessionId, spawnResult.sessionId, namespace)
+                await this.mergeSessions(access.sessionId, spawnResult.sessionId, namespace)
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Failed to merge resumed session'
                 return { type: 'error', message, code: 'resume_failed' }

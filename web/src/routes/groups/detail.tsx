@@ -12,6 +12,7 @@ import { useGroupConversationTurns } from '@/hooks/queries/useGroupConversationT
 import { useGroupNote } from '@/hooks/queries/useGroupNote'
 import { useSession } from '@/hooks/queries/useSession'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
+import { useTask } from '@/hooks/queries/useTasks'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useMachines } from '@/hooks/queries/useMachines'
 import type {
@@ -20,7 +21,8 @@ import type {
     GroupMember,
     GroupTimelineMessage,
     GroupTaskStatus,
-    SessionSummary
+    SessionSummary,
+    TaskView
 } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
 import { MARKDOWN_PLUGINS, defaultComponents } from '@/components/assistant-ui/markdown-text'
@@ -203,11 +205,12 @@ function formatTime(ms: number): string {
     return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
-type MemberWorkStatus = 'offline' | 'pending' | 'working' | 'online'
+type MemberWorkStatus = 'offline' | 'finished' | 'pending' | 'working' | 'online'
 
-function getMemberWorkStatus(session: SessionSummary | undefined): MemberWorkStatus {
+/** `finished`: a task stopped this session after it delivered its part, so it is not offline by accident. */
+function getMemberWorkStatus(session: SessionSummary | undefined, finished = false): MemberWorkStatus {
     if (!session?.active) {
-        return 'offline'
+        return finished ? 'finished' : 'offline'
     }
     if ((session.pendingRequestsCount ?? 0) > 0) {
         return 'pending'
@@ -248,7 +251,7 @@ function MemberStatusLine(props: { session: SessionSummary | undefined; status: 
                     </span>
                 </span>
             ) : (
-                <span className="shrink-0">{status === 'online' ? t('misc.online') : t('misc.offline')}</span>
+                <span className="shrink-0">{status === 'online' ? t('misc.online') : status === 'finished' ? t('groups.member.finished') : t('misc.offline')}</span>
             )}
             {meta ? <span className="min-w-0 truncate">{`· ${meta}`}</span> : null}
         </span>
@@ -690,12 +693,13 @@ function AddMemberSheet(props: {
 function MemberRow(props: {
     member: GroupMember
     session?: SessionSummary
+    finished: boolean
     onOpen: () => void
     onMore: () => void
 }) {
     const { t } = useTranslation()
     const { member, session } = props
-    const status = getMemberWorkStatus(session)
+    const status = getMemberWorkStatus(session, props.finished)
     const title = getSessionTitle(session, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 })
     const hasSession = Boolean(member.sessionId)
     const longPressHandlers = useLongPress({
@@ -718,7 +722,7 @@ function MemberRow(props: {
                     session={{ id: member.sessionId ?? `member:${member.id}` }}
                     size={40}
                     ring={getMemberRing(status)}
-                    muted={status === 'offline'}
+                    muted={status === 'offline' || status === 'finished'}
                     badgeCount={status === 'pending' ? session?.pendingRequestsCount : 0}
                 />
                 <span className="min-w-0 flex-1">
@@ -737,6 +741,23 @@ function MemberRow(props: {
 
 type GroupNoteSummary = { content: string; version: number } | null
 
+/**
+ * The task sessions that delivered their part: done subtasks, the lead once it split the task, a reviewer once the
+ * review is in. The task stops each of them, so offline here means finished, not lost.
+ */
+function taskFinishedSessionIds(task: TaskView | null, members: GroupMember[]): Set<string> {
+    const run = task?.run
+    if (!run) return new Set()
+    const ids = new Set(run.subtasks.filter((s) => s.state === 'done' && s.sessionId).map((s) => s.sessionId!))
+    for (const member of members) {
+        if (!member.sessionId) continue
+        if (member.role === 'lead' && run.phase !== 'planning') ids.add(member.sessionId)
+        if (member.role === 'reviewer' && run.review && run.phase !== 'reviewing') ids.add(member.sessionId)
+    }
+    if (task.leadSessionId && run.phase !== 'planning') ids.add(task.leadSessionId)
+    return ids
+}
+
 /** WeChat "聊天信息": who is in the group, the shared note and how the chat is shown. */
 function GroupInfoSheet(props: {
     open: boolean
@@ -746,6 +767,8 @@ function GroupInfoSheet(props: {
     description: string | null
     members: GroupMember[]
     sessionMap: Map<string, SessionSummary>
+    /** Task sessions stopped after they delivered their part. */
+    finished: Set<string>
     note: GroupNoteSummary
     viewMode: ChatViewMode
     onViewModeChange: (mode: ChatViewMode) => void
@@ -808,6 +831,7 @@ function GroupInfoSheet(props: {
                         key={member.id}
                         member={member}
                         session={member.sessionId ? props.sessionMap.get(member.sessionId) : undefined}
+                        finished={Boolean(member.sessionId && props.finished.has(member.sessionId))}
                         onOpen={() => {
                             if (member.sessionId) closeThen(() => props.onOpenMember(member.sessionId as string))()
                         }}
@@ -857,6 +881,7 @@ function GroupInfoSheet(props: {
 function MemberActionsSheet(props: {
     member: GroupMember | null
     session?: SessionSummary
+    finished: boolean
     onOpenChange: (open: boolean) => void
     onOpenSession: () => void
     onHandlePending: () => void
@@ -864,7 +889,7 @@ function MemberActionsSheet(props: {
 }) {
     const { t } = useTranslation()
     const { member, session } = props
-    const status = getMemberWorkStatus(session)
+    const status = getMemberWorkStatus(session, props.finished)
     const title = member ? getSessionTitle(session, { fallbackSessionId: member.sessionId, fallbackIdLength: 12 }) : ''
 
     return (
@@ -872,7 +897,7 @@ function MemberActionsSheet(props: {
             {member ? (
                 <>
                     <div className="flex items-center gap-3.5 px-5 pb-4 pt-2">
-                        <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={44} ring={getMemberRing(status)} muted={status === 'offline'} />
+                        <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={44} ring={getMemberRing(status)} muted={status === 'offline' || status === 'finished'} />
                         <div className="min-w-0 flex-1">
                             <div className="line-clamp-2 text-headline font-semibold leading-snug text-[var(--social-fg)]">{title}</div>
                             <MemberStatusLine session={session} status={status} />
@@ -2046,6 +2071,7 @@ export default function GroupDetailPage() {
     // A task with a goal or a guide step opens as the lead's report; "All chats" shows this timeline.
     const [taskView, setTaskView] = useState<'report' | 'chat'>('report')
     useEffect(() => { setTaskView('report') }, [groupId])
+    const { task: groupTask } = useTask(api, group?.group.kind === 'task' ? groupId : null)
     const hasTaskReport = group?.group.kind === 'task' && (group.group.status === 'guiding' || Boolean(group.group.goal))
     const showTaskReport = hasTaskReport && taskView === 'report'
     const latestTaskMessage = useMemo<LatestMessage | null>(() => {
@@ -2122,6 +2148,7 @@ export default function GroupDetailPage() {
     }, [groupId])
 
     const members = group?.members ?? []
+    const finishedSessionIds = useMemo(() => taskFinishedSessionIds(groupTask, group?.members ?? []), [groupTask, group?.members])
     const existingMemberSessionIds = useMemo(
         () => new Set(members.filter((m) => m.sessionId).map((m) => m.sessionId as string)),
         [members]
@@ -3080,6 +3107,7 @@ export default function GroupDetailPage() {
                 description={group.group.description?.trim() || null}
                 members={members}
                 sessionMap={sessionMap}
+                finished={finishedSessionIds}
                 note={note ? { content: note.content ?? '', version: note.version } : null}
                 viewMode={viewMode}
                 onViewModeChange={setViewMode}
@@ -3095,6 +3123,7 @@ export default function GroupDetailPage() {
             <MemberActionsSheet
                 member={memberActionMember}
                 session={memberActionSession}
+                finished={Boolean(memberActionMember?.sessionId && finishedSessionIds.has(memberActionMember.sessionId))}
                 onOpenChange={(open) => {
                     if (!open) setMemberActionSessionId(null)
                 }}

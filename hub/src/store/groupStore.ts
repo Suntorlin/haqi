@@ -20,6 +20,7 @@ import {
     hasGroupTaskForTargetSession,
     getGroupTaskByNamespace,
     removeGroupMember,
+    replaceGroupSession,
     updateGroup,
     updateGroupNote,
     updateGroupTaskStatus,
@@ -118,6 +119,10 @@ export class GroupStore {
         sessionId: string
     }): boolean {
         return removeGroupMember(this.db, options)
+    }
+
+    replaceSession(options: { namespace: string; fromSessionId: string; toSessionId: string }): string[] {
+        return replaceGroupSession(this.db, options)
     }
 
     updateGroup(options: {

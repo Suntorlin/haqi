@@ -742,6 +742,50 @@ export function removeGroupMember(
     return true
 }
 
+/**
+ * A resumed session can come back under a new id, and the old row is deleted (which cascades to its memberships and
+ * dispatched commands). Before that, every group reference moves to the new id: memberships keep their role, a task
+ * keeps its lead. Returns the groups that referred to the old id.
+ */
+export function replaceGroupSession(db: Database, options: { namespace: string; fromSessionId: string; toSessionId: string }): string[] {
+    const params = { namespace: options.namespace, from: options.fromSessionId, to: options.toSessionId }
+    const groupIds = new Set((db.prepare(`
+        SELECT group_id AS id FROM group_members WHERE namespace = @namespace AND member_type = 'session' AND session_id = @from
+        UNION SELECT id FROM groups WHERE namespace = @namespace AND (lead_session_id = @from OR note_session_id = @from)
+        UNION SELECT group_id AS id FROM group_tasks WHERE namespace = @namespace AND target_session_id = @from
+    `).all(params) as Array<{ id: string }>).map((row) => row.id))
+    if (groupIds.size === 0) return []
+
+    db.exec('BEGIN')
+    try {
+        // Where the new session is already a member, it takes the old one's role unless it has a role of its own.
+        db.prepare(`
+            UPDATE group_members AS m SET role = (
+                SELECT o.role FROM group_members AS o
+                WHERE o.group_id = m.group_id AND o.member_type = 'session' AND o.session_id = @from
+            )
+            WHERE m.namespace = @namespace AND m.member_type = 'session' AND m.session_id = @to AND m.role = 'member'
+                AND EXISTS (SELECT 1 FROM group_members AS o WHERE o.group_id = m.group_id AND o.member_type = 'session' AND o.session_id = @from)
+        `).run(params)
+        db.prepare(`
+            UPDATE group_members SET session_id = @to
+            WHERE namespace = @namespace AND member_type = 'session' AND session_id = @from
+                AND NOT EXISTS (
+                    SELECT 1 FROM group_members AS n
+                    WHERE n.group_id = group_members.group_id AND n.member_type = 'session' AND n.session_id = @to
+                )
+        `).run(params)
+        db.prepare('UPDATE groups SET lead_session_id = @to WHERE namespace = @namespace AND lead_session_id = @from').run(params)
+        db.prepare('UPDATE groups SET note_session_id = @to WHERE namespace = @namespace AND note_session_id = @from').run(params)
+        db.prepare('UPDATE group_tasks SET target_session_id = @to WHERE namespace = @namespace AND target_session_id = @from').run(params)
+        db.exec('COMMIT')
+    } catch (error) {
+        db.exec('ROLLBACK')
+        throw error
+    }
+    return [...groupIds]
+}
+
 export function updateGroup(
     db: Database,
     options: {

@@ -14,6 +14,8 @@ export type TaskBrief = {
     repoPath: string
     /** Decisions already taken during the run (by the user or by precedent). */
     decisions?: Array<{ question: string; label: string }>
+    /** What the user said in the task's conversation during the run, oldest first. */
+    userMessages?: string[]
 }
 
 /** Rules every session that touches code gets: the user's hard limits. */
@@ -34,7 +36,8 @@ function header(brief: TaskBrief, title: string): string[] {
         '',
         `## 目标\n${brief.goal}`,
         ...(brief.nonGoals.length ? ['', '## 不做什么', ...brief.nonGoals.map((line) => `- ${line}`)] : []),
-        ...(brief.decisions?.length ? ['', '## 已定的决定（照做）', ...brief.decisions.map((d) => `- ${d.question} → ${d.label}`)] : [])
+        ...(brief.decisions?.length ? ['', '## 已定的决定（照做）', ...brief.decisions.map((d) => `- ${d.question} → ${d.label}`)] : []),
+        ...(brief.userMessages?.length ? ['', '## 用户在任务里说过的话（照顾到）', ...brief.userMessages.map((text) => `- ${text}`)] : [])
     ]
 }
 
@@ -132,6 +135,10 @@ export function remindPrompt(taskId: string, subtask: TaskSubtask): string {
         `${WORK_MARKER} 任务 ${taskId}：你还在做子任务「${subtask.title}」吗？`,
         `做完了请调用 subtask_done（subtask_id 填 "${subtask.id}"）。卡住了请调用 task_decision_ask，说清卡在哪、有哪些办法。`
     ].join('\n')
+}
+
+export function userMessagePrompt(taskId: string, text: string): string {
+    return `${WORK_MARKER} 任务 ${taskId}：用户在任务里说：「${text}」。和你的工作有关就照顾到，然后继续；不用回复。`
 }
 
 export function answerPrompt(taskId: string, question: string, label: string, by: 'user' | 'precedent'): string {

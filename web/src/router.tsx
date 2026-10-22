@@ -944,6 +944,20 @@ function taskRowSubtitle(item: GroupDetail, task: TaskView | undefined, t: Retur
     return [item.group.tag ? `#${item.group.tag}` : null, item.group.goal].filter(Boolean).join(' · ')
 }
 
+/**
+ * Who a task's header says is working. The lead only plans: after the split it is stopped, so a running task names
+ * the subtask sessions that work now, else its phase.
+ */
+function taskWorker(task: TaskView, anyoneThinking: boolean, t: ReturnType<typeof useTranslation>['t']): string {
+    const run = task.run
+    if (!run) return anyoneThinking ? t('taskRun.leadWorking') : t('tasks.status.guiding')
+    if (run.phase === 'planning' && anyoneThinking) return t('taskRun.leadWorking')
+    const working = run.subtasks.filter((s) => s.state === 'running')
+    if (working.length === 1) return t('taskRun.subtaskWorking', { title: working[0]!.title })
+    if (working.length > 1) return t('taskRun.subtasksWorking', { n: working.length })
+    return t(`taskRun.phase.${run.phase}`)
+}
+
 /** A running task's ring: acceptance criteria met (after review) or subtasks done (before). */
 function taskProgress(task: TaskView): number {
     const run = task.run!
@@ -1256,9 +1270,7 @@ function GroupsLayout() {
     const groupSubtitle = selectedGroup
         ? selectedTask && (selectedTask.status === 'guiding' || selectedTask.run)
             ? t('taskRun.header', {
-                who: membersOf(selectedGroup).some((session) => session.thinking)
-                    ? t('taskRun.leadWorking')
-                    : selectedTask.run ? t(`taskRun.phase.${selectedTask.run.phase}`) : t('tasks.status.guiding'),
+                who: taskWorker(selectedTask, membersOf(selectedGroup).some((session) => session.thinking), t),
                 time: formatRelativeTime(selectedTask.updatedAt, t) ?? ''
             })
             : t('groups.info.summary', {
