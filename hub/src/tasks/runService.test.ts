@@ -179,6 +179,25 @@ describe('task run after the guide step', () => {
         expect(t.lines.at(-1)?.text.startsWith('做完了，等你验收：')).toBe(true)
         expect(t.lines.at(-1)?.report).toBe(t.reports.at(-1))
 
+        // The user asks for a change at the report: a fixer does it, the reviewer is told, and the next report leads with it.
+        await t.runs.verdict('default', task.id, { approved: false, text: '报告不好读，给个简单版' })
+        await t.settle()
+        expect(t.service.get('default', task.id)!.run!.revisions).toMatchObject([{ request: '报告不好读，给个简单版', fixId: 'fix-2', summary: null }])
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'fix-2', summary: '写了易读版：https://example.test/share/r/easy' })
+        await t.settle()
+        expect(t.spawned.at(-1)!.text).toContain('验收时要改：报告不好读，给个简单版')
+        expect(t.spawned.at(-1)!.text).toContain('以「用户要改：」开头')
+        await t.runs.reviewSubmitted('default', task.id, { results: [
+            { criterionId: 'c1', status: 'met', evidence: '能恢复' },
+            { criterionId: 'c2', status: 'met', evidence: '测试全过' },
+            { criterionId: 'c3', status: 'met', evidence: '截图里看得到' }
+        ] })
+        await t.settle()
+        const revised = t.service.get('default', task.id)!.run!
+        expect(revised.revisions![0]!.summary).toContain('share/r/easy')
+        expect(revised.report!.conclusion.startsWith('按你的意见改好了；')).toBe(true)
+        expect(revised.report!.markdown).toContain('## 按你的意见改了\n你说：「报告不好读，给个简单版」\n\n写了易读版：https://example.test/share/r/easy')
+
         const accepted = await t.runs.verdict('default', task.id, { approved: true }).then(() => t.service.get('default', task.id)!)
         expect([accepted.status, accepted.run!.phase]).toEqual(['done', 'accepted'])
     })

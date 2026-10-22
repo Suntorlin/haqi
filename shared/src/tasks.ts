@@ -159,6 +159,15 @@ export type TaskReview = {
     suggestions: string[]
 }
 
+/** The user asked for a change at the report; a fixer did it. `summary` is the fixer's account, null until it is done. */
+export type TaskRevision = {
+    request: string
+    at: number
+    fixId: string | null
+    summary: string | null
+    doneAt: number | null
+}
+
 export type TaskRun = {
     phase: TaskPhase
     subtasks: TaskSubtask[]
@@ -167,6 +176,8 @@ export type TaskRun = {
     integration: { branch: string; worktree: string; summary: string | null } | null
     review: TaskReview | null
     report: { conclusion: string; markdown: string; shareUrl: string | null; at: number } | null
+    /** The changes the user asked for at the report, oldest first. */
+    revisions?: TaskRevision[]
     /** The observer: when it last looked (null after a hub restart until the next look) and what it did, newest last. */
     watch?: { checkedAt: number | null; log: TaskWatchEntry[] }
 }
