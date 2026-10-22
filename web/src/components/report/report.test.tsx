@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { I18nProvider } from '@/lib/i18n-context'
 import { Checklist, DecisionCard, LeadComposer, ProgressList, VerdictBar } from './index'
 import type { Decision, ProgressItem } from './types'
@@ -49,11 +49,21 @@ describe('DecisionCard', () => {
         expect(screen.getByRole('button', { name: '就选「现在删」' })).toBeTruthy()
     })
 
-    it('shows the ask button only when onAsk is given', () => {
+    it('asks back in the card itself: the field opens, the text goes to onAsk', async () => {
         const onAsk = vi.fn()
         renderWithProviders(<DecisionCard decision={DECISION} onAnswer={() => {}} onAsk={onAsk} />)
         fireEvent.click(screen.getByRole('button', { name: '问一下' }))
-        expect(onAsk).toHaveBeenCalled()
+        const field = screen.getByRole('textbox', { name: '想先问清楚什么？' })
+        expect(document.activeElement).toBe(field)
+        fireEvent.change(field, { target: { value: '留一个月要多少钱？' } })
+        fireEvent.click(screen.getByRole('button', { name: '发给提问的人' }))
+        await waitFor(() => expect(onAsk).toHaveBeenCalledWith('留一个月要多少钱？'))
+        await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull())
+    })
+
+    it('shows the question the user asked back', () => {
+        renderWithProviders(<DecisionCard decision={{ ...DECISION, asked: '要多少钱？' }} onAnswer={() => {}} />)
+        expect(screen.getByText('你问了：「要多少钱？」。等回答，回答会替换这张卡。')).toBeTruthy()
     })
 })
 

@@ -19,7 +19,7 @@ import { observe, type WatchedSession } from './plugins/observer/observer'
 import { isReadOnlyRequest } from './plugins/observer/readonly'
 import { composeReport } from './plugins/report/report'
 import {
-    answerPrompt, deliverPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
+    answerPrompt, askBackPrompt, deliverPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
 } from './plugins/work/prompts'
 
 export type RunSession = {
@@ -445,7 +445,8 @@ export class RunService {
         const parsed = decisionAskSchema.safeParse(body)
         if (!parsed.success) throw new TaskError(`Rejected: ${parsed.error.issues.map((i) => `${i.path.join('.') || 'decision'}: ${i.message}`).join('; ')}`)
         const run = this.run(namespace, taskId)
-        const id = `d${(run?.decisions.length ?? 0) + 1}`
+        // Counted over every question ever asked: a replaced question leaves the list, its id stays taken.
+        const id = `d${this.kernel.events(namespace, taskId).filter((e) => e.type === RUN_EVENT.decisionAsked).length + 1}`
         const askedBy = parsed.data.sessionId ?? null
         const subtaskId = run?.subtasks.find((s) => s.sessionId && s.sessionId === askedBy)?.id ?? null
         this.kernel.log(namespace, taskId, RUN_EVENT.decisionAsked, {
@@ -462,6 +463,35 @@ export class RunService {
         this.host.timeline(namespace, taskId, `等你拍板：${parsed.data.question}`)
         void this.host.push(namespace, { title: `等你拍板：${task.name}`, body: parsed.data.question, url: `/groups/${taskId}` }).catch(() => {})
         return { message: 'Sent to the user. Go on with the parts that do not depend on it; the answer comes to this session as a message.' }
+    }
+
+    /**
+     * The user asks back about an open decision instead of picking. It goes to the session that asked (resumed if
+     * stopped), else to the lead; that session answers by asking again, and its new question replaces this one.
+     */
+    async askAboutDecision(namespace: string, taskId: string, decisionId: string, text: string): Promise<{ to: string }> {
+        const task = this.requireRunning(namespace, taskId)
+        const decision = this.run(namespace, taskId)?.decisions.find((d) => d.id === decisionId)
+        if (!decision) throw new TaskError('Decision not found', 404)
+        if (decision.answer) throw new TaskError('Already answered', 409)
+        const prompt = askBackPrompt(taskId, decision.question, text)
+        const askMeta = meta(taskId, `ask:${decisionId}`)
+        let to = decision.askedBy ? await this.reach(namespace, decision.askedBy) : null
+        if (!to || !await this.host.send(to, prompt, askMeta).catch(() => false)) {
+            to = task.leadSessionId ? await this.reach(namespace, task.leadSessionId) : null
+            if (!to || !await this.host.send(to, prompt, askMeta).catch(() => false)) throw new TaskError('提问的会话和负责人都起不来，问不了。', 409)
+        }
+        const name = this.run(namespace, taskId)?.subtasks.find((s) => s.sessionId === to)?.title ?? '负责人'
+        this.kernel.log(namespace, taskId, RUN_EVENT.decisionQuestioned, { id: decisionId, text, to })
+        this.host.timeline(namespace, taskId, `你问了「${decision.question}」：${text}（已转给${name}）`)
+        return { to: name }
+    }
+
+    /** A session that can take a message now: as it is, or resumed. */
+    private async reach(namespace: string, sessionId: string): Promise<string | null> {
+        if (this.host.session(namespace, sessionId)?.active) return sessionId
+        const resumed = this.host.resume ? await this.host.resume(namespace, sessionId).catch(() => null) : null
+        return resumed && this.host.session(namespace, resumed)?.active ? resumed : null
     }
 
     async answerDecision(namespace: string, taskId: string, decisionId: string, label: string): Promise<void> {

@@ -16,6 +16,8 @@ export const RUN_EVENT = {
     subtaskState: 'subtask_state',
     decisionAsked: 'decision_asked',
     decisionAnswered: 'decision_answered',
+    /** The user asked back about an open decision; the asker's next question replaces it. */
+    decisionQuestioned: 'decision_questioned',
     signal: 'signal',
     /** A log-only observer entry, e.g. a read-only request it approved for the lead. */
     watch: 'watch',
@@ -177,6 +179,10 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 break
             }
             case RUN_EVENT.decisionAsked:
+                // A question the user asked back about is replaced by the asker's next one.
+                for (const [id, d] of decisions) {
+                    if (!d.answer && d.asked && (d.asked.to === (p.askedBy ?? null) || d.askedBy === (p.askedBy ?? null))) decisions.delete(id)
+                }
                 decisions.set(String(p.id), {
                     id: String(p.id),
                     question: String(p.question),
@@ -189,6 +195,11 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                     answer: null
                 })
                 break
+            case RUN_EVENT.decisionQuestioned: {
+                const d = decisions.get(String(p.id))
+                if (d) d.asked = { text: String(p.text), at: event.createdAt, to: (p.to as string | null) ?? null }
+                break
+            }
             case RUN_EVENT.decisionAnswered: {
                 const d = decisions.get(String(p.id))
                 if (d) d.answer = { label: String(p.label), by: p.by === 'precedent' ? 'precedent' : 'user', memoryId: (p.memoryId as string | null) ?? null, at: event.createdAt }
@@ -225,7 +236,10 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 const from = String(p.from)
                 const to = String(p.to)
                 for (const s of subtasks.values()) if (s.sessionId === from) s.sessionId = to
-                for (const d of decisions.values()) if (d.askedBy === from) d.askedBy = to
+                for (const d of decisions.values()) {
+                    if (d.askedBy === from) d.askedBy = to
+                    if (d.asked?.to === from) d.asked.to = to
+                }
                 for (const g of signals.values()) if (g.sessionId === from) g.sessionId = to
                 break
             }

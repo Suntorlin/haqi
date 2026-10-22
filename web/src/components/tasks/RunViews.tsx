@@ -184,8 +184,8 @@ function CheckSheet(props: { task: TaskView; run: TaskRun; criterion: Acceptance
     )
 }
 
-/** Open decisions: the first is open, the rest fold to a line each; "Ask" puts the question into the composer. */
-function Decisions(props: { run: TaskRun; decisions: TaskDecision[]; onAnswer: (id: string, label: string) => void; onAsk: (question: string) => void; now: number; t: Translate }) {
+/** Open decisions: the first is open, the rest fold to a line each; "Ask" sends a question back to the asker. */
+function Decisions(props: { run: TaskRun; decisions: TaskDecision[]; onAnswer: (id: string, label: string) => void; onAsk: (id: string, text: string) => Promise<void>; now: number; t: Translate }) {
     const { t } = props
     const [openId, setOpenId] = useState<string | null>(null)
     const [confirmed, setConfirmed] = useState<string | null>(null)
@@ -200,7 +200,8 @@ function Decisions(props: { run: TaskRun; decisions: TaskDecision[]; onAnswer: (
             name: props.run.subtasks.find((s) => s.id === d.subtaskId)?.title ?? t('report.composer.lead'),
             meta: t('taskRun.waited', { time: duration(props.now - d.askedAt, t) })
         },
-        options: d.options.map((o) => ({ label: o.label, good: o.good ?? '', cost: o.cost ?? '', recommended: o.label === d.recommended }))
+        options: d.options.map((o) => ({ label: o.label, good: o.good ?? '', cost: o.cost ?? '', recommended: o.label === d.recommended })),
+        asked: d.asked?.text
     })
     return (
         <div className="mx-4 flex flex-col gap-2">
@@ -211,7 +212,7 @@ function Decisions(props: { run: TaskRun; decisions: TaskDecision[]; onAnswer: (
                     showSource
                     decision={toDecision(d)}
                     onAnswer={(option) => { setConfirmed(option.label); setOpenId(null); props.onAnswer(d.id, option.label) }}
-                    onAsk={() => props.onAsk(d.question)}
+                    onAsk={(text) => props.onAsk(d.id, text)}
                 />
             ) : (
                 <DecisionPeek key={d.id} decision={toDecision(d)} onOpen={() => setOpenId(d.id)} />
@@ -234,7 +235,7 @@ function Summary(props: { text: string; t: Translate }) {
 }
 
 /** One subtask: a big progress ring, its checks, its own decisions, and its session. */
-function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubtask; onBack: () => void; onAnswer: (id: string, label: string) => void; onAsk: (question: string) => void; onOpenCheck: (criterion: AcceptanceCriterion) => void; now: number; t: Translate }) {
+function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubtask; onBack: () => void; onAnswer: (id: string, label: string) => void; onAsk: (id: string, text: string) => Promise<void>; onOpenCheck: (criterion: AcceptanceCriterion) => void; now: number; t: Translate }) {
     const { run, subtask, t } = props
     const navigate = useNavigate()
     const progress = criteriaDone(run, subtask)
@@ -315,7 +316,7 @@ export function RunReport(props: {
     task: TaskView
     run: TaskRun
     onAnswer: (decisionId: string, label: string) => void
-    onAsk: (question: string) => void
+    onAsk: (id: string, text: string) => Promise<void>
     /** While the verdict buttons replace the composer, the way into the conversation sits here. */
     onAllChats?: () => void
 }) {

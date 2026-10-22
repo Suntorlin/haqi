@@ -336,7 +336,7 @@ export function TaskReport(props: {
     const { task } = useTask(props.api, props.taskId)
     const { session: lead } = useSession(props.api, task?.leadSessionId ?? null)
     const waitingRequest = Object.entries(lead?.agentState?.requests ?? {})[0] ?? null
-    const { confirmTask, retryGuide, updateTask, answerDecision, verdict } = useTaskActions(props.api)
+    const { confirmTask, retryGuide, updateTask, answerDecision, askDecision, verdict } = useTaskActions(props.api)
     const [changing, setChanging] = useState(false)
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
@@ -424,7 +424,15 @@ export function TaskReport(props: {
                     ) : null}
 
                     {!guiding && task.run ? (
-                        <RunReport task={task} run={task.run} onAnswer={(decisionId, label) => void run(() => answerDecision(task.id, decisionId, label))} onAsk={(question) => setMessage(t('taskRun.askPrefix', { question }))} onAllChats={task.run.phase === 'reporting' ? props.onAllChats : undefined} />
+                        <RunReport task={task} run={task.run} onAnswer={(decisionId, label) => void run(() => answerDecision(task.id, decisionId, label))} onAsk={async (decisionId, text) => {
+                            setError(null)
+                            try {
+                                await askDecision(task.id, decisionId, text)
+                            } catch (failure) {
+                                setError(failure instanceof Error ? failure.message : String(failure))
+                                throw failure
+                            }
+                        }} onAllChats={task.run.phase === 'reporting' ? props.onAllChats : undefined} />
                     ) : null}
 
                     {!guiding && !task.run ? (

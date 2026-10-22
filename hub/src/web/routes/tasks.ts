@@ -37,6 +37,7 @@ const patchSchema = z.object({
 const memberSchema = z.object({ sessionId: z.string().min(1) })
 
 const answerSchema = z.object({ label: z.string().trim().min(1).max(80) })
+const askBackSchema = z.object({ text: z.string().trim().min(1).max(1000) })
 
 const verdictSchema = z.object({ approved: z.boolean(), text: z.string().trim().max(2000).optional() })
 
@@ -165,6 +166,12 @@ export function createTaskRoutes(getSyncEngine: () => SyncEngine | null): Hono<W
         if (!parsed.success) throw new TaskError('Invalid body: label is required')
         await runs.answerDecision(ns, id, c.req.param('decisionId') ?? '', parsed.data.label)
         return { task: getSyncEngine()!.getTaskService().get(ns, id) }
+    })
+    runRoute('/tasks/:id/decisions/:decisionId/ask', async (runs, ns, id, body, c) => {
+        const parsed = askBackSchema.safeParse(body)
+        if (!parsed.success) throw new TaskError('Invalid body: text is required')
+        const result = await runs.askAboutDecision(ns, id, c.req.param('decisionId') ?? '', parsed.data.text)
+        return { ...result, task: getSyncEngine()!.getTaskService().get(ns, id) }
     })
     runRoute('/tasks/:id/verdict', async (runs, ns, id, body) => {
         const parsed = verdictSchema.safeParse(body)

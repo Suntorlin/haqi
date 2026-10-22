@@ -34,6 +34,8 @@ export type Decision = {
     basis?: string[]
     options: DecisionOption[]
     source?: DecisionSource
+    /** The user's ask-back, waiting for the asker's answer. */
+    asked?: string
 }
 
 /** One goal row in the compact progress list. */

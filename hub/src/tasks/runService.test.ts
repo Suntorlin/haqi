@@ -405,6 +405,32 @@ describe('task run after the guide step', () => {
         expect(t.service.get('default', task.id)!.run!.report!.conclusion).toBe('晚到的交付说明。')
     })
 
+    it('sends the user\'s ask-back to the asker, and its next question replaces the old one', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: '数据', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const worker = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        await t.runs.askDecision('default', task.id, { question: '用哪条测试路', options: [{ label: '本地' }, { label: 'dev' }], sessionId: worker })
+        await t.runs.askDecision('default', task.id, { question: '要不要写 Linear', options: [{ label: '要' }, { label: '不要' }], sessionId: 'lead-x' })
+        const result = await t.runs.askAboutDecision('default', task.id, 'd1', 'scale api 是哪个？')
+        expect(result.to).toBe('数据')
+        expect(t.sent.at(-1)).toMatchObject({ sessionId: worker })
+        expect(t.sent.at(-1)!.text).toContain('用户没选，反问了：「scale api 是哪个？」')
+        expect(t.lines.at(-1)!.text).toBe('你问了「用哪条测试路」：scale api 是哪个？（已转给数据）')
+        expect(t.service.get('default', task.id)!.run!.decisions.find((d) => d.id === 'd1')!.asked).toMatchObject({ text: 'scale api 是哪个？', to: worker })
+        // The asker answers by asking again: the new question replaces d1, the other one stays, ids do not repeat.
+        await t.runs.askDecision('default', task.id, { question: '用本地测试路，行吗', context: 'scale api 是 fish-scale-cost-api，不是模型接口。', options: [{ label: '行' }, { label: '不行' }], sessionId: worker })
+        expect(t.service.get('default', task.id)!.run!.decisions.map((d) => d.id)).toEqual(['d2', 'd3'])
+        // Nobody to take it: the asker and the lead have stopped.
+        t.sessions.get(worker)!.active = false
+        await expect(t.runs.askAboutDecision('default', task.id, 'd3', '为什么')).rejects.toThrow('都起不来')
+    })
+
     it('stops every working session when the task is abandoned', async () => {
         const t = setup(dir)
         const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })

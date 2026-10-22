@@ -138,6 +138,8 @@ export type TaskDecision = {
     askedAt: number
     /** answered: by the user, or by a precedent in memory with high confidence. */
     answer: { label: string; by: 'user' | 'precedent'; memoryId: string | null; at: number } | null
+    /** The user asked back ("Ask"): what, when, and the session it went to. The session's next question replaces this one. */
+    asked?: { text: string; at: number; to: string | null } | null
 }
 
 /** Something the observer saw: an approval waiting, a stuck or stopped session, a risky command. */
