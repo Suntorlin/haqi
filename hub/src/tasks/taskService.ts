@@ -13,6 +13,7 @@ import { TaskError } from './errors'
 import { RunService, type RunHost } from './runService'
 import { buildContextPack, type ContextSources } from './plugins/context/contextPack'
 import { Planner, type PlannerHost } from './plugins/planner/planner'
+import type { TaskFileContent, TaskFiles } from './taskFiles'
 
 export type TaskSession = {
     id: string
@@ -37,6 +38,8 @@ export type TaskServiceHost = {
     stopSession?: (namespace: string, sessionId: string) => Promise<void>
     /** How often the user stepped in, per task; null until messages are classified. */
     load?: (namespace: string, sessionIds: string[], since: number) => TaskLoad | null
+    /** Where the files the user attached live; tests may leave it out. */
+    files?: TaskFiles
     /** What the run after the guide step needs (spawning executors, push, reports); tests may leave it out. */
     run?: Omit<RunHost, 'load' | 'timeline' | 'stopSession' | 'approve'> & { approve?: RunHost['approve'] }
 }
@@ -89,7 +92,7 @@ export class TaskService {
      * it starts in the folder that holds the user's recent repositories and names the one it picked in its draft.
      * A given directory, or the source session's, is used as is.
      */
-    async create(namespace: string, input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string }): Promise<TaskView> {
+    async create(namespace: string, input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string; files?: TaskFileContent[] }): Promise<TaskView> {
         const from = input.fromSessionId ? this.host.session(namespace, input.fromSessionId) : null
         if (input.fromSessionId && !from) throw new TaskError('Session not found', 404)
         const tag = input.tag ?? ''
@@ -104,6 +107,7 @@ export class TaskService {
             machineId: known?.machineId ?? workspace?.machineId ?? null,
             members: from ? [from.id] : []
         })
+        if (input.files?.length) this.host.files?.save(task.id, input.files)
         // Without the guide step a task is a plain discussion: no goal, no acceptance list, no planner.
         if (input.draft === false) {
             this.store.groups.updateGroup({ groupId: task.id, namespace, description: input.text })
@@ -265,7 +269,26 @@ export class TaskService {
     }
 
     delete(namespace: string, taskId: string): boolean {
-        return this.kernel.delete(namespace, taskId)
+        const deleted = this.kernel.delete(namespace, taskId)
+        if (deleted) this.host.files?.remove(taskId)
+        return deleted
+    }
+
+    /** One attached file with its bytes, for the task page. */
+    file(namespace: string, taskId: string, index: number): TaskFileContent {
+        this.requireTask(namespace, taskId)
+        const file = this.host.files?.read(taskId, index)
+        if (!file) throw new TaskError('File not found', 404)
+        return file
+    }
+
+    /** Every attached file with its bytes: each session the task starts gets a copy. */
+    fileContents(taskId: string): TaskFileContent[] {
+        return this.host.files?.readAll(taskId) ?? []
+    }
+
+    private files(taskId: string) {
+        return this.host.files?.list(taskId) ?? []
     }
 
     /** Tasks a session belongs to. */
@@ -314,6 +337,7 @@ export class TaskService {
                 repoPath: directory,
                 chooseRepo: !task.repoPath,
                 contextText: pack.text,
+                files: this.files(taskId).map((file) => file.name),
                 ...(resume ? { resume: { draft: this.latestDraft(namespace, taskId), feedback: resume.feedback } } : {})
             })
             if ('error' in result) {
@@ -442,6 +466,7 @@ export class TaskService {
             leadSessionId: task.leadSessionId,
             members,
             guide: { ...guideState(task, events), request },
+            files: this.files(task.id),
             draft: task.status === 'guiding' ? (findLast(events, TASK_EVENT.draftSubmitted)?.payload as TaskDraft | undefined) ?? null : null,
             load: this.host.load?.(namespace, members.map((m) => m.sessionId), task.createdAt) ?? null,
             run: task.status === 'guiding' ? null : decorate(readRun(events), this.runs),

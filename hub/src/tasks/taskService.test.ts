@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test'
 import type { Database } from 'bun:sqlite'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -8,6 +8,7 @@ import { MemoryService } from '../memory/service'
 import { realUserText } from '../memory/userMessage'
 import { Store } from '../store'
 import { TaskTransitionError } from './kernel/stateMachine'
+import { TaskFiles } from './taskFiles'
 import { commonFolder, TaskError, TaskService, type TaskSession } from './taskService'
 
 const DRAFT = {
@@ -72,7 +73,8 @@ function setup(dir: string) {
         machineOnline: (_namespace, machineId) => machineId !== 'offline',
         changed: (_namespace, id) => changes.push(id),
         timeline: (_namespace, _id, text) => lines.push(text),
-        stopSession: async (_namespace, id) => { stopped.push(id); sessions.get(id)!.active = false }
+        stopSession: async (_namespace, id) => { stopped.push(id); sessions.get(id)!.active = false },
+        files: new TaskFiles(() => join(dir, 'task-files'))
     })
     return {
         store, service, sessions, sent, spawned, changes, lines, stopped, addSession,
@@ -237,6 +239,35 @@ describe('TaskService guide step', () => {
         t.service.update('default', task.id, { status: 'abandoned' })
         await Promise.resolve()
         expect(t.stopped).toEqual(['planner-1'])
+    })
+
+    it('keeps the files attached to a new task, names them to the planner and deletes them with the task', async () => {
+        const t = setup(dir)
+        t.addSession({ id: 'work', path: '/repo/haqi' })
+        const png = Buffer.from('fake png bytes').toString('base64')
+        const task = await t.service.create('default', {
+            text: '照截图修按钮', fromSessionId: 'work',
+            files: [{ filename: 'bug shot.png', mimeType: 'image/png', content: png }, { filename: '../spec.pdf', mimeType: 'application/pdf', content: Buffer.from('%PDF').toString('base64') }]
+        })
+        await t.settle()
+        expect(task.files).toEqual([
+            { name: 'bug shot.png', mimeType: 'image/png', size: 14 },
+            { name: '../spec.pdf', mimeType: 'application/pdf', size: 4 }
+        ])
+        expect(t.spawned[0]!.text).toContain('用户附了 2 个文件：bug shot.png、../spec.pdf')
+        expect(t.service.fileContents(task.id).map((file) => file.content)).toEqual([png, Buffer.from('%PDF').toString('base64')])
+        expect(t.service.file('default', task.id, 0).filename).toBe('bug shot.png')
+        expect(() => t.service.file('default', task.id, 2)).toThrow(TaskError)
+        expect(() => t.service.file('other', task.id, 0)).toThrow(TaskError)
+
+        const plain = await t.service.create('default', { text: '修一个 bug', fromSessionId: 'work' })
+        await t.settle()
+        expect(plain.files).toEqual([])
+        expect(t.spawned[1]!.text).not.toContain('用户附的参考文件')
+
+        t.service.delete('default', task.id)
+        expect(t.service.fileContents(task.id)).toEqual([])
+        expect(existsSync(join(dir, 'task-files', task.id))).toBe(false)
     })
 
     it('finds the folder that holds the repositories', () => {

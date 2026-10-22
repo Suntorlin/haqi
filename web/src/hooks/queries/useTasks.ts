@@ -54,7 +54,7 @@ export function useTaskActions(api: ApiClient | null) {
         return api
     }, [api])
 
-    const createTask = useCallback(async (input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string }) => writeTask(await need().createTask(input)), [need, writeTask])
+    const createTask = useCallback(async (input: Parameters<ApiClient['createTask']>[0]) => writeTask(await need().createTask(input)), [need, writeTask])
     const updateTask = useCallback(async (taskId: string, patch: { name?: string; tag?: string; status?: TaskStatus }) => writeTask(await need().updateTask(taskId, patch)), [need, writeTask])
     const reviseDraft = useCallback(async (taskId: string, text: string) => writeTask(await need().reviseTaskDraft(taskId, text)), [need, writeTask])
     const confirmTask = useCallback(async (taskId: string, input: TaskConfirmInput) => writeTask(await need().confirmTask(taskId, input)), [need, writeTask])

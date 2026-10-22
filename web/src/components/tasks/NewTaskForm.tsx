@@ -1,15 +1,33 @@
-import { useState } from 'react'
+import { useRef, useState, type ClipboardEvent } from 'react'
 import { useTranslation } from '@/lib/use-translation'
+import { isImageMimeType } from '@/lib/fileAttachments'
+import { formatFileSize, prepareTaskFile, TASK_FILE_LIMITS, type TaskFileUpload } from '@/lib/taskFiles'
+import { cn } from '@/lib/utils'
+import { FileIcon } from '@/components/FileIcon'
+import { Spinner } from '@/components/Spinner'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Button } from '@/components/ui/button'
+import { IconButton } from '@/components/ui/IconButton'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { Switch } from '@/components/ui/Switch'
+import { AlertCircleIcon, CloseIcon, PaperclipIcon } from '@/components/mobile/icons'
 
-export type NewTaskInput = { text: string; draft: boolean }
+export type NewTaskInput = { text: string; draft: boolean; files?: TaskFileUpload[] }
+
+type PickedFile = {
+    id: string
+    name: string
+    mimeType: string
+    size: number
+    previewUrl?: string
+    upload?: TaskFileUpload
+    error?: string
+}
 
 /**
- * A new task is one field: what should be done, in as many lines as it takes. HAQI's lead picks the repository and
- * the tag, and drafts the goal and the acceptance criteria; with drafting off the task starts as a plain discussion.
+ * A new task is one field: what should be done, in as many lines as it takes, plus reference files and images if
+ * there are any. HAQI's lead picks the repository and the tag, and drafts the goal and the acceptance criteria; with
+ * drafting off the task starts as a plain discussion.
  */
 export function NewTaskForm(props: {
     onCreate: (input: NewTaskInput) => Promise<void>
@@ -18,17 +36,56 @@ export function NewTaskForm(props: {
     const { t } = useTranslation()
     const [text, setText] = useState('')
     const [draft, setDraft] = useState(true)
+    const [files, setFiles] = useState<PickedFile[]>([])
     const [pending, setPending] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    const reading = files.some((file) => !file.upload && !file.error)
+    const ready = files.filter((file) => file.upload)
+    const tooLarge = ready.reduce((sum, file) => sum + file.size, 0) > TASK_FILE_LIMITS.totalBytes
+
+    const addFiles = (picked: File[]) => {
+        const room = TASK_FILE_LIMITS.count - files.length
+        if (picked.length > room) setError(t('tasks.files.tooMany', { n: TASK_FILE_LIMITS.count }))
+        else setError(null)
+        for (const raw of picked.slice(0, Math.max(0, room))) {
+            const id = crypto.randomUUID()
+            setFiles((previous) => [...previous, { id, name: raw.name, mimeType: raw.type, size: raw.size }])
+            void prepareTaskFile(raw).then(({ file, upload }) => {
+                const size = file.size
+                const failure = size > TASK_FILE_LIMITS.bytes ? t('tasks.files.tooLarge') : undefined
+                setFiles((previous) => previous.map((item) => item.id !== id ? item : {
+                    ...item,
+                    name: upload.filename,
+                    mimeType: upload.mimeType,
+                    size,
+                    ...(failure ? { error: failure } : { upload }),
+                    ...(isImageMimeType(upload.mimeType) ? { previewUrl: `data:${upload.mimeType};base64,${upload.content}` } : {})
+                }))
+            }, () => {
+                setFiles((previous) => previous.map((item) => item.id === id ? { ...item, error: t('tasks.files.readFailed') } : item))
+            })
+        }
+    }
+
+    const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
+        const images = Array.from(event.clipboardData?.files ?? []).filter((file) => file.type.startsWith('image/'))
+        if (images.length === 0) return
+        event.preventDefault()
+        addFiles(images)
+    }
 
     const submit = async () => {
         const trimmed = text.trim()
-        if (!trimmed || pending) return
+        if (!trimmed || pending || reading || tooLarge) return
         setPending(true)
         setError(null)
         try {
-            await props.onCreate({ text: trimmed, draft })
+            const uploads = ready.map((file) => file.upload!)
+            await props.onCreate({ text: trimmed, draft, ...(uploads.length > 0 ? { files: uploads } : {}) })
             setText('')
+            setFiles([])
         } catch (failure) {
             setError(failure instanceof Error ? failure.message : String(failure))
         } finally {
@@ -44,6 +101,17 @@ export function NewTaskForm(props: {
                 void submit()
             }}
         >
+            <input
+                ref={inputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                    const picked = Array.from(event.target.files ?? [])
+                    event.target.value = ''
+                    if (picked.length > 0) addFiles(picked)
+                }}
+            />
             <AutoTextarea
                 autoFocus
                 minRows={3}
@@ -54,8 +122,38 @@ export function NewTaskForm(props: {
                 aria-label={t('tasks.new')}
                 placeholder={t('tasks.newPlaceholder')}
                 onChange={(event) => setText(event.target.value)}
+                onPaste={onPaste}
                 onSubmitKey={() => void submit()}
             />
+            {files.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                    {files.map((file) => (
+                        <div key={file.id} className="flex min-w-0 max-w-full items-center gap-2 rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] py-1.5 pl-2.5 pr-1">
+                            {!file.upload && !file.error ? <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" /> : null}
+                            {file.error ? <span className="text-[var(--social-danger)]"><AlertCircleIcon className="h-4 w-4" /></span> : null}
+                            {file.previewUrl && !file.error ? (
+                                <img src={file.previewUrl} alt={file.name} className="h-8 w-8 shrink-0 rounded-md object-cover" />
+                            ) : file.upload ? (
+                                <span className="shrink-0"><FileIcon fileName={file.name} size={20} /></span>
+                            ) : null}
+                            <div className="min-w-0 max-w-[160px]">
+                                <div className="truncate text-footnote text-[var(--social-fg)]">{file.name}</div>
+                                <div className={cn('truncate text-caption', file.error ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
+                                    {file.error ?? formatFileSize(file.size)}
+                                </div>
+                            </div>
+                            <IconButton
+                                size="sm"
+                                label={t('composer.attachment.remove')}
+                                disabled={pending}
+                                onClick={() => setFiles((previous) => previous.filter((item) => item.id !== file.id))}
+                            >
+                                <CloseIcon className="h-3.5 w-3.5" />
+                            </IconButton>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
             <div className="flex min-h-11 items-center gap-3">
                 <span className="flex min-w-0 flex-1 items-center gap-1.5 text-body text-[var(--social-fg)]">
                     {t('tasks.draftToggle')}
@@ -63,10 +161,20 @@ export function NewTaskForm(props: {
                 </span>
                 <Switch checked={draft} onCheckedChange={setDraft} ariaLabel={t('tasks.draftToggle')} />
             </div>
+            {tooLarge ? <p className="text-footnote text-[var(--social-danger)]">{t('tasks.files.tooLargeTotal')}</p> : null}
             {error ? <p className="text-footnote text-[var(--social-danger)]">{error}</p> : null}
-            <div className="flex justify-end gap-2">
+            <div className="flex items-center gap-2">
+                <IconButton
+                    variant="muted"
+                    label={t('tasks.files.add')}
+                    disabled={pending || files.length >= TASK_FILE_LIMITS.count}
+                    onClick={() => inputRef.current?.click()}
+                >
+                    <PaperclipIcon className="h-[18px] w-[18px]" />
+                </IconButton>
+                <span className="flex-1" />
                 <Button type="button" variant="secondary" onClick={props.onCancel}>{t('button.cancel')}</Button>
-                <Button type="submit" disabled={pending || !text.trim()}>
+                <Button type="submit" disabled={pending || reading || tooLarge || !text.trim()}>
                     {pending ? t('tasks.starting') : draft ? t('tasks.start') : t('tasks.startPlain')}
                 </Button>
             </div>

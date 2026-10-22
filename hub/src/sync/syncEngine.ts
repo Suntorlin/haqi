@@ -1,4 +1,6 @@
-import type { ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
+import { randomUUID } from 'node:crypto'
+import { join } from 'node:path'
+import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
 /**
  * Sync Engine for HAPI Telegram Bot (Direct Connect)
  *
@@ -37,6 +39,7 @@ import {
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession } from '../tasks/taskService'
+import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
 import { sessionActivity } from '../tasks/sessionActivity'
 import { resolveJevApiKey } from '../memory/jev'
@@ -109,6 +112,8 @@ const GROUP_NOTE_FILE_SYNC_INTERVAL_MS = 3 * 60 * 1000
 const MEMORY_HARVEST_INTERVAL_MS = 15 * 60 * 1000
 /** How often the task observer looks at running tasks. */
 const TASK_OBSERVER_INTERVAL_MS = 20 * 1000
+/** A task file's first message shows an inline preview for images up to this size; larger ones show as a file. */
+const PREVIEW_MAX_BYTES = 1024 * 1024
 const MEMORY_HARVEST_FIRST_DELAY_MS = 60 * 1000
 const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'tool-call',
@@ -543,7 +548,7 @@ export class SyncEngine {
         this.taskService = new TaskService(store, this.memoryService, {
             planner: {
                 spawnAndPrompt: async (input) => {
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta })
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta, files: this.taskFilesFor(input.meta) })
                     if (result.type === 'error') return { error: result.message }
                     await this.renameSession(result.sessionId, input.name).catch(() => {})
                     await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
@@ -562,19 +567,20 @@ export class SyncEngine {
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
+            files: new TaskFiles(() => join(configuration.dataDir, 'task-files')),
             stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
             run: {
                 spawnWorker: async (input) => {
                     const result = await this.spawnAndPrompt(input.machineId, input.directory, {
                         thinkEffort: 'medium', yolo: true, sessionType: input.worktreeName ? 'worktree' : 'simple', worktreeName: input.worktreeName
-                    }, { text: input.text, meta: input.meta })
+                    }, { text: input.text, meta: input.meta, files: this.taskFilesFor(input.meta) })
                     if (result.type === 'error') return { error: result.message }
                     await this.renameSession(result.sessionId, input.name).catch(() => {})
                     await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
                     return { sessionId: result.sessionId }
                 },
                 spawnLead: async (input) => {
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta })
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta, files: this.taskFilesFor(input.meta) })
                     if (result.type === 'error') return { error: result.message }
                     await this.renameSession(result.sessionId, input.name).catch(() => {})
                     await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
@@ -2542,7 +2548,7 @@ ${note.content}
             sessionType?: 'simple' | 'worktree'
             worktreeName?: string
         },
-        prompt: { text: string; meta?: Record<string, unknown> }
+        prompt: { text: string; meta?: Record<string, unknown>; files?: TaskFileContent[] }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const spawned = await this.spawnSession(
             machineId,
@@ -2562,8 +2568,43 @@ ${note.content}
         if (!await this.waitForSessionActive(spawned.sessionId)) {
             return { type: 'error', message: '会话没能在 15 秒内启动' }
         }
-        await this.sendMessage(spawned.sessionId, { text: prompt.text, sentFrom: 'webapp', meta: prompt.meta })
+        const attachments = await this.uploadAll(spawned.sessionId, prompt.files ?? [])
+        await this.sendMessage(spawned.sessionId, {
+            text: prompt.text,
+            sentFrom: 'webapp',
+            meta: prompt.meta,
+            ...(attachments.length > 0 ? { attachments } : {})
+        })
         return spawned
+    }
+
+    /** Uploads files into a session for its first message. A file that fails is left out; the rest still go. */
+    private async uploadAll(sessionId: string, files: TaskFileContent[]): Promise<AttachmentMetadata[]> {
+        const attachments: AttachmentMetadata[] = []
+        for (const file of files) {
+            try {
+                const result = await this.rpcGateway.uploadFile(sessionId, file.filename, file.content, file.mimeType)
+                if (!result.success || !result.path) continue
+                const size = Buffer.byteLength(file.content, 'base64')
+                attachments.push({
+                    id: randomUUID(),
+                    filename: file.filename,
+                    mimeType: file.mimeType,
+                    size,
+                    path: result.path,
+                    ...(file.mimeType.startsWith('image/') && size <= PREVIEW_MAX_BYTES ? { previewUrl: `data:${file.mimeType};base64,${file.content}` } : {})
+                })
+            } catch {
+                // The session reads the rest; the user still sees every file on the task page.
+            }
+        }
+        return attachments
+    }
+
+    /** The files attached to the task a planner, lead or executor is started for. */
+    private taskFilesFor(meta: Record<string, unknown>): TaskFileContent[] {
+        const owner = (meta.taskGuide ?? meta.taskWork) as { taskId?: unknown } | undefined
+        return typeof owner?.taskId === 'string' ? this.taskService.fileContents(owner.taskId) : []
     }
 
     async waitForSessionActive(sessionId: string, timeoutMs: number = 15_000): Promise<boolean> {
