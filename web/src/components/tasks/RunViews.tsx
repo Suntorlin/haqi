@@ -294,7 +294,12 @@ function runHeadline(task: TaskView, run: TaskRun, t: Translate): string {
         case 'running': return t('taskRun.running', { n: list.length, done }) + waiting
         case 'integrating': return t('taskRun.integrating') + waiting
         case 'reviewing': return t('taskRun.reviewing') + waiting
-        case 'fixing': return t('taskRun.fixing', { n: run.review?.results.filter((r) => r.status === 'not_met').length ?? 0 }) + waiting
+        case 'fixing': {
+            // A fix the user asked for at the report is not a failed review.
+            const asked = run.revisions?.at(-1)
+            if (asked?.fixId && run.subtasks.some((s) => s.id === asked.fixId && s.state !== 'done')) return t('taskRun.revision.working') + waiting
+            return t('taskRun.fixing', { n: run.review?.results.filter((r) => r.status === 'not_met').length ?? 0 }) + waiting
+        }
         case 'delivering': return t('taskRun.delivering') + waiting
         case 'reporting': return run.report?.conclusion ?? t('taskRun.reporting')
         case 'accepted': return run.report?.conclusion ?? task.goal ?? task.name
