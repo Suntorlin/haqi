@@ -51,6 +51,7 @@ export type {
     CriterionSource,
     TaskDraft,
     TaskDraftQuestion,
+    TaskFile,
     TaskGuideState,
     TaskLoad,
     TaskStatus,

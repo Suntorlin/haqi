@@ -20,6 +20,7 @@ import {
 } from '@/components/report'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { RunReport } from './RunViews'
+import { TaskFileList } from './TaskFileList'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -371,6 +372,14 @@ export function TaskReport(props: {
         void run(() => props.onSend(text))
     }
 
+    // While guiding they sit under the request; after it, at the end as reference.
+    const files = (
+        <>
+            <SectionCaption>{t('tasks.files.caption')}</SectionCaption>
+            <TaskFileList api={props.api} task={task} />
+        </>
+    )
+
     return (
         <div className="flex min-h-0 flex-1 flex-col">
             {/* Vertical only: the page never pans sideways, even if some content is too wide. */}
@@ -405,6 +414,8 @@ export function TaskReport(props: {
                             <p className="mx-4 whitespace-pre-line rounded-2xl bg-[var(--social-muted)] px-4 py-3 text-body leading-relaxed text-[var(--social-fg)]">{task.guide.request}</p>
                         </>
                     ) : null}
+
+                    {guiding && task.files?.length ? files : null}
 
                     {working ? (
                         <div className="mx-4 mt-6 space-y-2" aria-hidden="true">
@@ -445,6 +456,8 @@ export function TaskReport(props: {
                             onToggleDone={() => void run(() => updateTask(task.id, { status: task.status === 'active' ? 'done' : 'active' }))}
                         />
                     ) : null}
+
+                    {!guiding && task.files?.length ? files : null}
 
                     {error ? <p className={cn('px-5 pt-3 text-footnote text-[var(--social-danger)]')}>{error}</p> : null}
                 </div>

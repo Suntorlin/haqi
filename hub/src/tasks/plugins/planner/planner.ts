@@ -27,6 +27,8 @@ export type GuideRequest = {
     /** The planner picks the repository from the context pack and names it in its draft. */
     chooseRepo?: boolean
     contextText: string
+    /** Names of the files the user attached; the first message carries them. */
+    files?: string[]
     /** Set when the first planner stopped: the draft so far and what the user wants changed. */
     resume?: { draft: TaskDraft | null; feedback: string }
 }
@@ -41,6 +43,9 @@ export function guidePrompt(request: GuideRequest): string {
         '',
         '## 用户的需求',
         request.text,
+        ...(request.files?.length
+            ? ['', '## 用户附的参考文件', `用户附了 ${request.files.length} 个文件：${request.files.join('、')}。它们在这条消息开头（@路径）。先用 Read 看完，再起草；目标和验收标准要对得上这些文件。`]
+            : []),
         '',
         '## 你知道的用户（上下文包）',
         request.contextText,

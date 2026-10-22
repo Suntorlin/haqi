@@ -1092,9 +1092,25 @@ export class ApiClient {
     }
 
     /** Creates a task in the guide step; the planner starts in the background. */
-    async createTask(input: { text: string; tag?: string; draft?: boolean; fromSessionId?: string; machineId?: string; directory?: string }): Promise<TaskView> {
+    async createTask(input: {
+        text: string
+        tag?: string
+        draft?: boolean
+        fromSessionId?: string
+        machineId?: string
+        directory?: string
+        files?: Array<{ filename: string; mimeType: string; content: string }>
+    }): Promise<TaskView> {
         const result = await this.request<{ task: TaskView }>('/api/tasks', { method: 'POST', body: JSON.stringify(input) })
         return result.task
+    }
+
+    /** A file the user attached when creating the task, with its bytes in base64. */
+    async getTaskFile(taskId: string, index: number): Promise<{ filename: string; mimeType: string; content: string }> {
+        const result = await this.request<{ file: { filename: string; mimeType: string; content: string } }>(
+            `/api/tasks/${encodeURIComponent(taskId)}/files/${index}`
+        )
+        return result.file
     }
 
     async updateTask(taskId: string, patch: { name?: string; tag?: string; status?: TaskStatus }): Promise<TaskView> {

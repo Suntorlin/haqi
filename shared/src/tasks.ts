@@ -55,6 +55,9 @@ export type TaskLoad = {
     request: number
 }
 
+/** A file the user attached when creating the task; every session the task starts gets a copy. */
+export type TaskFile = { name: string; mimeType: string; size: number }
+
 export type TaskView = {
     id: string
     name: string
@@ -68,6 +71,7 @@ export type TaskView = {
     leadSessionId: string | null
     members: Array<{ sessionId: string; role: string }>
     guide: { state: TaskGuideState; error: string | null; request: string | null }
+    files: TaskFile[]
     draft: TaskDraft | null
     load: TaskLoad | null
     /** After the guide step: subtasks, decisions, review and report. Null while guiding. */

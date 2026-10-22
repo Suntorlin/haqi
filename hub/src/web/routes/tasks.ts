@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import type { SyncEngine } from '../../sync/syncEngine'
 import { TaskTransitionError } from '../../tasks/kernel/stateMachine'
+import { TASK_FILE_LIMITS } from '../../tasks/taskFiles'
 import { TaskError, type TaskService } from '../../tasks/taskService'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSyncEngine } from './guards'
@@ -18,7 +19,13 @@ const createSchema = z.object({
     draft: z.boolean().optional(),
     machineId: z.string().min(1).optional(),
     directory: z.string().min(1).optional(),
-    fromSessionId: z.string().min(1).optional()
+    fromSessionId: z.string().min(1).optional(),
+    /** Reference files and images, in base64; every session the task starts gets a copy. */
+    files: z.array(z.object({
+        filename: z.string().trim().min(1).max(255),
+        mimeType: z.string().max(255),
+        content: z.string().min(1)
+    })).max(TASK_FILE_LIMITS.count).optional()
 })
 
 const retrySchema = z.object({
@@ -71,6 +78,10 @@ export function createTaskRoutes(getSyncEngine: () => SyncEngine | null): Hono<W
         if (tasks instanceof Response) return tasks
         const parsed = createSchema.safeParse(await c.req.json().catch(() => null))
         if (!parsed.success) return c.json({ error: 'Invalid body: text and tag are required' }, 400)
+        const sizes = (parsed.data.files ?? []).map((file) => Buffer.byteLength(file.content, 'base64'))
+        if (sizes.some((size) => size > TASK_FILE_LIMITS.bytes) || sizes.reduce((sum, size) => sum + size, 0) > TASK_FILE_LIMITS.totalBytes) {
+            return c.json({ error: 'Files too large: at most 10 MB each and 20 MB in total' }, 413)
+        }
         return run(c, async () => ({ task: await tasks.create(c.get('namespace'), parsed.data) }))
     })
 
@@ -79,6 +90,14 @@ export function createTaskRoutes(getSyncEngine: () => SyncEngine | null): Hono<W
         if (tasks instanceof Response) return tasks
         const task = tasks.get(c.get('namespace'), c.req.param('id'))
         return task ? c.json({ task }) : c.json({ error: 'Task not found' }, 404)
+    })
+
+    app.get('/tasks/:id/files/:index', (c) => {
+        const tasks = withTasks(c)
+        if (tasks instanceof Response) return tasks
+        const index = Number(c.req.param('index'))
+        if (!Number.isInteger(index) || index < 0) return c.json({ error: 'File not found' }, 404)
+        return run(c, () => ({ file: tasks.file(c.get('namespace'), c.req.param('id'), index) }))
     })
 
     app.patch('/tasks/:id', async (c) => {
