@@ -523,6 +523,7 @@ export function NewSession(props: {
                 thinkEffort={thinkEffort}
                 serviceTier={serviceTier}
                 yoloMode={yoloMode}
+                alwaysYolo={experimentalSettings.alwaysYolo}
                 claudeAccount={claudeAccount}
                 isDisabled={isFormDisabled}
                 onModelChange={edited(setModel)}

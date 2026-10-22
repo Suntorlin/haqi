@@ -33,6 +33,8 @@ export function SessionParams(props: {
     thinkEffort: ThinkEffort
     serviceTier: ServiceTier
     yoloMode: boolean
+    /** The system switch is on: the session is YOLO whatever the form says, so the switch shows on and locked. */
+    alwaysYolo?: boolean
     claudeAccount?: ClaudeAccountSelection
     isDisabled: boolean
     onModelChange: (value: string) => void
@@ -110,10 +112,10 @@ export function SessionParams(props: {
                 ) : null}
                 <SettingsSwitchRow
                     title={t('newSession.yolo')}
-                    subtitle={t('newSession.yolo.title')}
+                    subtitle={props.alwaysYolo ? t('newSession.yolo.always') : t('newSession.yolo.title')}
                     label={t('newSession.yolo')}
-                    checked={props.yoloMode}
-                    disabled={props.isDisabled}
+                    checked={props.alwaysYolo || props.yoloMode}
+                    disabled={props.isDisabled || props.alwaysYolo}
                     onCheckedChange={props.onYoloChange}
                 />
             </ListGroup>

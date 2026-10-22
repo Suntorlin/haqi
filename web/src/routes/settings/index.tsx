@@ -205,6 +205,8 @@ export default function SettingsPage() {
     const [experimentalClaudeLoginShellEnabled, setExperimentalClaudeLoginShellEnabled] = useState(false)
     const [experimentalCodexReportPromptEnabled, setExperimentalCodexReportPromptEnabled] = useState(false)
     const [experimentalPreviewEnabled, setExperimentalPreviewEnabled] = useState(true)
+    const [alwaysYolo, setAlwaysYolo] = useState(true)
+    const [yoloStatusMessage, setYoloStatusMessage] = useState<string | null>(null)
     const [experimentalSettingsLoading, setExperimentalSettingsLoading] = useState(false)
     const [experimentalStatusMessage, setExperimentalStatusMessage] = useState<string | null>(null)
     const isMemoryDirty = memoryDraft !== memorySavedContent
@@ -326,6 +328,7 @@ export default function SettingsPage() {
             setExperimentalClaudeLoginShellEnabled(result.settings.claudeLoginShell)
             setExperimentalCodexReportPromptEnabled(result.settings.codexReportPromptEnabled)
             setExperimentalPreviewEnabled(result.settings.previewEnabled)
+            setAlwaysYolo(result.settings.alwaysYolo)
         } catch (error) {
             setExperimentalStatusMessage(
                 error instanceof Error ? error.message : t('settings.experimental.status.loadFailed')
@@ -469,6 +472,20 @@ export default function SettingsPage() {
         },
         onError: (error) => {
             setMemoryStatusMessage(error instanceof Error ? error.message : t('settings.memory.status.toggleFailed'))
+        }
+    })
+
+    const toggleAlwaysYoloMutation = useMutation({
+        mutationFn: async (enabled: boolean) => await api.updateExperimentalSettings({ alwaysYolo: enabled }),
+        onSuccess: async (result, enabled) => {
+            setAlwaysYolo(result.settings.alwaysYolo)
+            setYoloStatusMessage(enabled
+                ? t('settings.behavior.alwaysYolo.on', { n: result.switched ?? 0 })
+                : t('settings.behavior.alwaysYolo.off'))
+            await queryClient.invalidateQueries({ queryKey: queryKeys.experimentalSettings })
+        },
+        onError: (error) => {
+            setYoloStatusMessage(error instanceof Error ? error.message : t('settings.experimental.status.saveFailed'))
         }
     })
 
@@ -916,7 +933,18 @@ export default function SettingsPage() {
                         isExpanded={isInteractionGroupExpanded}
                         onToggle={handleInteractionGroupToggle}
                     >
-                        <SettingsBlock title={t('settings.behavior.title')}>
+                        <SettingsBlock title={t('settings.behavior.title')} hint={yoloStatusMessage}>
+                            <SettingsSwitchRow
+                                title={t('settings.behavior.alwaysYolo')}
+                                subtitle={t('settings.behavior.alwaysYolo.description')}
+                                label={t('settings.behavior.alwaysYolo')}
+                                checked={alwaysYolo}
+                                onCheckedChange={(enabled) => {
+                                    setYoloStatusMessage(null)
+                                    void toggleAlwaysYoloMutation.mutateAsync(enabled)
+                                }}
+                                disabled={experimentalSettingsLoading || toggleAlwaysYoloMutation.isPending}
+                            />
                             <SettingsSelectRow
                                 title={t('settings.behavior.defaultSendMode')}
                                 subtitle={t('settings.behavior.defaultSendMode.description')}

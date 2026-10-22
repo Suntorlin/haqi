@@ -139,7 +139,7 @@ function createWebApp(options: {
     app.route('/api', createReviewLoopsRoutes(options.getSyncEngine))
     app.route('/api', createMemoryRoutes())
     app.route('/api', createMemoriesRoutes(options.getSyncEngine))
-    app.route('/api', createSettingsRoutes(options.store))
+    app.route('/api', createSettingsRoutes(options.store, undefined, options.getSyncEngine))
     app.route('/api', createSessionTaskRoutes(options.store))
     app.route('/api', createTaskRoutes(options.getSyncEngine))
     app.route('/api', createInsightsRoutes(options.getSyncEngine))

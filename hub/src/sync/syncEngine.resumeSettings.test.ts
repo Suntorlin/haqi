@@ -94,3 +94,21 @@ describe('SyncEngine.spawnSession YOLO', () => {
         expect(engine.getSession(created.id)?.permissionMode).toBe('bypassPermissions')
     })
 })
+
+describe('SyncEngine "YOLO for every session" switch', () => {
+    it('starts a session in YOLO although the caller did not ask, and wakes a plain session in YOLO', async () => {
+        const { engine, store, rpcCalls, internals, spawnedSessionId } = createHarness()
+        internals.alwaysYolo = async () => true
+        const created = store.sessions.getOrCreateSession('lead', { path: '/repo', host: 'dev', machineId: 'machine-1', flavor: 'claude' }, null, 'default')
+        spawnedSessionId.value = created.id
+        await engine.spawnSession('machine-1', '/repo', 'claude')
+        expect(rpcCalls[0]![6]).toBe(true)
+        expect(engine.getSession(created.id)?.permissionMode).toBe('bypassPermissions')
+
+        const plain = store.sessions.getOrCreateSession('plain', { path: '/repo', host: 'dev', machineId: 'machine-1', flavor: 'claude' }, null, 'default')
+        spawnedSessionId.value = plain.id
+        internals.waitForSessionActive = async () => true
+        await engine.resumeSession(plain.id, 'default')
+        expect(rpcCalls[1]![6]).toBe(true)
+    })
+})

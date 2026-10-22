@@ -12,6 +12,8 @@ export interface Settings {
     experimentalClaudeLoginShell?: boolean
     codexReportPromptEnabled?: boolean
     previewEnabled?: boolean
+    /** System switch: every session starts (and resumes) with every permission granted. On unless set to false. */
+    alwaysYolo?: boolean
     /** Memory capture: off, or record (Jev judges, nothing is injected yet); projects that may capture. */
     memoryCapture?: {
         mode?: 'off' | 'record'

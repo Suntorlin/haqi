@@ -491,6 +491,7 @@ export class ApiClient {
         claudeLoginShell?: boolean
         codexReportPromptEnabled?: boolean
         previewEnabled?: boolean
+        alwaysYolo?: boolean
     }): Promise<ExperimentalSettingsResponse> {
         return await this.request<ExperimentalSettingsResponse>('/api/settings/experimental', {
             method: 'PATCH',
