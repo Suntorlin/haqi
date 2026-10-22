@@ -18,6 +18,9 @@ export type TaskBrief = {
     userMessages?: string[]
 }
 
+/** The user reads questions, options and summaries on a phone: the user's writing rule, for every session. */
+const PLAIN_WORDS = 'task_decision_ask 的问题和选项、subtask_done 的 summary 会直接给用户看：结论先行；一句话只说一件事，句子短（约 25 字）；写清谁做了什么；不用黑话，缩写先解释；问题只问一件事，背景放 context。'
+
 /** Rules every session that touches code gets: the user's hard limits. */
 const HARD_RULES = [
     '不推送（git push）、不部署、不花钱、不对外发送消息、不动线上和生产目录。需要做这些时，先调用 task_decision_ask 问用户，等回答。',
@@ -37,7 +40,10 @@ function header(brief: TaskBrief, title: string): string[] {
         `## 目标\n${brief.goal}`,
         ...(brief.nonGoals.length ? ['', '## 不做什么', ...brief.nonGoals.map((line) => `- ${line}`)] : []),
         ...(brief.decisions?.length ? ['', '## 已定的决定（照做）', ...brief.decisions.map((d) => `- ${d.question} → ${d.label}`)] : []),
-        ...(brief.userMessages?.length ? ['', '## 用户在任务里说过的话（照顾到）', ...brief.userMessages.map((text) => `- ${text}`)] : [])
+        ...(brief.userMessages?.length ? ['', '## 用户在任务里说过的话（照顾到）', ...brief.userMessages.map((text) => `- ${text}`)] : []),
+        '',
+        '## 写给用户的话',
+        `- ${PLAIN_WORDS}`
     ]
 }
 
