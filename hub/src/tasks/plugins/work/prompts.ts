@@ -195,6 +195,15 @@ export function userMessagePrompt(taskId: string, text: string): string {
     return `${WORK_MARKER} 任务 ${taskId}：用户在任务里说：「${text}」。和你的工作有关就照顾到，然后继续；不用回复。`
 }
 
+export function askBackPrompt(taskId: string, question: string, text: string): string {
+    return [
+        `${WORK_MARKER} 任务 ${taskId}：你问用户「${question}」，用户没选，反问了：「${text}」`,
+        '1. 先查清楚再回答，只读，不做依赖这个决定的事。',
+        '2. 调用 task_decision_ask 重新问一次：context 第一句直接回答用户的反问；问题和选项按需要改。新问题会替换旧的。',
+        '3. 问完停下，等用户选。'
+    ].join('\n')
+}
+
 export function answerPrompt(taskId: string, question: string, label: string, by: 'user' | 'precedent'): string {
     return `${WORK_MARKER} 任务 ${taskId}：「${question}」${by === 'user' ? '用户选了' : '按用户以前的同类选择'}：${label}。按这个继续。`
 }

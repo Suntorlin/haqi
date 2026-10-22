@@ -3,6 +3,7 @@ import { Orb } from '@/components/mobile/SessionAvatar'
 import { CheckIcon, ChevronDownIcon } from '@/components/mobile/icons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { CheckRing } from './indicators'
@@ -48,13 +49,31 @@ function OptionBlock(props: { option: DecisionOption; selected: boolean; onSelec
 export function DecisionCard(props: {
     decision: Decision
     onAnswer: (option: DecisionOption) => void
-    onAsk?: () => void
+    /** "Ask" opens a field in the card; the text goes here. */
+    onAsk?: (text: string) => Promise<void> | void
     /** Show the goal line (orb + name + waited) above the question. */
     showSource?: boolean
 }) {
     const { t } = useTranslation()
     const { decision } = props
     const [picked, setPicked] = useState(() => Math.max(0, decision.options.findIndex((option) => option.recommended)))
+    const [asking, setAsking] = useState(false)
+    const [askText, setAskText] = useState('')
+    const [sending, setSending] = useState(false)
+    const sendAsk = async () => {
+        const text = askText.trim()
+        if (!text || !props.onAsk) return
+        setSending(true)
+        try {
+            await props.onAsk(text)
+            setAskText('')
+            setAsking(false)
+        } catch {
+            // The caller shows the error; the text stays so the user can send it again.
+        } finally {
+            setSending(false)
+        }
+    }
     const choice = decision.options[picked]
     const source = decision.source
     return (
@@ -85,10 +104,33 @@ export function DecisionCard(props: {
                     <OptionBlock key={option.label} option={option} selected={index === picked} onSelect={() => setPicked(index)} />
                 ))}
             </div>
-            <div className="mt-3 flex gap-2">
-                <Button className="flex-1" onClick={() => props.onAnswer(choice)}>{t('report.decision.pick', { label: choice.label })}</Button>
-                {props.onAsk ? <Button variant="ghost" onClick={props.onAsk}>{t('report.decision.ask')}</Button> : null}
-            </div>
+            {decision.asked ? (
+                <div className="mt-3 rounded-xl bg-[var(--social-surface)] px-3.5 py-2.5 text-footnote text-[var(--social-fg-muted)]">
+                    {t('report.decision.asked', { text: decision.asked })}
+                </div>
+            ) : null}
+            {asking ? (
+                <form className="mt-3" onSubmit={(event) => { event.preventDefault(); void sendAsk() }}>
+                    <TextField
+                        autoFocus
+                        variant="pill"
+                        aria-label={t('report.decision.askPlaceholder')}
+                        placeholder={t('report.decision.askPlaceholder')}
+                        value={askText}
+                        disabled={sending}
+                        onChange={(event) => setAskText(event.target.value)}
+                    />
+                    <div className="mt-2 flex gap-2">
+                        <Button type="submit" className="flex-1" disabled={sending || !askText.trim()}>{sending ? t('report.decision.askSending') : t('report.decision.askSend')}</Button>
+                        <Button type="button" variant="ghost" onClick={() => { setAsking(false); setAskText('') }}>{t('button.cancel')}</Button>
+                    </div>
+                </form>
+            ) : (
+                <div className="mt-3 flex gap-2">
+                    <Button className="flex-1" onClick={() => props.onAnswer(choice)}>{t('report.decision.pick', { label: choice.label })}</Button>
+                    {props.onAsk ? <Button variant="ghost" onClick={() => setAsking(true)}>{t('report.decision.ask')}</Button> : null}
+                </div>
+            )}
         </div>
     )
 }
