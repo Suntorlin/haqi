@@ -127,7 +127,8 @@ export function DecisionCard(props: {
                 </form>
             ) : (
                 <div className="mt-3 flex gap-2">
-                    <Button className="flex-1" onClick={() => props.onAnswer(choice)}>{t('report.decision.pick', { label: choice.label })}</Button>
+                    {/* An option label can be long: the button wraps instead of pushing the page wider than the screen. */}
+                    <Button className="h-auto min-h-11 min-w-0 flex-1 whitespace-normal py-2.5 leading-snug" onClick={() => props.onAnswer(choice)}>{t('report.decision.pick', { label: choice.label })}</Button>
                     {props.onAsk ? <Button variant="ghost" onClick={() => setAsking(true)}>{t('report.decision.ask')}</Button> : null}
                 </div>
             )}

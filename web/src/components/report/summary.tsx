@@ -17,7 +17,8 @@ export function StatTiles(props: { stats: ReportStat[] }) {
         <div className="grid grid-cols-3 gap-2">
             {props.stats.map((stat) => (
                 <div key={stat.label} className="rounded-2xl bg-[var(--social-muted)] px-3 py-3">
-                    <div className="text-title font-semibold leading-none tracking-[-0.02em] text-[var(--social-fg)]">{stat.value}</div>
+                    {/* keep-all: a narrow tile breaks "3 小时 59 分" between its parts, never inside one. */}
+                    <div className="text-title font-semibold leading-tight tracking-[-0.02em] text-[var(--social-fg)] [word-break:keep-all]">{stat.value}</div>
                     <div className="mt-1.5 text-caption text-[var(--social-fg-muted)]">{stat.label}</div>
                 </div>
             ))}
