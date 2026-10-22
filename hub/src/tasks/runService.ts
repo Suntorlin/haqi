@@ -351,7 +351,8 @@ export class RunService {
     private checkDelivery(namespace: string, task: StoredGroup, run: TaskRun, now: number): void {
         const subtask = run.subtasks.filter((s) => isDeliverId(s.id)).at(-1)
         if (!subtask || subtask.state === 'done') return
-        const since = subtask.startedAt ?? now
+        // A hand-over that never started (the hub stopped mid-way) counts from when delivering began.
+        const since = subtask.startedAt ?? this.kernel.latest(namespace, task.id, RUN_EVENT.phase)?.createdAt ?? now
         const session = subtask.sessionId ? this.host.session(namespace, subtask.sessionId) : null
         const gone = !session?.active && now - since > DELIVER_START_GRACE_MS
         if (!gone && now - since <= DELIVER_TIMEOUT_MS) return
