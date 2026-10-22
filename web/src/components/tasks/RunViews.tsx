@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import type { AcceptanceCriterion, TaskDecision, TaskRun, TaskSubtask, TaskView } from '@/types/api'
 import { useTranslation } from '@/lib/use-translation'
@@ -325,6 +325,8 @@ export function RunReport(props: {
     const [subtaskId, setSubtaskId] = useState<string | null>(null)
     const [checkId, setCheckId] = useState<string | null>(null)
     const [reportOpen, setReportOpen] = useState(false)
+    // One stable callback: an inline one runs on every re-render (data refresh) and pulls the page back to the top.
+    const scrollToTop = useCallback((el: HTMLSpanElement | null) => el?.scrollIntoView({ block: 'start' }), [])
     const now = Date.now()
     const startedAt = run.subtasks.reduce((min, s) => Math.min(min, s.startedAt ?? min), task.updatedAt)
     const open = run.decisions.filter((d) => !d.answer)
@@ -368,7 +370,8 @@ export function RunReport(props: {
     if (subtask) {
         return (
             <>
-                <span ref={(el) => el?.scrollIntoView({ block: 'start' })} aria-hidden="true" />
+                {/* Keyed by subtask: the page jumps to the top once when a subtask opens, not on each refresh. */}
+                <span key={subtask.id} ref={scrollToTop} aria-hidden="true" />
                 <SubtaskDetail task={task} run={run} subtask={subtask} now={now} t={t} onBack={() => setSubtaskId(null)} onAnswer={props.onAnswer} onAsk={props.onAsk} onOpenCheck={(c) => setCheckId(c.id)} />
                 {sheet}
             </>
