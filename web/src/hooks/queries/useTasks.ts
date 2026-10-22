@@ -65,6 +65,7 @@ export function useTaskActions(api: ApiClient | null) {
         return result.to
     }, [need, writeTask])
     const verdict = useCallback(async (taskId: string, input: { approved: boolean; text?: string }) => writeTask(await need().taskVerdict(taskId, input)), [need, writeTask])
+    const reopen = useCallback(async (taskId: string) => writeTask(await need().reopenTask(taskId)), [need, writeTask])
     const retryGuide = useCallback(async (taskId: string) => writeTask(await need().retryTaskGuide(taskId)), [need, writeTask])
     const linkSession = useCallback(async (taskId: string, sessionId: string, linked: boolean) => writeTask(linked
         ? await need().addTaskMember(taskId, sessionId)
@@ -77,5 +78,5 @@ export function useTaskActions(api: ApiClient | null) {
             : previous)
     }, [need, queryClient])
 
-    return { createTask, updateTask, deleteTask, reviseDraft, confirmTask, retryGuide, linkSession, answerDecision, askDecision, verdict }
+    return { createTask, updateTask, deleteTask, reviseDraft, confirmTask, retryGuide, linkSession, answerDecision, askDecision, verdict, reopen }
 }

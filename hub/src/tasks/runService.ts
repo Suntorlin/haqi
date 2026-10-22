@@ -396,6 +396,16 @@ export class RunService {
         await this.fix(namespace, task, [`用户的意见：${text}`], [])
     }
 
+    /** An accepted task goes back to its report: the user can ask for a change, or accept again. */
+    async reopen(namespace: string, taskId: string): Promise<void> {
+        const task = this.kernel.get(namespace, taskId)
+        if (!task) throw new TaskError('Task not found', 404)
+        if (task.status !== 'done' || this.run(namespace, taskId)?.phase !== 'accepted') throw new TaskError('Only an accepted task can be reopened', 409)
+        this.kernel.move(namespace, taskId, 'active')
+        this.phase(namespace, taskId, 'reporting')
+        this.host.timeline(namespace, taskId, '你重新打开了任务：可以点“要改”继续，或者再点“通过”。')
+    }
+
     // ---- the user's words ------------------------------------------------------------------------------------
 
     /**
@@ -405,6 +415,11 @@ export class RunService {
     async userMessage(namespace: string, taskId: string, text: string): Promise<void> {
         const task = this.kernel.get(namespace, taskId)
         const run = this.run(namespace, taskId)
+        // An accepted task has no one working: say so, instead of dropping the words without a trace.
+        if (task && run?.phase === 'accepted') {
+            this.host.timeline(namespace, taskId, '这个任务已经通过了，没人在干活。要继续，先在任务页点“重新打开”。')
+            return
+        }
         if (!task || !run || (run.phase !== 'planning' && !ACTIVE_PHASES.has(run.phase))) return
         this.kernel.log(namespace, taskId, RUN_EVENT.userMessage, { text })
         const working = [

@@ -1641,4 +1641,6 @@ export default {
   'report.composer.send': 'Send',
   'report.verdict.approve': 'Approve',
   'report.verdict.change': 'Needs changes',
+  'report.reopen.note': 'Accepted. The task is closed.',
+  'report.reopen.action': 'Reopen',
 } as const

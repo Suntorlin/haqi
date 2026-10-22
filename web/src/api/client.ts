@@ -1132,6 +1132,11 @@ export class ApiClient {
         return result.task
     }
 
+    async reopenTask(taskId: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/reopen`, { method: 'POST' })
+        return result.task
+    }
+
     async taskVerdict(taskId: string, input: { approved: boolean; text?: string }): Promise<TaskView> {
         const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/verdict`, {
             method: 'POST',
