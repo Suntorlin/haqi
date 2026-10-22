@@ -8,7 +8,7 @@ import type { StoredAcceptanceCriterion, StoredGroup, StoredTaskEvent, StoredTas
 import { confirmInputSchema, draftInputSchema, toTaskDraft, type ConfirmInput } from './kernel/draft'
 import { TASK_EVENT } from './kernel/events'
 import { TaskKernel } from './kernel/kernel'
-import { readRun } from './kernel/run'
+import { RUN_EVENT, readRun } from './kernel/run'
 import { TaskError } from './errors'
 import { RunService, type RunHost } from './runService'
 import { buildContextPack, type ContextSources } from './plugins/context/contextPack'
@@ -233,6 +233,18 @@ export class TaskService {
     private async stopPlanner(namespace: string, sessionId: string | null): Promise<void> {
         if (!sessionId || !this.host.session(namespace, sessionId)?.active) return
         await this.host.stopSession?.(namespace, sessionId).catch(() => {})
+    }
+
+    /**
+     * A session resumed under a new id (its old row is about to be deleted). Group rows move to the new id, and each
+     * task that used it logs the change, so its lead, members and run keep pointing at a live session.
+     */
+    sessionReplaced(namespace: string, from: string, to: string): void {
+        for (const groupId of this.store.groups.replaceSession({ namespace, fromSessionId: from, toSessionId: to })) {
+            if (!this.kernel.get(namespace, groupId)) continue
+            if (this.runs) this.runs.sessionReplaced(namespace, groupId, from, to)
+            else this.kernel.log(namespace, groupId, RUN_EVENT.sessionReplaced, { from, to })
+        }
     }
 
     addMember(namespace: string, taskId: string, sessionId: string): TaskView {

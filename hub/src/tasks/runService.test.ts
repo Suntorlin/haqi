@@ -85,7 +85,7 @@ function setup(dir: string) {
         await service.whenIdle()
         for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0))
     }
-    return { store, service, runs: service.runs!, sessions, spawned, sent, pushes, reports, stopped, approved, lines, settle }
+    return { store, service, runs: service.runs!, sessions, addSession, spawned, sent, pushes, reports, stopped, approved, lines, settle }
 }
 
 describe('task run after the guide step', () => {
@@ -274,6 +274,75 @@ describe('task run after the guide step', () => {
         await t.runs.subtaskDone('default', task.id, { subtaskId: 'a', summary: '加了字段' })
         await t.settle()
         expect(t.spawned.find((s) => s.name === '执行 · 界面')!.text).toContain('## 已定的决定（照做）\n- 优先级用几档 → 五档')
+    })
+
+    it('sends what the user says in the task while it runs to the working sessions, and into later briefs', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, {
+            subtasks: [
+                { id: 'a', title: '数据', brief: '加字段', criteria: ['c1', 'c2'] },
+                { id: 'b', title: '界面', brief: '加选择', criteria: ['c3'], dependsOn: ['a'] }
+            ]
+        })
+        await t.settle()
+        const worker = t.service.get('default', task.id)!.run!.subtasks.find((s) => s.id === 'a')!.sessionId!
+        await t.runs.userMessage('default', task.id, '按钮放右上角')
+        expect(t.sent.at(-1)).toMatchObject({ sessionId: worker })
+        expect(t.sent.at(-1)!.text).toContain('用户在任务里说：「按钮放右上角」')
+        expect(t.lines.at(-1)!.text).toContain('已转给正在干活的 1 个会话')
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'a', summary: '加了字段' })
+        await t.settle()
+        expect(t.spawned.find((s) => s.name === '执行 · 界面')!.text).toContain('## 用户在任务里说过的话（照顾到）\n- 按钮放右上角')
+    })
+
+    it('says so when nobody is working, and still puts the words in later briefs', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: 'A', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const worker = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        t.sessions.get(worker)!.active = false
+        const before = t.sent.length
+        await t.runs.userMessage('default', task.id, '全部推进吧')
+        expect(t.sent.length).toBe(before)
+        expect(t.lines.at(-1)!.text).toContain('现在没有会话在干活')
+    })
+
+    it('follows a session that is resumed under a new id: lead, membership and run', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: 'A', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        const worker = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        const db = (t.store as unknown as { db: Database }).db
+        for (const [from, to] of [[lead, 'lead-resumed'], [worker, 'worker-resumed']] as const) {
+            t.addSession(to, '/repo')
+            t.service.sessionReplaced('default', from, to)
+            // The merge deletes the old row; memberships must not go with it.
+            db.prepare('DELETE FROM sessions WHERE id = ?').run(from)
+        }
+        const view = t.service.get('default', task.id)!
+        expect(view.leadSessionId).toBe('lead-resumed')
+        const members = t.store.groups.getGroupMembersByNamespace(task.id, 'default')
+        expect(members.find((m) => m.sessionId === 'lead-resumed')?.role).toBe('lead')
+        expect(members.some((m) => m.sessionId === 'worker-resumed')).toBe(true)
+        expect(view.run!.subtasks[0]!.sessionId).toBe('worker-resumed')
+        await t.runs.userMessage('default', task.id, '继续')
+        expect(t.sent.at(-1)).toMatchObject({ sessionId: 'worker-resumed' })
     })
 
     it('stops every working session when the task is abandoned', async () => {

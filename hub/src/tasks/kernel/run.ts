@@ -23,7 +23,11 @@ export const RUN_EVENT = {
     reviewStarted: 'review_started',
     reviewSubmitted: 'review_submitted',
     reportReady: 'report_ready',
-    verdict: 'verdict'
+    verdict: 'verdict',
+    /** What the user said in the task's conversation while it ran; every later session gets it in its brief. */
+    userMessage: 'user_message',
+    /** A session came back under a new id (resume); references to `from` mean `to` from here on. */
+    sessionReplaced: 'session_replaced'
 } as const
 
 /** The task page shows the newest entries of the observer's log. */
@@ -81,6 +85,16 @@ export const reviewSubmitSchema = z.object({
 export type PlanInput = z.infer<typeof planInputSchema>
 
 type Payload = Record<string, unknown>
+
+/** The id a session has now, after any `session_replaced` events. */
+export function currentSessionId(events: StoredTaskEvent[], sessionId: string): string {
+    let id = sessionId
+    for (const event of events) {
+        const p = (event.payload ?? {}) as Payload
+        if (event.type === RUN_EVENT.sessionReplaced && p.from === id) id = String(p.to)
+    }
+    return id
+}
 
 /** Reads the run state back from the task's events. */
 export function readRun(events: StoredTaskEvent[]): TaskRun | null {
@@ -184,6 +198,14 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                     suggestions: ((p.suggestions as unknown[] | undefined) ?? []).map(String)
                 }
                 break
+            case RUN_EVENT.sessionReplaced: {
+                const from = String(p.from)
+                const to = String(p.to)
+                for (const s of subtasks.values()) if (s.sessionId === from) s.sessionId = to
+                for (const d of decisions.values()) if (d.askedBy === from) d.askedBy = to
+                for (const g of signals.values()) if (g.sessionId === from) g.sessionId = to
+                break
+            }
             case RUN_EVENT.reportReady:
                 report = { conclusion: String(p.conclusion), markdown: String(p.markdown), shareUrl: (p.shareUrl as string | null) ?? null, at: event.createdAt }
                 break

@@ -12,14 +12,14 @@ import type { StoredGroup } from '../store/types'
 import { TaskError } from './errors'
 import type { TaskKernel } from './kernel/kernel'
 import {
-    RUN_EVENT, RUN_LIMITS, decisionAskSchema, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
+    RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
 } from './kernel/run'
 import { matchPrecedent } from './plugins/decisions/precedent'
 import { observe, type WatchedSession } from './plugins/observer/observer'
 import { isReadOnlyRequest } from './plugins/observer/readonly'
 import { composeReport } from './plugins/report/report'
 import {
-    answerPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, workPrompt, type TaskBrief
+    answerPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
 } from './plugins/work/prompts'
 
 export type RunSession = {
@@ -249,7 +249,8 @@ export class RunService {
         const started = this.kernel.latest(namespace, taskId, RUN_EVENT.reviewStarted)?.payload as { round?: number; sessionId?: string } | undefined
         const round = started?.round ?? 1
         this.kernel.log(namespace, taskId, RUN_EVENT.reviewSubmitted, { round, ...parsed.data })
-        if (started?.sessionId) void this.host.stopSession(namespace, started.sessionId).catch(() => {})
+        const reviewer = this.reviewer(namespace, taskId)
+        if (reviewer) void this.host.stopSession(namespace, reviewer).catch(() => {})
         const failed = parsed.data.results.filter((r) => r.status === 'not_met')
         this.host.timeline(namespace, taskId, `评审第 ${round} 轮：达到 ${parsed.data.results.filter((r) => r.status === 'met').length} 条，没达到 ${failed.length} 条。`)
         if (failed.length && round < RUN_LIMITS.reviewRounds) {
@@ -310,6 +311,48 @@ export class RunService {
         if (!text) throw new TaskError('Say what to change')
         this.host.timeline(namespace, taskId, `你要改：${text}`)
         await this.fix(namespace, task, [`用户的意见：${text}`], [])
+    }
+
+    // ---- the user's words ------------------------------------------------------------------------------------
+
+    /**
+     * What the user says in the task's conversation while it runs goes to the sessions working now. It is also logged,
+     * so every session started later gets it in its brief (the lead is stopped after the split; it is not asked).
+     */
+    async userMessage(namespace: string, taskId: string, text: string): Promise<void> {
+        const task = this.kernel.get(namespace, taskId)
+        const run = this.run(namespace, taskId)
+        if (!task || !run || (run.phase !== 'planning' && !ACTIVE_PHASES.has(run.phase))) return
+        this.kernel.log(namespace, taskId, RUN_EVENT.userMessage, { text })
+        const working = [
+            ...(run.phase === 'planning' && task.leadSessionId ? [task.leadSessionId] : []),
+            ...run.subtasks.filter((s) => s.state === 'running' && s.sessionId).map((s) => s.sessionId!),
+            ...(run.phase === 'reviewing' ? [this.reviewer(namespace, taskId)].filter((id): id is string => Boolean(id)) : [])
+        ]
+        const prompt = userMessagePrompt(taskId, text)
+        let delivered = 0
+        for (const sessionId of working) {
+            if (!this.host.session(namespace, sessionId)?.active) continue
+            if (await this.host.send(sessionId, prompt, meta(taskId, 'user')).catch(() => false)) delivered += 1
+        }
+        this.host.timeline(namespace, taskId, delivered
+            ? `已转给正在干活的 ${delivered} 个会话；之后的会话也会收到。`
+            : '现在没有会话在干活；这句话会写进之后每个会话的指令。')
+    }
+
+    /** A session resumed under a new id: the run follows it (the group rows moved already). */
+    sessionReplaced(namespace: string, taskId: string, from: string, to: string): void {
+        this.kernel.log(namespace, taskId, RUN_EVENT.sessionReplaced, { from, to })
+        const seen = this.live.get(from)
+        if (seen) {
+            this.live.delete(from)
+            this.live.set(to, seen)
+        }
+        const scanned = this.scanned.get(from)
+        if (scanned !== undefined) {
+            this.scanned.delete(from)
+            this.scanned.set(to, scanned)
+        }
     }
 
     // ---- decisions --------------------------------------------------------------------------------------------
@@ -440,7 +483,7 @@ export class RunService {
     /** A task that ends (done or abandoned) stops every session still working on it. */
     async stopAll(namespace: string, taskId: string): Promise<void> {
         const run = this.run(namespace, taskId)
-        const reviewer = (this.kernel.latest(namespace, taskId, RUN_EVENT.reviewStarted)?.payload as { sessionId?: string } | undefined)?.sessionId
+        const reviewer = this.reviewer(namespace, taskId)
         const ids = [...(run?.subtasks ?? []).filter((s) => s.state !== 'done' && s.sessionId).map((s) => s.sessionId!), ...(reviewer ? [reviewer] : [])]
         for (const id of ids) {
             if (this.host.session(namespace, id)?.active) await this.host.stopSession(namespace, id).catch(() => {})
@@ -476,7 +519,17 @@ export class RunService {
         const decisions = (readRun(this.kernel.events(task.namespace, task.id))?.decisions ?? [])
             .filter((d) => d.answer)
             .map((d) => ({ question: d.question, label: d.answer!.label }))
-        return { taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '', decisions }
+        const userMessages = this.kernel.events(task.namespace, task.id)
+            .filter((e) => e.type === RUN_EVENT.userMessage)
+            .map((e) => String((e.payload as { text?: unknown } | null)?.text ?? ''))
+            .filter(Boolean)
+        return { taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '', decisions, userMessages }
+    }
+
+    /** The current review's session, following a resume. */
+    private reviewer(namespace: string, taskId: string): string | null {
+        const started = (this.kernel.latest(namespace, taskId, RUN_EVENT.reviewStarted)?.payload as { sessionId?: string } | undefined)?.sessionId
+        return started ? currentSessionId(this.kernel.events(namespace, taskId), started) : null
     }
 
     private requireRunning(namespace: string, taskId: string): StoredGroup {
