@@ -60,6 +60,7 @@ export type {
     TaskSubtask,
     TaskDecision,
     TaskDecisionOption,
+    TaskRevision,
     TaskSignal,
     CriterionVerdict,
     TaskReview,

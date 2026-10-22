@@ -3,7 +3,7 @@
  * a report waits for the user. Every step is an event; the run state below is read back from the log, so the task
  * page and the report come from the same record.
  */
-import type { CriterionVerdict, SubtaskState, TaskDecision, TaskPhase, TaskRun, TaskSignal, TaskSubtask, TaskWatchEntry } from '@hapi/protocol/types'
+import type { CriterionVerdict, SubtaskState, TaskDecision, TaskPhase, TaskRevision, TaskRun, TaskSignal, TaskSubtask, TaskWatchEntry } from '@hapi/protocol/types'
 import { z } from 'zod'
 import type { StoredTaskEvent } from '../../store/types'
 
@@ -106,6 +106,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
     let integration: TaskRun['integration'] = null
     let review: TaskRun['review'] = null
     let report: TaskRun['report'] = null
+    const revisions: TaskRevision[] = []
 
     const addSubtask = (raw: Payload, fix: boolean) => {
         const id = String(raw.id)
@@ -135,9 +136,13 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 for (const id of [...subtasks.keys()]) if (!subtasks.get(id)!.fix) subtasks.delete(id)
                 for (const raw of (p.subtasks as Payload[] | undefined) ?? []) addSubtask(raw, false)
                 break
-            case RUN_EVENT.subtaskAdded:
+            case RUN_EVENT.subtaskAdded: {
                 addSubtask(p, true)
+                // The fix that follows a change request is that request's fix.
+                const revision = revisions.at(-1)
+                if (revision && !revision.fixId) revision.fixId = String(p.id)
                 break
+            }
             case RUN_EVENT.subtaskStarted: {
                 const s = subtasks.get(String(p.id))
                 if (s) Object.assign(s, { state: 'running', sessionId: p.sessionId ?? null, branch: p.branch ?? null, startedAt: event.createdAt })
@@ -146,6 +151,8 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
             case RUN_EVENT.subtaskDone: {
                 const s = subtasks.get(String(p.id))
                 if (s) Object.assign(s, { state: 'done', summary: p.summary ?? null, doneAt: event.createdAt })
+                const revision = revisions.find((r) => r.fixId === String(p.id))
+                if (revision) Object.assign(revision, { summary: (p.summary as string | null) ?? null, doneAt: event.createdAt })
                 break
             }
             case RUN_EVENT.subtaskState: {
@@ -206,6 +213,11 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
                 for (const g of signals.values()) if (g.sessionId === from) g.sessionId = to
                 break
             }
+            case RUN_EVENT.verdict:
+                if (p.approved === false && typeof p.text === 'string' && p.text.trim()) {
+                    revisions.push({ request: p.text.trim(), at: event.createdAt, fixId: null, summary: null, doneAt: null })
+                }
+                break
             case RUN_EVENT.reportReady:
                 report = { conclusion: String(p.conclusion), markdown: String(p.markdown), shareUrl: (p.shareUrl as string | null) ?? null, at: event.createdAt }
                 break
@@ -220,6 +232,7 @@ export function readRun(events: StoredTaskEvent[]): TaskRun | null {
         integration,
         review,
         report,
+        revisions,
         watch: { checkedAt: null, log: log.slice(-WATCH_LOG_MAX) }
     }
 }

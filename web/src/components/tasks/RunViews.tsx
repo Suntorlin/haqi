@@ -22,6 +22,7 @@ import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { ChevronLeftIcon } from '@/components/mobile/icons'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/InfoTip'
+import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { ReportSheet } from './ReportSheet'
 
 type Translate = ReturnType<typeof useTranslation>['t']
@@ -343,6 +344,8 @@ export function RunReport(props: {
         ]
     const meta = [task.tag ? `#${task.tag}` : null, task.repoPath?.split('/').filter(Boolean).pop(), run.integration?.branch].filter(Boolean).join(' · ')
     const subtask = subtaskId ? run.subtasks.find((s) => s.id === subtaskId) ?? null : null
+    // The user's latest change request at a report, with what the fixer did; it leads the page until accepted.
+    const revision = run.phase === 'accepted' ? null : run.revisions?.at(-1) ?? null
     const check = checkId ? task.acceptance.find((c) => c.id === checkId) ?? null : null
     const sheet = (
         <>
@@ -383,6 +386,18 @@ export function RunReport(props: {
                         <button type="button" onClick={props.onAllChats} className="font-semibold text-[var(--social-fg)] underline underline-offset-4">{t('report.composer.allChats')}</button>
                     ) : null}
                 </p>
+            ) : null}
+
+            {revision ? (
+                <>
+                    <SectionCaption>{revision.summary ? t('taskRun.revision.done') : t('taskRun.revision.working')}</SectionCaption>
+                    <div className="mx-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
+                        <p className="text-footnote text-[var(--social-fg-muted)]">{t('taskRun.revision.request', { text: revision.request })}</p>
+                        {revision.summary ? (
+                            <BriefFullMarkdownContent content={revision.summary} className="mt-2 text-body" />
+                        ) : null}
+                    </div>
+                </>
             ) : null}
 
             {open.length > 0 ? (

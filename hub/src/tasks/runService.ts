@@ -519,10 +519,15 @@ export class RunService {
         const decisions = (readRun(this.kernel.events(task.namespace, task.id))?.decisions ?? [])
             .filter((d) => d.answer)
             .map((d) => ({ question: d.question, label: d.answer!.label }))
-        const userMessages = this.kernel.events(task.namespace, task.id)
-            .filter((e) => e.type === RUN_EVENT.userMessage)
-            .map((e) => String((e.payload as { text?: unknown } | null)?.text ?? ''))
-            .filter(Boolean)
+        // What the user said during the run, and what they asked to change at a report: the reviewer checks those too.
+        const userMessages = this.kernel.events(task.namespace, task.id).flatMap((e) => {
+            const p = (e.payload ?? {}) as { text?: unknown; approved?: unknown }
+            const text = typeof p.text === 'string' ? p.text.trim() : ''
+            if (!text) return []
+            if (e.type === RUN_EVENT.userMessage) return [text]
+            if (e.type === RUN_EVENT.verdict && p.approved === false) return [`验收时要改：${text}`]
+            return []
+        })
         return { taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '', decisions, userMessages }
     }
 

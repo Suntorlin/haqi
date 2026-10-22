@@ -111,7 +111,10 @@ export function reviewPrompt(brief: TaskBrief, evidence: string[], round: number
         '2. 不要改任何文件，不要提交。',
         '3. 每条给结论：met（达到）、not_met（没达到）、unclear（说不清），evidence 写你看到的证据。',
         '4. 你自己想到的、验收标准里没有的问题，写进 suggestions，不能因此判 not_met。',
-        `5. 调用 task_review_submit：task_id 填 "${brief.taskId}"。`
+        ...(brief.userMessages?.some((line) => line.startsWith('验收时要改：'))
+            ? ['5. 上面「验收时要改」的每一条，也检查做到没有。每条写一句进 suggestions，以「用户要改：」开头，说做到没有、证据在哪。']
+            : []),
+        `${brief.userMessages?.some((line) => line.startsWith('验收时要改：')) ? 6 : 5}. 调用 task_review_submit：task_id 填 "${brief.taskId}"。`
     ].join('\n')
 }
 

@@ -1,6 +1,6 @@
 /**
  * The report: the task compressed for the user, in a fixed order so the first two parts are enough to decide —
- * conclusion, what the user has to do, each criterion with evidence, numbers, risks, decisions taken by precedent,
+ * conclusion (and what changed, when the user asked for a change), what the user has to do, each criterion with evidence, numbers, risks, decisions taken by precedent,
  * the process (folded), and one line on how often the user had to step in.
  */
 import type { AcceptanceCriterion, TaskLoad, TaskRun } from '@hapi/protocol/types'
@@ -29,9 +29,12 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
     const met = results.filter((r) => r.status === 'met').length
     const failed = input.acceptance.filter((c) => byId.get(c.id)?.status !== 'met')
     const branch = run.integration?.branch ?? null
-    const conclusion = failed.length === 0
+    // The user's last change request leads the report: it is what they wait to see.
+    const revision = run.revisions?.at(-1)?.summary ? run.revisions.at(-1)! : null
+    const criteria = failed.length === 0
         ? `${input.acceptance.length} 条验收标准全部达到${branch ? `，结果在本地分支 ${branch}（未推送）` : ''}。`
         : `${input.acceptance.length} 条验收标准达到 ${met} 条，${failed.length} 条没达到或说不清。`
+    const conclusion = revision ? `按你的意见改好了；${criteria}` : criteria
 
     const userDecisions = run.decisions.filter((d) => d.answer?.by === 'user')
     const precedents = run.decisions.filter((d) => d.answer?.by === 'precedent')
@@ -61,6 +64,7 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         '',
         `目标：${input.goal}`,
         '',
+        ...(revision ? ['## 按你的意见改了', `你说：「${revision.request}」`, '', revision.summary!, ''] : []),
         '## 要你做的事',
         ...(todo.length ? todo.map((line, i) => `${i + 1}. ${line}`) : ['没有。']),
         '',
