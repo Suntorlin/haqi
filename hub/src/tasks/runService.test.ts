@@ -169,17 +169,26 @@ describe('task run after the guide step', () => {
         ] })
         await t.settle()
 
-        // The report waits for the user; the user is pushed.
+        // The lead writes what the user gets, in the user's rules; then the report waits for the user.
+        expect(t.service.get('default', task.id)!.run!.phase).toBe('delivering')
+        const handover = t.spawned.at(-1)!
+        expect([handover.kind, handover.text.includes('请写交给用户的交付说明'), handover.text.includes('subtask_id 填 "deliver-1"')]).toEqual(['lead', true, true])
+        expect(handover.text).toContain('## 用户的原则（必须遵守）')
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '归档的记忆能恢复了，没推送。\n\n## 要你做的事\n1. 看分支，决定要不要合并。' })
+        await t.settle()
         const reporting = t.service.get('default', task.id)!
         expect(reporting.run!.phase).toBe('reporting')
-        expect(reporting.run!.report).toMatchObject({ conclusion: `3 条验收标准全部达到，结果在本地分支 task/${task.id}（未推送）。`, shareUrl: 'https://example.test/share/r/x' })
-        expect(t.reports[0]).toContain('返工 · 返工 1')
+        expect(reporting.run!.report).toMatchObject({ conclusion: '归档的记忆能恢复了，没推送。', shareUrl: 'https://example.test/share/r/x' })
+        expect(t.reports.at(-1)).toContain('## 要你做的事\n1. 看分支，决定要不要合并。\n\n---\n\n## 附：HAQI 的核对')
+        expect(t.reports.at(-1)).toContain('返工 · 返工 1')
+        expect(t.reports.at(-1)).not.toContain('负责人整理交付')
+        expect(t.stopped).toContain(handover.id)
         expect(t.pushes.at(-1)).toBe('等你验收：记忆页加归档恢复')
         // The report also lands in the task's conversation, in full.
         expect(t.lines.at(-1)?.text.startsWith('做完了，等你验收：')).toBe(true)
         expect(t.lines.at(-1)?.report).toBe(t.reports.at(-1))
 
-        // The user asks for a change at the report: a fixer does it, the reviewer is told, and the next report leads with it.
+        // The user asks for a change: a fixer does it, the reviewer is told, and the lead replaces its hand-over.
         await t.runs.verdict('default', task.id, { approved: false, text: '报告不好读，给个简单版' })
         await t.settle()
         expect(t.service.get('default', task.id)!.run!.revisions).toMatchObject([{ request: '报告不好读，给个简单版', fixId: 'fix-2', summary: null }])
@@ -193,10 +202,16 @@ describe('task run after the guide step', () => {
             { criterionId: 'c3', status: 'met', evidence: '截图里看得到' }
         ] })
         await t.settle()
+        const second = t.spawned.at(-1)!
+        expect(second.text).toContain('subtask_id 填 "deliver-2"')
+        expect(second.text).toContain('## 你上次交给用户的（这次要替换它）\n归档的记忆能恢复了，没推送。')
+        expect(second.text).toContain('「## 按你的意见改了」')
+        expect(second.text).toContain('写了易读版：https://example.test/share/r/easy')
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-2', summary: '按你的意见出了易读版。\n\n## 交付物\n- 易读版：https://example.test/share/r/easy' })
+        await t.settle()
         const revised = t.service.get('default', task.id)!.run!
-        expect(revised.revisions![0]!.summary).toContain('share/r/easy')
-        expect(revised.report!.conclusion.startsWith('按你的意见改好了；')).toBe(true)
-        expect(revised.report!.markdown).toContain('## 按你的意见改了\n你说：「报告不好读，给个简单版」\n\n写了易读版：https://example.test/share/r/easy')
+        expect(revised.delivery).toMatchObject({ conclusion: '按你的意见出了易读版。' })
+        expect(revised.report!.conclusion).toBe('按你的意见出了易读版。')
 
         const accepted = await t.runs.verdict('default', task.id, { approved: true }).then(() => t.service.get('default', task.id)!)
         expect([accepted.status, accepted.run!.phase]).toEqual(['done', 'accepted'])
@@ -362,6 +377,32 @@ describe('task run after the guide step', () => {
         expect(view.run!.subtasks[0]!.sessionId).toBe('worker-resumed')
         await t.runs.userMessage('default', task.id, '继续')
         expect(t.sent.at(-1)).toMatchObject({ sessionId: 'worker-resumed' })
+    })
+
+    it('sends HAQI\'s report when the lead does not hand over in time, and takes a late hand-over', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: 'A', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'a', summary: '做完了' })
+        await t.settle()
+        await t.runs.reviewSubmitted('default', task.id, { results: ['c1', 'c2', 'c3'].map((criterionId) => ({ criterionId, status: 'met', evidence: 'ok' })) })
+        await t.settle()
+        expect(t.service.get('default', task.id)!.run!.phase).toBe('delivering')
+        await t.runs.tick('default', Date.now() + 5 * 60_000)
+        expect(t.service.get('default', task.id)!.run!.phase).toBe('delivering')
+        await t.runs.tick('default', Date.now() + 21 * 60_000)
+        const fallback = t.service.get('default', task.id)!.run!
+        expect(fallback.phase).toBe('reporting')
+        expect(fallback.report!.conclusion.startsWith('3 条验收标准全部达到')).toBe(true)
+        expect(t.lines.some((l) => l.text.includes('负责人 20 分钟没交交付说明'))).toBe(true)
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '晚到的交付说明。' })
+        await t.settle()
+        expect(t.service.get('default', task.id)!.run!.report!.conclusion).toBe('晚到的交付说明。')
     })
 
     it('stops every working session when the task is abandoned', async () => {

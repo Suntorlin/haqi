@@ -29,12 +29,15 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
     const met = results.filter((r) => r.status === 'met').length
     const failed = input.acceptance.filter((c) => byId.get(c.id)?.status !== 'met')
     const branch = run.integration?.branch ?? null
-    // The user's last change request leads the report: it is what they wait to see.
-    const revision = run.revisions?.at(-1)?.summary ? run.revisions.at(-1)! : null
+    // The lead's hand-over is what the user reads; it counts only if it is newer than the user's last change request.
+    const lastRevision = run.revisions?.at(-1) ?? null
+    const delivery = run.delivery && (!lastRevision || run.delivery.at > lastRevision.at) ? run.delivery : null
+    // Without one, the user's last change request leads the report: it is what they wait to see.
+    const revision = !delivery && lastRevision?.summary ? lastRevision : null
     const criteria = failed.length === 0
         ? `${input.acceptance.length} 条验收标准全部达到${branch ? `，结果在本地分支 ${branch}（未推送）` : ''}。`
         : `${input.acceptance.length} 条验收标准达到 ${met} 条，${failed.length} 条没达到或说不清。`
-    const conclusion = revision ? `按你的意见改好了；${criteria}` : criteria
+    const conclusion = delivery?.conclusion || (revision ? `按你的意见改好了；${criteria}` : criteria)
 
     const userDecisions = run.decisions.filter((d) => d.answer?.by === 'user')
     const precedents = run.decisions.filter((d) => d.answer?.by === 'precedent')
@@ -50,7 +53,7 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         ...run.signals.filter((s) => s.kind !== 'reminded' && s.kind !== 'approval').map((s) => s.text)
     ]
     const workers = run.subtasks.filter((s) => !s.fix)
-    const fixes = run.subtasks.filter((s) => s.fix && s.id !== 'merge')
+    const fixes = run.subtasks.filter((s) => s.fix && s.id.startsWith('fix-'))
     const notified = run.signals.filter((s) => s.notified).length
     const load = input.load
     const loadLine = load
@@ -62,12 +65,14 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         '',
         `**${conclusion}**`,
         '',
-        `目标：${input.goal}`,
-        '',
-        ...(revision ? ['## 按你的意见改了', `你说：「${revision.request}」`, '', revision.summary!, ''] : []),
-        '## 要你做的事',
-        ...(todo.length ? todo.map((line, i) => `${i + 1}. ${line}`) : ['没有。']),
-        '',
+        ...(delivery ? [delivery.body, '', '---', '', '## 附：HAQI 的核对', ''] : [
+            `目标：${input.goal}`,
+            '',
+            ...(revision ? ['## 按你的意见改了', `你说：「${revision.request}」`, '', revision.summary!, ''] : []),
+            '## 要你做的事',
+            ...(todo.length ? todo.map((line, i) => `${i + 1}. ${line}`) : ['没有。']),
+            ''
+        ]),
         '## 验收标准',
         '| # | 标准 | 结论 | 证据 |',
         '|---|---|---|---|',
@@ -91,7 +96,7 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         '',
         '<details><summary>过程</summary>',
         '',
-        ...run.subtasks.map((s) => `- **${s.fix && s.id !== 'merge' ? '返工 · ' : ''}${s.title}**${s.branch ? `（${s.branch}）` : ''}：${s.summary ?? '没交总结'}`),
+        ...run.subtasks.filter((s) => !s.id.startsWith('deliver-')).map((s) => `- **${s.fix && s.id.startsWith('fix-') ? '返工 · ' : ''}${s.title}**${s.branch ? `（${s.branch}）` : ''}：${s.summary ?? '没交总结'}`),
         ...(run.integration?.summary ? [`- **合并**：${run.integration.summary}`] : []),
         '',
         '</details>',

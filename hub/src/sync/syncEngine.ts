@@ -584,6 +584,10 @@ export class SyncEngine {
                     await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta })
                     return true
                 },
+                resume: async (namespace, sessionId) => {
+                    const result = await this.resumeSession(sessionId, namespace)
+                    return result.type === 'success' ? result.sessionId : null
+                },
                 session: (namespace, sessionId) => {
                     const session = this.getSessionByNamespace(sessionId, namespace)
                     if (!session) return null

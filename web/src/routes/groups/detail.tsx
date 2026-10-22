@@ -751,10 +751,10 @@ function taskFinishedSessionIds(task: TaskView | null, members: GroupMember[]): 
     const ids = new Set(run.subtasks.filter((s) => s.state === 'done' && s.sessionId).map((s) => s.sessionId!))
     for (const member of members) {
         if (!member.sessionId) continue
-        if (member.role === 'lead' && run.phase !== 'planning') ids.add(member.sessionId)
+        if (member.role === 'lead' && run.phase !== 'planning' && run.phase !== 'delivering') ids.add(member.sessionId)
         if (member.role === 'reviewer' && run.review && run.phase !== 'reviewing') ids.add(member.sessionId)
     }
-    if (task.leadSessionId && run.phase !== 'planning') ids.add(task.leadSessionId)
+    if (task.leadSessionId && run.phase !== 'planning' && run.phase !== 'delivering') ids.add(task.leadSessionId)
     return ids
 }
 

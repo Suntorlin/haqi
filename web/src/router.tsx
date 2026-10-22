@@ -952,6 +952,7 @@ function taskWorker(task: TaskView, anyoneThinking: boolean, t: ReturnType<typeo
     const run = task.run
     if (!run) return anyoneThinking ? t('taskRun.leadWorking') : t('tasks.status.guiding')
     if (run.phase === 'planning' && anyoneThinking) return t('taskRun.leadWorking')
+    if (run.phase === 'delivering') return t('taskRun.phase.delivering')
     const working = run.subtasks.filter((s) => s.state === 'running')
     if (working.length === 1) return t('taskRun.subtaskWorking', { title: working[0]!.title })
     if (working.length > 1) return t('taskRun.subtasksWorking', { n: working.length })

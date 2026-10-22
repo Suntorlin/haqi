@@ -23,7 +23,7 @@ import { ChevronLeftIcon } from '@/components/mobile/icons'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
-import { ReportSheet } from './ReportSheet'
+import { ReportSheet, reportMarkdownForApp } from './ReportSheet'
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
@@ -295,6 +295,7 @@ function runHeadline(task: TaskView, run: TaskRun, t: Translate): string {
         case 'integrating': return t('taskRun.integrating') + waiting
         case 'reviewing': return t('taskRun.reviewing') + waiting
         case 'fixing': return t('taskRun.fixing', { n: run.review?.results.filter((r) => r.status === 'not_met').length ?? 0 }) + waiting
+        case 'delivering': return t('taskRun.delivering') + waiting
         case 'reporting': return run.report?.conclusion ?? t('taskRun.reporting')
         case 'accepted': return run.report?.conclusion ?? task.goal ?? task.name
     }
@@ -344,8 +345,12 @@ export function RunReport(props: {
         ]
     const meta = [task.tag ? `#${task.tag}` : null, task.repoPath?.split('/').filter(Boolean).pop(), run.integration?.branch].filter(Boolean).join(' · ')
     const subtask = subtaskId ? run.subtasks.find((s) => s.id === subtaskId) ?? null : null
-    // The user's latest change request at a report, with what the fixer did; it leads the page until accepted.
-    const revision = run.phase === 'accepted' ? null : run.revisions?.at(-1) ?? null
+    // What the lead handed over leads the page, newest version only; it is stale once the user asks for a change.
+    const lastRevision = run.revisions?.at(-1) ?? null
+    const delivery = run.delivery && (!lastRevision || run.delivery.at > lastRevision.at) ? run.delivery : null
+    // A change the user asked for and the lead has not handed over yet: the user's words, and the fixer's account
+    // only if no hand-over is coming (HAQI's report went out instead).
+    const revision = delivery || run.phase === 'accepted' ? null : lastRevision
     const check = checkId ? task.acceptance.find((c) => c.id === checkId) ?? null : null
     const sheet = (
         <>
@@ -388,13 +393,20 @@ export function RunReport(props: {
                 </p>
             ) : null}
 
-            {revision ? (
+            {delivery && delivery.body ? (
                 <>
-                    <SectionCaption>{revision.summary ? t('taskRun.revision.done') : t('taskRun.revision.working')}</SectionCaption>
+                    <SectionCaption>{t('taskRun.delivery')}</SectionCaption>
+                    <div className="mx-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
+                        <BriefFullMarkdownContent content={reportMarkdownForApp(delivery.body)} className="text-body" />
+                    </div>
+                </>
+            ) : revision ? (
+                <>
+                    <SectionCaption>{run.phase === 'reporting' && revision.summary ? t('taskRun.revision.done') : t('taskRun.revision.working')}</SectionCaption>
                     <div className="mx-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
                         <p className="text-footnote text-[var(--social-fg-muted)]">{t('taskRun.revision.request', { text: revision.request })}</p>
-                        {revision.summary ? (
-                            <BriefFullMarkdownContent content={revision.summary} className="mt-2 text-body" />
+                        {run.phase === 'reporting' && revision.summary ? (
+                            <BriefFullMarkdownContent content={reportMarkdownForApp(revision.summary)} className="mt-2 text-body" />
                         ) : null}
                     </div>
                 </>

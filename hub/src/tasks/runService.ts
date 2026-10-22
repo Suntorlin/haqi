@@ -12,14 +12,14 @@ import type { StoredGroup } from '../store/types'
 import { TaskError } from './errors'
 import type { TaskKernel } from './kernel/kernel'
 import {
-    RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
+    RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, isDeliverId, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
 } from './kernel/run'
 import { matchPrecedent } from './plugins/decisions/precedent'
 import { observe, type WatchedSession } from './plugins/observer/observer'
 import { isReadOnlyRequest } from './plugins/observer/readonly'
 import { composeReport } from './plugins/report/report'
 import {
-    answerPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
+    answerPrompt, deliverPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
 } from './plugins/work/prompts'
 
 export type RunSession = {
@@ -37,6 +37,8 @@ export type RunHost = {
     /** Starts the lead (planner) again: default permissions, in the repository. */
     spawnLead: (input: { machineId: string; directory: string; name: string; tags: string[]; text: string; meta: Record<string, unknown> }) => Promise<{ sessionId: string } | { error: string }>
     send: (sessionId: string, text: string, meta: Record<string, unknown>) => Promise<boolean>
+    /** Starts a stopped session again with its history; returns its id now (a resume can change it), or null. */
+    resume?: (namespace: string, sessionId: string) => Promise<string | null>
     session: (namespace: string, sessionId: string) => RunSession | null
     /** When the session last wrote, and the shell commands it ran after `since`. */
     activity: (sessionId: string, since: number) => { lastMessageAt: number; commands: string[]; lastStep?: string | null }
@@ -50,7 +52,11 @@ export type RunHost = {
     load: (namespace: string, sessionIds: string[], since: number) => import('@hapi/protocol/types').TaskLoad | null
 }
 
-const ACTIVE_PHASES = new Set(['running', 'integrating', 'reviewing', 'fixing'])
+const ACTIVE_PHASES = new Set(['running', 'integrating', 'reviewing', 'fixing', 'delivering'])
+
+/** A lead that does not hand over in this time, or stops, gets replaced by HAQI's own report. */
+const DELIVER_TIMEOUT_MS = 20 * 60_000
+const DELIVER_START_GRACE_MS = 3 * 60_000
 
 function meta(taskId: string, step: string): Record<string, unknown> {
     return { taskWork: { taskId, step } }
@@ -169,7 +175,10 @@ export class RunService {
         this.host.timeline(namespace, taskId, `「${subtask.title}」做完了：${parsed.data.summary.slice(0, 120)}`)
         if (subtask.sessionId) void this.host.stopSession(namespace, subtask.sessionId).catch(() => {})
         const after = this.run(namespace, taskId)!
-        if (subtask.fix) {
+        if (isDeliverId(subtask.id)) {
+            // A late hand-over (HAQI's report already went out) still replaces it until the user decides.
+            if (after.phase === 'delivering' || after.phase === 'reporting') this.report(namespace, task)
+        } else if (subtask.fix) {
             void this.startReview(namespace, task)
         } else if (after.subtasks.filter((s) => !s.fix).every((s) => s.state === 'done')) {
             void this.integrate(namespace, task)
@@ -257,7 +266,7 @@ export class RunService {
             const byId = new Map(task.acceptance.map((c) => [c.id, c]))
             void this.fix(namespace, task, failed.map((r) => `[${r.criterionId}] ${byId.get(r.criterionId)?.text ?? ''}：评审说 ${r.evidence}`), failed.map((r) => r.criterionId))
         } else {
-            this.report(namespace, task)
+            void this.deliver(namespace, task)
         }
         return { message: 'Review recorded. You are done.' }
     }
@@ -276,6 +285,79 @@ export class RunService {
         if ('error' in result) return this.fail(namespace, task.id, `返工会话没能启动：${result.error}`)
         this.store.groups.addGroupMember({ groupId: task.id, namespace, sessionId: result.sessionId, role: 'worker' })
         this.kernel.log(namespace, task.id, RUN_EVENT.subtaskStarted, { id, sessionId: result.sessionId, branch: run.integration!.branch, worktree: run.integration!.worktree })
+    }
+
+    // ---- hand-over --------------------------------------------------------------------------------------------
+
+    /**
+     * The review is done: the lead writes what the user gets, in the user's writing rules, before the report goes
+     * out. It is woken (resumed if stopped, started again if gone); if it cannot be, HAQI's own report goes out.
+     */
+    private async deliver(namespace: string, task: StoredGroup): Promise<void> {
+        const run = this.run(namespace, task.id)!
+        const id = `deliver-${run.subtasks.filter((s) => isDeliverId(s.id)).length + 1}`
+        this.phase(namespace, task.id, 'delivering')
+        this.kernel.log(namespace, task.id, RUN_EVENT.subtaskAdded, { id, title: '负责人整理交付', brief: '', criteria: [], dependsOn: [] })
+        this.host.timeline(namespace, task.id, '评审做完了，负责人在整理交给你的东西。')
+        const byId = new Map((run.review?.results ?? []).map((r) => [r.criterionId, r]))
+        const text = deliverPrompt(this.brief(task), {
+            subtaskId: id,
+            results: task.acceptance.map((c) => `[${c.id}] ${c.text}：${byId.get(c.id) ? `${byId.get(c.id)!.status}，${byId.get(c.id)!.evidence}` : '没评审'}`),
+            materials: [
+                ...run.subtasks.filter((s) => s.summary && !isDeliverId(s.id)).map((s) => `${s.fix ? '返工 · ' : ''}${s.title}：${s.summary}`),
+                ...(run.review?.suggestions ?? []).map((line) => `评审建议：${line}`)
+            ],
+            principles: this.principles(namespace, task),
+            worktree: run.integration?.worktree ?? null,
+            previous: run.delivery ? [run.delivery.conclusion, run.delivery.body].join('\n') : null
+        })
+        const lead = await this.wakeLead(namespace, task, text, id).catch(() => null)
+        if (!lead) {
+            this.kernel.log(namespace, task.id, RUN_EVENT.subtaskState, { id, state: 'stopped' })
+            this.host.timeline(namespace, task.id, '负责人没能起来，先给你 HAQI 核对的版本。')
+            this.report(namespace, task)
+        }
+    }
+
+    /** Sends `text` to the task's lead: as it is, resumed, or a new one. Logs the hand-over subtask's start. */
+    private async wakeLead(namespace: string, task: StoredGroup, text: string, subtaskId: string): Promise<string | null> {
+        let id = task.leadSessionId
+        if (id && !this.host.session(namespace, id)?.active) id = this.host.resume ? await this.host.resume(namespace, id).catch(() => null) : null
+        if (id && this.host.session(namespace, id)?.active) {
+            this.kernel.log(namespace, task.id, RUN_EVENT.subtaskStarted, { id: subtaskId, sessionId: id, branch: null })
+            if (await this.host.send(id, text, meta(task.id, subtaskId))) return id
+        }
+        if (!task.machineId || !task.repoPath) return null
+        const result = await this.host.spawnLead({
+            machineId: task.machineId, directory: task.repoPath, name: `负责人 · ${task.name}`, tags: task.tag ? [task.tag] : [], text, meta: meta(task.id, subtaskId)
+        })
+        if ('error' in result) return null
+        this.store.groups.addGroupMember({ groupId: task.id, namespace, sessionId: result.sessionId, role: 'lead' })
+        this.kernel.update(namespace, task.id, { leadSessionId: result.sessionId })
+        this.kernel.log(namespace, task.id, RUN_EVENT.subtaskStarted, { id: subtaskId, sessionId: result.sessionId, branch: null })
+        return result.sessionId
+    }
+
+    /** The user's principles for this task: global ones, the repository's, and the tag's. */
+    private principles(namespace: string, task: StoredGroup): string[] {
+        const project = task.repoPath ? projectNameFor(task.repoPath) : null
+        return this.store.memories.list(namespace)
+            .filter((m) => m.level === 'principle' && m.status === 'active')
+            .filter((m) => m.scope === '' || m.scope === project || (task.tag ? m.tags.includes(task.tag) : false))
+            .map((m) => m.text)
+    }
+
+    /** A lead that stopped, or did not hand over in time: the user gets HAQI's report instead of waiting. */
+    private checkDelivery(namespace: string, task: StoredGroup, run: TaskRun, now: number): void {
+        const subtask = run.subtasks.filter((s) => isDeliverId(s.id)).at(-1)
+        if (!subtask || subtask.state === 'done') return
+        const since = subtask.startedAt ?? now
+        const session = subtask.sessionId ? this.host.session(namespace, subtask.sessionId) : null
+        const gone = !session?.active && now - since > DELIVER_START_GRACE_MS
+        if (!gone && now - since <= DELIVER_TIMEOUT_MS) return
+        this.kernel.log(namespace, task.id, RUN_EVENT.subtaskState, { id: subtask.id, state: 'stopped' })
+        this.host.timeline(namespace, task.id, gone ? '负责人停了，没交交付说明；先给你 HAQI 核对的版本。' : '负责人 20 分钟没交交付说明；先给你 HAQI 核对的版本。')
+        this.report(namespace, task)
     }
 
     // ---- report -----------------------------------------------------------------------------------------------
@@ -415,6 +497,10 @@ export class RunService {
             if (task.status !== 'active') continue
             const run = this.run(namespace, task.id)
             if (!run || !ACTIVE_PHASES.has(run.phase)) continue
+            if (run.phase === 'delivering') {
+                this.checkDelivery(namespace, task, run, now)
+                continue
+            }
             const watched: WatchedSession[] = []
             for (const subtask of run.subtasks) {
                 if (!subtask.sessionId || subtask.state === 'done' || subtask.state === 'waiting') continue
