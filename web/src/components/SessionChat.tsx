@@ -1119,9 +1119,9 @@ export function SessionChat(props: {
 
     const runCodexQueueAction = useCallback(async (
         action: () => Promise<{ success: boolean; error?: string; queue?: QueueState | null }>
-    ) => {
+    ): Promise<boolean> => {
         if (!supportsQueueControls) {
-            return
+            return false
         }
         setIsCodexQueueMutating(true)
         setCodexQueueError(null)
@@ -1130,7 +1130,7 @@ export function SessionChat(props: {
             if (result.success) {
                 applyQueueState(result.queue ?? null)
                 applyCodexQueueSummary(result.queue ?? null)
-                return
+                return true
             }
             const message = result.error ?? t('queue.dialog.actionError')
             setCodexQueueError(message)
@@ -1139,10 +1139,12 @@ export function SessionChat(props: {
                 applyCodexQueueSummary(result.queue)
             }
             haptic.notification('error')
+            return false
         } catch (error) {
             const message = error instanceof Error ? error.message : t('queue.dialog.actionError')
             setCodexQueueError(message)
             haptic.notification('error')
+            return false
         } finally {
             setIsCodexQueueMutating(false)
         }
@@ -1173,6 +1175,17 @@ export function SessionChat(props: {
     const handleCodexQueueMove = useCallback((id: string, toIndex: number) => {
         void runCodexQueueAction(async () => {
             const result = await props.api.moveQueueItem(props.session.id, id, toIndex)
+            return {
+                success: result.success,
+                error: result.error,
+                queue: result.queue ?? null
+            }
+        })
+    }, [props.api, props.session.id, runCodexQueueAction])
+
+    const handleCodexQueueUpdate = useCallback((id: string, text: string) => {
+        return runCodexQueueAction(async () => {
+            const result = await props.api.updateQueueItem(props.session.id, id, text)
             return {
                 success: result.success,
                 error: result.error,
@@ -1851,6 +1864,7 @@ export function SessionChat(props: {
                     onClear={handleCodexQueueClear}
                     onMove={handleCodexQueueMove}
                     onRemove={handleCodexQueueRemove}
+                    onUpdate={handleCodexQueueUpdate}
                 />
 
                 {/* Voice session component - renders nothing but initializes ElevenLabs */}

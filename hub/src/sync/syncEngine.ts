@@ -2880,6 +2880,11 @@ ${note.content}
         return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 
+    async updateCodexQueueItem(sessionId: string, id: string, text: string): Promise<RpcCodexQueueResponse> {
+        const response = await this.rpcGateway.updateCodexQueueItem(sessionId, id, text)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
+    }
+
     async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
         const response = await this.rpcGateway.clearCodexQueue(sessionId)
         return this.attachLocalQueueTextToResponse(sessionId, response)
@@ -2924,6 +2929,11 @@ ${note.content}
 
     async moveClaudeQueueItem(sessionId: string, id: string, toIndex: number): Promise<RpcCodexQueueResponse> {
         const response = await this.rpcGateway.moveClaudeQueueItem(sessionId, id, toIndex)
+        return this.attachLocalQueueTextToResponse(sessionId, response)
+    }
+
+    async updateClaudeQueueItem(sessionId: string, id: string, text: string): Promise<RpcCodexQueueResponse> {
+        const response = await this.rpcGateway.updateClaudeQueueItem(sessionId, id, text)
         return this.attachLocalQueueTextToResponse(sessionId, response)
     }
 

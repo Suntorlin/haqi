@@ -522,6 +522,18 @@ describe('MessageQueue2', () => {
         expect(queue.listEntries().map((entry) => entry.message)).toEqual(['third', 'first', 'second']);
     });
 
+    it('should edit only a queue item whose user message is not yet in the chat', () => {
+        const queue = new MessageQueue2<string>((mode) => mode);
+        queue.push('deferred', 'mode', { deferUserMessageUntilDequeue: true, isolate: true });
+        queue.push('shown', 'mode');
+        const [deferred, shown] = queue.listEntries();
+
+        expect(queue.updateById(deferred!.id, 'edited')).toBe('updated');
+        expect(queue.updateById(shown!.id, 'edited')).toBe('not_editable');
+        expect(queue.updateById('missing', 'edited')).toBe('not_found');
+        expect(queue.listEntries().map((entry) => entry.message)).toEqual(['edited', 'shown']);
+    });
+
     it('should clear queue and return cleared count', () => {
         const queue = new MessageQueue2<string>((mode) => mode);
         queue.push('first', 'mode');

@@ -728,6 +728,7 @@ export type QueueResponse = {
     queue?: QueueState
     removedId?: string
     movedId?: string
+    updatedId?: string
     clearedCount?: number
 }
 

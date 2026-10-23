@@ -1,13 +1,15 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import type { PermissionMode } from '@hapi/protocol'
 import type { QueueEntry, QueueSummary, SessionUsageOverview } from '@/types/api'
 import { BottomSheet, SheetNote, SheetRow, SheetSection } from '@/components/mobile/BottomSheet'
 import { permissionModeText } from '@/lib/option-labels'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
+import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { ArrowDownIcon, ArrowUpIcon, CloseIcon } from '@/components/mobile/icons'
+import { ArrowDownIcon, ArrowUpIcon, CloseIcon, PencilIcon } from '@/components/mobile/icons'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -166,20 +168,58 @@ function QueueEntryRow(props: {
     disabled: boolean
     onMove: (id: string, index: number) => void
     onRemove: (id: string) => void
+    onUpdate: (id: string, text: string) => Promise<boolean>
 }) {
     const { t } = useTranslation()
     const { entry, index } = props
-    return (
-        <div className="flex items-center gap-3 px-4 py-1 [&+&]:border-t [&+&]:border-[var(--social-border)]">
-            <span className="w-5 shrink-0 text-footnote tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
-            <div className="min-w-0 flex-1 py-2">
-                <div className="line-clamp-3 break-words text-body leading-snug text-[var(--social-fg)]">
-                    {entry.preview || t('queue.dialog.emptyMessage')}
+    const [expanded, setExpanded] = useState(false)
+    const [draft, setDraft] = useState<string | null>(null)
+    const text = entry.fullText ?? entry.preview
+    // The chat already shows a message that was not deferred, so only a deferred one can change.
+    const editable = entry.deferredUserMessage === true && entry.fullText !== undefined
+
+    const save = async () => {
+        if (draft === null || !draft.trim() || props.disabled) return
+        if (draft === entry.fullText || await props.onUpdate(entry.id, draft)) {
+            setDraft(null)
+        }
+    }
+
+    if (draft !== null) {
+        return (
+            <div className="flex flex-col gap-2 px-4 py-3 [&+&]:border-t [&+&]:border-[var(--social-border)]">
+                <AutoTextarea autoFocus value={draft} minRows={3} maxRows={14} aria-label={t('queue.entry.edit')} onChange={(event) => setDraft(event.target.value)} onSubmitKey={() => void save()} />
+                <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setDraft(null)}>{t('button.cancel')}</Button>
+                    <Button size="sm" disabled={props.disabled || !draft.trim()} onClick={() => void save()}>{t('button.save')}</Button>
                 </div>
+            </div>
+        )
+    }
+
+    return (
+        <div className="flex items-start gap-3 px-4 py-1 [&+&]:border-t [&+&]:border-[var(--social-border)]">
+            <span className="w-5 shrink-0 py-2 text-footnote tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
+            <div className="min-w-0 flex-1 py-2">
+                <button
+                    type="button"
+                    aria-expanded={expanded}
+                    aria-label={expanded ? t('queue.entry.showLess') : t('queue.entry.showMore')}
+                    onClick={() => setExpanded((value) => !value)}
+                    className={cn('block w-full break-words text-left text-body leading-snug text-[var(--social-fg)]', expanded ? 'whitespace-pre-wrap' : 'line-clamp-3')}
+                >
+                    {text || t('queue.dialog.emptyMessage')}
+                </button>
                 <div className="mt-1 text-caption text-[var(--social-fg-subtle)]">
                     {new Date(entry.enqueuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     {entry.isolate ? ` · ${t('queue.entry.isolate')}` : ''}
                 </div>
+                {expanded && editable ? (
+                    <Button size="xs" variant="secondary" className="mt-2" disabled={props.disabled} onClick={() => setDraft(entry.fullText ?? '')}>
+                        <PencilIcon className="h-4 w-4" />
+                        {t('queue.entry.edit')}
+                    </Button>
+                ) : null}
             </div>
             <div className="flex shrink-0 items-center">
                 <IconButton label={t('queue.entry.moveUp')} disabled={props.disabled || index <= 0} onClick={() => props.onMove(entry.id, index - 1)}><ArrowUpIcon className="h-[18px] w-[18px]" /></IconButton>
@@ -190,7 +230,7 @@ function QueueEntryRow(props: {
     )
 }
 
-/** Messages waiting to be sent while the agent works: reorder, remove, clear. */
+/** Messages waiting to be sent while the agent works: read in full, edit, reorder, remove, clear. */
 export function QueueSheet(props: {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -204,6 +244,7 @@ export function QueueSheet(props: {
     onClear: () => void
     onMove: (id: string, index: number) => void
     onRemove: (id: string) => void
+    onUpdate: (id: string, text: string) => Promise<boolean>
 }) {
     const { t } = useTranslation()
 
@@ -225,6 +266,7 @@ export function QueueSheet(props: {
                         disabled={props.mutating}
                         onMove={props.onMove}
                         onRemove={props.onRemove}
+                        onUpdate={props.onUpdate}
                     />
                 )) : (
                     <EmptyState title={t('queue.dialog.empty')} />

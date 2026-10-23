@@ -90,6 +90,7 @@ export type RpcCodexQueueResponse = {
     queue?: RpcCodexQueueState
     removedId?: string
     movedId?: string
+    updatedId?: string
     clearedCount?: number
 }
 
@@ -430,6 +431,20 @@ export class RpcGateway {
         }
     }
 
+    async updateCodexQueueItem(sessionId: string, id: string, text: string): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'update-codex-queue-item', { id, text }) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'update-codex-queue-item')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue editing is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
     async clearCodexQueue(sessionId: string): Promise<RpcCodexQueueResponse> {
         try {
             return await this.sessionRpc(sessionId, 'clear-codex-queue', {}) as RpcCodexQueueResponse
@@ -533,6 +548,20 @@ export class RpcGateway {
             return {
                 success: false,
                 error: 'Queue mutation is unavailable for this session. Please restart the session.'
+            }
+        }
+    }
+
+    async updateClaudeQueueItem(sessionId: string, id: string, text: string): Promise<RpcCodexQueueResponse> {
+        try {
+            return await this.sessionRpc(sessionId, 'update-claude-queue-item', { id, text }) as RpcCodexQueueResponse
+        } catch (error) {
+            if (!this.isMissingRpcHandler(error, 'update-claude-queue-item')) {
+                throw error
+            }
+            return {
+                success: false,
+                error: 'Queue editing is unavailable for this session. Please restart the session.'
             }
         }
     }

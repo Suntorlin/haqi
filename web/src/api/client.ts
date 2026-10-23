@@ -724,6 +724,13 @@ export class ApiClient {
         return await this.moveQueueItem(sessionId, id, toIndex)
     }
 
+    async updateQueueItem(sessionId: string, id: string, text: string): Promise<QueueResponse> {
+        return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue/update`, {
+            method: 'POST',
+            body: JSON.stringify({ id, text })
+        })
+    }
+
     async clearQueue(sessionId: string): Promise<QueueResponse> {
         return await this.request<QueueResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/queue/clear`, {
             method: 'POST',

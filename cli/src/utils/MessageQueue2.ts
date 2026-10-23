@@ -119,6 +119,22 @@ export class MessageQueue2<T> {
     }
 
     /**
+     * Replace the text of one queue entry. Only an entry whose user message is
+     * deferred until dequeue can change: the chat already shows the others.
+     */
+    updateById(id: string, message: string): 'updated' | 'not_found' | 'not_editable' {
+        const item = this.queue.find((entry) => entry.id === id);
+        if (!item) {
+            return 'not_found';
+        }
+        if (!item.deferUserMessageUntilDequeue) {
+            return 'not_editable';
+        }
+        item.message = message;
+        return 'updated';
+    }
+
+    /**
      * Clear all pending queue items and return cleared count.
      */
     clear(): number {

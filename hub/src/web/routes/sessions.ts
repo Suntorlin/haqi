@@ -79,6 +79,11 @@ const codexQueueMoveSchema = z.object({
     toIndex: z.number().int().min(0)
 })
 
+const codexQueueUpdateSchema = z.object({
+    id: z.string().min(1).max(255),
+    text: z.string().trim().min(1)
+})
+
 const codexQueueEnqueueSchema = z.object({
     text: z.string(),
     meta: z.object({
@@ -444,6 +449,36 @@ export function createSessionsRoutes(
         }
     }
 
+    const handleQueueUpdate = async (c: Context<WebAppEnv>) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireActiveQueueSession(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        const body = await c.req.json().catch(() => null)
+        const parsed = codexQueueUpdateSchema.safeParse(body)
+        if (!parsed.success) {
+            return c.json({ success: false, error: 'Invalid body' }, 400)
+        }
+
+        try {
+            const result = sessionResult.flavor === 'claude'
+                ? await engine.updateClaudeQueueItem(sessionResult.sessionId, parsed.data.id, parsed.data.text)
+                : await engine.updateCodexQueueItem(sessionResult.sessionId, parsed.data.id, parsed.data.text)
+            return c.json(result)
+        } catch (error) {
+            return c.json({
+                success: false,
+                error: error instanceof Error ? error.message : 'Failed to update queue item'
+            }, 500)
+        }
+    }
+
     const handleQueueClear = async (c: Context<WebAppEnv>) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
@@ -505,6 +540,7 @@ export function createSessionsRoutes(
         app.post(`${path}/enqueue`, handleQueueEnqueue)
         app.post(`${path}/remove`, handleQueueRemove)
         app.post(`${path}/move`, handleQueueMove)
+        app.post(`${path}/update`, handleQueueUpdate)
         app.post(`${path}/clear`, handleQueueClear)
     })
 

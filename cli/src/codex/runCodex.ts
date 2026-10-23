@@ -22,6 +22,7 @@ type CodexQueueEntrySnapshot = {
     id: string;
     index: number;
     preview: string;
+    fullText: string;
     modeHash: string;
     isolate: boolean;
     deferredUserMessage: boolean;
@@ -199,6 +200,7 @@ export async function runCodex(opts: {
                 id: item.id,
                 index,
                 preview: buildQueuePreview(item.message) ?? '',
+                fullText: item.message,
                 modeHash: item.modeHash,
                 isolate: item.isolate,
                 deferredUserMessage: item.deferUserMessageUntilDequeue,
@@ -352,6 +354,15 @@ export async function runCodex(opts: {
         }
         const toIndex = Math.max(0, Math.floor(toIndexValue));
         return { id, toIndex };
+    };
+
+    const resolveQueueUpdatePayload = (payload: unknown): { id: string; text: string } => {
+        const id = resolveQueueItemId(payload);
+        const textValue = (payload as { text?: unknown }).text;
+        if (typeof textValue !== 'string' || !textValue.trim()) {
+            throw new Error('Queue message text is empty');
+        }
+        return { id, text: textValue };
     };
 
     const resolveEnqueuePayload = (payload: unknown): { text: string; routeContext?: EnhancedMode['routeContext']; attachments?: Array<{
@@ -524,6 +535,25 @@ export async function runCodex(opts: {
             return {
                 success: true,
                 movedId: id,
+                queue: getCodexQueueStateSnapshot()
+            };
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, error: message, queue: getCodexQueueStateSnapshot() };
+        }
+    });
+
+    session.rpcHandlerManager.registerHandler('update-codex-queue-item', async (payload: unknown) => {
+        try {
+            const { id, text } = resolveQueueUpdatePayload(payload);
+            const result = messageQueue.updateById(id, text);
+            if (result !== 'updated') {
+                const error = result === 'not_found' ? 'Queue item not found' : 'Queue item is already in the chat and cannot be edited';
+                return { success: false, error, queue: getCodexQueueStateSnapshot() };
+            }
+            return {
+                success: true,
+                updatedId: id,
                 queue: getCodexQueueStateSnapshot()
             };
         } catch (error) {
