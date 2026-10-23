@@ -3,6 +3,7 @@ import type { ApiClient } from '@/api/client'
 import type { CriterionSource, TaskDraft, TaskView } from '@/types/api'
 import { useTask, useTaskActions } from '@/hooks/queries/useTasks'
 import { useSession } from '@/hooks/queries/useSession'
+import { appendDictatedText, useDictation } from '@/hooks/useDictation'
 import { useTranslation } from '@/lib/use-translation'
 import { carryOver, confirmInputFrom, keptCount, type DraftEdits } from '@/lib/tasks'
 import { cn } from '@/lib/utils'
@@ -343,6 +344,13 @@ export function TaskReport(props: {
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
     const [message, setMessage] = useState('')
+    // The session's mic: dictated words join the draft. The repository's folder name is the word it most often gets wrong.
+    const repoWord = task?.repoPath?.split('/').filter(Boolean).pop()
+    const dictation = useDictation({
+        api: props.api,
+        hotwords: repoWord ? [repoWord] : [],
+        onText: (text) => setMessage((previous) => appendDictatedText(previous, text))
+    })
     const [pending, setPending] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -493,6 +501,7 @@ export function TaskReport(props: {
                         : send}
                     onAllChats={props.onAllChats}
                     placeholder={guiding ? t('taskGuide.composerPlaceholder') : changing ? t('taskRun.changePlaceholder') : undefined}
+                    dictation={dictation}
                 />
             )}
         </div>
