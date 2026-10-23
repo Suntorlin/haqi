@@ -1,6 +1,8 @@
 import type { ReactNode, Ref } from 'react'
 import { Orb } from '@/components/mobile/SessionAvatar'
-import { ChevronRightIcon, MicIcon, SendArrowIcon } from '@/components/mobile/icons'
+import { ChevronRightIcon, SendArrowIcon } from '@/components/mobile/icons'
+import { DictationBar, DictationButton } from '@/components/AssistantChat/MobileComposerParts'
+import type { DictationController } from '@/hooks/useDictation'
 import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 import type { LatestMessage } from './types'
@@ -21,8 +23,10 @@ export function LeadComposer(props: {
     /** Overrides the input placeholder. */
     placeholder?: string
     inputRef?: Ref<HTMLInputElement>
-    /** Trailing control when the draft is empty (defaults to a mic glyph). */
+    /** Trailing control when the draft is empty; `dictation` puts the session's mic there. */
     idleTrailing?: ReactNode
+    /** Speech-to-text into the draft, as in a session's prompt box. Without it there is no mic. */
+    dictation?: DictationController | null
 }) {
     const { t } = useTranslation()
     const { latest } = props
@@ -50,6 +54,18 @@ export function LeadComposer(props: {
                     <div className="mt-0.5 line-clamp-2 text-body leading-snug text-[var(--social-fg)]">{latest.text}</div>
                 </div>
             </div>
+            {props.dictation ? (
+                <div className="pb-2 empty:hidden">
+                    <DictationBar
+                        status={props.dictation.status}
+                        elapsedMs={props.dictation.elapsedMs}
+                        error={props.dictation.error}
+                        onCancel={props.dictation.cancel}
+                        onFinish={props.dictation.finish}
+                        onDismissError={props.dictation.clearError}
+                    />
+                </div>
+            ) : null}
             <form onSubmit={(event) => { event.preventDefault(); props.onSend() }}>
                 <TextField
                     ref={props.inputRef}
@@ -61,7 +77,14 @@ export function LeadComposer(props: {
                         <button type="submit" aria-label={t('report.composer.send')} className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--social-primary)] text-[var(--social-primary-fg)]">
                             <SendArrowIcon className="h-4 w-4" />
                         </button>
-                    ) : (props.idleTrailing ?? <MicIcon className="h-5 w-5 text-[var(--social-fg-muted)]" />)}
+                    ) : props.dictation ? (
+                        <DictationButton
+                            status={props.dictation.status}
+                            onStart={props.dictation.start}
+                            onFinish={props.dictation.finish}
+                            disabled={false}
+                        />
+                    ) : props.idleTrailing}
                 />
             </form>
         </div>
