@@ -29,6 +29,7 @@ describe('NewTaskForm', () => {
         expect(onCreate).toHaveBeenCalledWith({
             text: '照文档改',
             draft: true,
+            settings: { thinkEffort: 'medium' },
             files: [{ filename: 'spec.txt', mimeType: 'text/plain', content: btoa('hello') }]
         })
     })
@@ -41,6 +42,6 @@ describe('NewTaskForm', () => {
         await screen.findByText('a.txt')
         fireEvent.click(screen.getAllByRole('button').find((button) => button.getAttribute('aria-label')?.match(/remove|移除/i))!)
         fireEvent.submit(input.closest('form')!)
-        await waitFor(() => expect(onCreate).toHaveBeenCalledWith({ text: '修 bug', draft: true }))
+        await waitFor(() => expect(onCreate).toHaveBeenCalledWith({ text: '修 bug', draft: true, settings: { thinkEffort: 'medium' } }))
     })
 })

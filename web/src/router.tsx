@@ -1192,7 +1192,8 @@ function GroupsLayout() {
     const groupModals = (
         <>
             <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-                <DialogContent className="max-w-md">
+                {/* Wide enough for the prompt box's toolbar: files, model, thinking, permission, drafting, mic. */}
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>{t('tasks.new')}</DialogTitle>
                     </DialogHeader>

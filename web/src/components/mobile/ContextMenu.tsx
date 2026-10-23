@@ -86,7 +86,7 @@ export function ContextMenu(props: {
             id={props.menuId ?? `context-menu-${internalId}`}
             role="menu"
             aria-label={props.label}
-            className={cn('animate-menu-pop fixed z-50 flex min-w-[208px] flex-col', CONTEXT_MENU_SURFACE)}
+            className={cn('animate-menu-pop pointer-events-auto fixed z-[90] flex min-w-[208px] flex-col', CONTEXT_MENU_SURFACE)}
             style={position
                 ? { top: position.top, left: position.left, transformOrigin: position.origin }
                 : { top: -9999, left: -9999 }}

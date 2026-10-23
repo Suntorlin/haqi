@@ -56,6 +56,7 @@ import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { CloseIcon } from '@/components/mobile/icons'
 import { SettingChip, SwitchChip, ToggleChip } from '@/components/ui/SettingChip'
+import { buildClaudeModelOptions, getThinkEffortOptionsForFlavor, SessionSettingChips, type SessionThinkEffort } from '@/components/AssistantChat/SessionSettingChips'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useTranslation } from '@/lib/use-translation'
 import { modelOptionText, permissionModeText, serviceTierText, thinkEffortText } from '@/lib/option-labels'
@@ -72,18 +73,7 @@ type QueueEnqueuePayload = {
     attachments?: AttachmentMetadata[]
 }
 
-type ComposerModelOption = {
-    value: string
-    label: string
-}
-
-type SessionThinkEffort = 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
 type SessionServiceTier = 'auto' | 'fast' | 'flex'
-
-type ComposerThinkEffortOption = {
-    value: SessionThinkEffort
-    label: string
-}
 
 type ComposerServiceTierOption = {
     value: SessionServiceTier
@@ -276,53 +266,6 @@ function parseAttachmentMetadataFromAttachment(attachment: Attachment): Attachme
         path,
         previewUrl: (attachment as { previewUrl?: unknown }).previewUrl as string | undefined
     }
-}
-
-function buildClaudeModelOptions(
-    currentModel: string | undefined
-): ComposerModelOption[] {
-    const options: ComposerModelOption[] = [
-        { value: 'auto', label: 'Default (recommended)' },
-        { value: 'claude-fable-5', label: 'Fable 5' },
-        { value: 'sonnet', label: 'Sonnet (latest)' },
-        { value: 'opus', label: 'Opus (latest)' },
-        { value: 'haiku', label: 'Haiku (latest)' },
-        { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-        { value: 'claude-sonnet-4-6', label: 'Sonnet 4.6' },
-        { value: 'claude-opus-4-6', label: 'Opus 4.6' },
-        { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5' },
-    ]
-
-    if (currentModel && !options.some((option) => option.value === currentModel)) {
-        options.push({ value: currentModel, label: currentModel })
-    }
-
-    return options
-}
-
-function getThinkEffortOptionsForFlavor(flavor?: string | null): ComposerThinkEffortOption[] {
-    if (flavor === 'claude') {
-        // cc CLI accepts low/medium/high/xhigh/max. xhigh is Opus 4.7-only;
-        // cc downgrades unsupported levels server-side, so it's safe to expose.
-        return [
-            { value: 'auto', label: 'Auto' },
-            { value: 'low', label: 'Low' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'high', label: 'High' },
-            { value: 'xhigh', label: 'Extra high' },
-            { value: 'max', label: 'Max' },
-        ]
-    }
-    if (flavor === 'codex') {
-        return [
-            { value: 'auto', label: 'Auto' },
-            { value: 'low', label: 'Low' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'high', label: 'High' },
-            { value: 'xhigh', label: 'XHigh' },
-        ]
-    }
-    return []
 }
 
 function getServiceTierOptionsForFlavor(flavor?: string | null): ComposerServiceTierOption[] {
@@ -1239,37 +1182,19 @@ export function HappyComposer(props: {
     // Each setting is a chip showing its value; tapping opens only that setting.
     const optionLabel = (options: ReadonlyArray<{ value: string; label: string }>, value: string) =>
         options.find((option) => option.value === value)?.label ?? value
-    const permissionChoices = permissionModeOptions.map((option) => ({ value: option.mode as string, label: option.label }))
     const sendModeChoices = [
         { value: 'direct' as const, label: t('queue.mode.direct'), description: t('queue.mode.directHint') },
         { value: 'queue' as const, label: t('queue.mode.queue'), description: t('queue.mode.queueHint') }
     ]
     const settingChips = showSettingsButton || (supportsQueueControls && (onCodexSendModeChange || onCodexPlanModeChange)) ? (
         <>
-            {showModelSettings ? (
-                <SettingChip
-                    title={t('misc.model')}
-                    valueLabel={optionLabel(modelOptions, currentModelValue)}
-                    disabled={controlsDisabled}
-                    group={{ options: modelOptions, value: currentModelValue, onChange: (value) => applyChatSetting(() => onModelChange?.(value)) }}
-                />
-            ) : null}
-            {showThinkEffortSettings ? (
-                <SettingChip
-                    title={t('newSession.think')}
-                    valueLabel={t('composer.chip.think', { value: optionLabel(thinkEffortOptions, currentThinkEffortValue) })}
-                    disabled={controlsDisabled}
-                    group={{ options: thinkEffortOptions, value: currentThinkEffortValue, onChange: (value) => applyChatSetting(() => onThinkEffortChange?.(value as SessionThinkEffort)) }}
-                />
-            ) : null}
-            {showPermissionSettings ? (
-                <SettingChip
-                    title={t('misc.permissionMode')}
-                    valueLabel={t('composer.chip.permission', { value: permissionModeText(permissionMode, t) })}
-                    disabled={controlsDisabled}
-                    group={{ options: permissionChoices, value: permissionMode as string, onChange: (value) => applyChatSetting(() => onPermissionModeChange?.(value as PermissionMode)) }}
-                />
-            ) : null}
+            <SessionSettingChips
+                flavor={agentFlavor}
+                disabled={controlsDisabled}
+                model={showModelSettings ? { value: currentModelValue, custom: model, onChange: (value) => applyChatSetting(() => onModelChange?.(value)) } : undefined}
+                think={showThinkEffortSettings ? { value: currentThinkEffortValue as SessionThinkEffort, onChange: (value) => applyChatSetting(() => onThinkEffortChange?.(value)) } : undefined}
+                permission={showPermissionSettings ? { value: permissionMode, onChange: (value) => applyChatSetting(() => onPermissionModeChange?.(value)) } : undefined}
+            />
             {showServiceTierSettings ? (
                 <SettingChip
                     title={t('newSession.serviceTier')}

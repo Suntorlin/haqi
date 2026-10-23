@@ -46,6 +46,13 @@ export type TaskServiceHost = {
 
 export { TaskError }
 
+/** Defaults for every session a task starts: planner, lead, executors and reviewer. */
+export type TaskSessionSettings = {
+    model?: string
+    thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
+    permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions' | 'plan'
+}
+
 const NAME_CHARS = 60
 const RECENT_REPOS = 12
 const RELATED_TASKS = 5
@@ -92,7 +99,7 @@ export class TaskService {
      * it starts in the folder that holds the user's recent repositories and names the one it picked in its draft.
      * A given directory, or the source session's, is used as is.
      */
-    async create(namespace: string, input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string; files?: TaskFileContent[] }): Promise<TaskView> {
+    async create(namespace: string, input: { text: string; tag?: string; draft?: boolean; machineId?: string; directory?: string; fromSessionId?: string; files?: TaskFileContent[]; settings?: TaskSessionSettings }): Promise<TaskView> {
         const from = input.fromSessionId ? this.host.session(namespace, input.fromSessionId) : null
         if (input.fromSessionId && !from) throw new TaskError('Session not found', 404)
         const tag = input.tag ?? ''
@@ -108,6 +115,7 @@ export class TaskService {
             members: from ? [from.id] : []
         })
         if (input.files?.length) this.host.files?.save(task.id, input.files)
+        if (input.settings && Object.keys(input.settings).length > 0) this.kernel.log(namespace, task.id, TASK_EVENT.sessionSettings, input.settings)
         // Without the guide step a task is a plain discussion: no goal, no acceptance list, no planner.
         if (input.draft === false) {
             this.store.groups.updateGroup({ groupId: task.id, namespace, description: input.text })
@@ -286,6 +294,11 @@ export class TaskService {
         const file = this.host.files?.read(taskId, index)
         if (!file) throw new TaskError('File not found', 404)
         return file
+    }
+
+    /** The task's default session settings; empty when the user kept today's defaults. */
+    sessionSettings(namespace: string, taskId: string): TaskSessionSettings {
+        return (this.kernel.latest(namespace, taskId, TASK_EVENT.sessionSettings)?.payload as TaskSessionSettings | undefined) ?? {}
     }
 
     /** Every attached file with its bytes: each session the task starts gets a copy. */

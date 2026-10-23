@@ -260,10 +260,16 @@ describe('TaskService guide step', () => {
         expect(() => t.service.file('default', task.id, 2)).toThrow(TaskError)
         expect(() => t.service.file('other', task.id, 0)).toThrow(TaskError)
 
+        // The prompt box's chips: the task's default session settings.
+        expect(t.service.sessionSettings('default', task.id)).toEqual({})
+        const configured = await t.service.create('default', { text: '调研', fromSessionId: 'work', settings: { model: 'claude-opus-5-5', thinkEffort: 'high', permissionMode: 'bypassPermissions' } })
+        await t.settle()
+        expect(t.service.sessionSettings('default', configured.id)).toEqual({ model: 'claude-opus-5-5', thinkEffort: 'high', permissionMode: 'bypassPermissions' })
+
         const plain = await t.service.create('default', { text: '修一个 bug', fromSessionId: 'work' })
         await t.settle()
         expect(plain.files).toEqual([])
-        expect(t.spawned[1]!.text).not.toContain('用户附的参考文件')
+        expect(t.spawned[2]!.text).not.toContain('用户附的参考文件')
 
         t.service.delete('default', task.id)
         expect(t.service.fileContents(task.id)).toEqual([])
