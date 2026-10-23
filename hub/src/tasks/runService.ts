@@ -19,7 +19,7 @@ import { observe, type WatchedSession } from './plugins/observer/observer'
 import { isReadOnlyRequest } from './plugins/observer/readonly'
 import { composeReport } from './plugins/report/report'
 import {
-    answerPrompt, askBackPrompt, deliverPrompt, fixPrompt, integratePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
+    answerPrompt, askBackPrompt, deliverPrompt, fixPrompt, integratePrompt, leadUserMessagePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
 } from './plugins/work/prompts'
 
 export type RunSession = {
@@ -53,6 +53,11 @@ export type RunHost = {
 }
 
 const ACTIVE_PHASES = new Set(['running', 'integrating', 'reviewing', 'fixing', 'delivering'])
+/** The lead stays up from the split to the user's verdict, so the user always has someone to talk to. */
+const LEAD_PHASES = new Set(['planning', ...ACTIVE_PHASES, 'reporting'])
+/** A lead that stopped is started again at most this often. */
+const LEAD_REVIVE_MS = 5 * 60_000
+const NOT_A_REPO = /not a git repository/i
 
 /** A lead that does not hand over in this time, or stops, gets replaced by HAQI's own report. */
 const DELIVER_TIMEOUT_MS = 20 * 60_000
@@ -71,6 +76,8 @@ export class RunService {
     private readonly live = new Map<string, SubtaskLive>()
     /** When the observer last looked. */
     private checkedAt: number | null = null
+    /** Per task: when HAQI last tried to start its stopped lead again. */
+    private readonly leadRevivedAt = new Map<string, number>()
 
     constructor(
         private readonly store: Store,
@@ -124,10 +131,9 @@ export class RunService {
         this.kernel.log(namespace, taskId, RUN_EVENT.planSubmitted, { subtasks: parsed.data.subtasks })
         this.phase(namespace, taskId, 'running')
         this.host.timeline(namespace, taskId, `拆成了 ${parsed.data.subtasks.length} 个子任务：${parsed.data.subtasks.map((s) => s.title).join('、')}。`)
-        // The lead has nothing to do until the work is in; it holds about 185 MB.
-        if (task.leadSessionId) void this.host.stopSession(namespace, task.leadSessionId).catch(() => {})
+        // The lead stays up: the user talks to it while the executors work.
         void this.dispatch(namespace, taskId)
-        return { message: `Plan accepted: ${parsed.data.subtasks.length} subtasks start now. You are done; stop here.` }
+        return { message: `Plan accepted: ${parsed.data.subtasks.length} subtasks start now. Stop here and wait; the user may talk to you on the task page.` }
     }
 
     // ---- work -------------------------------------------------------------------------------------------------
@@ -139,15 +145,25 @@ export class RunService {
         if (!task || !run || task.status !== 'active' || run.phase !== 'running' || !task.machineId || !task.repoPath) return
         for (const subtask of readyToStart(run)) {
             this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'running' })
-            const result = await this.host.spawnWorker({
-                machineId: task.machineId,
-                directory: task.repoPath,
-                worktreeName: `task-${taskId.slice(0, 6)}-${subtask.id}`,
-                name: `执行 · ${subtask.title}`,
-                tags: task.tag ? [task.tag] : [],
-                text: workPrompt(this.brief(task), subtask),
-                meta: meta(taskId, `work:${subtask.id}`)
-            })
+            const spawn = () => {
+                const plain = this.isPlainFolder(namespace, taskId)
+                return this.host.spawnWorker({
+                    machineId: task.machineId!,
+                    directory: task.repoPath!,
+                    ...(plain ? {} : { worktreeName: `task-${taskId.slice(0, 6)}-${subtask.id}` }),
+                    name: `执行 · ${subtask.title}`,
+                    tags: task.tag ? [task.tag] : [],
+                    text: workPrompt(this.brief(task), subtask),
+                    meta: meta(taskId, `work:${subtask.id}`)
+                })
+            }
+            let result = await spawn()
+            // A folder that holds repositories, or one with no code: the executors work in it directly.
+            if ('error' in result && NOT_A_REPO.test(result.error) && !this.isPlainFolder(namespace, taskId)) {
+                this.kernel.log(namespace, taskId, RUN_EVENT.plainFolder, { directory: task.repoPath })
+                this.host.timeline(namespace, taskId, `${task.repoPath} 不是 git 仓库：执行者直接在这个目录里干活，不建分支。`)
+                result = await spawn()
+            }
             if ('error' in result) {
                 this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'stopped' })
                 this.signal(namespace, task, { key: `stopped:${subtask.id}`, kind: 'stopped', text: `「${subtask.title}」没能启动：${result.error}`, sessionId: null }, true)
@@ -173,7 +189,8 @@ export class RunService {
         this.kernel.log(namespace, taskId, RUN_EVENT.subtaskDone, { id: subtask.id, summary: parsed.data.summary, evidence: parsed.data.evidence })
         this.clearSignals(namespace, taskId, subtask.id)
         this.host.timeline(namespace, taskId, `「${subtask.title}」做完了：${parsed.data.summary.slice(0, 120)}`)
-        if (subtask.sessionId) void this.host.stopSession(namespace, subtask.sessionId).catch(() => {})
+        // The lead's hand-over is one of these; the lead stays up for the user's verdict.
+        if (subtask.sessionId && subtask.sessionId !== task.leadSessionId) void this.host.stopSession(namespace, subtask.sessionId).catch(() => {})
         const after = this.run(namespace, taskId)!
         if (isDeliverId(subtask.id)) {
             // A late hand-over (HAQI's report already went out) still replaces it until the user decides.
@@ -202,6 +219,11 @@ export class RunService {
         }
         this.phase(namespace, task.id, 'integrating')
         const repo = task.repoPath!
+        // No git, nothing to merge: the results are already in the folder.
+        if (this.isPlainFolder(namespace, task.id)) {
+            this.kernel.log(namespace, task.id, RUN_EVENT.integrated, { branch: '', worktreePath: repo, summary: null })
+            return this.startReview(namespace, task)
+        }
         const target = { branch: `task/${task.id}`, worktree: `${repo.replace(/\/$/, '')}-worktrees/task-${task.id}` }
         this.host.timeline(namespace, task.id, `子任务都做完了，正在合并到本地分支 ${target.branch}。`)
         const result = await this.host.spawnWorker({
@@ -420,22 +442,28 @@ export class RunService {
             this.host.timeline(namespace, taskId, '这个任务已经通过了，没人在干活。要继续，先在任务页点“重新打开”。')
             return
         }
-        if (!task || !run || (run.phase !== 'planning' && !ACTIVE_PHASES.has(run.phase))) return
+        if (!task || !run || !LEAD_PHASES.has(run.phase)) return
         this.kernel.log(namespace, taskId, RUN_EVENT.userMessage, { text })
+        // The lead always hears it (started again if it stopped), and answers; the executors take it into their work.
+        const lead = task.leadSessionId ? await this.reach(namespace, task.leadSessionId) : null
+        const leadHeard = lead
+            ? await this.host.send(lead, leadUserMessagePrompt(taskId, text, this.subtaskLines(run)), meta(taskId, 'user')).catch(() => false)
+            : false
         const working = [
-            ...(run.phase === 'planning' && task.leadSessionId ? [task.leadSessionId] : []),
             ...run.subtasks.filter((s) => s.state === 'running' && s.sessionId).map((s) => s.sessionId!),
             ...(run.phase === 'reviewing' ? [this.reviewer(namespace, taskId)].filter((id): id is string => Boolean(id)) : [])
-        ]
+        ].filter((id) => id !== lead)
         const prompt = userMessagePrompt(taskId, text)
         let delivered = 0
         for (const sessionId of working) {
             if (!this.host.session(namespace, sessionId)?.active) continue
             if (await this.host.send(sessionId, prompt, meta(taskId, 'user')).catch(() => false)) delivered += 1
         }
-        this.host.timeline(namespace, taskId, delivered
-            ? `已转给正在干活的 ${delivered} 个会话；之后的会话也会收到。`
-            : '现在没有会话在干活；这句话会写进之后每个会话的指令。')
+        this.host.timeline(namespace, taskId, leadHeard
+            ? (delivered ? `负责人收到了，也转给了正在干活的 ${delivered} 个会话。` : '负责人收到了。')
+            : delivered
+                ? `负责人起不来；已转给正在干活的 ${delivered} 个会话。`
+                : '负责人起不来，也没有会话在干活；这句话会写进之后每个会话的指令。')
     }
 
     /** A session resumed under a new id: the run follows it (the group rows moved already). */
@@ -533,11 +561,66 @@ export class RunService {
         }).catch(() => {})
     }
 
+    /**
+     * The user starts a stopped subtask again: its session is resumed with a nudge, or, if it never started or cannot
+     * be resumed, a new executor takes it.
+     */
+    async restartSubtask(namespace: string, taskId: string, subtaskId: string): Promise<void> {
+        this.requireRunning(namespace, taskId)
+        const run = this.run(namespace, taskId)
+        const subtask = run?.subtasks.find((s) => s.id === subtaskId)
+        if (!run || !subtask) throw new TaskError('Subtask not found', 404)
+        if (subtask.state !== 'stopped' && subtask.state !== 'stuck') throw new TaskError('Only a stopped subtask can be started again', 409)
+        this.clearSignals(namespace, taskId, subtaskId)
+        const resumed = subtask.sessionId ? await this.reach(namespace, subtask.sessionId) : null
+        if (resumed && await this.host.send(resumed, remindPrompt(taskId, subtask), meta(taskId, `work:${subtaskId}`)).catch(() => false)) {
+            this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtaskId, state: 'running' })
+            this.host.timeline(namespace, taskId, `「${subtask.title}」接着做了。`)
+            return
+        }
+        if (subtask.fix) throw new TaskError('返工会话起不来；在任务页点“要改”再提一次。', 409)
+        this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtaskId, state: 'waiting' })
+        if (run.phase !== 'running') return
+        await this.dispatch(namespace, taskId)
+        const after = this.run(namespace, taskId)?.subtasks.find((s) => s.id === subtaskId)
+        if (after?.state === 'waiting') this.host.timeline(namespace, taskId, `「${subtask.title}」排上了：等前面的子任务做完就开始。`)
+    }
+
+    /** One line per subtask, for the lead. */
+    private subtaskLines(run: TaskRun): string[] {
+        const words: Record<string, string> = { waiting: '等着', running: '在做', done: '做完了', stuck: '卡住了', stopped: '停了' }
+        return run.subtasks.length
+            ? run.subtasks.map((s) => `${s.title}：${words[s.state] ?? s.state}${s.summary ? `。${s.summary.slice(0, 120)}` : ''}`)
+            : ['还没拆子任务']
+    }
+
+    /** The lead of a running task stopped (it crashed, or the machine restarted): start it again, at most every few minutes. */
+    private async keepLeadsUp(namespace: string, now: number): Promise<void> {
+        if (!this.host.resume) return
+        for (const task of this.kernel.list(namespace)) {
+            if (task.status !== 'active' || !task.leadSessionId) continue
+            const run = this.run(namespace, task.id)
+            if (!run || !LEAD_PHASES.has(run.phase)) continue
+            if (this.host.session(namespace, task.leadSessionId)?.active) continue
+            if (now - (this.leadRevivedAt.get(task.id) ?? 0) < LEAD_REVIVE_MS) continue
+            this.leadRevivedAt.set(task.id, now)
+            const id = await this.host.resume(namespace, task.leadSessionId).catch(() => null)
+            this.kernel.log(namespace, task.id, RUN_EVENT.watch, {
+                kind: 'lead_revived', text: id ? '负责人停了，HAQI 把它拉起来了。' : '负责人停了，HAQI 拉不起来；几分钟后再试。'
+            })
+        }
+    }
+
+    private isPlainFolder(namespace: string, taskId: string): boolean {
+        return Boolean(this.kernel.latest(namespace, taskId, RUN_EVENT.plainFolder))
+    }
+
     // ---- observer ---------------------------------------------------------------------------------------------
 
     /** One look at every running task: approvals, stopped or silent sessions, risky commands. */
     async tick(namespace: string, now = Date.now()): Promise<void> {
         this.checkedAt = now
+        await this.keepLeadsUp(namespace, now)
         await this.watchLeads(namespace)
         for (const task of this.kernel.list(namespace)) {
             if (task.status !== 'active') continue
@@ -660,7 +743,10 @@ export class RunService {
             if (e.type === RUN_EVENT.verdict && p.approved === false) return [`验收时要改：${text}`]
             return []
         })
-        return { taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '', decisions, userMessages }
+        return {
+            taskId: task.id, goal: task.goal ?? task.name, nonGoals: task.nonGoals, acceptance: task.acceptance, repoPath: task.repoPath ?? '', decisions, userMessages,
+            plainFolder: this.isPlainFolder(task.namespace, task.id)
+        }
     }
 
     /** The current review's session, following a resume. */

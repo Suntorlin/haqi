@@ -29,7 +29,9 @@ export const RUN_EVENT = {
     /** What the user said in the task's conversation while it ran; every later session gets it in its brief. */
     userMessage: 'user_message',
     /** A session came back under a new id (resume); references to `from` mean `to` from here on. */
-    sessionReplaced: 'session_replaced'
+    sessionReplaced: 'session_replaced',
+    /** The task's folder is not a git repository: executors work in it directly, with no worktree and no merge. */
+    plainFolder: 'plain_folder'
 } as const
 
 /** The task page shows the newest entries of the observer's log. */

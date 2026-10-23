@@ -124,6 +124,8 @@ export default {
   'taskRun.reporting': '做完了，等你验收',
   'taskRun.delivering': '评审做完了，负责人在整理交给你的东西',
   'taskRun.delivery': '负责人交给你的',
+  'taskRun.restart': '重新启动',
+  'taskRun.restarting': '启动中…',
   'taskRun.state.waiting': '等前面的子任务',
   'taskRun.state.running': '在做',
   'taskRun.state.done': '做完了',

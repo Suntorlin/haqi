@@ -338,7 +338,7 @@ export function TaskReport(props: {
     const { task } = useTask(props.api, props.taskId)
     const { session: lead } = useSession(props.api, task?.leadSessionId ?? null)
     const waitingRequest = Object.entries(lead?.agentState?.requests ?? {})[0] ?? null
-    const { confirmTask, retryGuide, updateTask, answerDecision, askDecision, verdict, reopen } = useTaskActions(props.api)
+    const { confirmTask, retryGuide, updateTask, answerDecision, askDecision, verdict, reopen, restartSubtask } = useTaskActions(props.api)
     const [changing, setChanging] = useState(false)
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
@@ -444,6 +444,13 @@ export function TaskReport(props: {
                             } catch (failure) {
                                 setError(failure instanceof Error ? failure.message : String(failure))
                                 throw failure
+                            }
+                        }} onRestart={async (subtaskId) => {
+                            setError(null)
+                            try {
+                                await restartSubtask(task.id, subtaskId)
+                            } catch (failure) {
+                                setError(failure instanceof Error ? failure.message : String(failure))
                             }
                         }} onAllChats={task.run.phase === 'reporting' || task.run.phase === 'accepted' ? props.onAllChats : undefined} />
                     ) : null}

@@ -16,16 +16,22 @@ export type TaskBrief = {
     decisions?: Array<{ question: string; label: string }>
     /** What the user said in the task's conversation during the run, oldest first. */
     userMessages?: string[]
+    /** The folder is not a git repository: no branches, no commits; every executor works in it directly. */
+    plainFolder?: boolean
 }
 
 /** The user reads questions, options and summaries on a phone: the user's writing rule, for every session. */
 const PLAIN_WORDS = 'task_decision_ask 的问题和选项、subtask_done 的 summary 会直接给用户看：结论先行；一句话只说一件事，句子短（约 25 字）；写清谁做了什么；不用黑话，缩写先解释；问题只问一件事，背景放 context。'
 
 /** Rules every session that touches code gets: the user's hard limits. */
-const HARD_RULES = [
-    '不推送（git push）、不部署、不花钱、不对外发送消息、不动线上和生产目录。需要做这些时，先调用 task_decision_ask 问用户，等回答。',
-    '只在你自己的目录里改。提交到你自己的分支（git commit），不要合并到主分支。'
-]
+function hardRules(brief: TaskBrief): string[] {
+    return [
+        '不推送（git push）、不部署、不花钱、不对外发送消息、不动线上和生产目录。需要做这些时，先调用 task_decision_ask 问用户，等回答。',
+        brief.plainFolder
+            ? `${brief.repoPath} 不是 git 仓库：不建分支，不提交。别的子任务可能同时在这个目录里干活，只动你负责的文件，新文件放进以你的子任务 id 命名的子目录。`
+            : '只在你自己的目录里改。提交到你自己的分支（git commit），不要合并到主分支。'
+    ]
+}
 
 function criteriaLines(acceptance: AcceptanceCriterion[], only?: string[]): string[] {
     return acceptance
@@ -74,12 +80,12 @@ export function workPrompt(brief: TaskBrief, subtask: TaskSubtask): string {
         ...criteriaLines(brief.acceptance, subtask.criteria),
         '',
         '## 规则',
-        ...HARD_RULES.map((rule) => `- ${rule}`),
+        ...hardRules(brief).map((rule) => `- ${rule}`),
         '- 遇到要用户拍板的事（方案分歧、超出范围、验收标准说不清），调用 task_decision_ask，给 2–4 个选项、每个选项的好处和代价、你的建议。然后先做不依赖这个决定的部分；回答会发到这个会话。',
         '',
         '## 做完以后',
         '1. 按“验证”一栏自己验证，跑相关的测试。',
-        '2. git commit 到你的分支。',
+        brief.plainFolder ? '2. 不用提交：summary 里写清每个产出文件的绝对路径。' : '2. git commit 到你的分支。',
         `3. 调用 subtask_done：task_id 填 "${brief.taskId}"，subtask_id 填 "${subtask.id}"，summary 写改了什么、怎么验证的，evidence 每条写一个证据（命令和结果、文件和行、截图路径）。`
     ].join('\n')
 }
@@ -98,7 +104,7 @@ export function integratePrompt(brief: TaskBrief, done: TaskSubtask[], target: {
         `4. 调用 task_integrated：task_id 填 "${brief.taskId}"，branch 填 "${target.branch}"，worktree_path 填 "${target.worktree}"，summary 写合并结果和测试结果。`,
         '',
         '## 规则',
-        ...HARD_RULES.map((rule) => `- ${rule}`)
+        ...hardRules(brief).map((rule) => `- ${rule}`)
     ].join('\n')
 }
 
@@ -113,7 +119,7 @@ export function reviewPrompt(brief: TaskBrief, evidence: string[], round: number
         ...evidence.map((line) => `- ${line}`),
         '',
         '## 要做的事',
-        '1. 你在合并好的分支目录里。逐条自己验证：跑“验证”一栏的命令、读代码。不要只信执行者的说法。',
+        `1. 你在${brief.plainFolder ? '任务目录' : '合并好的分支目录'}里。逐条自己验证：跑“验证”一栏的命令、读代码和产出文件。不要只信执行者的说法。`,
         '2. 不要改任何文件，不要提交。',
         '3. 每条给结论：met（达到）、not_met（没达到）、unclear（说不清），evidence 写你看到的证据。',
         '4. 你自己想到的、验收标准里没有的问题，写进 suggestions，不能因此判 not_met。',
@@ -132,8 +138,10 @@ export function fixPrompt(brief: TaskBrief, items: string[], worktree: string, s
         ...items.map((line) => `- ${line}`),
         '',
         '## 规则',
-        `- 你在合并好的分支目录 ${worktree} 里，直接在这里改，改完 git commit。`,
-        ...HARD_RULES.slice(0, 1).map((rule) => `- ${rule}`),
+        brief.plainFolder
+            ? `- 你在任务目录 ${worktree} 里，直接在这里改。它不是 git 仓库，不用提交。`
+            : `- 你在合并好的分支目录 ${worktree} 里，直接在这里改，改完 git commit。`,
+        ...hardRules(brief).slice(0, 1).map((rule) => `- ${rule}`),
         '',
         `做完调用 subtask_done：task_id 填 "${brief.taskId}"，subtask_id 填 "${subtaskId}"，summary 写改了什么、怎么验证的。`
     ].join('\n')
@@ -193,6 +201,18 @@ export function remindPrompt(taskId: string, subtask: TaskSubtask): string {
 
 export function userMessagePrompt(taskId: string, text: string): string {
     return `${WORK_MARKER} 任务 ${taskId}：用户在任务里说：「${text}」。和你的工作有关就照顾到，然后继续；不用回复。`
+}
+
+/** The user talks to the lead on the task page; the lead answers there and keeps the task moving. */
+export function leadUserMessagePrompt(taskId: string, text: string, state: string[]): string {
+    return [
+        `${WORK_MARKER} 任务 ${taskId}：你是这个任务的负责人。用户在任务页跟你说：「${text}」`,
+        '',
+        '## 子任务现在的状态',
+        ...state.map((line) => `- ${line}`),
+        '',
+        '直接回复用户：结论先行，句子短。要用户拍板的事用 task_decision_ask 问。不要自己改代码；子任务由执行会话做。'
+    ].join('\n')
 }
 
 export function askBackPrompt(taskId: string, question: string, text: string): string {
