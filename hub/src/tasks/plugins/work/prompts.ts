@@ -224,6 +224,11 @@ export function askBackPrompt(taskId: string, question: string, text: string): s
     ].join('\n')
 }
 
+/** To the lead: the user answered at the report, and HAQI opened a change round that does it. */
+export function answerHandedPrompt(taskId: string, question: string, label: string): string {
+    return `${WORK_MARKER} 任务 ${taskId}：「${question}」用户选了：${label}。HAQI 已按这个开了一轮返工，返工会话去做；你不用动手，也不用再开返工。`
+}
+
 export function answerPrompt(taskId: string, question: string, label: string, by: 'user' | 'precedent'): string {
     return `${WORK_MARKER} 任务 ${taskId}：「${question}」${by === 'user' ? '用户选了' : '按用户以前的同类选择'}：${label}。按这个继续。`
 }

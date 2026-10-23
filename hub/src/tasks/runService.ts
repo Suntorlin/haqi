@@ -4,11 +4,11 @@
  * user's verdict). The observer watches the working sessions; decisions the work needs go to the user, or are
  * answered by a precedent. Every step is a task event; the run state is read back from the log.
  */
-import type { SubtaskLive, TaskRun, TaskSubtask } from '@hapi/protocol/types'
+import type { SubtaskLive, TaskDecision, TaskRun, TaskSubtask } from '@hapi/protocol/types'
 import { projectNameFor } from '../memory/harvest'
 import type { MemoryService } from '../memory/service'
 import type { Store } from '../store'
-import type { StoredGroup } from '../store/types'
+import type { StoredGroup, StoredTaskEvent } from '../store/types'
 import { TaskError } from './errors'
 import type { TaskKernel } from './kernel/kernel'
 import {
@@ -19,7 +19,7 @@ import { observe, type WatchedSession } from './plugins/observer/observer'
 import { isReadOnlyRequest } from './plugins/observer/readonly'
 import { composeReport } from './plugins/report/report'
 import {
-    answerPrompt, askBackPrompt, deliverPrompt, fixPrompt, integratePrompt, leadUserMessagePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
+    answerHandedPrompt, answerPrompt, askBackPrompt, deliverPrompt, fixPrompt, integratePrompt, leadUserMessagePrompt, planPrompt, remindPrompt, reviewPrompt, userMessagePrompt, workPrompt, type TaskBrief
 } from './plugins/work/prompts'
 
 export type RunSession = {
@@ -58,6 +58,8 @@ const LEAD_PHASES = new Set(['planning', ...ACTIVE_PHASES, 'reporting'])
 /** A lead that stopped is started again at most this often. */
 const LEAD_REVIVE_MS = 5 * 60_000
 const NOT_A_REPO = /not a git repository/i
+/** A subtask that could not start is tried again after these waits, then left to the user. */
+const START_RETRY_MS = [60_000, 5 * 60_000, 15 * 60_000] as const
 
 /** A lead that does not hand over in this time, or stops, gets replaced by HAQI's own report. */
 const DELIVER_TIMEOUT_MS = 20 * 60_000
@@ -166,7 +168,11 @@ export class RunService {
             }
             if ('error' in result) {
                 this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'stopped' })
-                this.signal(namespace, task, { key: `stopped:${subtask.id}`, kind: 'stopped', text: `「${subtask.title}」没能启动：${result.error}`, sessionId: null }, true)
+                // The user hears of the first failure and of the last; the tries between are on the task page only.
+                const failures = this.startFailures(namespace, taskId, subtask.id).length
+                const wait = START_RETRY_MS[failures - 1]
+                const next = wait ? `；HAQI ${wait / 60_000} 分钟后再试` : `；自动重试了 ${START_RETRY_MS.length} 次都没起来，要你看一下`
+                this.signal(namespace, task, { key: `stopped:${subtask.id}`, kind: 'stopped', text: `「${subtask.title}」没能启动：${result.error}${next}`, sessionId: null }, failures === 1 || !wait)
                 continue
             }
             const session = this.host.session(namespace, result.sessionId)
@@ -186,6 +192,12 @@ export class RunService {
         const subtask = run?.subtasks.find((s) => s.id === parsed.data.subtaskId)
         if (!run || !subtask) throw new TaskError(`Unknown subtask ${parsed.data.subtaskId}.`, 404)
         if (subtask.state === 'done') return { message: 'Already recorded. You are done.' }
+        // An executor waits for the user's answer to its own question: an answer that comes after it stopped would
+        // reach no one. The lead's hand-over is not held; its open questions go into the report.
+        const open = isDeliverId(subtask.id) || !subtask.sessionId ? [] : run.decisions.filter((d) => !d.answer && d.askedBy === subtask.sessionId)
+        if (open.length) {
+            throw new TaskError(`Not done yet: the user has not answered ${open.map((d) => `${d.id} "${d.question}"`).join(', ')}. Stop here and wait; the answer comes to this session as a message. Do what it needs, then call subtask_done again.`, 409)
+        }
         this.kernel.log(namespace, taskId, RUN_EVENT.subtaskDone, { id: subtask.id, summary: parsed.data.summary, evidence: parsed.data.evidence })
         this.clearSignals(namespace, taskId, subtask.id)
         this.host.timeline(namespace, taskId, `「${subtask.title}」做完了：${parsed.data.summary.slice(0, 120)}`)
@@ -505,7 +517,8 @@ export class RunService {
         }
         this.host.timeline(namespace, taskId, `等你拍板：${parsed.data.question}`)
         void this.host.push(namespace, { title: `等你拍板：${task.name}`, body: parsed.data.question, url: `/groups/${taskId}` }).catch(() => {})
-        return { message: 'Sent to the user. Go on with the parts that do not depend on it; the answer comes to this session as a message.' }
+        const executor = subtaskId !== null && !isDeliverId(subtaskId)
+        return { message: `Sent to the user. Go on with the parts that do not depend on it; the answer comes to this session as a message.${executor ? ' Do not call subtask_done before the answer.' : ''}` }
     }
 
     /**
@@ -545,20 +558,64 @@ export class RunService {
         if (!decision.options.some((o) => o.label === label)) throw new TaskError('Pick one of the options')
         this.kernel.log(namespace, taskId, RUN_EVENT.decisionAnswered, { id: decisionId, label, by: 'user' })
         this.host.timeline(namespace, taskId, `你定了：${decision.question} → ${label}`)
-        // To the session that asked; if it stopped, to the sessions still working. Later sessions get it in their brief.
-        const text = answerPrompt(taskId, decision.question, label, 'user')
-        let delivered = decision.askedBy ? await this.host.send(decision.askedBy, text, meta(taskId, `answer:${decisionId}`)).catch(() => false) : false
-        if (!delivered) {
-            for (const subtask of this.run(namespace, taskId)?.subtasks ?? []) {
-                if (subtask.state !== 'running' || !subtask.sessionId) continue
-                if (await this.host.send(subtask.sessionId, text, meta(taskId, `answer:${decisionId}`)).catch(() => false)) delivered = true
+        const run = this.run(namespace, taskId)
+        if (run?.phase === 'reporting' && run.integration) {
+            await this.fixFromAnswer(namespace, task, decision, label)
+        } else {
+            // To the session that asked; if it stopped, or it is the lead (which does no work itself), also to the
+            // sessions still working. Later sessions get it in their brief.
+            const text = answerPrompt(taskId, decision.question, label, 'user')
+            let delivered = decision.askedBy ? await this.host.send(decision.askedBy, text, meta(taskId, `answer:${decisionId}`)).catch(() => false) : false
+            if (!delivered || decision.askedBy === task.leadSessionId) {
+                for (const subtask of run?.subtasks ?? []) {
+                    if (subtask.state !== 'running' || !subtask.sessionId || subtask.sessionId === decision.askedBy) continue
+                    if (await this.host.send(subtask.sessionId, text, meta(taskId, `answer:${decisionId}`)).catch(() => false)) delivered = true
+                }
             }
+            if (!delivered) this.host.timeline(namespace, taskId, '提问的会话已经停了；这个决定会写进之后每个会话的指令。')
         }
-        if (!delivered) this.host.timeline(namespace, taskId, '提问的会话已经停了；这个决定会写进之后每个会话的指令。')
         await this.memory.recordDecision({
             namespace, situation: decision.question, options: decision.options.map((o) => o.label), chosen: label,
             project: task.repoPath ? projectNameFor(task.repoPath) : null, tags: task.tag ? [task.tag] : [], sessionId: decision.askedBy, sourceRef: `task:${taskId}#${decisionId}`
         }).catch(() => {})
+    }
+
+    /**
+     * An answer given at the report: nobody works then, so it opens a change round, as if the user had asked for
+     * it at the report. The lead hears that the round does it.
+     */
+    private async fixFromAnswer(namespace: string, task: StoredGroup, decision: TaskDecision, label: string): Promise<void> {
+        this.kernel.log(namespace, task.id, RUN_EVENT.verdict, { approved: false, text: `拍板：${decision.question} → ${label}` })
+        this.host.timeline(namespace, task.id, '报告已出，没人在干活：按你的选择开一轮返工。')
+        await this.fix(namespace, task, [`用户拍板：「${decision.question}」选了「${label}」。按这个做。`, ...(decision.context ? [`问题背景：${decision.context}`] : [])], [])
+        const lead = task.leadSessionId
+        if (lead && this.host.session(namespace, lead)?.active) {
+            await this.host.send(lead, answerHandedPrompt(task.id, decision.question, label), meta(task.id, `answer:${decision.id}`)).catch(() => false)
+        }
+    }
+
+    /** The times a subtask could not start since the plan: each one logged it as stopped with no session. */
+    private startFailures(namespace: string, taskId: string, subtaskId: string): StoredTaskEvent[] {
+        const since = this.kernel.latest(namespace, taskId, RUN_EVENT.planSubmitted)?.createdAt ?? 0
+        return this.kernel.events(namespace, taskId).filter((e) => {
+            const p = (e.payload ?? {}) as { id?: unknown; state?: unknown }
+            return e.type === RUN_EVENT.subtaskState && e.createdAt >= since && p.id === subtaskId && p.state === 'stopped'
+        })
+    }
+
+    /** Subtasks that could not start are tried again, after 1, 5 and 15 minutes; then the user decides. */
+    private async retryStarts(namespace: string, taskId: string, run: TaskRun, now: number): Promise<void> {
+        let due = false
+        for (const subtask of run.subtasks) {
+            if (subtask.fix || subtask.state !== 'stopped' || subtask.sessionId) continue
+            const failures = this.startFailures(namespace, taskId, subtask.id)
+            const wait = START_RETRY_MS[failures.length - 1]
+            if (wait === undefined || now - failures.at(-1)!.createdAt < wait) continue
+            this.clearSignals(namespace, taskId, subtask.id)
+            this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'waiting' })
+            due = true
+        }
+        if (due) await this.dispatch(namespace, taskId)
     }
 
     /**
@@ -630,6 +687,7 @@ export class RunService {
                 this.checkDelivery(namespace, task, run, now)
                 continue
             }
+            if (run.phase === 'running') await this.retryStarts(namespace, task.id, run, now)
             const watched: WatchedSession[] = []
             for (const subtask of run.subtasks) {
                 if (!subtask.sessionId || subtask.state === 'done' || subtask.state === 'waiting') continue
