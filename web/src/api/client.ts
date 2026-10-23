@@ -255,6 +255,7 @@ export class ApiClient {
         description?: string | null
         noteSessionId?: string | null
         notePrompt?: string | null
+        archived?: boolean
     }): Promise<UpdateGroupResponse> {
         return await this.request<UpdateGroupResponse>(
             `/api/groups/${encodeURIComponent(groupId)}`,

@@ -598,7 +598,7 @@ export class RunService {
     private async keepLeadsUp(namespace: string, now: number): Promise<void> {
         if (!this.host.resume) return
         for (const task of this.kernel.list(namespace)) {
-            if (task.status !== 'active' || !task.leadSessionId) continue
+            if (task.status !== 'active' || !task.leadSessionId || task.archivedAt) continue
             const run = this.run(namespace, task.id)
             if (!run || !LEAD_PHASES.has(run.phase)) continue
             if (this.host.session(namespace, task.leadSessionId)?.active) continue
@@ -623,7 +623,7 @@ export class RunService {
         await this.keepLeadsUp(namespace, now)
         await this.watchLeads(namespace)
         for (const task of this.kernel.list(namespace)) {
-            if (task.status !== 'active') continue
+            if (task.status !== 'active' || task.archivedAt) continue
             const run = this.run(namespace, task.id)
             if (!run || !ACTIVE_PHASES.has(run.phase)) continue
             if (run.phase === 'delivering') {

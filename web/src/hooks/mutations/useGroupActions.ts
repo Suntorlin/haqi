@@ -31,7 +31,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     cancelTask: (taskId: string) => Promise<void>
     addMember: (sessionId: string) => Promise<void>
     removeMember: (sessionId: string) => Promise<void>
-    updateGroup: (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null }) => Promise<void>
+    updateGroup: (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null; archived?: boolean }) => Promise<void>
     deleteGroup: () => Promise<void>
     isPending: boolean
 } {
@@ -193,7 +193,7 @@ export function useGroupActions(api: ApiClient | null, groupId: string | null): 
     })
 
     const updateGroupMutation = useMutation({
-        mutationFn: async (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null }) => {
+        mutationFn: async (payload: { name?: string; description?: string | null; noteSessionId?: string | null; notePrompt?: string | null; archived?: boolean }) => {
             if (!api || !groupId) {
                 throw new Error('Group unavailable')
             }

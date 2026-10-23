@@ -31,6 +31,7 @@ type DbGroupRow = {
     machine_id: string | null
     lead_session_id: string | null
     completed_at: number | null
+    archived_at?: number | null
     created_at: number
     updated_at: number
 }
@@ -119,6 +120,7 @@ function toStoredGroup(row: DbGroupRow): StoredGroup {
         machineId: row.machine_id,
         leadSessionId: row.lead_session_id,
         completedAt: row.completed_at,
+        archivedAt: row.archived_at ?? null,
         createdAt: row.created_at,
         updatedAt: row.updated_at
     }
@@ -794,10 +796,14 @@ export function updateGroup(
         name?: string
         description?: string | null
         noteSessionId?: string | null
+        archived?: boolean
     }
 ): StoredGroup | null {
     const now = Date.now()
     const setClauses: string[] = ['updated_at = @updated_at']
+    if (options.archived !== undefined) {
+        setClauses.push('archived_at = @archived_at')
+    }
 
     if (options.name !== undefined) {
         setClauses.push('name = @name')
@@ -820,7 +826,8 @@ export function updateGroup(
         updated_at: now,
         name: options.name ?? null,
         description: options.description ?? null,
-        note_session_id: options.noteSessionId ?? null
+        note_session_id: options.noteSessionId ?? null,
+        archived_at: options.archived ? now : null
     })
 
     if (result.changes === 0) {

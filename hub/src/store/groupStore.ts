@@ -131,6 +131,7 @@ export class GroupStore {
         name?: string
         description?: string | null
         noteSessionId?: string | null
+        archived?: boolean
     }): StoredGroup | null {
         return updateGroup(this.db, options)
     }

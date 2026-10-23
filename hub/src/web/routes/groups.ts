@@ -29,7 +29,8 @@ const createGroupSchema = z.object({
 const updateGroupSchema = z.object({
     name: z.string().trim().min(1).max(255).optional(),
     description: z.string().trim().max(5000).nullable().optional(),
-    noteSessionId: z.string().min(1).max(255).nullable().optional()
+    noteSessionId: z.string().min(1).max(255).nullable().optional(),
+    archived: z.boolean().optional()
 })
 
 const addGroupMemberSchema = z.object({
@@ -158,7 +159,8 @@ export function createGroupsRoutes(getSyncEngine: () => SyncEngine | null): Hono
                 namespace,
                 name: parsed.data.name,
                 description: parsed.data.description,
-                noteSessionId: parsed.data.noteSessionId
+                noteSessionId: parsed.data.noteSessionId,
+                archived: parsed.data.archived
             })
             return c.json({ group })
         } catch (error) {
