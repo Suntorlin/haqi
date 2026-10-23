@@ -62,6 +62,8 @@ export default {
   'groups.action.unarchive': 'Unarchive',
   'groups.action.archiveFailed': 'Archive failed',
   'groups.archived': 'Archived · {n}',
+  'tasks.mode.draft': 'Draft criteria',
+  'tasks.mode.plain': 'Plain discussion',
   'tasks.new': 'New task',
   'tasks.newPlaceholder': 'What should be done? In your own words; several lines are fine. You can paste screenshots too.',
   'tasks.files.add': 'Add reference files or images',
