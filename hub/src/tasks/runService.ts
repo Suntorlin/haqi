@@ -167,7 +167,8 @@ export class RunService {
                 result = await spawn()
             }
             if ('error' in result) {
-                this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'stopped' })
+                // Marked: the observer and the hand-over log `stopped` too, and only a failed start is tried again.
+                this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'stopped', startFailed: true })
                 // The user hears of the first failure and of the last; the tries between are on the task page only.
                 const failures = this.startFailures(namespace, taskId, subtask.id).length
                 const wait = START_RETRY_MS[failures - 1]
@@ -594,23 +595,28 @@ export class RunService {
         }
     }
 
-    /** The times a subtask could not start since the plan: each one logged it as stopped with no session. */
-    private startFailures(namespace: string, taskId: string, subtaskId: string): StoredTaskEvent[] {
+    /** A subtask's state events since the plan. */
+    private stateEvents(namespace: string, taskId: string, subtaskId: string): StoredTaskEvent[] {
         const since = this.kernel.latest(namespace, taskId, RUN_EVENT.planSubmitted)?.createdAt ?? 0
-        return this.kernel.events(namespace, taskId).filter((e) => {
-            const p = (e.payload ?? {}) as { id?: unknown; state?: unknown }
-            return e.type === RUN_EVENT.subtaskState && e.createdAt >= since && p.id === subtaskId && p.state === 'stopped'
-        })
+        return this.kernel.events(namespace, taskId).filter((e) => e.type === RUN_EVENT.subtaskState && e.createdAt >= since && (e.payload as { id?: unknown } | null)?.id === subtaskId)
+    }
+
+    /** The times a subtask could not start since the plan. */
+    private startFailures(namespace: string, taskId: string, subtaskId: string): StoredTaskEvent[] {
+        return this.stateEvents(namespace, taskId, subtaskId).filter((e) => (e.payload as { startFailed?: unknown }).startFailed === true)
     }
 
     /** Subtasks that could not start are tried again, after 1, 5 and 15 minutes; then the user decides. */
     private async retryStarts(namespace: string, taskId: string, run: TaskRun, now: number): Promise<void> {
         let due = false
         for (const subtask of run.subtasks) {
-            if (subtask.fix || subtask.state !== 'stopped' || subtask.sessionId) continue
+            if (subtask.fix || subtask.state !== 'stopped') continue
+            // Stopped because its start failed, not because its session went away.
+            const last = this.stateEvents(namespace, taskId, subtask.id).at(-1)
+            if ((last?.payload as { startFailed?: unknown } | undefined)?.startFailed !== true) continue
             const failures = this.startFailures(namespace, taskId, subtask.id)
             const wait = START_RETRY_MS[failures.length - 1]
-            if (wait === undefined || now - failures.at(-1)!.createdAt < wait) continue
+            if (wait === undefined || now - last!.createdAt < wait) continue
             this.clearSignals(namespace, taskId, subtask.id)
             this.kernel.log(namespace, taskId, RUN_EVENT.subtaskState, { id: subtask.id, state: 'waiting' })
             due = true
