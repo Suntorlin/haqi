@@ -1172,6 +1172,7 @@ function GroupsLayout() {
                     </DialogHeader>
                     <div className="mt-4">
                         <NewTaskForm
+                            api={api}
                             onCancel={() => setShowCreateModal(false)}
                             onCreate={async (input) => {
                                 const task = await createTask(input)
