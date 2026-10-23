@@ -230,6 +230,12 @@ export class TaskService {
         return this.get(namespace, taskId)!
     }
 
+    /** The user archived the task: every session still working on it stops. Its history stays. */
+    async archived(namespace: string, taskId: string): Promise<void> {
+        await this.stopPlanner(namespace, this.kernel.get(namespace, taskId)?.leadSessionId ?? null)
+        await this.runs?.stopAll(namespace, taskId)
+    }
+
     /**
      * After the guide step the planner has nothing to do until P4 hands it work, and each one holds about 185 MB. It
      * stays the task's lead (member and history); it is stopped, and resumed when needed.

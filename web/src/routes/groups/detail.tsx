@@ -49,7 +49,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button, buttonVariants } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { FormField, SegmentedControl, SelectInput } from '@/components/ui/FormControls'
-import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
+import { DIALOG_INPUT_CLASS, RenameSessionDialog } from '@/components/RenameSessionDialog'
+import { useToast } from '@/lib/toast-context'
 import { queryKeys } from '@/lib/query-keys'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
@@ -73,6 +74,8 @@ import {
     NewSessionIcon,
     PaperclipIcon,
     PencilIcon,
+    ArchiveBoxIcon,
+    ClipboardIcon,
     PlusIcon,
     ReplyIcon,
     SendArrowIcon,
@@ -779,6 +782,10 @@ function GroupInfoSheet(props: {
     onEditNote: () => void
     onGenerateNote: () => void
     onBroadcastNote: () => void
+    archived: boolean
+    onRename: () => void
+    onCopyTitle: () => void
+    onArchive: (archived: boolean) => void
 }) {
     const { t } = useTranslation()
     const memberSessions = props.members
@@ -871,6 +878,18 @@ function GroupInfoSheet(props: {
                 <SheetRow icon={<PencilIcon />} label={t('groups.note.edit')} chevron onClick={closeThen(props.onEditNote)} />
                 <SheetRow icon={<SparklesIcon />} label={t('groups.note.generate')} disabled={props.isPending} onClick={closeThen(props.onGenerateNote)} />
                 <SheetRow icon={<MegaphoneIcon />} label={t('groups.note.broadcast')} disabled={props.isPending || !noteContent} onClick={closeThen(props.onBroadcastNote)} />
+            </SheetSection>
+
+            <SheetSection title={t('mobile.chat.manage')}>
+                <SheetRow icon={<PencilIcon />} label={t('session.action.rename')} chevron onClick={closeThen(props.onRename)} />
+                <SheetRow icon={<ClipboardIcon />} label={t('groups.action.copyTitle')} onClick={closeThen(props.onCopyTitle)} />
+                <SheetRow
+                    icon={<ArchiveBoxIcon />}
+                    label={props.archived ? t('groups.action.unarchive') : t('session.action.archive')}
+                    destructive={!props.archived}
+                    disabled={props.isPending}
+                    onClick={closeThen(() => props.onArchive(!props.archived))}
+                />
             </SheetSection>
             <div className="h-2" />
         </BottomSheet>
@@ -2105,6 +2124,8 @@ export default function GroupDetailPage() {
     const [memberActionSessionId, setMemberActionSessionId] = useState<string | null>(null)
     const [memberRemoveSessionId, setMemberRemoveSessionId] = useState<string | null>(null)
     const [actionError, setActionError] = useState<string | null>(null)
+    const [renameOpen, setRenameOpen] = useState(false)
+    const { addToast } = useToast()
     const [quotedMessage, setQuotedMessage] = useState<GroupTimelineMessage | null>(null)
     const timelineRef = useRef<VirtuosoHandle | null>(null)
     const composerRef = useRef<HTMLTextAreaElement>(null)
@@ -3118,6 +3139,29 @@ export default function GroupDetailPage() {
                 onEditNote={() => setNoteEditorOpen(true)}
                 onGenerateNote={() => { void handleRefreshNote() }}
                 onBroadcastNote={() => { void handleBroadcastNote() }}
+                archived={Boolean(group.group.archivedAt)}
+                onRename={() => setRenameOpen(true)}
+                onCopyTitle={() => {
+                    void safeCopyToClipboard(group.group.name).then(
+                        () => addToast({ title: t('groups.action.copied'), body: group.group.name, sessionId: '', url: '' }),
+                        () => addToast({ title: t('groups.action.copyFailed'), body: '', sessionId: '', url: '' })
+                    )
+                }}
+                onArchive={(archived) => {
+                    void updateGroup({ archived }).catch((error) => {
+                        addToast({ title: t('groups.action.archiveFailed'), body: error instanceof Error ? error.message : '', sessionId: '', url: '' })
+                    })
+                }}
+            />
+
+            <RenameSessionDialog
+                isOpen={renameOpen}
+                onClose={() => setRenameOpen(false)}
+                currentName={group.group.name}
+                onRename={async (name) => { await updateGroup({ name }) }}
+                isPending={isPending}
+                title={t('groups.dialog.renameTitle')}
+                placeholder={t('groups.dialog.name')}
             />
 
             <MemberActionsSheet

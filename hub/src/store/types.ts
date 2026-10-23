@@ -95,6 +95,8 @@ export type StoredGroup = {
     machineId: string | null
     leadSessionId: string | null
     completedAt: number | null
+    /** Set when the user archived it: it leaves the main list, its sessions stop, its history stays. */
+    archivedAt: number | null
     createdAt: number
     updatedAt: number
 }

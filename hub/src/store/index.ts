@@ -1258,7 +1258,8 @@ export class Store {
             ['repo_path', 'TEXT'],
             ['machine_id', 'TEXT'],
             ['lead_session_id', 'TEXT'],
-            ['completed_at', 'INTEGER']
+            ['completed_at', 'INTEGER'],
+            ['archived_at', 'INTEGER']
         ]
         for (const [name, type] of wanted) {
             if (!columns.has(name)) {

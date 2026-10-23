@@ -384,6 +384,7 @@ export class GroupService {
         name?: string
         description?: string | null
         noteSessionId?: string | null
+        archived?: boolean
     }): GroupWithDetails {
         this.requireGroup(options.groupId, options.namespace)
         if (options.noteSessionId !== undefined && options.noteSessionId !== null) {

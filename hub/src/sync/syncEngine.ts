@@ -919,8 +919,12 @@ export class SyncEngine {
         name?: string
         description?: string | null
         noteSessionId?: string | null
+        archived?: boolean
     }): GroupWithDetails {
-        return this.groupService.updateGroup(options)
+        const updated = this.groupService.updateGroup(options)
+        // An archived task stops its sessions; the observer leaves it alone until it is brought back.
+        if (options.archived && updated.group.kind === 'task') void this.taskService.archived(options.namespace, options.groupId)
+        return updated
     }
 
     deleteGroup(namespace: string, groupId: string, actorMachineId?: string): void {

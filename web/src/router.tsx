@@ -22,7 +22,7 @@ import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
+import { ChevronLeftIcon, ChevronRightIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -67,7 +67,6 @@ import { useSessionSidebarVisibility } from '@/hooks/useSessionSidebarVisibility
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useChatViewMode } from '@/hooks/useChatViewMode'
-import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
@@ -79,6 +78,9 @@ import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary, TaskStatus, TaskView } from '@/types/api'
 import { Badge, DotBadge } from '@/components/ui/badge'
 import { NewTaskForm } from '@/components/tasks/NewTaskForm'
+import { TaskActionMenu } from '@/components/tasks/TaskActionMenu'
+import { safeCopyToClipboard } from '@/lib/clipboard'
+import { cn } from '@/lib/utils'
 import { ProgressOrb, type ReportTone } from '@/components/report'
 import { filterSessionsBySearch } from '@/lib/session-search'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
@@ -1073,8 +1075,10 @@ function GroupsLayout() {
     const [renameModalOpen, setRenameModalOpen] = useState(false)
     const [deleteModalOpen, setDeleteModalOpen] = useState(false)
     const [groupInfoOpen, setGroupInfoOpen] = useState(false)
+    const [showArchived, setShowArchived] = useState(false)
     const groupInfoPanel = useMemo(() => ({ open: groupInfoOpen, setOpen: setGroupInfoOpen }), [groupInfoOpen])
     const { updateGroup, deleteGroup, isPending: isActionPending } = useGroupActions(api, actionGroupId)
+    const { addToast } = useToast()
     const isMobileLayout = useIsMobileLayout()
     const { sessions: allSessions } = useSessions(api)
     const sessionsById = useMemo(() => new Map(allSessions.map((session) => [session.id, session])), [allSessions])
@@ -1089,10 +1093,13 @@ function GroupsLayout() {
     const selectedGroup = selectedGroupId
         ? groups.find((item) => item.group.id === selectedGroupId) ?? null
         : null
-    const visibleGroups = useMemo(
+    const matchingGroups = useMemo(
         () => filterGroupsBySearch(groups, groupSearchQuery),
         [groups, groupSearchQuery]
     )
+    // Archived ones sit in a folded section at the end of the list.
+    const visibleGroups = useMemo(() => matchingGroups.filter((item) => !item.group.archivedAt), [matchingGroups])
+    const archivedGroups = useMemo(() => matchingGroups.filter((item) => item.group.archivedAt), [matchingGroups])
     const actionTarget = actionGroupId
         ? groups.find((item) => item.group.id === actionGroupId) ?? null
         : null
@@ -1150,6 +1157,25 @@ function GroupsLayout() {
         await updateGroup({ name: nextName })
     }
 
+    const handleCopyGroupTitle = async () => {
+        if (!actionTarget) return
+        try {
+            await safeCopyToClipboard(actionTarget.group.name)
+            addToast({ title: t('groups.action.copied'), body: actionTarget.group.name, sessionId: '', url: '' })
+        } catch {
+            addToast({ title: t('groups.action.copyFailed'), body: '', sessionId: '', url: '' })
+        }
+    }
+
+    const handleArchiveGroup = async (archived: boolean) => {
+        if (!actionTarget) return
+        try {
+            await updateGroup({ archived })
+        } catch (error) {
+            addToast({ title: t('groups.action.archiveFailed'), body: error instanceof Error ? error.message : '', sessionId: '', url: '' })
+        }
+    }
+
     const handleDeleteGroup = async () => {
         if (!actionTarget) {
             return
@@ -1184,12 +1210,13 @@ function GroupsLayout() {
                 </DialogContent>
             </Dialog>
 
-            <SessionActionMenu
+            <TaskActionMenu
                 isOpen={actionMenuOpen && Boolean(actionTarget)}
                 onClose={() => setActionMenuOpen(false)}
-                sessionActive={false}
+                archived={Boolean(actionTarget?.group.archivedAt)}
                 onRename={handleOpenRename}
-                onArchive={() => {}}
+                onCopyTitle={() => void handleCopyGroupTitle()}
+                onArchive={(archived) => void handleArchiveGroup(archived)}
                 onDelete={() => {
                     setRenameModalOpen(false)
                     setDeleteModalOpen(true)
@@ -1250,20 +1277,46 @@ function GroupsLayout() {
             </div>
             {isLoading ? (
                 <div className="px-6 py-16 text-center text-footnote text-[var(--social-fg-muted)]">{t('mobile.feed.loading')}</div>
-            ) : visibleGroups.length === 0 ? (
+            ) : visibleGroups.length === 0 && archivedGroups.length === 0 ? (
                 <EmptyState variant="page" title={t('mobile.groups.empty')} />
             ) : (
-                visibleGroups.map((item) => (
-                    <GroupRow
-                        key={item.group.id}
-                        item={item}
-                        task={tasksById.get(item.group.id)}
-                        members={membersOf(item)}
-                        selected={selectedGroupId === item.group.id}
-                        onSelect={openGroup}
-                        onOpenActions={handleOpenGroupActions}
-                    />
-                ))
+                <>
+                    {visibleGroups.map((item) => (
+                        <GroupRow
+                            key={item.group.id}
+                            item={item}
+                            task={tasksById.get(item.group.id)}
+                            members={membersOf(item)}
+                            selected={selectedGroupId === item.group.id}
+                            onSelect={openGroup}
+                            onOpenActions={handleOpenGroupActions}
+                        />
+                    ))}
+                    {archivedGroups.length > 0 ? (
+                        <>
+                            <button
+                                type="button"
+                                aria-expanded={showArchived || Boolean(groupSearchQuery.trim())}
+                                onClick={() => setShowArchived((open) => !open)}
+                                className="flex min-h-11 w-full items-center gap-1.5 px-5 pt-3 text-left text-footnote font-semibold text-[var(--social-fg-muted)]"
+                            >
+                                <ChevronRightIcon className={cn('h-3.5 w-3.5 transition-transform', showArchived || groupSearchQuery.trim() ? 'rotate-90' : '')} />
+                                {t('groups.archived', { n: archivedGroups.length })}
+                            </button>
+                            {showArchived || groupSearchQuery.trim() ? archivedGroups.map((item) => (
+                                <GroupRow
+                                    key={item.group.id}
+                                    item={item}
+                                    task={tasksById.get(item.group.id)}
+                                    members={membersOf(item)}
+                                    selected={selectedGroupId === item.group.id}
+                                    onSelect={openGroup}
+                                    onOpenActions={handleOpenGroupActions}
+                                />
+                            )) : null}
+                        </>
+                    ) : null}
+                </>
             )}
         </div>
     )

@@ -282,6 +282,8 @@ export type Group = {
     tag?: string | null
     status?: TaskStatus | null
     goal?: string | null
+    /** Set when archived: the group sits in the list's archived section; its sessions were stopped. */
+    archivedAt?: number | null
     createdAt: number
     updatedAt: number
 }

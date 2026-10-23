@@ -543,6 +543,29 @@ describe('task run after the guide step', () => {
         expect(t.service.get('default', task.id)!.run!.watch!.log.map((entry) => entry.text)).toContain('负责人停了，HAQI 把它拉起来了。')
     })
 
+    it('stops every session of an archived task and does not start its lead again', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: 'A', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        const worker = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        expect(t.store.groups.updateGroup({ groupId: task.id, namespace: 'default', archived: true })!.archivedAt).toBeNumber()
+        await t.service.archived('default', task.id)
+        expect(t.stopped).toEqual(expect.arrayContaining([lead, worker]))
+        t.setResumable(true)
+        await t.runs.tick('default', Date.now() + 10 * 60_000)
+        expect(t.sessions.get(lead)!.active).toBe(false)
+        // Brought back: the lead is started again.
+        expect(t.store.groups.updateGroup({ groupId: task.id, namespace: 'default', archived: false })!.archivedAt).toBeNull()
+        await t.runs.tick('default', Date.now() + 20 * 60_000)
+        expect(t.sessions.get(lead)!.active).toBe(true)
+    })
+
     it('starts a subtask again that could not start', async () => {
         const t = setup(dir)
         const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
