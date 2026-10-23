@@ -198,6 +198,10 @@ export function createTaskRoutes(getSyncEngine: () => SyncEngine | null): Hono<W
         await runs.verdict(ns, id, parsed.data)
         return { task: getSyncEngine()!.getTaskService().get(ns, id) }
     })
+    runRoute('/tasks/:id/subtasks/:subtaskId/restart', async (runs, ns, id, _body, c) => {
+        await runs.restartSubtask(ns, id, c.req.param('subtaskId') ?? '')
+        return { task: getSyncEngine()!.getTaskService().get(ns, id) }
+    })
     runRoute('/tasks/:id/reopen', async (runs, ns, id) => {
         await runs.reopen(ns, id)
         return { task: getSyncEngine()!.getTaskService().get(ns, id) }

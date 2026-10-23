@@ -1148,6 +1148,11 @@ export class ApiClient {
         return result.task
     }
 
+    async restartTaskSubtask(taskId: string, subtaskId: string): Promise<TaskView> {
+        const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/subtasks/${encodeURIComponent(subtaskId)}/restart`, { method: 'POST', body: '{}' })
+        return result.task
+    }
+
     async reopenTask(taskId: string): Promise<TaskView> {
         const result = await this.request<{ task: TaskView }>(`/api/tasks/${encodeURIComponent(taskId)}/reopen`, { method: 'POST' })
         return result.task

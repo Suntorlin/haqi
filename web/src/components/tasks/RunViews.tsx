@@ -235,7 +235,7 @@ function Summary(props: { text: string; t: Translate }) {
 }
 
 /** One subtask: a big progress ring, its checks, its own decisions, and its session. */
-function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubtask; onBack: () => void; onAnswer: (id: string, label: string) => void; onAsk: (id: string, text: string) => Promise<void>; onOpenCheck: (criterion: AcceptanceCriterion) => void; now: number; t: Translate }) {
+function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubtask; onBack: () => void; onAnswer: (id: string, label: string) => void; onAsk: (id: string, text: string) => Promise<void>; onRestart?: (subtaskId: string) => Promise<void>; onOpenCheck: (criterion: AcceptanceCriterion) => void; now: number; t: Translate }) {
     const { run, subtask, t } = props
     const navigate = useNavigate()
     const progress = criteriaDone(run, subtask)
@@ -245,6 +245,10 @@ function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubta
     const criteria = props.task.acceptance.filter((c) => subtask.criteria.includes(c.id))
     const decisions = run.decisions.filter((d) => !d.answer && (d.subtaskId === subtask.id || d.askedBy === subtask.sessionId))
     const used = subtask.startedAt ? duration((subtask.doneAt ?? props.now) - subtask.startedAt, t) : null
+    const [restarting, setRestarting] = useState(false)
+    // Why it stopped, if HAQI knows: "could not start: …" or the observer's note.
+    const why = run.signals.find((s) => s.key.endsWith(`:${subtask.id}`) && (s.kind === 'stopped' || s.kind === 'stuck'))?.text
+    const canRestart = Boolean(props.onRestart) && (subtask.state === 'stopped' || subtask.state === 'stuck') && (run.phase === 'running' || subtask.fix)
     return (
         <>
             <button type="button" onClick={props.onBack} className="flex min-h-11 w-full items-center gap-1 px-4 text-left">
@@ -276,9 +280,23 @@ function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubta
                 </>
             ) : null}
             {subtask.summary ? <Summary text={subtask.summary} t={t} /> : null}
-            {subtask.sessionId ? (
-                <div className="mx-4 mt-6 flex justify-center">
-                    <Button variant="secondary" onClick={() => void navigate({ to: '/sessions/$sessionId', params: { sessionId: subtask.sessionId! } })}>{t('taskRun.seeProcess')}</Button>
+            {canRestart && why ? <p className="mx-5 mt-4 text-footnote text-[var(--app-badge-warning-text)]">{why}</p> : null}
+            {canRestart || subtask.sessionId ? (
+                <div className="mx-4 mt-6 flex justify-center gap-2">
+                    {subtask.sessionId ? (
+                        <Button variant="secondary" onClick={() => void navigate({ to: '/sessions/$sessionId', params: { sessionId: subtask.sessionId! } })}>{t('taskRun.seeProcess')}</Button>
+                    ) : null}
+                    {canRestart ? (
+                        <Button
+                            disabled={restarting}
+                            onClick={() => {
+                                setRestarting(true)
+                                void props.onRestart!(subtask.id).finally(() => setRestarting(false))
+                            }}
+                        >
+                            {restarting ? t('taskRun.restarting') : t('taskRun.restart')}
+                        </Button>
+                    ) : null}
                 </div>
             ) : null}
         </>
@@ -317,6 +335,8 @@ export function RunReport(props: {
     run: TaskRun
     onAnswer: (decisionId: string, label: string) => void
     onAsk: (id: string, text: string) => Promise<void>
+    /** Starts a stopped subtask again. */
+    onRestart?: (subtaskId: string) => Promise<void>
     /** While the verdict buttons replace the composer, the way into the conversation sits here. */
     onAllChats?: () => void
 }) {
@@ -372,7 +392,7 @@ export function RunReport(props: {
             <>
                 {/* Keyed by subtask: the page jumps to the top once when a subtask opens, not on each refresh. */}
                 <span key={subtask.id} ref={scrollToTop} aria-hidden="true" />
-                <SubtaskDetail task={task} run={run} subtask={subtask} now={now} t={t} onBack={() => setSubtaskId(null)} onAnswer={props.onAnswer} onAsk={props.onAsk} onOpenCheck={(c) => setCheckId(c.id)} />
+                <SubtaskDetail task={task} run={run} subtask={subtask} now={now} t={t} onBack={() => setSubtaskId(null)} onAnswer={props.onAnswer} onAsk={props.onAsk} onRestart={props.onRestart} onOpenCheck={(c) => setCheckId(c.id)} />
                 {sheet}
             </>
         )

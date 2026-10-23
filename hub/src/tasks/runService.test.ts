@@ -41,6 +41,11 @@ function setup(dir: string) {
     const approved: string[] = []
     const lines: Array<{ text: string; report?: string }> = []
     let next = 1
+    // Off by default: a stopped session stays stopped unless a test turns this on.
+    let resumable = false
+    // On: the task's folder is not a git repository, so a worktree cannot be made.
+    let plainFolder = false
+    let spawnError: string | null = null
     const addSession = (id: string, path: string, worktree: RunSession['worktree'] = null) => {
         sessions.set(id, { id, active: true, thinking: false, machineId: 'm1', path, name: null, tags: [], updatedAt: Date.now(), worktree, requests: [] })
         const now = Date.now()
@@ -48,7 +53,9 @@ function setup(dir: string) {
             "INSERT INTO sessions (id, tag, namespace, created_at, updated_at, metadata, metadata_version, agent_state_version, active, active_at, seq) VALUES (?, NULL, 'default', ?, ?, ?, 1, 1, 1, ?, 0)"
         ).run(id, now, now, JSON.stringify({ path }), now)
     }
-    const spawn = (kind: 'lead' | 'worker') => async (input: { directory: string; worktreeName?: string; name: string; text: string }) => {
+    const spawn = (kind: 'lead' | 'worker') => async (input: { directory: string; worktreeName?: string; name: string; text: string }): Promise<{ sessionId: string } | { error: string }> => {
+        if (plainFolder && input.worktreeName) return { error: 'Path is not a Git repository: fatal: not a git repository (or any of the parent directories): .git' }
+        if (spawnError && kind === 'worker') return { error: spawnError }
         const id = `${kind}-${next++}`
         const worktree = input.worktreeName ? { branch: `hapi-${input.worktreeName}`, path: `/repo-worktrees/${input.worktreeName}` } : null
         addSession(id, worktree?.path ?? input.directory, worktree)
@@ -70,6 +77,12 @@ function setup(dir: string) {
             spawnWorker: async (input) => spawn('worker')(input),
             spawnLead: async (input) => spawn('lead')(input),
             send: async (sessionId, text) => { if (!sessions.get(sessionId)?.active) return false; sent.push({ sessionId, text }); return true },
+            resume: async (_ns, id) => {
+                const s = sessions.get(id)
+                if (!resumable || !s) return null
+                s.active = true
+                return id
+            },
             session: (_ns, id) => {
                 const s = sessions.get(id)
                 return s ? { id, active: s.active, thinking: s.thinking, path: s.path, worktree: s.worktree, pendingRequests: s.requests } : null
@@ -85,7 +98,12 @@ function setup(dir: string) {
         await service.whenIdle()
         for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0))
     }
-    return { store, service, runs: service.runs!, sessions, addSession, spawned, sent, pushes, reports, stopped, approved, lines, settle }
+    return {
+        store, service, runs: service.runs!, sessions, addSession, spawned, sent, pushes, reports, stopped, approved, lines, settle,
+        setResumable: (on: boolean) => { resumable = on },
+        setPlainFolder: (on: boolean) => { plainFolder = on },
+        failSpawn: (message: string | null) => { spawnError = message }
+    }
 }
 
 describe('task run after the guide step', () => {
@@ -171,8 +189,10 @@ describe('task run after the guide step', () => {
 
         // The lead writes what the user gets, in the user's rules; then the report waits for the user.
         expect(t.service.get('default', task.id)!.run!.phase).toBe('delivering')
-        const handover = t.spawned.at(-1)!
-        expect([handover.kind, handover.text.includes('请写交给用户的交付说明'), handover.text.includes('subtask_id 填 "deliver-1"')]).toEqual(['lead', true, true])
+        // The lead stayed up through the run, so the hand-over goes to it as a message.
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        const handover = t.sent.filter((m) => m.sessionId === lead).at(-1)!
+        expect([handover.text.includes('请写交给用户的交付说明'), handover.text.includes('subtask_id 填 "deliver-1"')]).toEqual([true, true])
         expect(handover.text).toContain('## 用户的原则（必须遵守）')
         await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '归档的记忆能恢复了，没推送。\n\n## 要你做的事\n1. 看分支，决定要不要合并。' })
         await t.settle()
@@ -182,7 +202,7 @@ describe('task run after the guide step', () => {
         expect(t.reports.at(-1)).toContain('## 要你做的事\n1. 看分支，决定要不要合并。\n\n---\n\n## 附：HAQI 的核对')
         expect(t.reports.at(-1)).toContain('返工 · 返工 1')
         expect(t.reports.at(-1)).not.toContain('负责人整理交付')
-        expect(t.stopped).toContain(handover.id)
+        expect(t.stopped).not.toContain(lead)
         expect(t.pushes.at(-1)).toBe('等你验收：记忆页加归档恢复')
         // The report also lands in the task's conversation, in full.
         expect(t.lines.at(-1)?.text.startsWith('做完了，等你验收：')).toBe(true)
@@ -202,7 +222,7 @@ describe('task run after the guide step', () => {
             { criterionId: 'c3', status: 'met', evidence: '截图里看得到' }
         ] })
         await t.settle()
-        const second = t.spawned.at(-1)!
+        const second = t.sent.filter((m) => m.sessionId === lead).at(-1)!
         expect(second.text).toContain('subtask_id 填 "deliver-2"')
         expect(second.text).toContain('## 你上次交给用户的（这次要替换它）\n归档的记忆能恢复了，没推送。')
         expect(second.text).toContain('「## 按你的意见改了」')
@@ -312,7 +332,9 @@ describe('task run after the guide step', () => {
             ]
         })
         await t.settle()
-        expect(t.sessions.get(lead)!.active).toBe(false)
+        // The lead stays up after the split; here it has stopped (it crashed) and cannot be resumed.
+        expect(t.sessions.get(lead)!.active).toBe(true)
+        t.sessions.get(lead)!.active = false
         const worker = t.service.get('default', task.id)!.run!.subtasks.find((s) => s.id === 'a')!.sessionId!
         await t.runs.answerDecision('default', task.id, 'd1', '五档')
         expect(t.sent.at(-1)).toMatchObject({ sessionId: worker })
@@ -336,16 +358,20 @@ describe('task run after the guide step', () => {
         })
         await t.settle()
         const worker = t.service.get('default', task.id)!.run!.subtasks.find((s) => s.id === 'a')!.sessionId!
+        const lead = t.service.get('default', task.id)!.leadSessionId!
         await t.runs.userMessage('default', task.id, '按钮放右上角')
+        // The lead hears it and answers; the executor takes it into its work.
+        const toLead = t.sent.find((m) => m.sessionId === lead && m.text.includes('用户在任务页跟你说：「按钮放右上角」'))!
+        expect(toLead.text).toContain('- 数据：在做')
         expect(t.sent.at(-1)).toMatchObject({ sessionId: worker })
         expect(t.sent.at(-1)!.text).toContain('用户在任务里说：「按钮放右上角」')
-        expect(t.lines.at(-1)!.text).toContain('已转给正在干活的 1 个会话')
+        expect(t.lines.at(-1)!.text).toBe('负责人收到了，也转给了正在干活的 1 个会话。')
         await t.runs.subtaskDone('default', task.id, { subtaskId: 'a', summary: '加了字段' })
         await t.settle()
         expect(t.spawned.find((s) => s.name === '执行 · 界面')!.text).toContain('## 用户在任务里说过的话（照顾到）\n- 按钮放右上角')
     })
 
-    it('says so when nobody is working, and still puts the words in later briefs', async () => {
+    it('takes the words to the lead when nobody else works, wakes a stopped lead, and says so when no one can take them', async () => {
         const t = setup(dir)
         const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
         await t.settle()
@@ -355,11 +381,24 @@ describe('task run after the guide step', () => {
         await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: 'A', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
         await t.settle()
         const worker = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        const lead = t.service.get('default', task.id)!.leadSessionId!
         t.sessions.get(worker)!.active = false
+        await t.runs.userMessage('default', task.id, '会话又出问题了')
+        expect(t.sent.at(-1)).toMatchObject({ sessionId: lead })
+        expect(t.lines.at(-1)!.text).toBe('负责人收到了。')
+        // A lead that stopped is resumed to hear it.
+        t.sessions.get(lead)!.active = false
+        t.setResumable(true)
+        await t.runs.userMessage('default', task.id, '还在吗')
+        expect(t.sent.at(-1)!.text).toContain('用户在任务页跟你说：「还在吗」')
+        expect(t.sessions.get(lead)!.active).toBe(true)
+        // No lead and no executor: the words wait in the brief.
+        t.setResumable(false)
+        t.sessions.get(lead)!.active = false
         const before = t.sent.length
         await t.runs.userMessage('default', task.id, '全部推进吧')
         expect(t.sent.length).toBe(before)
-        expect(t.lines.at(-1)!.text).toContain('现在没有会话在干活')
+        expect(t.lines.at(-1)!.text).toContain('负责人起不来，也没有会话在干活')
     })
 
     it('follows a session that is resumed under a new id: lead, membership and run', async () => {
@@ -439,7 +478,93 @@ describe('task run after the guide step', () => {
         expect(t.service.get('default', task.id)!.run!.decisions.map((d) => d.id)).toEqual(['d2', 'd3'])
         // Nobody to take it: the asker and the lead have stopped.
         t.sessions.get(worker)!.active = false
+        t.sessions.get(t.service.get('default', task.id)!.leadSessionId!)!.active = false
         await expect(t.runs.askAboutDecision('default', task.id, 'd3', '为什么')).rejects.toThrow('都起不来')
+    })
+
+    it('works in a folder that is not a git repository: no worktree, no merge, review in the folder', async () => {
+        const t = setup(dir)
+        t.setPlainFolder(true)
+        const task = await t.service.create('default', { text: '调研 skill 并跑一次复刻', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, {
+            subtasks: [
+                { id: 'research', title: '调研', brief: '查同类 skill', criteria: ['c1'] },
+                { id: 'pick', title: '选视频', brief: '选爆款', criteria: ['c2', 'c3'] }
+            ]
+        })
+        await t.settle()
+        let run = t.service.get('default', task.id)!.run!
+        expect(run.subtasks.map((s) => s.state)).toEqual(['running', 'running'])
+        const workers = t.spawned.filter((s) => s.name.startsWith('执行'))
+        expect(workers.map((w) => [w.directory, w.worktreeName])).toEqual([['/repo', undefined], ['/repo', undefined]])
+        expect(workers[0]!.text).toContain('/repo 不是 git 仓库：不建分支，不提交。')
+        expect(workers[0]!.text).not.toContain('git commit 到你的分支')
+        expect(t.lines.some((l) => l.text === '/repo 不是 git 仓库：执行者直接在这个目录里干活，不建分支。')).toBe(true)
+
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'research', summary: '写了 /repo/research/skill.md' })
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'pick', summary: '选了一条' })
+        await t.settle()
+        // Nothing to merge: the reviewer goes straight to the folder.
+        run = t.service.get('default', task.id)!.run!
+        expect(run.phase).toBe('reviewing')
+        expect(t.spawned.some((s) => s.name.startsWith('合并'))).toBe(false)
+        const reviewer = t.spawned.find((s) => s.name.startsWith('评审'))!
+        expect(reviewer.directory).toBe('/repo')
+        expect(reviewer.text).toContain('你在任务目录里')
+    })
+
+    it('keeps the lead up through the run: the observer starts a stopped lead again, at most every few minutes', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: 'A', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        expect(t.stopped).not.toContain(lead)
+        expect(t.sessions.get(lead)!.active).toBe(true)
+
+        t.sessions.get(lead)!.active = false
+        const now = Date.now()
+        await t.runs.tick('default', now)
+        expect(t.sessions.get(lead)!.active).toBe(false)
+        t.setResumable(true)
+        // Too soon after the last try.
+        await t.runs.tick('default', now + 60_000)
+        expect(t.sessions.get(lead)!.active).toBe(false)
+        await t.runs.tick('default', now + 6 * 60_000)
+        expect(t.sessions.get(lead)!.active).toBe(true)
+        expect(t.service.get('default', task.id)!.run!.watch!.log.map((entry) => entry.text)).toContain('负责人停了，HAQI 把它拉起来了。')
+    })
+
+    it('starts a subtask again that could not start', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        t.failSpawn('machine offline')
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: '数据', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        let subtask = t.service.get('default', task.id)!.run!.subtasks[0]!
+        expect([subtask.state, subtask.sessionId]).toEqual(['stopped', null])
+        expect(t.lines.some((l) => l.text === '「数据」没能启动：machine offline')).toBe(true)
+
+        await expect(t.runs.restartSubtask('default', task.id, 'nope')).rejects.toThrow(TaskError)
+        t.failSpawn(null)
+        await t.runs.restartSubtask('default', task.id, 'a')
+        subtask = t.service.get('default', task.id)!.run!.subtasks[0]!
+        expect(subtask.state).toBe('running')
+        expect(subtask.sessionId).toBe(t.spawned.at(-1)!.id)
+        expect(t.service.get('default', task.id)!.run!.signals.filter((sig) => sig.key === 'stopped:a')).toEqual([])
+        await expect(t.runs.restartSubtask('default', task.id, 'a')).rejects.toThrow('Only a stopped subtask')
     })
 
     it('stops every working session when the task is abandoned', async () => {
