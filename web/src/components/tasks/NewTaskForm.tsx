@@ -1,17 +1,26 @@
 import { useRef, useState, type ClipboardEvent, type DragEvent } from 'react'
 import type { ApiClient } from '@/api/client'
+import type { PermissionMode } from '@/types/api'
 import { appendDictatedText, useDictation } from '@/hooks/useDictation'
+import { useExperimentalSettings } from '@/hooks/queries/useExperimentalSettings'
 import { useTranslation } from '@/lib/use-translation'
 import { prepareTaskFile, TASK_FILE_LIMITS, type TaskFileUpload } from '@/lib/taskFiles'
 import { cn } from '@/lib/utils'
 import { DictationBar, MobileComposerAction } from '@/components/AssistantChat/MobileComposerParts'
+import { SessionSettingChips, type SessionThinkEffort } from '@/components/AssistantChat/SessionSettingChips'
 import { Spinner } from '@/components/Spinner'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { IconButton } from '@/components/ui/IconButton'
 import { SwitchChip } from '@/components/ui/SettingChip'
 import { AlertCircleIcon, CloseIcon, PaperclipIcon } from '@/components/mobile/icons'
 
-export type NewTaskInput = { text: string; draft: boolean; files?: TaskFileUpload[] }
+/** The task's default session settings: every session it starts (planner, lead, executors, reviewer) uses them. */
+export type TaskSessionSettings = { model?: string; thinkEffort?: SessionThinkEffort; permissionMode?: PermissionMode }
+
+export type NewTaskInput = { text: string; draft: boolean; files?: TaskFileUpload[]; settings?: TaskSessionSettings }
+
+/** Today's defaults for task sessions: the hub starts them with medium thinking. */
+const DEFAULT_THINK: SessionThinkEffort = 'medium'
 
 type PickedFile = {
     id: string
@@ -26,7 +35,8 @@ type PickedFile = {
  * there are any. HAQI's lead picks the repository and the tag, and drafts the goal and the acceptance criteria; with
  * drafting off the task starts as a plain discussion. The field is the session's prompt box: one framed box with the
  * files on top, the text, and a toolbar inside it (files and the drafting setting on the left, the mic or send on the
- * right). Screenshots can be pasted, and files dropped on the box.
+ * right). Screenshots can be pasted, and files dropped on the box. The model, thinking and permission chips are the
+ * prompt box's own; what they say becomes the task's default for every session it starts.
  */
 export function NewTaskForm(props: {
     api?: ApiClient | null
@@ -40,6 +50,12 @@ export function NewTaskForm(props: {
     const [error, setError] = useState<string | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
     const [dragging, setDragging] = useState(false)
+    const { settings: system } = useExperimentalSettings(props.api ?? null, Boolean(props.api))
+    const [model, setModel] = useState('auto')
+    const [think, setThink] = useState<SessionThinkEffort>(DEFAULT_THINK)
+    // Until the user picks one, permission follows the system switch "every session in YOLO".
+    const [permission, setPermission] = useState<PermissionMode | null>(null)
+    const permissionValue: PermissionMode = permission ?? (system.alwaysYolo ? 'bypassPermissions' : 'default')
     const dictation = useDictation({
         api: props.api,
         onText: (dictated) => setText((previous) => appendDictatedText(previous, dictated).slice(0, 2000))
@@ -94,7 +110,12 @@ export function NewTaskForm(props: {
         setError(null)
         try {
             const uploads = ready.map((file) => file.upload!)
-            await props.onCreate({ text: trimmed, draft, ...(uploads.length > 0 ? { files: uploads } : {}) })
+            const settings: TaskSessionSettings = {
+                ...(model !== 'auto' ? { model } : {}),
+                thinkEffort: think,
+                ...(permission ? { permissionMode: permission } : {})
+            }
+            await props.onCreate({ text: trimmed, draft, settings, ...(uploads.length > 0 ? { files: uploads } : {}) })
             setText('')
             setFiles([])
         } catch (failure) {
@@ -185,7 +206,7 @@ export function NewTaskForm(props: {
                         className="min-h-[44px] w-full flex-1 rounded-none border-0 bg-transparent p-0 text-body leading-[1.375rem] focus:border-0"
                     />
                 </div>
-                <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
+                <div className="flex items-end gap-0.5 px-2 pb-2 pt-1">
                     <IconButton
                         size="sm"
                         label={t('tasks.files.add')}
@@ -195,7 +216,15 @@ export function NewTaskForm(props: {
                     >
                         <PaperclipIcon className="h-[18px] w-[18px]" />
                     </IconButton>
-                    <div className="ml-1 flex min-w-0 items-center gap-1.5 [&>button]:text-footnote">
+                    {/* One line on a computer; on a phone the chips wrap instead of hiding off the edge. */}
+                    <div className="ml-1 flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 [&>button]:text-footnote">
+                        <SessionSettingChips
+                            flavor="claude"
+                            disabled={pending}
+                            model={{ value: model, onChange: setModel }}
+                            think={{ value: think, onChange: setThink }}
+                            permission={{ value: permissionValue, onChange: setPermission }}
+                        />
                         {/* A popup menu would open under the dialog; two values flip on tap, as in the prompt box. */}
                         <SwitchChip
                             title={draft ? t('tasks.newHint') : t('tasks.plainHint')}

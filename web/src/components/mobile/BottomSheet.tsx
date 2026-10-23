@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { IconButton } from '@/components/ui/IconButton'
+import { InsideDialogContext } from '@/components/ui/dialog'
 import { CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/mobile/icons'
 import { SwitchTrack } from '@/components/ui/Switch'
 import { useTranslation } from '@/lib/use-translation'
@@ -27,17 +28,19 @@ export function BottomSheet(props: {
 }) {
     const isMobileLayout = useIsMobileLayout()
     const { t } = useTranslation()
+    // Opened from a dialog (z-80): stack above it.
+    const layer = useContext(InsideDialogContext) ? 'z-[90]' : 'z-[70]'
 
     if (!isMobileLayout && props.popoverAnchor) {
         const { right, bottom } = props.popoverAnchor
         return (
             <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
                 <DialogPrimitive.Portal>
-                    <DialogPrimitive.Overlay className="fixed inset-0 z-[70]" />
+                    <DialogPrimitive.Overlay className={cn('fixed inset-0', layer)} />
                     <DialogPrimitive.Content
                         aria-describedby={undefined}
                         className={cn(
-                            'social-float-card animate-menu-pop fixed z-[70] flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-2xl text-[var(--social-fg)] outline-none',
+                            layer, 'social-float-card animate-menu-pop fixed flex w-[360px] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-2xl text-[var(--social-fg)] outline-none',
                             props.className
                         )}
                         style={{
@@ -61,11 +64,11 @@ export function BottomSheet(props: {
         return (
             <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
                 <DialogPrimitive.Portal>
-                    <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-[var(--scrim-soft)]" />
+                    <DialogPrimitive.Overlay className={cn('animate-fade-in fixed inset-0 bg-[var(--scrim-soft)]', layer)} />
                     <DialogPrimitive.Content
                         aria-describedby={undefined}
                         className={cn(
-                            'animate-panel-in fixed inset-y-0 right-0 z-[70] flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-[var(--shadow-panel)] outline-none',
+                            layer, 'animate-panel-in fixed inset-y-0 right-0 flex w-[400px] max-w-[92vw] flex-col border-l border-[var(--social-border)] bg-[var(--social-surface)] text-[var(--social-fg)] shadow-[var(--shadow-panel)] outline-none',
                             props.className
                         )}
                     >
@@ -94,12 +97,12 @@ export function BottomSheet(props: {
     return (
         <DialogPrimitive.Root open={props.open} onOpenChange={props.onOpenChange}>
             <DialogPrimitive.Portal>
-                <DialogPrimitive.Overlay className="animate-fade-in fixed inset-0 z-[70] bg-[var(--scrim)]" />
+                <DialogPrimitive.Overlay className={cn('animate-fade-in fixed inset-0 bg-[var(--scrim)]', layer)} />
                 <DialogPrimitive.Content
                     aria-describedby={undefined}
                     onOpenAutoFocus={props.noAutoFocus ? (event) => event.preventDefault() : undefined}
                     className={cn(
-                        'animate-sheet-up fixed inset-x-0 bottom-0 z-[70] mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border-t border-[var(--social-border)] bg-[var(--social-surface)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[var(--shadow-sheet)] outline-none',
+                        layer, 'animate-sheet-up fixed inset-x-0 bottom-0 mx-auto flex max-h-[88dvh] w-full max-w-xl flex-col overflow-hidden rounded-t-2xl border-t border-[var(--social-border)] bg-[var(--social-surface)] pb-[env(safe-area-inset-bottom)] text-[var(--social-fg)] shadow-[var(--shadow-sheet)] outline-none',
                         props.className
                     )}
                 >

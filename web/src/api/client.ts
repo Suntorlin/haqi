@@ -1101,6 +1101,8 @@ export class ApiClient {
         machineId?: string
         directory?: string
         files?: Array<{ filename: string; mimeType: string; content: string }>
+        /** Defaults for every session the task starts. */
+        settings?: { model?: string; thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'; permissionMode?: PermissionMode }
     }): Promise<TaskView> {
         const result = await this.request<{ task: TaskView }>('/api/tasks', { method: 'POST', body: JSON.stringify(input) })
         return result.task

@@ -38,7 +38,7 @@ import {
 } from './rpcGateway'
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
-import { TaskService, type TaskSession } from '../tasks/taskService'
+import { TaskService, type TaskSession, type TaskSessionSettings } from '../tasks/taskService'
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
 import { sessionActivity } from '../tasks/sessionActivity'
@@ -548,7 +548,8 @@ export class SyncEngine {
         this.taskService = new TaskService(store, this.memoryService, {
             planner: {
                 spawnAndPrompt: async (input) => {
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta, files: this.taskFilesFor(input.meta) })
+                    const task = this.taskSpawn(input.meta, input.machineId)
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, task.options({}), task.prompt(input))
                     if (result.type === 'error') return { error: result.message }
                     await this.renameSession(result.sessionId, input.name).catch(() => {})
                     await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
@@ -571,16 +572,18 @@ export class SyncEngine {
             stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
             run: {
                 spawnWorker: async (input) => {
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, {
-                        thinkEffort: 'medium', yolo: true, sessionType: input.worktreeName ? 'worktree' : 'simple', worktreeName: input.worktreeName
-                    }, { text: input.text, meta: input.meta, files: this.taskFilesFor(input.meta) })
+                    const task = this.taskSpawn(input.meta, input.machineId)
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, task.options({
+                        yolo: true, sessionType: input.worktreeName ? 'worktree' : 'simple', worktreeName: input.worktreeName
+                    }), task.prompt(input))
                     if (result.type === 'error') return { error: result.message }
                     await this.renameSession(result.sessionId, input.name).catch(() => {})
                     await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
                     return { sessionId: result.sessionId }
                 },
                 spawnLead: async (input) => {
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, { thinkEffort: 'medium' }, { text: input.text, meta: input.meta, files: this.taskFilesFor(input.meta) })
+                    const task = this.taskSpawn(input.meta, input.machineId)
+                    const result = await this.spawnAndPrompt(input.machineId, input.directory, task.options({}), task.prompt(input))
                     if (result.type === 'error') return { error: result.message }
                     await this.renameSession(result.sessionId, input.name).catch(() => {})
                     await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
@@ -2552,7 +2555,7 @@ ${note.content}
             sessionType?: 'simple' | 'worktree'
             worktreeName?: string
         },
-        prompt: { text: string; meta?: Record<string, unknown>; files?: TaskFileContent[] }
+        prompt: { text: string; meta?: Record<string, unknown>; files?: TaskFileContent[]; permissionMode?: PermissionMode }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const spawned = await this.spawnSession(
             machineId,
@@ -2572,6 +2575,8 @@ ${note.content}
         if (!await this.waitForSessionActive(spawned.sessionId)) {
             return { type: 'error', message: '会话没能在 15 秒内启动' }
         }
+        // Before the first message, so the agent never acts under another mode.
+        if (prompt.permissionMode) await this.applySessionConfig(spawned.sessionId, { permissionMode: prompt.permissionMode }).catch(() => {})
         const attachments = await this.uploadAll(spawned.sessionId, prompt.files ?? [])
         await this.sendMessage(spawned.sessionId, {
             text: prompt.text,
@@ -2605,10 +2610,27 @@ ${note.content}
         return attachments
     }
 
-    /** The files attached to the task a planner, lead or executor is started for. */
-    private taskFilesFor(meta: Record<string, unknown>): TaskFileContent[] {
+    /**
+     * What a session started for a task gets from the task: its files, and its default settings (model, thinking,
+     * permission). Without settings the sessions start as before: medium thinking, the caller's own permission.
+     */
+    private taskSpawn(meta: Record<string, unknown>, machineId: string) {
         const owner = (meta.taskGuide ?? meta.taskWork) as { taskId?: unknown } | undefined
-        return typeof owner?.taskId === 'string' ? this.taskService.fileContents(owner.taskId) : []
+        const taskId = typeof owner?.taskId === 'string' ? owner.taskId : null
+        const namespace = this.machineCache.getMachine(machineId)?.namespace ?? null
+        const settings: TaskSessionSettings = taskId && namespace ? this.taskService.sessionSettings(namespace, taskId) : {}
+        const files = taskId ? this.taskService.fileContents(taskId) : []
+        return {
+            options: <T extends { yolo?: boolean }>(base: T) => ({
+                ...base,
+                thinkEffort: settings.thinkEffort ?? 'medium' as const,
+                ...(settings.model ? { model: settings.model } : {}),
+                ...(settings.permissionMode ? { yolo: settings.permissionMode === 'bypassPermissions' } : {})
+            }),
+            prompt: (input: { text: string; meta: Record<string, unknown> }) => ({
+                text: input.text, meta: input.meta, files, ...(settings.permissionMode ? { permissionMode: settings.permissionMode as PermissionMode } : {})
+            })
+        }
     }
 
     async waitForSessionActive(sessionId: string, timeoutMs: number = 15_000): Promise<boolean> {

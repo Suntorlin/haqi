@@ -20,6 +20,12 @@ const createSchema = z.object({
     machineId: z.string().min(1).optional(),
     directory: z.string().min(1).optional(),
     fromSessionId: z.string().min(1).optional(),
+    /** Defaults for every session the task starts, picked with the prompt box's chips. */
+    settings: z.object({
+        model: z.string().trim().min(1).max(100).optional(),
+        thinkEffort: z.enum(['auto', 'low', 'medium', 'high', 'max', 'xhigh']).optional(),
+        permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional()
+    }).optional(),
     /** Reference files and images, in base64; every session the task starts gets a copy. */
     files: z.array(z.object({
         filename: z.string().trim().min(1).max(255),

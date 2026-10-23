@@ -10,7 +10,9 @@ export const TASK_EVENT = {
     draftConfirmed: 'draft_confirmed',
     statusChanged: 'status_changed',
     memberAdded: 'member_added',
-    memberRemoved: 'member_removed'
+    memberRemoved: 'member_removed',
+    /** The task's default session settings (model, thinking, permission), picked in the new-task box. */
+    sessionSettings: 'session_settings'
 } as const
 
 export type TaskEventType = typeof TASK_EVENT[keyof typeof TASK_EVENT] | typeof RUN_EVENT[keyof typeof RUN_EVENT]
