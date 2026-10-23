@@ -621,6 +621,34 @@ describe('task run after the guide step', () => {
         expect(run.signals).toEqual([])
     })
 
+    it('tries again a subtask whose session went away and then could not start, counting only failed starts', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: '数据', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const first = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        // The session goes away: the observer marks it stopped. That is not a failed start, so it is not tried again.
+        t.sessions.get(first)!.active = false
+        await t.runs.tick('default', Date.now() + 61_000)
+        expect(t.service.get('default', task.id)!.run!.subtasks[0]!.state).toBe('stopped')
+        await t.runs.tick('default', Date.now() + 61 * 60_000)
+        expect(t.spawned.length).toBe(2)
+
+        // The user starts it again; the session cannot be resumed and a new one cannot start: that is the first failure.
+        t.failSpawn('machine offline')
+        await t.runs.restartSubtask('default', task.id, 'a')
+        expect(t.lines.at(-1)!.text).toBe('「数据」没能启动：machine offline；HAQI 1 分钟后再试')
+        t.failSpawn(null)
+        await t.runs.tick('default', Date.now() + 61_000)
+        const subtask = t.service.get('default', task.id)!.run!.subtasks[0]!
+        expect([subtask.state, subtask.sessionId]).toEqual(['running', t.spawned.at(-1)!.id])
+        expect(subtask.sessionId).not.toBe(first)
+    })
+
     it('holds an executor that finishes before the user answers its question', async () => {
         const t = setup(dir)
         const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
