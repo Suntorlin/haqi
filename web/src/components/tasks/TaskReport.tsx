@@ -3,7 +3,6 @@ import type { ApiClient } from '@/api/client'
 import type { CriterionSource, TaskDraft, TaskView } from '@/types/api'
 import { useTask, useTaskActions } from '@/hooks/queries/useTasks'
 import { useSession } from '@/hooks/queries/useSession'
-import { appendDictatedText, useDictation } from '@/hooks/useDictation'
 import { useTranslation } from '@/lib/use-translation'
 import { carryOver, confirmInputFrom, keptCount, type DraftEdits } from '@/lib/tasks'
 import { cn } from '@/lib/utils'
@@ -11,7 +10,7 @@ import {
     Checklist,
     DecisionCard,
     DecisionConfirmation,
-    LeadComposer,
+    LatestLine,
     ReopenBar,
     ReportSummary,
     RiskNotice,
@@ -324,6 +323,17 @@ function ConfirmedReport(props: { task: TaskView; onToggleDone: () => void; pend
 }
 
 /**
+ * How the page draws the input under the report. It is the same prompt box as "All chats" (files, mic, the lead's
+ * model, thinking and permission chips), with the lead's latest line on top. `onSubmitText` takes the text instead of
+ * the chat, for the reply that asks for changes.
+ */
+export type TaskComposerOptions = {
+    header: ReactNode
+    placeholder?: string
+    onSubmitText?: (text: string) => void
+}
+
+/**
  * A task page as the lead's live report (report kit): what is being drafted, what waits for the user, the
  * acceptance list; the lead's latest line and the input to talk to it at the bottom. The full group conversation is
  * one tap away ("All chats").
@@ -332,7 +342,7 @@ export function TaskReport(props: {
     taskId: string
     api: ApiClient | null
     latest: LatestMessage | null
-    onSend: (text: string) => Promise<void>
+    renderComposer: (options: TaskComposerOptions) => ReactNode
     onAllChats: () => void
 }) {
     const { t } = useTranslation()
@@ -343,14 +353,6 @@ export function TaskReport(props: {
     const [changing, setChanging] = useState(false)
     const draft = task?.status === 'guiding' && task.guide.state === 'ready' ? task.draft : null
     const [edits, setEdits] = useState<DraftEdits | null>(null)
-    const [message, setMessage] = useState('')
-    // The session's mic: dictated words join the draft. The repository's folder name is the word it most often gets wrong.
-    const repoWord = task?.repoPath?.split('/').filter(Boolean).pop()
-    const dictation = useDictation({
-        api: props.api,
-        hotwords: repoWord ? [repoWord] : [],
-        onText: (text) => setMessage((previous) => appendDictatedText(previous, text))
-    })
     const [pending, setPending] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -373,12 +375,6 @@ export function TaskReport(props: {
     if (!task) return <div className="min-h-0 flex-1" />
     const guiding = task.status === 'guiding'
     const working = guiding && (task.guide.state === 'starting' || task.guide.state === 'drafting')
-    const send = () => {
-        const text = message.trim()
-        if (!text) return
-        setMessage('')
-        void run(() => props.onSend(text))
-    }
 
     // While guiding they sit under the request; after it, at the end as reference.
     const files = (
@@ -486,23 +482,16 @@ export function TaskReport(props: {
                 // Words sent here would reach no one: the way on is to reopen the task.
                 <ReopenBar pending={pending} onReopen={() => void run(() => reopen(task.id))} />
             ) : (
-                <LeadComposer
-                    latest={props.latest ?? { from: 'lead', text: t('taskReport.noMessages'), when: '' }}
-                    draft={message}
-                    onDraft={setMessage}
-                    onSend={changing && task.run?.phase === 'reporting'
-                        ? () => {
-                            const text = message.trim()
-                            if (!text) return
-                            setMessage('')
+                props.renderComposer({
+                    header: <LatestLine latest={props.latest ?? { from: 'lead', text: t('taskReport.noMessages'), when: '' }} onAllChats={props.onAllChats} />,
+                    placeholder: guiding ? t('taskGuide.composerPlaceholder') : changing ? t('taskRun.changePlaceholder') : t('report.composer.placeholder'),
+                    onSubmitText: changing && task.run?.phase === 'reporting'
+                        ? (text) => {
                             setChanging(false)
                             void run(() => verdict(task.id, { approved: false, text }))
                         }
-                        : send}
-                    onAllChats={props.onAllChats}
-                    placeholder={guiding ? t('taskGuide.composerPlaceholder') : changing ? t('taskRun.changePlaceholder') : undefined}
-                    dictation={dictation}
-                />
+                        : undefined
+                })
             )}
         </div>
     )

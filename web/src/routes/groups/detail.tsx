@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type ComponentProps, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type ComponentProps, type DragEvent, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { useParams, useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Attachment, PendingAttachment } from '@assistant-ui/react'
@@ -12,6 +12,8 @@ import { useGroupConversationTurns } from '@/hooks/queries/useGroupConversationT
 import { useGroupNote } from '@/hooks/queries/useGroupNote'
 import { useSession } from '@/hooks/queries/useSession'
 import { useGroupActions } from '@/hooks/mutations/useGroupActions'
+import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { appendDictatedText, useDictation } from '@/hooks/useDictation'
 import { useTask } from '@/hooks/queries/useTasks'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useMachines } from '@/hooks/queries/useMachines'
@@ -34,6 +36,9 @@ import { ChatTimeSeparator } from '@/components/AssistantChat/messages/SocialMes
 import { FileIcon } from '@/components/FileIcon'
 import { Spinner } from '@/components/Spinner'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
+import { DictationBar, MobileComposerAction, MobileComposerToggle } from '@/components/AssistantChat/MobileComposerParts'
+import { getThinkEffortOptionsForFlavor, SessionSettingChips, type SessionThinkEffort } from '@/components/AssistantChat/SessionSettingChips'
+import { ActionTile } from '@/components/mobile/ActionTile'
 import { cn } from '@/lib/utils'
 import { createAttachmentAdapter } from '@/lib/attachmentAdapter'
 import { isImageMimeType } from '@/lib/fileAttachments'
@@ -78,7 +83,6 @@ import {
     ClipboardIcon,
     PlusIcon,
     ReplyIcon,
-    SendArrowIcon,
     ShieldCheckIcon,
     SparklesIcon,
     TrashIcon
@@ -86,7 +90,7 @@ import {
 import { useGroupInfoPanel } from './group-info'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
-import { TaskReport } from '@/components/tasks/TaskReport'
+import { TaskReport, type TaskComposerOptions } from '@/components/tasks/TaskReport'
 import type { LatestMessage } from '@/components/report'
 import { formatRelativeTime } from '@/components/SessionList'
 
@@ -2227,6 +2231,19 @@ export default function GroupDetailPage() {
     // The task report shows the lead's own approval card; the banner keeps the other members.
     const leadSessionId = members.find((member) => member.role === 'lead')?.sessionId ?? null
     const bannerPending = showTaskReport ? pendingMembers.filter((item) => item.sessionId !== leadSessionId) : pendingMembers
+    // In a task the prompt box talks to the lead: its chips are the lead session's model, thinking and permission.
+    const { session: leadSession } = useSession(api, group?.group.kind === 'task' ? leadSessionId : null)
+    const leadFlavor = leadSession?.metadata?.flavor ?? null
+    const leadActions = useSessionActions(api, leadSession?.id ?? null, leadFlavor)
+    const [toolPanelOpen, setToolPanelOpen] = useState(false)
+    const [composerDragging, setComposerDragging] = useState(false)
+    // The session's mic: dictated words join the draft. The repository's folder name is the word it most often gets wrong.
+    const repoWord = groupTask?.repoPath?.split('/').filter(Boolean).pop()
+    const dictation = useDictation({
+        api,
+        hotwords: repoWord ? [repoWord] : [],
+        onText: (text) => setComposer((previous) => appendDictatedText(previous, text))
+    })
     const noteExecutorOptions = useMemo(() => {
         const options = members
             .filter((member) => typeof member.sessionId === 'string' && member.sessionId.length > 0)
@@ -2731,10 +2748,11 @@ export default function GroupDetailPage() {
             if (isPending) {
                 return
             }
-            void handleSend()
+            // Through the form: the task report may send the text somewhere else (a request for changes).
+            e.currentTarget.form?.requestSubmit()
         }
 
-    }, [mentionQuery, mentionCandidates, mentionIndex, insertMention, isPending, handleSend])
+    }, [mentionQuery, mentionCandidates, mentionIndex, insertMention, isPending])
 
     // Saves what changed in the note editor: content, the note prompt and the executor.
     const handleSaveNote = async (draft: NoteDraft) => {
@@ -2970,42 +2988,14 @@ export default function GroupDetailPage() {
         </div>
     ) : null
 
-    const attachButton = (compact: boolean) => (
-        <IconButton
-            variant={compact ? 'ghost' : 'muted'}
-            size={compact ? 'sm' : 'default'}
-            label={uploadSessionId ? t('mobile.composer.attach') : t('groups.composer.noUploader')}
-            onClick={openAttachmentPicker}
-            disabled={isPending || !uploadSessionId}
-        >
-            <PaperclipIcon className="h-[18px] w-[18px]" />
-        </IconButton>
-    )
-
-    const sendButton = (compact: boolean) => (
-        <IconButton
-            type="submit"
-            variant="filled"
-            size={compact ? 'sm' : 'default'}
-            label={t('composer.send')}
-            disabled={!canSendComposer}
-        >
-            {isPending ? (
-                <Spinner size="md" label={null} className="text-current" />
-            ) : (
-                <SendArrowIcon className="h-[18px] w-[18px]" />
-            )}
-        </IconButton>
-    )
-
-    const composerTextarea = (className: string) => (
+    const composerTextarea = (className: string, placeholder?: string) => (
         <textarea
             ref={composerRef}
             value={composer}
             onChange={handleComposerChange}
             onPaste={handleComposerPaste}
             onKeyDown={handleComposerKeyDown}
-            placeholder={group?.group.kind === 'task' && group.group.status === 'guiding' ? t('taskGuide.composerPlaceholder') : t('groups.detail.composerPlaceholder')}
+            placeholder={placeholder ?? (group?.group.kind === 'task' && group.group.status === 'guiding' ? t('taskGuide.composerPlaceholder') : t('groups.detail.composerPlaceholder'))}
             aria-label={t('groups.detail.composerPlaceholder')}
             rows={1}
             className={cn('block w-full resize-none bg-transparent text-headline leading-[1.375rem] text-[var(--social-fg)] placeholder-[var(--social-fg-subtle)] outline-none', className)}
@@ -3036,55 +3026,203 @@ export default function GroupDetailPage() {
         </>
     )
 
-    // Same composer as one-to-one chats: a pill with attach / send on phones, a card on desktop.
-    const composerArea = isMobileLayout ? (
-        <div
-            className="social-bar relative z-10 shrink-0 border-t border-[var(--social-border)]"
-            style={{ paddingBottom: 'max(var(--safe-bottom), 0.5rem)' }}
-        >
-            <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
-                {composerOverlays}
-                <ComposerAttachmentList
-                    attachments={composerAttachments}
-                    disabled={isPending}
-                    onRemove={removeComposerAttachment}
-                    className="px-3 pt-2"
-                />
-                {quotedPreview ? <div className="px-4 pt-2">{quotedPreview}</div> : null}
-                <div className="flex items-end gap-2 px-3 pt-2">
-                    {attachButton(false)}
-                    <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-[10px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
-                        {composerTextarea('max-h-[132px] min-h-[22px]')}
-                    </div>
-                    {sendButton(false)}
+    // The lead's chips, read and picked as in the lead's own session.
+    const leadChips = leadSession ? (() => {
+        const model = leadSession.metadata?.model?.trim() || undefined
+        const modelMode = leadSession.modelMode ?? 'default'
+        const think = (leadSession.metadata?.thinkEffort ?? '').trim().toLowerCase()
+        const apply = (change: () => Promise<void>) => {
+            setActionError(null)
+            void change().catch((error) => setActionError(error instanceof Error ? error.message : String(error)))
+        }
+        return (
+            <SessionSettingChips
+                flavor={leadFlavor}
+                disabled={isPending || leadActions.isPending || !leadSession.active}
+                model={{ value: model ?? (modelMode === 'default' ? 'auto' : modelMode), custom: model, onChange: (value) => apply(() => leadActions.setModel(value)) }}
+                think={{
+                    value: getThinkEffortOptionsForFlavor(leadFlavor).some((option) => option.value === think) ? think as SessionThinkEffort : 'auto',
+                    onChange: (value) => apply(() => leadActions.setThinkEffort(value))
+                }}
+                permission={{ value: leadSession.permissionMode ?? 'default', onChange: (value) => apply(() => leadActions.setPermissionMode(value)) }}
+            />
+        )
+    })() : null
+
+    const dropFiles = (event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault()
+        setComposerDragging(false)
+        const dropped = Array.from(event.dataTransfer?.files ?? [])
+        if (dropped.length === 0 || isPending) return
+        if (!uploadSessionId || !uploadAdapter) {
+            setActionError(t('groups.composer.noUploader'))
+            return
+        }
+        setActionError(null)
+        for (const file of dropped) void uploadComposerAttachment(file, uploadAdapter, uploadSessionId)
+    }
+    const dragProps = {
+        'data-dragging': composerDragging || undefined,
+        onDragOver: (event: DragEvent<HTMLDivElement>) => {
+            if (!event.dataTransfer?.types.includes('Files')) return
+            event.preventDefault()
+            setComposerDragging(true)
+        },
+        onDragLeave: () => setComposerDragging(false),
+        onDrop: dropFiles
+    }
+
+    /**
+     * The session's prompt box, for a group and for a task (its report and "All chats"): on a phone "+" (files and the
+     * chips) left of a pill, on a computer one frame with the files, the text and a toolbar. The main action is the mic
+     * on an empty draft and send once there is text. `options` come from the task report: its header line, its
+     * placeholder, and where a request for changes goes.
+     */
+    const renderComposer = (options?: TaskComposerOptions) => {
+        const submitText = options?.onSubmitText
+        const text = composer.trim()
+        const hasDraft = Boolean(text) || (!submitText && readyComposerAttachments.length > 0)
+        const canSend = submitText ? Boolean(text) && !isPending : canSendComposer
+        const attachDisabled = isPending || !uploadSessionId || Boolean(submitText)
+        const submit = (event: FormEvent) => {
+            if (!submitText) {
+                void handleSend(event)
+                return
+            }
+            event.preventDefault()
+            if (!text) return
+            setComposer('')
+            submitText(text)
+        }
+        const send = () => {
+            setToolPanelOpen(false)
+            composerRef.current?.form?.requestSubmit()
+        }
+        const dictationBar = dictation ? (
+            <DictationBar
+                status={dictation.status}
+                elapsedMs={dictation.elapsedMs}
+                error={dictation.error}
+                onCancel={dictation.cancel}
+                onFinish={dictation.finish}
+                onDismissError={dictation.clearError}
+            />
+        ) : null
+        const action = (
+            <MobileComposerAction
+                hasDraft={hasDraft}
+                canSend={canSend}
+                isSending={isPending && hasDraft}
+                showStop={false}
+                abortDisabled
+                isAborting={false}
+                voiceEnabled={false}
+                voiceStatus="disconnected"
+                controlsDisabled={isPending}
+                onSend={send}
+                onAbort={() => {}}
+                onVoiceToggle={() => {}}
+                dictation={dictation ? { status: dictation.status, onStart: dictation.start, onFinish: dictation.finish } : null}
+            />
+        )
+        const attachmentList = (className: string) => (
+            <ComposerAttachmentList
+                attachments={composerAttachments}
+                disabled={isPending}
+                onRemove={removeComposerAttachment}
+                className={className}
+            />
+        )
+
+        if (isMobileLayout) {
+            return (
+                <div
+                    className="social-bar relative z-10 shrink-0 border-t border-[var(--social-border)]"
+                    style={{ paddingBottom: 'max(var(--safe-bottom), 0.5rem)' }}
+                >
+                    <form onSubmit={submit} className="relative mx-auto w-full max-w-content">
+                        {composerOverlays}
+                        {options?.header ? <div className="px-3 pt-2.5">{options.header}</div> : null}
+                        {attachmentList('px-3 pt-2')}
+                        {quotedPreview ? <div className="px-4 pt-2">{quotedPreview}</div> : null}
+                        {dictationBar ? <div className="px-3 pt-2 empty:hidden">{dictationBar}</div> : null}
+                        <div {...dragProps} className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
+                            <MobileComposerToggle
+                                open={toolPanelOpen}
+                                onClick={() => {
+                                    if (!toolPanelOpen) composerRef.current?.blur()
+                                    setToolPanelOpen((open) => !open)
+                                }}
+                            />
+                            <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-[22px] border border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-[10px] transition-colors focus-within:border-[var(--social-fg-subtle)]">
+                                {composerTextarea('max-h-[132px] min-h-[22px]', options?.placeholder)}
+                            </div>
+                            {action}
+                        </div>
+                        {toolPanelOpen ? (
+                            <div className="pb-3 pt-3">
+                                {leadChips ? (
+                                    <div className="flex gap-2 overflow-x-auto px-5 pb-3 [&>button]:h-11 [&>button]:text-footnote">
+                                        {leadChips}
+                                    </div>
+                                ) : null}
+                                <div className="grid grid-cols-4 gap-2 px-5 pt-1 [&_svg]:stroke-[1.6]">
+                                    <ActionTile
+                                        icon={<PaperclipIcon className="h-6 w-6" />}
+                                        label={uploadSessionId ? t('mobile.composer.attach') : t('groups.composer.noUploader')}
+                                        disabled={attachDisabled}
+                                        onClick={() => {
+                                            setToolPanelOpen(false)
+                                            openAttachmentPicker()
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        ) : null}
+                    </form>
                 </div>
-            </form>
-        </div>
-    ) : (
-        <div className="shrink-0 bg-[var(--social-surface)] px-6 pb-5 pt-1">
-            <form onSubmit={(e) => { void handleSend(e) }} className="relative mx-auto w-full max-w-content">
-                {composerOverlays}
-                <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-card)] transition-colors focus-within:border-[var(--social-fg-subtle)]">
-                    <ComposerAttachmentList
-                        attachments={composerAttachments}
-                        disabled={isPending}
-                        onRemove={removeComposerAttachment}
-                        className="px-4 pt-3"
-                    />
-                    {quotedPreview ? <div className="px-4 pt-3">{quotedPreview}</div> : null}
-                    <div className="px-4 pt-3">
-                        {composerTextarea('max-h-[220px] min-h-[44px]')}
-                    </div>
-                    <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
-                        {attachButton(true)}
-                        <div className="ml-auto flex shrink-0 items-center pl-2">
-                            {sendButton(true)}
+            )
+        }
+
+        return (
+            <div className="shrink-0 bg-[var(--social-surface)] px-6 pb-5 pt-1">
+                <form onSubmit={submit} className="relative mx-auto w-full max-w-content">
+                    {composerOverlays}
+                    {options?.header ? <div className="pt-2">{options.header}</div> : null}
+                    {dictationBar ? <div className="pb-2 empty:hidden">{dictationBar}</div> : null}
+                    <div
+                        {...dragProps}
+                        className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-card)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]"
+                    >
+                        {attachmentList('px-4 pt-3')}
+                        {quotedPreview ? <div className="px-4 pt-3">{quotedPreview}</div> : null}
+                        <div className="px-4 pt-3">
+                            {composerTextarea('max-h-[220px] min-h-[44px]', options?.placeholder)}
+                        </div>
+                        <div className="flex items-center gap-0.5 px-2 pb-2 pt-1">
+                            <IconButton
+                                size="sm"
+                                label={uploadSessionId ? t('mobile.composer.attach') : t('groups.composer.noUploader')}
+                                onClick={openAttachmentPicker}
+                                disabled={attachDisabled}
+                                className="[&_svg]:stroke-[1.7]"
+                            >
+                                <PaperclipIcon className="h-[18px] w-[18px]" />
+                            </IconButton>
+                            {leadChips ? (
+                                <div className="ml-1 flex min-w-0 items-center gap-1.5 overflow-x-auto [&>button]:text-footnote">
+                                    {leadChips}
+                                </div>
+                            ) : null}
+                            <div className="ml-auto flex shrink-0 items-center pl-2">
+                                {action}
+                            </div>
                         </div>
                     </div>
-                </div>
-            </form>
-        </div>
-    )
+                </form>
+            </div>
+        )
+    }
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
@@ -3098,7 +3236,7 @@ export default function GroupDetailPage() {
                     taskId={groupId}
                     api={api}
                     latest={latestTaskMessage}
-                    onSend={async (text) => { await postMessage({ type: 'chat', text, source: 'user:web' }) }}
+                    renderComposer={renderComposer}
                     onAllChats={() => setTaskView('chat')}
                 />
             ) : (
@@ -3116,7 +3254,7 @@ export default function GroupDetailPage() {
                     <div className="social-chat min-h-0 flex-1">
                         {timeline}
                     </div>
-                    {composerArea}
+                    {renderComposer()}
                 </>
             )}
 
