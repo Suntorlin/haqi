@@ -578,7 +578,21 @@ describe('task run after the guide step', () => {
         await t.settle()
         let subtask = t.service.get('default', task.id)!.run!.subtasks[0]!
         expect([subtask.state, subtask.sessionId]).toEqual(['stopped', null])
-        expect(t.lines.some((l) => l.text === '「数据」没能启动：machine offline')).toBe(true)
+        expect(t.lines.some((l) => l.text === '「数据」没能启动：machine offline；HAQI 1 分钟后再试')).toBe(true)
+
+        // The observer tries again after 1, 5 and 15 minutes; only the last failure is pushed, then it stops trying.
+        const pushed = t.pushes.length
+        await t.runs.tick('default', Date.now() + 30_000)
+        expect(t.spawned.length).toBe(1)
+        const minutes = (n: number) => Date.now() + n * 60_000 + 1_000
+        await t.runs.tick('default', minutes(1))
+        await t.runs.tick('default', minutes(5))
+        expect(t.pushes.length).toBe(pushed)
+        await t.runs.tick('default', minutes(15))
+        expect(t.lines.at(-1)!.text).toBe('「数据」没能启动：machine offline；自动重试了 3 次都没起来，要你看一下')
+        expect(t.pushes.length).toBe(pushed + 1)
+        await t.runs.tick('default', minutes(60))
+        expect(t.service.get('default', task.id)!.run!.subtasks[0]!.state).toBe('stopped')
 
         await expect(t.runs.restartSubtask('default', task.id, 'nope')).rejects.toThrow(TaskError)
         t.failSpawn(null)
@@ -588,6 +602,73 @@ describe('task run after the guide step', () => {
         expect(subtask.sessionId).toBe(t.spawned.at(-1)!.id)
         expect(t.service.get('default', task.id)!.run!.signals.filter((sig) => sig.key === 'stopped:a')).toEqual([])
         await expect(t.runs.restartSubtask('default', task.id, 'a')).rejects.toThrow('Only a stopped subtask')
+    })
+
+    it('starts a subtask that could not start once the machine is back, without the user', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        t.failSpawn('machine offline')
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'a', title: '数据', brief: 'a', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        t.failSpawn(null)
+        await t.runs.tick('default', Date.now() + 61_000)
+        const run = t.service.get('default', task.id)!.run!
+        expect([run.subtasks[0]!.state, run.subtasks[0]!.sessionId]).toEqual(['running', t.spawned.at(-1)!.id])
+        expect(run.signals).toEqual([])
+    })
+
+    it('holds an executor that finishes before the user answers its question', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'all', title: '全部', brief: '做完', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        const worker = t.service.get('default', task.id)!.run!.subtasks[0]!.sessionId!
+        const asked = await t.runs.askDecision('default', task.id, { question: '截图出几版', options: [{ label: '一版' }, { label: '两版' }], sessionId: worker })
+        expect(asked.message).toContain('Do not call subtask_done before the answer.')
+        await expect(t.runs.subtaskDone('default', task.id, { subtaskId: 'all', summary: '做完了' })).rejects.toThrow('the user has not answered d1 "截图出几版"')
+        expect(t.service.get('default', task.id)!.run!.subtasks[0]!.state).toBe('running')
+        await t.runs.answerDecision('default', task.id, 'd1', '两版')
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'all', summary: '出了两版' })
+        expect(t.service.get('default', task.id)!.run!.subtasks[0]!.state).toBe('done')
+    })
+
+    it('opens a change round when the user answers a question at the report', async () => {
+        const t = setup(dir)
+        const task = await t.service.create('default', { text: '记忆页加归档恢复', fromSessionId: 'work' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, DRAFT)
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'all', title: '全部', brief: '做完', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'all', summary: '做完了' })
+        await t.settle()
+        await t.runs.reviewSubmitted('default', task.id, { results: ['c1', 'c2', 'c3'].map((id) => ({ criterionId: id, status: 'met', evidence: 'ok' })) })
+        await t.settle()
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '做完了，没推送。' })
+        await t.settle()
+        expect(t.service.get('default', task.id)!.run!.phase).toBe('reporting')
+
+        const lead = t.service.get('default', task.id)!.leadSessionId!
+        await t.runs.askDecision('default', task.id, { question: '要不要推送', context: '分支有 3 个本地提交', options: [{ label: '推送' }, { label: '先不推' }], sessionId: lead })
+        await t.runs.answerDecision('default', task.id, 'd1', '推送')
+        await t.settle()
+        const run = t.service.get('default', task.id)!.run!
+        expect(run.phase).toBe('fixing')
+        expect(run.revisions).toMatchObject([{ request: '拍板：要不要推送 → 推送', fixId: 'fix-1' }])
+        const fixer = t.spawned.at(-1)!
+        expect(fixer.name.startsWith('返工 1')).toBe(true)
+        expect(fixer.text).toContain('用户拍板：「要不要推送」选了「推送」。按这个做。')
+        expect(fixer.text).toContain('问题背景：分支有 3 个本地提交')
+        expect(t.sent.filter((m) => m.sessionId === lead).at(-1)!.text).toContain('HAQI 已按这个开了一轮返工')
     })
 
     it('stops every working session when the task is abandoned', async () => {
