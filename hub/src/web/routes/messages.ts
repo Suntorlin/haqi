@@ -3,6 +3,7 @@ import { AttachmentMetadataSchema } from '@hapi/protocol/schemas'
 import { z } from 'zod'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
+import { omitInlineMedia } from '../inlineMedia'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
 
 const querySchema = z.object({
@@ -34,7 +35,7 @@ export function createMessagesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const parsed = querySchema.safeParse(c.req.query())
         const limit = parsed.success ? (parsed.data.limit ?? 50) : 50
         const beforeSeq = parsed.success ? (parsed.data.beforeSeq ?? null) : null
-        return c.json(engine.getMessagesPage(sessionId, { limit, beforeSeq }))
+        return c.json(omitInlineMedia(engine.getMessagesPage(sessionId, { limit, beforeSeq })))
     })
 
     app.post('/sessions/:id/messages', async (c) => {

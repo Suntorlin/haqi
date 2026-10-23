@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
+import { omitInlineMedia } from '../inlineMedia'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
 
 const turnsQuerySchema = z.object({
@@ -59,7 +60,7 @@ export function createTurnsRoutes(getSyncEngine: () => SyncEngine | null): Hono<
             return c.json({ error: 'Turn not found' }, 404)
         }
 
-        return c.json(result)
+        return c.json(omitInlineMedia(result))
     })
 
     return app
