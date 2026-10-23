@@ -8,7 +8,7 @@ function renderForm(onCreate = vi.fn(async () => {})) {
     render(
         <QueryClientProvider client={new QueryClient()}>
             <I18nProvider>
-                <NewTaskForm onCreate={onCreate} onCancel={() => {}} />
+                <NewTaskForm onCreate={onCreate} />
             </I18nProvider>
         </QueryClientProvider>
     )
@@ -23,8 +23,7 @@ describe('NewTaskForm', () => {
         fireEvent.change(screen.getByRole('textbox'), { target: { value: '照文档改' } })
         const input = document.querySelector('input[type="file"]') as HTMLInputElement
         fireEvent.change(input, { target: { files: [new File(['hello'], 'spec.txt', { type: 'text/plain' })] } })
-        const submit = document.querySelector('button[type="submit"]') as HTMLButtonElement
-        await waitFor(() => expect(submit.disabled).toBe(false))
+        await waitFor(() => expect((screen.getByRole('button', { name: /^(Send|发送)$/ }) as HTMLButtonElement).disabled).toBe(false))
         fireEvent.submit(input.closest('form')!)
         await waitFor(() => expect(onCreate).toHaveBeenCalled())
         expect(onCreate).toHaveBeenCalledWith({

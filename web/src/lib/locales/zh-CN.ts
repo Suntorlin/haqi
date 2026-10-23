@@ -62,6 +62,8 @@ export default {
   'groups.action.unarchive': '取消归档',
   'groups.action.archiveFailed': '归档没成功',
   'groups.archived': '已归档 · {n}',
+  'tasks.mode.draft': '起草验收标准',
+  'tasks.mode.plain': '直接讨论',
   'tasks.new': '新建任务',
   'tasks.newPlaceholder': '要做什么？用你自己的话写，几行都行。也可以粘贴截图。',
   'tasks.files.add': '添加参考文件或图片',
