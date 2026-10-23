@@ -7,6 +7,7 @@ import type { SyncEngine } from '../../sync/syncEngine'
 import type { VisibilityState } from '../../visibility/visibilityTracker'
 import type { VisibilityTracker } from '../../visibility/visibilityTracker'
 import type { WebAppEnv } from '../middleware/auth'
+import { omitInlineMedia } from '../inlineMedia'
 import { requireSession } from './guards'
 
 function parseOptionalId(value: string | undefined): string | null {
@@ -93,7 +94,7 @@ export function createEventsRoutes(
                 machineId,
                 groupId,
                 visibility,
-                send: (event) => stream.writeSSE({ data: JSON.stringify(event) }),
+                send: (event) => stream.writeSSE({ data: JSON.stringify(event.type === 'message-received' ? omitInlineMedia(event) : event) }),
                 sendHeartbeat: async () => {
                     await stream.writeSSE({
                         data: JSON.stringify({
