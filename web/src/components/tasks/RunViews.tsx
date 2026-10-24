@@ -342,6 +342,7 @@ export function RunReport(props: {
 }) {
     const { task, run } = props
     const { t } = useTranslation()
+    const navigate = useNavigate()
     const [subtaskId, setSubtaskId] = useState<string | null>(null)
     const [checkId, setCheckId] = useState<string | null>(null)
     const [reportOpen, setReportOpen] = useState(false)
@@ -406,6 +407,18 @@ export function RunReport(props: {
             when: s.doneAt ? clock(s.doneAt) : undefined, unread: s.state === 'done' && run.phase === 'reporting'
         }
     })
+    // The lead leads the list; opening it shows its conversation, like a subtask's "See process".
+    if (task.leadSessionId && !finished) {
+        items.unshift({
+            id: 'lead', seed: task.leadSessionId, name: t('report.composer.lead'),
+            status: t(`taskRun.lead.${run.phase}`), tone: 'live',
+            done: workers(run).filter((s) => s.state === 'done').length, total: workers(run).length
+        })
+    }
+    const openProgress = (item: ProgressItem) => {
+        if (item.id === 'lead' && task.leadSessionId) void navigate({ to: '/sessions/$sessionId', params: { sessionId: task.leadSessionId } })
+        else setSubtaskId(item.id)
+    }
 
     return (
         <>
@@ -451,7 +464,7 @@ export function RunReport(props: {
             {finished ? null : items.length > 0 ? (
                 <>
                     <SectionCaption>{t('taskRun.progress')}</SectionCaption>
-                    <div className="mx-4"><ProgressList items={items} onOpen={(item) => setSubtaskId(item.id)} /></div>
+                    <div className="mx-4"><ProgressList items={items} onOpen={openProgress} /></div>
                 </>
             ) : null}
 
@@ -472,7 +485,7 @@ export function RunReport(props: {
             {finished && items.length > 0 ? (
                 <>
                     <SectionCaption>{t('taskRun.progress')}</SectionCaption>
-                    <div className="mx-4"><ProgressList items={items} onOpen={(item) => setSubtaskId(item.id)} /></div>
+                    <div className="mx-4"><ProgressList items={items} onOpen={openProgress} /></div>
                 </>
             ) : null}
 
