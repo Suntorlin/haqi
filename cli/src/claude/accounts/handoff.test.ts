@@ -1,27 +1,77 @@
-import { describe, expect, it } from 'vitest';
-import { HandoffLedger } from './handoff';
+import { describe, expect, it, vi } from 'vitest';
+import { AccountHandoff } from './handoff';
+import type { AccountsConfig } from './profiles';
 import type { SDKMessage } from '../sdk';
 
-describe('Claude account context handoff', () => {
-    it('preserves safe history and excludes private thinking', () => {
-        const ledger = new HandoffLedger();
-        ledger.user('继续修复');
-        ledger.observe({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'thinking', thinking: 'secret' }, { type: 'text', text: '已完成' }] } } as unknown as SDKMessage);
-        ledger.observe({ type: 'result', subtype: 'success', result: 'ok' } as unknown as SDKMessage);
-        const prompt = ledger.build('/repo');
-        expect(prompt).toContain('继续修复');
-        expect(prompt).toContain('已完成');
-        expect(prompt).not.toContain('secret');
+const config: AccountsConfig = {
+    version: 1,
+    initialAccount: 'a',
+    autoSwitch: true,
+    profiles: [
+        { id: 'a', email: 'a@example.com', configDir: '/tmp/haqi-a', trustGroup: 'personal' },
+        { id: 'b', email: 'b@example.com', configDir: '/tmp/haqi-b', trustGroup: 'personal' },
+        { id: 'c', email: 'c@example.com', configDir: '/tmp/haqi-c', trustGroup: 'work' }
+    ]
+};
+
+const rejected = { type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: 'five_hour' } } as unknown as SDKMessage;
+
+describe('Claude 账号自动切换', () => {
+    it('明确的限额拒绝事件后，给出同组未超限账号', () => {
+        const handoff = new AccountHandoff(config);
+        expect(handoff.automaticTarget()).toBeUndefined();
+        handoff.observe(rejected);
+        expect(handoff.waitingForQuota).toBe(true);
+        expect(handoff.automaticTarget()?.id).toBe('b');
     });
 
-    it('fails closed while a tool or background agent is unresolved', () => {
-        const ledger = new HandoffLedger();
-        ledger.user('执行');
-        ledger.observe({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: {} }] } } as unknown as SDKMessage);
-        expect(() => ledger.build('/repo')).toThrow('工具或当前回合尚未完成');
-        const background = new HandoffLedger();
-        background.user('启动');
-        background.observe({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't2', name: 'Task', input: { run_in_background: true } }] } } as unknown as SDKMessage);
-        expect(background.unsafeReason()).toContain('后台任务');
+    it('长会话、子 Agent 和后台任务不再阻止切换', () => {
+        const handoff = new AccountHandoff(config);
+        handoff.observe({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Task', input: { run_in_background: true } }] } } as unknown as SDKMessage);
+        handoff.observe(rejected);
+        expect(handoff.automaticTarget()?.id).toBe('b');
+    });
+
+    it('付费兜底中的限额事件不触发切换', () => {
+        const handoff = new AccountHandoff(config);
+        handoff.observe({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: 'five_hour', isUsingOverage: true } } as unknown as SDKMessage);
+        expect(handoff.automaticTarget()).toBeUndefined();
+    });
+
+    it('自动切换关闭或候选耗尽时不给目标', () => {
+        const off = new AccountHandoff({ ...config, autoSwitch: false });
+        off.observe(rejected);
+        expect(off.automaticTarget()).toBeUndefined();
+
+        const handoff = new AccountHandoff(config);
+        handoff.observe(rejected);
+        handoff.markExhausted('b');
+        expect(handoff.automaticTarget()).toBeUndefined();
+    });
+
+    it('不跨授权组，不在忙碌时切换，核验后复查忙碌', async () => {
+        const handoff = new AccountHandoff(config);
+        await expect(handoff.prepare('c', () => false, vi.fn(async () => {}))).rejects.toThrow('禁止跨授权组');
+        await expect(handoff.prepare('b', () => true, vi.fn(async () => {}))).rejects.toThrow('仍在执行');
+
+        let busy = false;
+        const verify = vi.fn(async () => { busy = true; });
+        await expect(handoff.prepare('b', () => busy, verify)).rejects.toThrow('切换已取消');
+
+        busy = false;
+        const profile = await handoff.prepare('b', () => busy, vi.fn(async () => {}));
+        expect(profile.id).toBe('b');
+    });
+
+    it('commit 后清除等待状态，且同一账号不再二次使用', () => {
+        const handoff = new AccountHandoff(config);
+        handoff.observe(rejected);
+        const target = handoff.automaticTarget()!;
+        handoff.commit(target);
+        expect(handoff.current.id).toBe('b');
+        expect(handoff.waitingForQuota).toBe(false);
+        handoff.observe(rejected);
+        // a 已超限、b 已用过：没有候选。
+        expect(handoff.automaticTarget()).toBeUndefined();
     });
 });

@@ -6,9 +6,17 @@ import { getDefaultClaudeCodePath } from '../sdk/utils';
 import { copyFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getProjectPath } from '../utils/path';
+import { fetchClaudeUsageLimits } from '../utils/claudeUsage';
 
 type RemoteOptions = Parameters<typeof claudeRemote>[0] & { onAccountState?: (state: import('@hapi/protocol/schemas').ClaudeAccountRuntime) => void };
-type Prepared = { profile: AccountProfile; prompt: string };
+
+/** A window that blocks every request (5h session or all-model weekly) is full and its reset is still ahead. */
+async function usageBlocked(configDir: string): Promise<boolean> {
+    const limits = await fetchClaudeUsageLimits(configDir);
+    const now = Date.now();
+    return (limits ?? []).some(limit =>
+        (limit.kind === 'session' || limit.kind === 'weekly_all') && (limit.percent ?? 0) >= 100 && (limit.resetsAt ?? 0) * 1000 > now);
+}
 
 /** Opt-in remote-only adapter. Keeps the outer HAQI client/session/queue untouched. */
 export class ManagedClaudeRemote {
@@ -21,7 +29,7 @@ export class ManagedClaudeRemote {
     // again.
     private hasLaunched = false;
 
-    constructor(config: AccountsConfig, private readonly verify = verifyAccount) {
+    constructor(config: AccountsConfig, private readonly verify = verifyAccount, private readonly usageExhausted = usageBlocked) {
         this.handoff = new AccountHandoff(config);
     }
 
@@ -34,7 +42,39 @@ export class ManagedClaudeRemote {
             id: this.handoff.current.id, email: this.handoff.current.email, automatic: this.handoff.automatic, status, updatedAt: Date.now()
         });
         const report = (message: string) => opts.onCompletionEvent?.(message);
+        const copyTranscript = async (sessionId: string, from: AccountProfile, to: AccountProfile) => {
+            const source = join(getProjectPath(opts.path, from.configDir), `${sessionId}.jsonl`);
+            const targetDir = getProjectPath(opts.path, to.configDir);
+            await mkdir(targetDir, { recursive: true, mode: 0o700 });
+            await copyFile(source, join(targetDir, `${sessionId}.jsonl`));
+        };
         if (!this.initialized) {
+            // A restart loses the in-memory quota state, and the limit that killed the
+            // previous process sends no live event here. Ask the usage API first, so the
+            // session does not come back onto an account that is still over its limit.
+            if (this.handoff.automatic) {
+                try {
+                    if (await this.usageExhausted(this.handoff.current.configDir)) {
+                        this.handoff.markExhausted(this.handoff.current.id);
+                        let target = this.handoff.candidate();
+                        while (target && await this.usageExhausted(target.configDir)) {
+                            this.handoff.markExhausted(target.id);
+                            target = this.handoff.candidate();
+                        }
+                        if (target) {
+                            const from = this.handoff.current;
+                            if (opts.sessionId) await copyTranscript(opts.sessionId, from, target);
+                            this.handoff.commit(target);
+                            report(`账号 ${from.email} 仍超限，启动时切换为 ${target.email}`);
+                        } else {
+                            report(`账号 ${this.handoff.current.email} 仍超限，且同组没有可用账号`);
+                        }
+                    }
+                } catch (error) {
+                    // Stay on the configured account; verification below still runs.
+                    report(`启动时的额度检查失败：${error instanceof Error ? error.message : String(error)}`);
+                }
+            }
             await verify(this.handoff.current);
             report(`账号已核验：${this.handoff.current.email}；自动切换${this.handoff.automatic ? '开启' : '关闭'}`);
             publish('verified');
@@ -54,17 +94,14 @@ export class ManagedClaudeRemote {
             // account switch.
             const resumeWithoutMessage = resumeRequested && process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE === '1';
             let resumeSeedConsumed = false;
-            let prepared: Prepared | null = null;
+            let prepared: AccountProfile | null = null;
             const prepare = async (id: string) => {
-                prepared = await this.handoff.prepare(id, opts.path, busy, verify);
-                if (sessionId) {
-                    const source = join(getProjectPath(opts.path, this.handoff.current.configDir), `${sessionId}.jsonl`);
-                    const targetDir = getProjectPath(opts.path, prepared.profile.configDir);
-                    await mkdir(targetDir, { recursive: true, mode: 0o700 });
-                    await copyFile(source, join(targetDir, `${sessionId}.jsonl`));
-                }
+                const profile = await this.handoff.prepare(id, busy, verify);
+                // Only a fully prepared switch (transcript copied) may be committed later.
+                if (sessionId) await copyTranscript(sessionId, this.handoff.current, profile);
+                prepared = profile;
                 publish('switching');
-                report(`正在停止旧进程，准备由 ${prepared.profile.email} 接管当前 HAQI 会话`);
+                report(`正在停止旧进程，准备由 ${profile.email} 接管当前 HAQI 会话`);
             };
             try {
                 this.hasLaunched = true;
@@ -84,7 +121,6 @@ export class ManagedClaudeRemote {
                         }
                         if (seed) {
                             const initial = seed; seed = null;
-                            this.handoff.ledger.startTurn();
                             return initial;
                         }
                         const target = this.handoff.automaticTarget();
@@ -95,7 +131,8 @@ export class ManagedClaudeRemote {
                         if (this.handoff.waitingForQuota && !quotaNoticeSent) {
                             quotaNoticeSent = true;
                             publish('blocked');
-                            report('额度已拒绝；没有已验证的安全自动接管路径。可使用 /account use <账号标识>，不会无限轮换或开启付费兜底。');
+                            const why = this.handoff.automatic ? '同组没有可接管的账号（都已超限或本进程已用过）' : '自动切换已关闭';
+                            report(`额度已拒绝；${why}。可用 /account use <账号标识> 手动切换，不会无限轮换或开启付费兜底。`);
                         }
                         while (!opts.signal?.aborted && !signal?.aborted) {
                             const next = await opts.nextMessage(signal);
@@ -115,7 +152,6 @@ export class ManagedClaudeRemote {
                                 } else report('用法：/account list | /account use <账号标识> | /account auto on|off');
                                 continue;
                             }
-                            this.handoff.ledger.user(next.message);
                             return next;
                         }
                         return null;
@@ -127,17 +163,16 @@ export class ManagedClaudeRemote {
             }
             if (!prepared || !lastMode || opts.signal?.aborted) return;
             // claudeRemote has awaited actual child close, not merely sent SIGTERM.
-            const next = prepared as Prepared;
-            this.handoff.commit(next.profile);
+            const next = prepared as AccountProfile;
+            this.handoff.commit(next);
             publish('handoff');
             opts.onSessionReset?.();
             // Keep the same Claude session ID. The runner copied the transcript
-            // into the target account directory, so Claude resumes natively and
-            // does not need a lossy context_handoff prompt.
+            // into the target account directory, so Claude resumes natively.
             sessionId = sessionId ?? null;
             seed = { message: '继续当前会话。不要重复已经完成的工作。', mode: lastMode };
             quotaNoticeSent = false;
-            report(`账号切换为 ${next.profile.email}，正在通过 context_handoff 接管；HAQI 会话保持不变`);
+            report(`账号切换为 ${next.email}，继续原会话；HAQI 会话保持不变`);
         }
     }
 }

@@ -87,6 +87,43 @@ describe('受管理 Claude 会话中止后的恢复', () => {
         await managed.run(restarted, () => false);
     });
 
+    it('启动时当前账号仍超限，先切到同组可用账号再核验', async () => {
+        const multi: AccountsConfig = {
+            version: 1,
+            initialAccount: 'a',
+            autoSwitch: true,
+            profiles: [
+                { id: 'a', email: 'a@example.com', configDir: '/tmp/haqi-test-a', trustGroup: 'test' },
+                { id: 'b', email: 'b@example.com', configDir: '/tmp/haqi-test-b', trustGroup: 'test' }
+            ]
+        };
+        const usage = vi.fn(async (configDir: string) => configDir === '/tmp/haqi-test-a');
+        const managed = new ManagedClaudeRemote(multi, vi.fn(async () => {}), usage);
+        vi.mocked(claudeRemote).mockImplementationOnce(async (opts) => { await opts.nextMessage(); });
+        await managed.run(options(null), () => false);
+        expect(managed.handoff.current.id).toBe('b');
+        expect(usage).toHaveBeenCalledWith('/tmp/haqi-test-a');
+        expect(usage).toHaveBeenCalledWith('/tmp/haqi-test-b');
+    });
+
+    it('启动切换时转录拷贝失败，留在原账号继续核验，不中断启动', async () => {
+        const multi: AccountsConfig = {
+            version: 1,
+            initialAccount: 'a',
+            autoSwitch: true,
+            profiles: [
+                { id: 'a', email: 'a@example.com', configDir: '/tmp/haqi-test-a', trustGroup: 'test' },
+                { id: 'b', email: 'b@example.com', configDir: '/tmp/haqi-test-missing-' + Date.now(), trustGroup: 'test' }
+            ]
+        };
+        const managed = new ManagedClaudeRemote(multi, vi.fn(async () => {}), vi.fn(async (configDir: string) => configDir === '/tmp/haqi-test-a'));
+        vi.mocked(claudeRemote).mockImplementationOnce(async (opts) => { await opts.nextMessage(); });
+        // 源账号目录里没有这个会话的转录文件，拷贝必然失败。
+        await managed.run(options('missing-transcript-session'), () => false);
+        expect(managed.handoff.current.id).toBe('a');
+        expect(claudeRemote).toHaveBeenCalledOnce();
+    });
+
     it('显式切换账号时从历史会话空闲启动，不注入继续提示词', async () => {
         process.env.HAPI_CLAUDE_ACCOUNT_RESUME_IDLE = '1';
         const managed = new ManagedClaudeRemote(config, vi.fn(async () => {}));
