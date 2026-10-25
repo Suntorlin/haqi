@@ -10,8 +10,36 @@ const machineMetadataSchema = z.object({
     displayName: z.string().optional(),
     homeDir: z.string().optional(),
     happyHomeDir: z.string().optional(),
-    happyLibDir: z.string().optional()
+    happyLibDir: z.string().optional(),
+    role: z.enum(['always-on', 'portable']).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    fingerprint: z.string().optional()
 })
+
+export type MachineRole = 'always-on' | 'portable'
+
+/** Fields the runner reports about itself on every start. Everything else (name, role, env) is set from the web. */
+const RUNNER_REPORTED_KEYS = ['host', 'platform', 'happyCliVersion', 'homeDir', 'happyHomeDir', 'happyLibDir', 'fingerprint'] as const
+
+const MACHINE_TIMEOUT_MS = 45_000
+
+/** Variables the runner sets or strips itself; a machine's env may not override them. */
+const RESERVED_ENV = /^(HAPI_|ANTHROPIC_|CLAUDE_CODE_|CLAUDE_CONFIG_DIR$|PATH$|HOME$)/
+
+export const machineEnvSchema = z.record(
+    z.string().regex(/^[A-Z_][A-Z0-9_]*$/).refine((key) => !RESERVED_ENV.test(key), 'reserved variable'),
+    z.string().max(4096)
+).refine((env) => Object.keys(env).length <= 50, 'too many variables')
+
+export type MachineSettingsPatch = {
+    displayName?: string | null
+    role?: MachineRole
+    env?: Record<string, string>
+}
+
+export type RegisterRunnerResult =
+    | { type: 'ok'; machine: Machine }
+    | { type: 'conflict'; host: string | null; happyHomeDir: string | null }
 
 export interface Machine {
     id: string
@@ -29,6 +57,8 @@ export interface Machine {
         homeDir?: string
         happyHomeDir?: string
         happyLibDir?: string
+        role?: MachineRole
+        env?: Record<string, string>
     } | null
     metadataVersion: number
     runnerState: unknown | null
@@ -78,6 +108,75 @@ export class MachineCache {
         return this.refreshMachine(stored.id) ?? (() => { throw new Error('Failed to load machine') })()
     }
 
+    /**
+     * A runner (re)registers. The runner's own facts (host, version, paths, fingerprint) replace the stored ones,
+     * so the hub never shows a stale host or version; the name, role and env set from the web are kept.
+     * A second computer that reuses a machine id (copied settings.json) is refused while the first one is online.
+     */
+    registerRunner(id: string, reported: unknown, runnerState: unknown, namespace: string): RegisterRunnerResult {
+        const stored = this.store.machines.getMachine(id)
+        if (!stored) {
+            return { type: 'ok', machine: this.getOrCreateMachine(id, reported, runnerState, namespace) }
+        }
+        if (stored.namespace !== namespace) {
+            throw new Error('Machine namespace mismatch')
+        }
+
+        const current = machineMetadataSchema.safeParse(stored.metadata)
+        const currentData = current.success ? current.data : {}
+        const incoming = machineMetadataSchema.safeParse(reported)
+        const incomingData = incoming.success ? incoming.data : {}
+
+        const cached = this.machines.get(id)
+        const online = Boolean(cached?.active && Date.now() - cached.activeAt <= MACHINE_TIMEOUT_MS)
+        if (currentData.fingerprint && incomingData.fingerprint && currentData.fingerprint !== incomingData.fingerprint) {
+            if (online) {
+                return { type: 'conflict', host: currentData.host ?? null, happyHomeDir: currentData.happyHomeDir ?? null }
+            }
+            console.warn(`[machines] machine ${id} moved to another computer (${currentData.host ?? '?'} -> ${incomingData.host ?? '?'})`)
+        }
+
+        const merged: Record<string, unknown> = { ...currentData }
+        for (const key of RUNNER_REPORTED_KEYS) {
+            if (incomingData[key] !== undefined) merged[key] = incomingData[key]
+        }
+        const changed = RUNNER_REPORTED_KEYS.some((key) => merged[key] !== currentData[key])
+        if (changed) {
+            this.writeMetadata(id, namespace, merged, stored.metadataVersion)
+        }
+        return { type: 'ok', machine: this.refreshMachine(id) ?? (() => { throw new Error('Failed to load machine') })() }
+    }
+
+    /** Name, role and env set from the web. Returns null when the machine does not exist in this namespace. */
+    updateSettings(id: string, namespace: string, patch: MachineSettingsPatch): Machine | null {
+        const stored = this.store.machines.getMachine(id)
+        if (!stored || stored.namespace !== namespace) return null
+        const current = machineMetadataSchema.safeParse(stored.metadata)
+        const merged: Record<string, unknown> = { ...(current.success ? current.data : {}) }
+        if (patch.displayName !== undefined) {
+            const name = patch.displayName?.trim()
+            if (name) merged.displayName = name
+            else delete merged.displayName
+        }
+        if (patch.role !== undefined) merged.role = patch.role
+        if (patch.env !== undefined) {
+            if (Object.keys(patch.env).length > 0) merged.env = patch.env
+            else delete merged.env
+        }
+        this.writeMetadata(id, namespace, merged, stored.metadataVersion)
+        return this.refreshMachine(id)
+    }
+
+    private writeMetadata(id: string, namespace: string, metadata: Record<string, unknown>, expectedVersion: number): void {
+        let result = this.store.machines.updateMachineMetadata(id, metadata, expectedVersion, namespace)
+        if (result.result === 'version-mismatch') {
+            result = this.store.machines.updateMachineMetadata(id, metadata, result.version, namespace)
+        }
+        if (result.result !== 'success') {
+            throw new Error(`Failed to update machine ${id} metadata`)
+        }
+    }
+
     refreshMachine(machineId: string): Machine | null {
         const stored = this.store.machines.getMachine(machineId)
         if (!stored) {
@@ -101,7 +200,7 @@ export class MachineCache {
             const homeDir = typeof data.homeDir === 'string' ? data.homeDir : undefined
             const happyHomeDir = typeof data.happyHomeDir === 'string' ? data.happyHomeDir : undefined
             const happyLibDir = typeof data.happyLibDir === 'string' ? data.happyLibDir : undefined
-            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir }
+            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir, role: data.role, env: data.env }
         })()
 
         const storedActiveAt = stored.activeAt ?? stored.createdAt
@@ -155,11 +254,9 @@ export class MachineCache {
     }
 
     expireInactive(now: number = Date.now()): void {
-        const machineTimeoutMs = 45_000
-
         for (const machine of this.machines.values()) {
             if (!machine.active) continue
-            if (now - machine.activeAt <= machineTimeoutMs) continue
+            if (now - machine.activeAt <= MACHINE_TIMEOUT_MS) continue
             machine.active = false
             this.publisher.emit({ type: 'machine-updated', machineId: machine.id, data: { active: false } })
         }

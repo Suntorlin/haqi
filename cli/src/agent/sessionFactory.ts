@@ -12,6 +12,7 @@ import { logger } from '@/ui/logger'
 import { runtimePath } from '@/projectPath'
 import { readWorktreeEnv } from '@/utils/worktreeEnv'
 import packageJson from '../../package.json'
+import { machineFingerprint } from '@/utils/machineFingerprint'
 
 export type SessionStartedBy = 'runner' | 'terminal'
 
@@ -40,7 +41,8 @@ export function buildMachineMetadata(): MachineMetadata {
         happyCliVersion: packageJson.version,
         homeDir: os.homedir(),
         happyHomeDir: configuration.happyHomeDir,
-        happyLibDir: runtimePath()
+        happyLibDir: runtimePath(),
+        fingerprint: machineFingerprint()
     }
 }
 

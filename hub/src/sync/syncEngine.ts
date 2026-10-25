@@ -20,7 +20,8 @@ import type { SSEManager } from '../sse/sseManager'
 import { EventPublisher, type SyncEventListener } from './eventPublisher'
 import { GroupService, type GroupWithDetails } from './groupService'
 import { ReviewLoopService, type ReviewLoopWithRounds, type ReviewVerdictInput } from './reviewLoopService'
-import { MachineCache, type Machine } from './machineCache'
+import { MachineCache, type Machine, type MachineSettingsPatch, type RegisterRunnerResult } from './machineCache'
+import { MachineOfflineMonitor } from './machineOfflineMonitor'
 import { MessageService } from './messageService'
 import {
     type RpcCodexCredentialExportRpcResponse,
@@ -466,6 +467,11 @@ export class SyncEngine {
     private readonly eventPublisher: EventPublisher
     private readonly sessionCache: SessionCache
     private readonly machineCache: MachineCache
+    private readonly io: Server
+    /** Always-on machines that stay offline: alert on every channel. HAPI_MACHINE_OFFLINE_ALERT_MINUTES=0 turns it off. */
+    private readonly machineOfflineMonitor = new MachineOfflineMonitor(
+        Number(process.env.HAPI_MACHINE_OFFLINE_ALERT_MINUTES ?? 5) * 60_000
+    )
     private readonly messageService: MessageService
     private readonly groupService: GroupService
     private readonly reviewLoopService: ReviewLoopService
@@ -502,6 +508,7 @@ export class SyncEngine {
         sseManager: SSEManager
     ) {
         this.store = store
+        this.io = io
         this.eventPublisher = new EventPublisher(sseManager, (event) => this.resolveNamespace(event))
         this.sessionCache = new SessionCache(store, this.eventPublisher)
         this.machineCache = new MachineCache(store, this.eventPublisher)
@@ -572,6 +579,7 @@ export class SyncEngine {
             },
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
+            machinePortable: (namespace, machineId) => this.machineCache.getMachineByNamespace(machineId, namespace)?.metadata?.role === 'portable',
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
             files: new TaskFiles(() => join(configuration.dataDir, 'task-files')),
             stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
@@ -1116,6 +1124,20 @@ export class SyncEngine {
     private expireInactive(): void {
         this.sessionCache.expireInactive()
         this.machineCache.expireInactive()
+        this.alertOfflineMachines()
+    }
+
+    private alertOfflineMachines(): void {
+        const now = Date.now()
+        for (const alert of this.machineOfflineMonitor.check(this.machineCache.getMachines(), now)) {
+            void this.alertNotifier?.(alert.namespace, {
+                runId: `machine:${alert.machineId}:${now}`,
+                title: alert.title,
+                body: alert.body,
+                url: '/settings',
+                everywhere: true
+            }).catch((error: unknown) => console.warn('[machines] offline alert failed', error))
+        }
     }
 
     private syncGroupNoteMarkdownFiles(): void {
@@ -1143,6 +1165,31 @@ export class SyncEngine {
 
     getOrCreateMachine(id: string, metadata: unknown, runnerState: unknown, namespace: string): Machine {
         return this.machineCache.getOrCreateMachine(id, metadata, runnerState, namespace)
+    }
+
+    registerRunnerMachine(id: string, metadata: unknown, runnerState: unknown, namespace: string): RegisterRunnerResult {
+        return this.machineCache.registerRunner(id, metadata, runnerState, namespace)
+    }
+
+    /** Name, role and env from the web. The runner gets the new metadata at once, so the next spawn uses the env. */
+    updateMachineSettings(id: string, namespace: string, patch: MachineSettingsPatch): Machine | null {
+        const machine = this.machineCache.updateSettings(id, namespace, patch)
+        if (!machine) return null
+        const stored = this.store.machines.getMachine(id)
+        if (stored) {
+            this.io.of('/cli').to(`machine:${id}`).emit('update', {
+                id: randomUUID(),
+                seq: Date.now(),
+                createdAt: Date.now(),
+                body: {
+                    t: 'update-machine' as const,
+                    machineId: id,
+                    metadata: { version: stored.metadataVersion, value: stored.metadata },
+                    runnerState: null
+                }
+            })
+        }
+        return machine
     }
 
     async sendMessage(

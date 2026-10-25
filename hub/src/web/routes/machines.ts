@@ -6,6 +6,7 @@ import {
     CodexCredentialImportRequestSchema,
     CodexCredentialSaveCurrentRequestSchema
 } from '@hapi/protocol/schemas'
+import { machineEnvSchema } from '../../sync/machineCache'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireMachine } from './guards'
@@ -47,6 +48,12 @@ function normalizePreviewUrl(raw: string | undefined): { ok: true; value?: strin
         return { ok: false, error: 'Invalid preview URL' }
     }
 }
+
+const machineSettingsSchema = z.object({
+    displayName: z.string().max(80).nullable().optional(),
+    role: z.enum(['always-on', 'portable']).optional(),
+    env: machineEnvSchema.optional()
+}).strict()
 
 export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
@@ -104,8 +111,26 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }
 
         const namespace = c.get('namespace')
-        const machines = engine.getOnlineMachinesByNamespace(namespace)
+        const machines = c.req.query('include') === 'offline'
+            ? engine.getMachinesByNamespace(namespace)
+            : engine.getOnlineMachinesByNamespace(namespace)
         return c.json({ machines })
+    })
+
+    app.patch('/machines/:id', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+        const parsed = machineSettingsSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) {
+            return c.json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' }, 400)
+        }
+        const machine = engine.updateMachineSettings(c.req.param('id'), c.get('namespace'), parsed.data)
+        if (!machine) {
+            return c.json({ error: 'Machine not found' }, 404)
+        }
+        return c.json({ machine })
     })
 
     app.post('/machines/:id/spawn', async (c) => {

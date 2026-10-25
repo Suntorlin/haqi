@@ -71,6 +71,7 @@ function setup(dir: string) {
         session: (_namespace, id) => sessions.get(id) ?? null,
         sessions: () => [...sessions.values()],
         machineOnline: (_namespace, machineId) => machineId !== 'offline',
+        machinePortable: (_namespace, machineId) => machineId === 'laptop',
         changed: (_namespace, id) => changes.push(id),
         timeline: (_namespace, _id, text) => lines.push(text),
         stopSession: async (_namespace, id) => { stopped.push(id); sessions.get(id)!.active = false },
@@ -188,6 +189,14 @@ describe('TaskService guide step', () => {
         const task = await t.service.create('default', { text: '没有仓库的任务', tag: 'nowhere' })
         expect(task.guide.state).toBe('failed')
         expect(t.spawned).toHaveLength(0)
+    })
+
+    it('starts a task on an always-on machine even when the newest session is on a laptop', async () => {
+        const t = setup(dir)
+        t.addSession({ id: 'desk', machineId: 'm1', tags: ['haqi'], updatedAt: Date.now() - 60_000 })
+        t.addSession({ id: 'travel', machineId: 'laptop', tags: ['haqi'], updatedAt: Date.now() })
+        const task = await t.service.create('default', { text: '修一个 bug', tag: 'haqi' })
+        expect(task.machineId).toBe('m1')
     })
 
     it('starts a new planner with the last draft when the old one stopped', async () => {

@@ -156,8 +156,16 @@ export function createCliRoutes(getSyncEngine: () => SyncEngine | null): Hono<Cl
         if (existing && existing.namespace !== namespace) {
             return c.json({ error: 'Machine access denied' }, 403)
         }
-        const machine = engine.getOrCreateMachine(parsed.data.id, parsed.data.metadata, parsed.data.runnerState ?? null, namespace)
-        return c.json({ machine })
+        const result = engine.registerRunnerMachine(parsed.data.id, parsed.data.metadata, parsed.data.runnerState ?? null, namespace)
+        if (result.type === 'conflict') {
+            return c.json({
+                error: 'machine-id-in-use',
+                message: `Machine id ${parsed.data.id} is already used by another online computer`
+                    + ` (host ${result.host ?? 'unknown'}, HAPI_HOME ${result.happyHomeDir ?? 'unknown'}).`
+                    + ' Give this runner its own HAPI_HOME so it gets a new machine id.'
+            }, 409)
+        }
+        return c.json({ machine: result.machine })
     })
 
     app.get('/machines/:id', (c) => {

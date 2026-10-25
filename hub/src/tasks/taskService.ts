@@ -30,6 +30,8 @@ export type TaskServiceHost = {
     session: (namespace: string, sessionId: string) => TaskSession | null
     sessions: (namespace: string) => TaskSession[]
     machineOnline: (namespace: string, machineId: string) => boolean
+    /** A laptop that may leave: new tasks prefer the always-on machines. */
+    machinePortable?: (namespace: string, machineId: string) => boolean
     /** Called after a task changed. */
     changed: (namespace: string, taskId: string) => void
     /** Posts a system line to the task group's timeline, where the user follows the guide step. */
@@ -378,12 +380,14 @@ export class TaskService {
 
     /**
      * Where the planner starts before it has picked a repository: the machine of the newest session on an online
-     * machine, in the deepest folder that holds that machine's recent repositories (so it can read each of them).
+     * machine (always-on machines first, so a task does not land on a laptop that may leave), in the deepest folder
+     * that holds that machine's recent repositories (so it can read each of them).
      */
     private workspaceFor(namespace: string): { machineId: string; directory: string } | null {
+        const portable = (machineId: string) => this.host.machinePortable?.(namespace, machineId) ?? false
         const newest = this.workSessions(namespace)
             .filter((s) => s.machineId && s.path && this.host.machineOnline(namespace, s.machineId))
-            .sort((a, b) => b.updatedAt - a.updatedAt)[0]
+            .sort((a, b) => Number(portable(a.machineId!)) - Number(portable(b.machineId!)) || b.updatedAt - a.updatedAt)[0]
         if (!newest?.machineId) return null
         const repos = this.recentRepos(namespace, newest.machineId).map((repo) => repo.path)
         return { machineId: newest.machineId, directory: commonFolder(repos) ?? newest.path! }

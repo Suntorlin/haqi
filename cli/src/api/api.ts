@@ -93,7 +93,14 @@ export class ApiClient {
                 },
                 timeout: 60_000
             }
-        )
+        ).catch((error: unknown) => {
+            // 409: another online computer already uses this machine id (a copied settings.json).
+            if (axios.isAxiosError(error) && error.response?.status === 409) {
+                const message = (error.response.data as { message?: unknown } | undefined)?.message
+                throw new Error(typeof message === 'string' ? message : 'Machine id is already used by another computer')
+            }
+            throw error
+        })
 
         const parsed = CreateMachineResponseSchema.safeParse(response.data)
         if (!parsed.success) {

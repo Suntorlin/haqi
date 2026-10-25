@@ -198,6 +198,9 @@ export async function startRunner(): Promise<void> {
     };
 
     // Spawn a new session (sessionId reserved for future --resume functionality)
+    // Env set for this machine in the web (Settings → Machines). Filled once the machine is registered.
+    let machineEnv: () => Record<string, string> = () => ({});
+
     const spawnSession = async (options: SpawnSessionOptions): Promise<SpawnSessionResult> => {
       logger.debugLargeJson('[RUNNER RUN] Spawning session', options);
 
@@ -464,6 +467,7 @@ export async function startRunner(): Promise<void> {
           stdio: ['ignore', 'pipe', 'pipe'],  // Capture stdout/stderr for debugging
           env: {
             ...process.env,
+            ...machineEnv(),
             ...extraEnv,
             HAPI_WORKING_DIRECTORY: spawnDirectory
           }
@@ -741,6 +745,7 @@ export async function startRunner(): Promise<void> {
       }
     );
     logger.debug(`[RUNNER RUN] Machine registered: ${machine.id}`);
+    machineEnv = () => machine.metadata?.env ?? {};
 
     // Create realtime machine session
     const apiMachine = api.machineSyncClient(machine);
