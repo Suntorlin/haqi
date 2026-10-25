@@ -12,6 +12,7 @@ import { RUN_EVENT, readRun } from './kernel/run'
 import { TaskError } from './errors'
 import { RunService, type RunHost } from './runService'
 import { buildContextPack, type ContextSources } from './plugins/context/contextPack'
+import { offeredPath, type MachinesOffered } from './plugins/context/machines'
 import { Planner, type PlannerHost } from './plugins/planner/planner'
 import type { TaskFileContent, TaskFiles } from './taskFiles'
 
@@ -32,6 +33,9 @@ export type TaskServiceHost = {
     machineOnline: (namespace: string, machineId: string) => boolean
     /** A laptop that may leave: new tasks prefer the always-on machines. */
     machinePortable?: (namespace: string, machineId: string) => boolean
+    machineName?: (namespace: string, machineId: string) => string | null
+    /** Load and repository paths of the online machines, for the planner to pick one; null when they cannot be read. */
+    machines?: (namespace: string) => Promise<MachinesOffered | null>
     /** Called after a task changed. */
     changed: (namespace: string, taskId: string) => void
     /** Posts a system line to the task group's timeline, where the user follows the guide step. */
@@ -58,6 +62,8 @@ export type TaskSessionSettings = {
 const NAME_CHARS = 60
 const RECENT_REPOS = 12
 const RELATED_TASKS = 5
+/** The planner starts without the machine list rather than wait longer for a machine that does not answer. */
+const MACHINES_WAIT_MS = 8_000
 
 /**
  * Tasks: the kernel plus the plugins, put together. Creating a task starts the guide step: a planner session reads
@@ -153,13 +159,18 @@ export class TaskService {
         if (!parsed.success) {
             throw new TaskError(`Draft rejected: ${parsed.error.issues.map((issue) => `${issue.path.join('.') || 'draft'}: ${issue.message}`).join('; ')}. Fix it and submit again.`)
         }
+        const machineId = parsed.data.machineId && parsed.data.machineId !== task.machineId ? parsed.data.machineId : null
+        if (machineId) this.checkMachine(namespace, taskId, machineId, parsed.data.repoPath!)
         const version = this.kernel.count(namespace, taskId, TASK_EVENT.draftSubmitted) + 1
         this.kernel.log(namespace, taskId, TASK_EVENT.draftSubmitted, toTaskDraft(parsed.data, version))
         // The planner tags the task; a tag the user set stays.
         if (parsed.data.tag && !task.tag) this.kernel.update(namespace, taskId, { tag: parsed.data.tag })
-        // The planner names the repository; a later draft may move the task to another one.
-        if (parsed.data.repoPath && parsed.data.repoPath !== task.repoPath) this.kernel.update(namespace, taskId, { repoPath: parsed.data.repoPath })
-        this.host.timeline?.(namespace, taskId, `第 ${version} 版草稿好了：在任务页里勾选、修改，再确认。要改就在这里跟我说。`)
+        // The planner names the repository and the machine; a later draft may move the task to another one.
+        if (machineId) this.kernel.update(namespace, taskId, { machineId, repoPath: parsed.data.repoPath! })
+        else if (parsed.data.repoPath && parsed.data.repoPath !== task.repoPath) this.kernel.update(namespace, taskId, { repoPath: parsed.data.repoPath })
+        const picked = parsed.data.machineId ? this.host.machineName?.(namespace, parsed.data.machineId) : null
+        const where = picked ? `在 ${picked} 上做${parsed.data.machineReason ? `（${parsed.data.machineReason}）` : ''}。` : ''
+        this.host.timeline?.(namespace, taskId, `第 ${version} 版草稿好了${where ? `，${where}` : '：'}在任务页里勾选、修改，再确认。要改就在这里跟我说。`)
         return { version, message: `Draft ${version} submitted. Wait for the user to confirm it or ask for changes; do not start the work.` }
     }
 
@@ -223,6 +234,13 @@ export class TaskService {
         this.kernel.move(namespace, taskId, 'active', { goal, nonGoals, acceptance })
         this.kernel.log(namespace, taskId, TASK_EVENT.draftConfirmed, { version: draft.version, answers, acceptance, decisions })
         this.writeNote(namespace, taskId, goal, nonGoals, acceptance)
+        // The draft moved the task to another machine: the planner stops, and the lead starts there.
+        const planner = task.leadSessionId ? this.host.session(namespace, task.leadSessionId) : null
+        const moved = this.kernel.get(namespace, taskId)!
+        if (planner && planner.machineId !== moved.machineId) {
+            await this.stopPlanner(namespace, planner.id)
+            this.kernel.update(namespace, taskId, { leadSessionId: null })
+        }
         // The lead splits the task now; without a run host (tests) it has nothing left to do.
         if (this.runs) void this.runs.start(namespace, this.kernel.get(namespace, taskId)!).catch(() => {})
         else await this.stopPlanner(namespace, task.leadSessionId)
@@ -250,6 +268,20 @@ export class TaskService {
      * After the guide step the planner has nothing to do until P4 hands it work, and each one holds about 185 MB. It
      * stays the task's lead (member and history); it is stopped, and resumed when needed.
      */
+    /** A draft that moves the task to another machine names one the planner was shown, with a path it was shown. */
+    private checkMachine(namespace: string, taskId: string, machineId: string, repoPath: string): void {
+        const offered = this.kernel.latest(namespace, taskId, TASK_EVENT.machinesOffered)?.payload as MachinesOffered | undefined
+        if (!offered?.machines.some((m) => m.id === machineId)) {
+            throw new TaskError(`Draft rejected: machine_id ${machineId} is not in the machine list. Use an id from the list, or leave machine_id out.`)
+        }
+        if (!this.host.machineOnline(namespace, machineId)) {
+            throw new TaskError(`Draft rejected: machine ${machineId} is offline now. Pick another machine, or leave machine_id out.`)
+        }
+        if (!offeredPath(offered, machineId, repoPath)) {
+            throw new TaskError(`Draft rejected: ${repoPath} is not a repository path listed for machine ${machineId}. Use the path listed for that machine, or pick a machine that has the repository.`)
+        }
+    }
+
     private async stopPlanner(namespace: string, sessionId: string | null): Promise<void> {
         if (!sessionId || !this.host.session(namespace, sessionId)?.active) return
         await this.host.stopSession?.(namespace, sessionId).catch(() => {})
@@ -342,10 +374,13 @@ export class TaskService {
         }
         try {
             const project = task.repoPath ? projectNameFor(task.repoPath) : null
+            const offered = task.repoPath ? null : await this.machinesFor(namespace)
+            if (offered) this.kernel.log(namespace, taskId, TASK_EVENT.machinesOffered, offered)
             const pack = await buildContextPack(
                 {
                     taskId, text, tag: task.tag ?? '', project, repoPath: task.repoPath, fromSessionId: started?.fromSessionId ?? null,
-                    ...(task.repoPath ? {} : { workspace: directory, repos: this.recentRepos(namespace, task.machineId) })
+                    ...(task.repoPath ? {} : { workspace: directory, repos: this.recentRepos(namespace, task.machineId) }),
+                    ...(offered ? { machines: { offered, hereId: task.machineId } } : {})
                 },
                 this.contextSources(namespace)
             )
@@ -357,6 +392,7 @@ export class TaskService {
                 machineId: task.machineId,
                 repoPath: directory,
                 chooseRepo: !task.repoPath,
+                chooseMachine: Boolean(offered),
                 contextText: pack.text,
                 files: this.files(taskId).map((file) => file.name),
                 ...(resume ? { resume: { draft: this.latestDraft(namespace, taskId), feedback: resume.feedback } } : {})
@@ -376,6 +412,15 @@ export class TaskService {
         } catch (error) {
             this.fail(namespace, taskId, error instanceof Error ? error.message : String(error))
         }
+    }
+
+    /** The online machines for the planner to pick from; null with fewer than two, or when they do not answer in time. */
+    private async machinesFor(namespace: string): Promise<MachinesOffered | null> {
+        if (!this.host.machines) return null
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const late = new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), MACHINES_WAIT_MS) })
+        const offered = await Promise.race([this.host.machines(namespace).catch(() => null), late]).finally(() => clearTimeout(timer))
+        return offered && offered.machines.length >= 2 ? offered : null
     }
 
     /**
@@ -486,6 +531,7 @@ export class TaskService {
             acceptance: task.acceptance,
             repoPath: task.repoPath,
             machineId: task.machineId,
+            machineName: task.machineId ? this.host.machineName?.(namespace, task.machineId) ?? null : null,
             leadSessionId: task.leadSessionId,
             members,
             guide: { ...guideState(task, events), request },

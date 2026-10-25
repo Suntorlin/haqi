@@ -3,6 +3,8 @@
  * through the sources it is given and returns plain text with an id on every item, so the draft can cite them.
  */
 
+import { machinesSection, type MachinesOffered } from './machines'
+
 export type ContextSources = {
     /** The session the task was created from: its name and the user's last messages there. */
     currentSession: (sessionId: string) => { name: string | null; userMessages: string[] } | null
@@ -26,6 +28,8 @@ export type ContextInput = {
     /** Set while the planner still has to pick the repository: the folder it starts in and the candidates. */
     workspace?: string
     repos?: Array<{ path: string; project: string; sessions: string[] }>
+    /** Set with two or more online machines while the planner picks the repository: it picks the machine too. */
+    machines?: { offered: MachinesOffered; hereId: string }
 }
 
 export type ContextPack = {
@@ -58,6 +62,7 @@ export async function buildContextPack(input: ContextInput, sources: ContextSour
             `你现在在 ${input.workspace ?? '（未知）'}，下面的仓库都在它里面。按需求、项目名和最近的会话名判断。`,
             ...(input.repos ?? []).map((repo) => `- ${repo.path}（项目 ${repo.project}）${repo.sessions.length ? `：最近的会话 ${repo.sessions.join('、')}` : ''}`)
         ].join('\n'))
+        if (input.machines) sections.push(machinesSection(input.machines.offered, input.machines.hereId))
     }
 
     const tags = sources.knownTags?.() ?? []

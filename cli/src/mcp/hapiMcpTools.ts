@@ -116,6 +116,8 @@ export const taskDraftSubmitInputSchema: z.ZodTypeAny = z.object({
     task_id: z.string().min(1).max(40).describe('The task id from the guide message'),
     tag: z.string().min(1).max(40).optional().describe('The tag you picked for the task (lowercase); leave out when the guide message says the user set it'),
     repo_path: z.string().min(1).max(500).optional().describe('Absolute path of the repository you picked, when the guide message asks you to pick one'),
+    machine_id: z.string().min(1).max(100).optional().describe('The id of the machine you picked, when the guide message asks you to pick one; repo_path is then the path on that machine'),
+    machine_reason: z.string().min(1).max(80).optional().describe('One line on why you picked that machine'),
     goal: z.string().min(1).max(120).describe('One sentence: what the task achieves'),
     non_goals: z.array(z.string().min(1).max(200)).max(3).optional().describe('What the task does not do (at most 3)'),
     criteria: z.array(z.object({

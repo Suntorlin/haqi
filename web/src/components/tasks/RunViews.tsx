@@ -375,7 +375,7 @@ export function RunReport(props: {
             { value: t('taskRun.count', { n: stuck }), label: t('taskRun.stat.stuck') },
             { value: t('taskRun.count', { n: open.length }), label: t('taskRun.stat.waiting') }
         ]
-    const meta = [task.tag ? `#${task.tag}` : null, task.repoPath?.split('/').filter(Boolean).pop(), run.integration?.branch].filter(Boolean).join(' · ')
+    const meta = [task.tag ? `#${task.tag}` : null, task.repoPath?.split('/').filter(Boolean).pop(), task.machineName, run.integration?.branch].filter(Boolean).join(' · ')
     const subtask = subtaskId ? run.subtasks.find((s) => s.id === subtaskId) ?? null : null
     // What the lead handed over leads the page, newest version only; it is stale once the user asks for a change.
     const lastRevision = run.revisions?.at(-1) ?? null

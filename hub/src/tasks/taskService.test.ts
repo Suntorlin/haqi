@@ -9,6 +9,7 @@ import { realUserText } from '../memory/userMessage'
 import { Store } from '../store'
 import { TaskTransitionError } from './kernel/stateMachine'
 import { TaskFiles } from './taskFiles'
+import type { MachinesOffered } from './plugins/context/machines'
 import { commonFolder, TaskError, TaskService, type TaskSession } from './taskService'
 
 const DRAFT = {
@@ -33,7 +34,7 @@ const noNetwork = (async (url: string | URL | Request, init?: RequestInit) => {
     return new Response('no network in tests', { status: 500 })
 }) as typeof fetch
 
-function setup(dir: string) {
+function setup(dir: string, offered: MachinesOffered | null = null) {
     const store = new Store(':memory:')
     const memory = new MemoryService(store, { paths: () => ({ dataDir: dir, settingsFile: join(dir, 'settings.json') }), onChange: () => {}, fetchFn: noNetwork })
     const sessions = new Map<string, TaskSession>()
@@ -58,7 +59,7 @@ function setup(dir: string) {
             spawnAndPrompt: async (input) => {
                 if (spawnError) return { error: spawnError }
                 spawned.push(input)
-                const session = addSession({ id: `planner-${nextId++}`, name: input.name, tags: input.tags })
+                const session = addSession({ id: `planner-${nextId++}`, machineId: input.machineId, name: input.name, tags: input.tags })
                 store.messages.addMessage(session.id, { role: 'user', content: { type: 'text', text: input.text }, meta: input.meta })
                 return { sessionId: session.id }
             },
@@ -72,6 +73,8 @@ function setup(dir: string) {
         sessions: () => [...sessions.values()],
         machineOnline: (_namespace, machineId) => machineId !== 'offline',
         machinePortable: (_namespace, machineId) => machineId === 'laptop',
+        machineName: (_namespace, machineId) => machineId.toUpperCase(),
+        machines: async () => offered,
         changed: (_namespace, id) => changes.push(id),
         timeline: (_namespace, _id, text) => lines.push(text),
         stopSession: async (_namespace, id) => { stopped.push(id); sessions.get(id)!.active = false },
@@ -234,6 +237,38 @@ describe('TaskService guide step', () => {
         expect([ready.tag, ready.repoPath]).toEqual(['web', '/repo/haqi'])
         expect(() => t.service.submitDraft('default', task.id, { ...DRAFT, repoPath: 'repo/haqi' })).toThrow(TaskError)
         expect(ready.draft?.questions[0]?.options[0]).toEqual({ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' })
+    })
+
+    it('lets the planner pick the idler machine, and starts the lead there after the confirmation', async () => {
+        const t = setup(dir, {
+            machines: [
+                { id: 'm1', name: 'Desk', portable: false, loadPct: 70, memFreePct: 30, onBattery: false, sessions: 9 },
+                { id: 'laptop', name: 'Laptop', portable: true, loadPct: 10, memFreePct: 60, onBattery: false, sessions: 1 }
+            ],
+            repos: [{ name: 'haqi', places: [
+                { machineId: 'm1', path: '/repo/haqi', blocked: false, notes: [] },
+                { machineId: 'laptop', path: '/Users/me/haqi', blocked: false, notes: ['npm 依赖没装'] }
+            ] }]
+        })
+        t.addSession({ id: 'work', tags: ['haqi'] })
+        const task = await t.service.create('default', { text: '修一个 bug', tag: 'haqi' })
+        await t.settle()
+        const prompt = t.spawned[0]!.text
+        expect(prompt).toContain('- [machine:laptop] Laptop：负载 10%，内存空闲 60%，1 个活跃会话，笔记本')
+        expect(prompt).toContain('- haqi：Desk /repo/haqi；Laptop /Users/me/haqi（npm 依赖没装）。建议 Laptop')
+        expect(prompt).toContain('machine_id')
+
+        expect(() => t.service.submitDraft('default', task.id, { ...DRAFT, machineId: 'laptop', repoPath: '/repo/haqi' })).toThrow('not a repository path listed')
+        expect(() => t.service.submitDraft('default', task.id, { ...DRAFT, machineId: 'gone', repoPath: '/repo/haqi' })).toThrow('not in the machine list')
+        t.service.submitDraft('default', task.id, { ...DRAFT, machineId: 'laptop', machineReason: '负载最低', repoPath: '/Users/me/haqi' })
+        const ready = t.service.get('default', task.id)!
+        expect([ready.machineId, ready.machineName, ready.repoPath, ready.draft?.machineReason]).toEqual(['laptop', 'LAPTOP', '/Users/me/haqi', '负载最低'])
+        expect(t.lines.at(-1)).toContain('在 LAPTOP 上做（负载最低）')
+
+        // The planner ran on the other machine: it stops, so the lead starts on the picked one.
+        await t.service.confirm('default', task.id, { criteria: [], answers: {} })
+        expect(t.stopped).toEqual(['planner-1'])
+        expect(t.service.get('default', task.id)!.leadSessionId).toBeNull()
     })
 
     it('starts a task without the guide step as a plain discussion, and stops the planner when a task ends', async () => {

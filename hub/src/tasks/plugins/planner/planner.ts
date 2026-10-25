@@ -26,6 +26,8 @@ export type GuideRequest = {
     repoPath: string
     /** The planner picks the repository from the context pack and names it in its draft. */
     chooseRepo?: boolean
+    /** With two or more online machines: the planner also picks the machine, from the context pack's machine list. */
+    chooseMachine?: boolean
     contextText: string
     /** Names of the files the user attached; the first message carries them. */
     files?: string[]
@@ -54,6 +56,9 @@ export function guidePrompt(request: GuideRequest): string {
         ...(request.chooseRepo
             ? [
                 '0. 先判断这件事在哪个仓库做：看上下文包“可选的仓库”、需求里的线索和最近的会话名。拿不准就选最可能的那个，用户在页面上会看到，要换会告诉你。把它的绝对路径填进 repo_path。',
+                ...(request.chooseMachine
+                    ? ['   再选机器：看上下文包“机器”一节。默认用那个仓库后面写的“建议”。需求明确要某台机器才有的东西（本机的服务、数据、设备）时，改选那台。把机器 id（[machine:…] 里的）填进 machine_id，那台机器上的仓库路径填进 repo_path，一句理由填进 machine_reason（如“负载最低”）。']
+                    : []),
                 '1. 读上下文包，再读那个仓库根目录的约定文件（AGENTS.md、CLAUDE.md、HARNESS.md，有哪个读哪个）。只读，不改任何文件，不跑会改东西的命令。'
             ]
             : ['1. 读上下文包，再读仓库根目录的约定文件（AGENTS.md、CLAUDE.md、HARNESS.md，有哪个读哪个）。只读，不改任何文件，不跑会改东西的命令。']),

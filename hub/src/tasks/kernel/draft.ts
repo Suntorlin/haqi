@@ -30,6 +30,10 @@ export const draftInputSchema = z.object({
     tag: taskTagSchema.nullish(),
     /** The repository the planner picked: an absolute path. */
     repoPath: z.string().trim().regex(/^\//, 'repo_path must be an absolute path').max(500).nullish(),
+    /** The machine the planner picked, from the machines it was shown; `repoPath` is the path on that machine. */
+    machineId: z.string().trim().min(1).max(100).nullish(),
+    /** One line on why that machine. */
+    machineReason: z.string().trim().min(1).max(80).nullish(),
     goal: z.string().trim().min(1).max(DRAFT_LIMITS.goal),
     nonGoals: z.array(z.string().trim().min(1).max(200)).max(DRAFT_LIMITS.nonGoals).default([]),
     criteria: z.array(z.object({
@@ -41,6 +45,8 @@ export const draftInputSchema = z.object({
     questions: z.array(questionSchema).max(DRAFT_LIMITS.questions).default([])
 }).refine((draft) => new Set(draft.questions.map((question) => question.id)).size === draft.questions.length, {
     message: 'question ids must be unique'
+}).refine((draft) => !draft.machineId || draft.repoPath, {
+    message: 'with machine_id, repo_path must name the repository path on that machine'
 })
 
 export type DraftInput = z.infer<typeof draftInputSchema>
@@ -52,6 +58,8 @@ export function toTaskDraft(input: DraftInput, version: number): TaskDraft {
         version,
         tag: input.tag ?? null,
         repoPath: input.repoPath ?? null,
+        machineId: input.machineId ?? null,
+        machineReason: input.machineReason ?? null,
         goal: input.goal,
         nonGoals: input.nonGoals,
         criteria: input.criteria.map((criterion, index) => ({

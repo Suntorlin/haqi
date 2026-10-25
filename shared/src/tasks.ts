@@ -35,6 +35,9 @@ export type TaskDraft = {
     tag?: string | null
     /** The repository the planner picked. */
     repoPath?: string | null
+    /** The machine the planner picked, and why. */
+    machineId?: string | null
+    machineReason?: string | null
     goal: string
     nonGoals: string[]
     criteria: AcceptanceCriterion[]
@@ -68,6 +71,8 @@ export type TaskView = {
     acceptance: AcceptanceCriterion[]
     repoPath: string | null
     machineId: string | null
+    /** The machine's display name or host, for the task page. */
+    machineName: string | null
     leadSessionId: string | null
     members: Array<{ sessionId: string; role: string }>
     guide: { state: TaskGuideState; error: string | null; request: string | null }

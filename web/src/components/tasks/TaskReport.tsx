@@ -155,7 +155,8 @@ function DraftReport(props: {
         t('taskReport.criteriaCount', { n: kept }),
         waiting > 0 ? t('taskReport.waitingCount', { n: waiting }) : null,
         props.task.tag ? `#${props.task.tag}` : null,
-        repoName(props.task.repoPath)
+        repoName(props.task.repoPath),
+        props.task.machineName
     ].filter(Boolean).join(' · ')
 
     return (
@@ -293,7 +294,7 @@ function ConfirmedReport(props: { task: TaskView; onToggleDone: () => void; pend
         <>
             <ReportSummary
                 headline={task.goal ?? task.name}
-                lede={[status, task.tag ? `#${task.tag}` : null, repoName(task.repoPath)].filter(Boolean).join(' · ')}
+                lede={[status, task.tag ? `#${task.tag}` : null, repoName(task.repoPath), task.machineName].filter(Boolean).join(' · ')}
                 stats={[
                     { value: String(task.acceptance.length), label: t('taskReport.stat.criteria') },
                     { value: String(load ?? 0), label: t('taskReport.stat.load') },

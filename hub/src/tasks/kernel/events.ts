@@ -5,6 +5,8 @@ export const TASK_EVENT = {
     guideStarted: 'guide_started',
     plannerStarted: 'planner_started',
     guideFailed: 'guide_failed',
+    /** The machines and repository paths the planner was shown; its draft picks one of them. */
+    machinesOffered: 'machines_offered',
     draftSubmitted: 'draft_submitted',
     draftReviseRequested: 'draft_revise_requested',
     draftConfirmed: 'draft_confirmed',

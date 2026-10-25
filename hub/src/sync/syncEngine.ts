@@ -42,6 +42,7 @@ import { MachineProbeService } from './machineProbeService'
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession, type TaskSessionSettings } from '../tasks/taskService'
+import type { MachinesOffered } from '../tasks/plugins/context/machines'
 import { ACCOUNT_NOTE, SCHEDULE_TICK_MS, ScheduleService, type ScheduleAlert, type ScheduleSpawnInput, type ScheduleSpawnResult } from '../schedules/scheduleService'
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
@@ -590,6 +591,11 @@ export class SyncEngine {
             sessions: (namespace) => this.getSessionsByNamespace(namespace).map(toTaskSession),
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             machinePortable: (namespace, machineId) => this.machineCache.getMachineByNamespace(machineId, namespace)?.metadata?.role === 'portable',
+            machineName: (namespace, machineId) => {
+                const machine = this.machineCache.getMachineByNamespace(machineId, namespace)
+                return machine ? machineTitle(machine) : null
+            },
+            machines: (namespace) => this.taskMachines(namespace),
             changed: (namespace, taskId) => this.eventPublisher.emit({ type: 'task-updated', namespace, groupId: taskId }),
             files: new TaskFiles(() => join(configuration.dataDir, 'task-files')),
             stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
@@ -1129,6 +1135,40 @@ export class SyncEngine {
 
     handleMachineAlive(payload: { machineId: string; time: number; load?: MachineLoad }): void {
         this.machineCache.handleMachineAlive(payload)
+    }
+
+    /**
+     * The online machines for a task's planner: load, active sessions, and where the recent repositories live on each
+     * one, newest first.
+     */
+    private async taskMachines(namespace: string): Promise<MachinesOffered | null> {
+        const online = this.machineCache.getOnlineMachinesByNamespace(namespace)
+        if (online.length < 2) return null
+        const map = await this.machineProbe.repos(namespace)
+        const sessions = this.getSessionsByNamespace(namespace).filter((session) => session.active)
+        const machines = online.map((machine) => ({
+            id: machine.id,
+            name: machineTitle(machine),
+            portable: machine.metadata?.role === 'portable',
+            loadPct: machine.load ? Math.round((machine.load.load1 / machine.load.cores) * 100) : null,
+            memFreePct: machine.load?.memFreePct ?? null,
+            onBattery: machine.load?.battery?.onBattery ?? false,
+            sessions: sessions.filter((session) => session.metadata?.machineId === machine.id).length
+        }))
+        const usedAt = (repo: typeof map.repos[number]) => Math.max(0, ...repo.machines.map((m) => m.pick?.lastUsedAt ?? 0))
+        const repos = [...map.repos]
+            .sort((a, b) => usedAt(b) - usedAt(a))
+            .slice(0, TASK_MACHINE_REPOS)
+            .map((repo) => ({
+                name: repo.name,
+                places: repo.machines.map((m) => ({
+                    machineId: m.machineId,
+                    path: m.pick?.path ?? null,
+                    blocked: m.issues.some((issue) => issue.level === 'block'),
+                    notes: m.issues.filter((issue) => issue.level === 'warn').map((issue) => issue.text)
+                }))
+            }))
+        return { machines, repos }
     }
 
     private expireInactive(): void {
@@ -3398,6 +3438,13 @@ Remember: Call review_loop_reviewer_submit when you have formed your assessment.
             }
         })
     }
+}
+
+/** Repositories listed per machine for a task's planner, newest first. */
+const TASK_MACHINE_REPOS = 15
+
+function machineTitle(machine: Machine): string {
+    return machine.metadata?.displayName || machine.metadata?.host || machine.id.slice(0, 8)
 }
 
 function toTaskSession(session: Session): TaskSession {
