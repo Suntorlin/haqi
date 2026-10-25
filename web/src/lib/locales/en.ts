@@ -1087,6 +1087,7 @@ export default {
   'mobile.chat.terminal': 'Terminal',
   'mobile.chat.preview': 'Preview',
   'mobile.chat.mcp': 'MCP',
+  'mobile.chat.machine': 'Machine',
   'mobile.chat.model': 'Model',
   'mobile.chat.account': 'Account',
   'mobile.chat.usage': 'Usage',

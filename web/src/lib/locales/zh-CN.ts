@@ -1089,6 +1089,7 @@ export default {
   'mobile.chat.terminal': '终端',
   'mobile.chat.preview': '预览',
   'mobile.chat.mcp': 'MCP',
+  'mobile.chat.machine': '机器',
   'mobile.chat.model': '模型',
   'mobile.chat.account': '账号',
   'mobile.chat.usage': '用量',
