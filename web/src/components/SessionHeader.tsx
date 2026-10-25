@@ -25,7 +25,6 @@ import {
     PinIcon,
     TagIcon,
     ChevronDownIcon,
-    ChevronLeftIcon,
     FileIcon,
     GlobeIcon,
     MoreHorizontalIcon,
@@ -50,7 +49,7 @@ import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
 import { accountsKey } from '@/components/ClaudeAccounts/Settings'
-import { quotaOptionLabel } from '@/components/ClaudeAccounts/Selector'
+import { machineDefaultLabel, quotaOptionLabel } from '@/components/ClaudeAccounts/Selector'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
 import { FitLine, FitText } from '@/components/ui/FitText'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
@@ -128,8 +127,8 @@ export function SessionHeader(props: {
     const sessionMachine = machines.find((machine) => machine.id === session.metadata?.machineId)
     const machineLabel = sessionMachine ? getMachineTitle(sessionMachine) : session.metadata?.host
     const machineLoginEmail = accountQuery.data?.machineLogin?.email
-    const machineDefaultLabel = machineLoginEmail ? `${t('sessionAccount.machineDefault')} · ${machineLoginEmail}` : t('sessionAccount.machineDefault')
-    const accountLabel = session.metadata?.claudeAccount?.email ?? machineDefaultLabel
+    const machineDefault = machineDefaultLabel(t, machineLoginEmail)
+    const accountLabel = session.metadata?.claudeAccount?.email ?? machineDefault
     const [accountSwitching, setAccountSwitching] = useState(false)
     const [accountSwitchError, setAccountSwitchError] = useState<string | null>(null)
     const [renameOpen, setRenameOpen] = useState(false)
@@ -421,7 +420,7 @@ export function SessionHeader(props: {
                                     onChange={(event) => void handleAccountSwitch(event.target.value)}
                                     className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                                 >
-                                    {!session.metadata.claudeAccount ? <option value="">{machineDefaultLabel}</option> : null}
+                                    {!session.metadata.claudeAccount ? <option value="">{machineDefault}</option> : null}
                                     {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
                                         const quota = quotaOptionLabel(accountQuery.data?.usage?.[profile.id], t)
                                         return <option key={profile.id} value={profile.id}>{profile.email}{quota ? ` · ${quota}` : ''}</option>

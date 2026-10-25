@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
-import { FitLine } from '@/components/ui/FitText'
+import { PaneTitle } from './PaneTitle'
 import { SidebarIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -23,19 +23,8 @@ export function DesktopPaneHeader(props: {
     const { t } = useTranslation()
     const toggleLabel = props.listVisible ? t('sessions.sidebar.hideDesktop') : t('sessions.sidebar.showDesktop')
     const identity = (
-        <>
-            {props.avatar}
-            <div className="min-w-0 flex-1">
-                <FitLine text={props.title} candidates={props.titleCandidates} className="text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]" />
-                {props.subtitle ? (
-                    <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-caption leading-tight text-[var(--social-fg-muted)]">
-                        {props.subtitle}
-                    </div>
-                ) : null}
-            </div>
-        </>
+        <PaneTitle avatar={props.avatar} title={props.title} titleCandidates={props.titleCandidates} subtitle={props.subtitle} />
     )
-
     return (
         <header className="relative z-20 flex h-[60px] shrink-0 items-center gap-1.5 border-b border-[var(--social-border)] bg-[var(--social-surface)] pl-3 pr-4">
             {props.onToggleList ? (

@@ -3,6 +3,7 @@ import type { ApiClient } from '@/api/client'
 import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { useTranslation } from '@/lib/use-translation'
 import { SettingsSelectRow } from '@/components/settings/SettingsParts'
+import { ListRow } from '@/components/ui/ListRow'
 import { accountsKey } from './Settings'
 
 type RateLimitSnapshot = import('@hapi/protocol/schemas').ClaudeRateLimitSnapshot
@@ -59,6 +60,11 @@ export function quotaOptionLabel(snapshot: RateLimitSnapshot | undefined, t: Tra
     return parts.length ? parts.join(' · ') : undefined
 }
 
+/** "Machine default login · email": what a session uses when no pool account is picked. */
+export function machineDefaultLabel(t: TranslateFn, email?: string): string {
+    return email ? `${t('newSession.claudeAccount.machineDefault')} · ${email}` : t('newSession.claudeAccount.machineDefault')
+}
+
 /** Account for a new Claude session as a settings row; the choices list each account's remaining quota. */
 export function ClaudeAccountRow({ api, machineId, selection, onChange, disabled }: {
     api: ApiClient; machineId: string | null; selection?: ClaudeAccountSelection;
@@ -68,17 +74,19 @@ export function ClaudeAccountRow({ api, machineId, selection, onChange, disabled
     const query = useQuery({ queryKey: accountsKey(machineId ?? ''), queryFn: () => api.getClaudeAccounts(machineId!), enabled: !!machineId, retry: false })
     const pool = query.data?.pool
     const profiles = pool?.profiles.filter(p => p.enabled) ?? []
+    const machineLogin = query.data?.machineLogin
+    const failedHint = machineLogin?.failedAt
+        ? <span className="text-[var(--social-danger)]">{t('newSession.claudeAccount.machineLoginFailedHint')}</span>
+        : undefined
     if (!pool || profiles.length === 0) {
-        return null
+        // No account to pick, but a dead machine login still has to be said (quick create sends here for it).
+        return failedHint ? <ListRow wrap title={t('newSession.claudeAccount')} subtitle={failedHint} trailing={machineDefaultLabel(t, machineLogin?.email)} /> : null
     }
 
-    const machineLogin = query.data?.machineLogin
     const options = [
         {
             value: '',
-            label: machineLogin?.email
-                ? `${t('newSession.claudeAccount.machineDefault')} · ${machineLogin.email}`
-                : t('newSession.claudeAccount.machineDefault'),
+            label: machineDefaultLabel(t, machineLogin?.email),
             description: machineLogin?.failedAt
                 ? t('newSession.claudeAccount.machineLoginFailed')
                 : t('newSession.claudeAccount.autoSwitch', { state: pool.autoSwitch ? t('newSession.claudeAccount.enabled') : t('newSession.claudeAccount.disabled') })
@@ -90,14 +98,12 @@ export function ClaudeAccountRow({ api, machineId, selection, onChange, disabled
         }))
     ]
     const value = selection?.accountId ?? ''
-    const current = value ? profiles.find(p => p.id === value)?.email ?? value : t('newSession.claudeAccount.machineDefault')
+    const current = value ? profiles.find(p => p.id === value)?.email ?? value : machineDefaultLabel(t, machineLogin?.email)
 
     return (
         <SettingsSelectRow
             title={t('newSession.claudeAccount')}
-            subtitle={!value && machineLogin?.failedAt ? (
-                <span className="text-[var(--social-danger)]">{t('newSession.claudeAccount.machineLoginFailedHint')}</span>
-            ) : undefined}
+            subtitle={value ? undefined : failedHint}
             valueLabel={current}
             disabled={disabled}
             options={options}

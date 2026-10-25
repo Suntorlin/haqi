@@ -8,12 +8,14 @@ import { cn } from '@/lib/utils'
  * - `label`   narrow caption: the longest of `candidates` (long -> short) that fits in `lines`.
  * - `id`      identifier (path, email, id): one line, cut in the middle so both ends stay.
  * - `preview` a peek at longer text the user opens elsewhere: clamped to `lines` (default 1).
- * The full text is always the hover title. Cutting by hand (`truncate`, `line-clamp`) is for this
- * file only; see web/DESIGN.md "Text that does not fit".
+ * When the text is cut, the full text is the hover title (or `title`, when the hover should say
+ * more, e.g. a full path). Cutting by hand (`truncate`, `line-clamp`) is for this file only; see
+ * web/DESIGN.md "Text that does not fit".
  */
 export type FitTextKind = 'value' | 'title' | 'label' | 'id' | 'preview'
 
 const CLAMP: Record<number, string> = { 1: 'line-clamp-1', 2: 'line-clamp-2', 3: 'line-clamp-3' }
+const DEFAULT_LINES: Record<Exclude<FitTextKind, 'value'>, number> = { title: 2, label: 2, id: 1, preview: 1 }
 
 export function FitText(props: {
     kind: FitTextKind
@@ -21,35 +23,43 @@ export function FitText(props: {
     /** label: other forms of `text`, from long to short. */
     candidates?: ReadonlyArray<string | null | undefined>
     lines?: 1 | 2 | 3
+    /** Hover text when cut; defaults to the full text. */
+    title?: string
     className?: string
 }) {
     const ref = useRef<HTMLSpanElement>(null)
-    const forms = props.kind === 'label' ? uniqueForms([props.text, ...(props.candidates ?? [])]) : [props.text]
+    const { kind, text } = props
+    const forms = kind === 'label' ? uniqueForms([text, ...(props.candidates ?? [])]) : [text]
     const formsKey = forms.join('\u0000')
-    const lines = props.lines ?? (props.kind === 'preview' ? 1 : props.kind === 'value' ? undefined : props.kind === 'id' ? 1 : 2)
-    const [shown, setShown] = useState(props.text)
+    const lines = kind === 'value' ? 0 : props.lines ?? DEFAULT_LINES[kind]
+    // Only `id` and `label` show something other than the text; the others render it as is.
+    const picks = kind === 'id' || kind === 'label'
+    const [picked, setPicked] = useState(text)
     const [clipped, setClipped] = useState(false)
+    const shown = picks ? picked : text
 
     useLayoutEffect(() => {
         const el = ref.current
-        if (!el) return
+        if (!el || kind === 'value') return
+        let live = true
         const fit = () => {
+            if (!live) return
             // Measure with the full text in place: in a container sized by its content (a chip with
             // a max width) the shown short form would make the space look smaller than it is.
             const node = el.firstChild
             const rendered = node?.nodeType === Node.TEXT_NODE ? node.nodeValue : null
-            if (node && rendered !== null) node.nodeValue = props.text
-            let next = props.text
-            if (props.kind === 'id') next = middleCut(el, props.text)
-            else if (props.kind === 'label') next = forms.find((form) => fitsIn(el, form, lines ?? 2)) ?? forms[forms.length - 1] ?? props.text
-            const cut = next !== props.text || (lines !== undefined && !fitsIn(el, next, lines))
+            if (node && rendered !== null) node.nodeValue = text
+            let next = text
+            if (kind === 'id') next = middleCut(el, text)
+            else if (kind === 'label') next = forms.find((form) => fitsIn(el, form, lines)) ?? forms[forms.length - 1] ?? text
+            const cut = next !== text || !fitsIn(el, next, lines)
             if (node && rendered !== null) node.nodeValue = rendered
-            setShown(next)
-            // Clamped title / preview: the hover title then carries the full text.
+            if (picks) setPicked(next)
             setClipped(cut)
         }
         fit()
-        if (typeof ResizeObserver === 'undefined') return
+        void document.fonts?.ready.then(fit)
+        if (typeof ResizeObserver === 'undefined') return () => { live = false }
         // The element and its container: a container that grows frees room the element cannot see.
         const watched = [el, el.parentElement].filter((node): node is HTMLElement => Boolean(node))
         const widths = new Map(watched.map((node) => [node, node.clientWidth]))
@@ -59,19 +69,21 @@ export function FitText(props: {
             fit()
         })
         for (const node of watched) observer.observe(node)
-        void document.fonts?.ready.then(fit)
-        return () => observer.disconnect()
-    }, [formsKey, props.kind, props.text, lines]) // formsKey stands for forms
+        return () => {
+            live = false
+            observer.disconnect()
+        }
+    }, [formsKey, kind, text, lines, picks]) // formsKey stands for forms
 
     return (
         <span
             ref={ref}
-            data-fit={props.kind}
-            title={clipped ? props.text : undefined}
+            data-fit={kind}
+            title={clipped ? props.title ?? text : undefined}
             className={cn(
                 'block min-w-0 break-words',
-                props.kind === 'id' ? 'overflow-hidden whitespace-nowrap' : 'whitespace-normal',
-                lines && props.kind !== 'id' ? CLAMP[lines] : undefined,
+                kind === 'id' ? 'overflow-hidden whitespace-nowrap' : 'whitespace-normal',
+                kind !== 'id' && lines ? CLAMP[lines] : undefined,
                 props.className
             )}
         >
@@ -133,9 +145,9 @@ function middleCut(el: HTMLElement, text: string): string {
  * Heading or caption that may be any node, in `lines` lines (default 1). A string fits as a label
  * (the longest of `candidates` that fits); any other node is clamped.
  */
-export function FitLine(props: { text: ReactNode; candidates?: ReadonlyArray<string | null | undefined>; lines?: 1 | 2; className?: string }) {
+export function FitLine(props: { text: ReactNode; candidates?: ReadonlyArray<string | null | undefined>; lines?: 1 | 2; title?: string; className?: string }) {
     const lines = props.lines ?? 1
     return typeof props.text === 'string'
-        ? <FitText kind="label" lines={lines} text={props.text} candidates={props.candidates} className={props.className} />
-        : <span data-fit="line" className={cn('block min-w-0 break-words', CLAMP[lines], props.className)}>{props.text}</span>
+        ? <FitText kind="label" lines={lines} text={props.text} candidates={props.candidates} title={props.title} className={props.className} />
+        : <span data-fit="line" title={props.title} className={cn('block min-w-0 break-words', CLAMP[lines], props.className)}>{props.text}</span>
 }

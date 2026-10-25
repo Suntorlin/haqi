@@ -1118,7 +1118,7 @@ export function HappyComposer(props: {
                     className="flex max-w-full items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote text-[var(--social-fg)]"
                     title={attachment.path}
                 >
-                    <FitText kind="id" text={attachment.filename} className="max-w-[180px]" />
+                    <FitText kind="id" text={attachment.filename} title={attachment.path} className="max-w-[180px]" />
                     <IconButton
                         size="xs"
                         label={t('composer.attachment.remove')}

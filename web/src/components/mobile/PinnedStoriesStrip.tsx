@@ -55,7 +55,6 @@ function PinnedStory(props: {
             {...pressHandlers}
             className="flex w-16 shrink-0 select-none flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
             style={{ WebkitTouchCallout: 'none' }}
-            title={title}
         >
             <span className="relative flex h-[46px] w-16 items-center justify-center">
                 <SessionAvatar

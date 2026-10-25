@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
 import { ChevronLeftIcon } from '@/components/mobile/icons'
 import { IconButton } from '@/components/ui/IconButton'
-import { FitLine, FitText } from '@/components/ui/FitText'
-import { cn } from '@/lib/utils'
+import { PaneTitle } from './PaneTitle'
 import { useTranslation } from '@/lib/use-translation'
 
 /** Round icon button for sub-page header actions. */
@@ -23,8 +22,9 @@ export function SubPageHeader(props: {
     title: ReactNode
     /** Shorter forms of a string title, tried when it does not fit on the line. */
     titleCandidates?: ReadonlyArray<string | null | undefined>
-    /** A string is a one-line preview; a node is laid out in a row (status dot, text). */
+    /** A string is a one-line preview (`id`: a path, cut in the middle); a node is laid out in a row. */
     subtitle?: ReactNode
+    subtitleKind?: 'preview' | 'id'
     avatar?: ReactNode
     onTitleClick?: () => void
     onBack?: () => void
@@ -32,21 +32,14 @@ export function SubPageHeader(props: {
 }) {
     const { t } = useTranslation()
     const identity = (
-        <>
-            {props.avatar}
-            <div className="min-w-0 flex-1">
-                <FitLine
-                    text={props.title}
-                    candidates={props.titleCandidates}
-                    className={cn('font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]', props.avatar ? 'text-body' : 'text-headline')}
-                />
-                {typeof props.subtitle === 'string' ? (
-                    <FitText kind="preview" text={props.subtitle} className="mt-0.5 text-caption leading-tight text-[var(--social-fg-muted)]" />
-                ) : props.subtitle ? (
-                    <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-caption leading-tight text-[var(--social-fg-muted)]">{props.subtitle}</div>
-                ) : null}
-            </div>
-        </>
+        <PaneTitle
+            avatar={props.avatar}
+            title={props.title}
+            titleCandidates={props.titleCandidates}
+            subtitle={props.subtitle}
+            subtitleKind={props.subtitleKind}
+            large={!props.avatar}
+        />
     )
     return (
         <header className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">

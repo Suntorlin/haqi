@@ -22,7 +22,7 @@ import { SessionChat } from '@/components/SessionChat'
 import { SessionFeed, SessionList, formatRelativeTime, type NewSessionPreset } from '@/components/SessionList'
 import { PinnedStoriesStrip } from '@/components/mobile/PinnedStoriesStrip'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
-import { ChevronLeftIcon, ChevronRightIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
+import { ChevronRightIcon, FolderIcon, MoreHorizontalIcon, PlusCircleIcon, RecentIcon, SearchIcon, TagIcon } from '@/components/mobile/icons'
 import { tagChipClass } from '@/components/ui/tagChip'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
@@ -535,7 +535,7 @@ function SessionsPage() {
                     <button
                         type="button"
                         onClick={() => selectTagView(null)}
-                        className={`${tagChipClass(selectedSessionTag === null)} inline-flex items-center justify-center px-2.5`}
+                        className={`${tagChipClass(selectedSessionTag === null)} justify-center px-2.5`}
                         aria-label={t('sessions.tags.all')}
                         aria-pressed={selectedSessionTag === null}
                         title={t('sessions.tags.all')}

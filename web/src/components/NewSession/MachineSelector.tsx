@@ -26,25 +26,29 @@ export function MachineSelector(props: {
 
     return (
         <Section title={t('newSession.machine')}>
-            <ListGroup>
-                {props.machines.map((m) => {
-                    const details = [
-                        showPlatform ? m.metadata?.platform : undefined,
-                        m.metadata?.role === 'portable' ? t('machine.portableSuffix') : undefined
-                    ].filter(Boolean).join(' · ')
-                    return (
-                        <ListRow
-                            key={m.id}
-                            title={getMachineTitle(m)}
-                            subtitle={details || undefined}
-                            trailing={m.id === props.machineId ? <CheckIcon className="h-[18px] w-[18px] text-[var(--social-fg)]" /> : undefined}
-                            chevron={false}
-                            disabled={props.isDisabled}
-                            onClick={() => props.onChange(m.id)}
-                        />
-                    )
-                })}
-            </ListGroup>
+            <div role="radiogroup" aria-label={t('newSession.machine')}>
+                <ListGroup>
+                    {props.machines.map((m) => {
+                        const details = [
+                            showPlatform ? m.metadata?.platform : undefined,
+                            m.metadata?.role === 'portable' ? t('machine.portableSuffix') : undefined
+                        ].filter(Boolean).join(' · ')
+                        return (
+                            <ListRow
+                                key={m.id}
+                                role="radio"
+                                aria-checked={m.id === props.machineId}
+                                title={getMachineTitle(m)}
+                                subtitle={details || undefined}
+                                trailing={m.id === props.machineId ? <CheckIcon className="h-[18px] w-[18px] text-[var(--social-fg)]" /> : undefined}
+                                chevron={false}
+                                disabled={props.isDisabled}
+                                onClick={() => props.onChange(m.id)}
+                            />
+                        )
+                    })}
+                </ListGroup>
+            </div>
         </Section>
     )
 }

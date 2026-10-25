@@ -11,7 +11,7 @@ const HTML_PATH_DESCRIPTION = 'Absolute path of a full HTML page (up to 10 MB) o
 
 export const changeTitleInputSchema: z.ZodTypeAny = z.object({
     title: z.string().describe('The new title for the chat session'),
-    short_title: z.string().max(40).optional().describe('The same title in a few words (at most 6 Chinese characters or 3 English words), for narrow places such as avatar captions')
+    short_title: z.string().optional().describe('The same title in a few words (at most 6 Chinese characters or 3 English words), for narrow places such as avatar captions')
 })
 
 export const reportCreateInputSchema: z.ZodTypeAny = z.object({

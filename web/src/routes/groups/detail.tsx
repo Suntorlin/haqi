@@ -351,11 +351,6 @@ function canQuoteMessage(message: GroupTimelineMessage): boolean {
     return message.type === 'chat' && !message.source.startsWith('system:')
 }
 
-function truncateText(text: string, maxLength: number = 100): string {
-    if (text.length <= maxLength) return text
-    return text.slice(0, maxLength) + '...'
-}
-
 function parseQuoteFromText(text: string): { actorName: string; quotedText: string } | null {
     if (!text.startsWith('>')) return null
 
@@ -1282,7 +1277,7 @@ function TimelineBubble(props: {
                             title={t('groups.message.openSession', { name: actorTitle })}
                         >
                             <SessionAvatar session={{ id: actorSessionId }} size={18} muted={!actorSession?.active} />
-                            <FitText kind="title" lines={1} text={actorTitle} className="text-footnote font-semibold text-[var(--social-fg-muted)]" />
+                            <FitText kind="title" lines={1} text={actorTitle} title={t('groups.message.openSession', { name: actorTitle })} className="text-footnote font-semibold text-[var(--social-fg-muted)]" />
                         </button>
                     ) : (
                         <FitText kind="title" lines={1} text={actorTitle} className="mb-1 max-w-[88%] px-1 text-footnote font-semibold text-[var(--social-fg-muted)]" />
@@ -1307,7 +1302,7 @@ function TimelineBubble(props: {
                                 )}
                             >
                                 <span className="font-semibold">{quoteInfo.actorName || t('groups.message.unknownActor')}</span>
-                                <FitText kind="preview" lines={1} text={truncateText(quoteInfo.quotedText, 120)} />
+                                <FitText kind="preview" lines={1} text={quoteInfo.quotedText} />
                             </div>
                         ) : null}
                         {text ? (
@@ -2980,7 +2975,7 @@ export default function GroupDetailPage() {
                             || t('groups.message.unknownActor')
                     })}
                 </span>
-                <FitText kind="preview" lines={1} text={truncateText(extractBubbleText(quotedMessage), 96)} className="break-all" />
+                <FitText kind="preview" lines={1} text={extractBubbleText(quotedMessage)} className="break-all" />
             </span>
             <IconButton
                 size="sm"

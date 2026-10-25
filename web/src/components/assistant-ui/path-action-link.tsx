@@ -318,7 +318,6 @@ export function PathActionLink(props: {
                     type="button"
                     onClick={openFilePage}
                     className={cn('min-w-0 max-w-[16rem] font-mono text-[0.8em] text-[var(--social-fg)] underline decoration-dotted hover:opacity-90', TEXT_HIT_AREA_CLASS)}
-                    title={path}
                 >
                     <FitText kind="id" text={path} />
                 </button>
@@ -346,7 +345,7 @@ export function PathActionLink(props: {
                     </span>
                 ) : null}
                 {errorMessage ? (
-                    <span className="max-w-[8rem] text-caption text-[var(--social-danger)]" title={errorMessage}>
+                    <span className="text-caption text-[var(--social-danger)]" title={errorMessage}>
                         !
                     </span>
                 ) : null}

@@ -28,19 +28,22 @@ export function ListRow(props: {
     /** Show the trailing chevron; defaults to true for rows that navigate (have onClick). */
     chevron?: boolean
     disabled?: boolean
-    /** Let long title / subtitle wrap instead of truncating (settings descriptions). */
+    /** Show all of a long title / subtitle (settings descriptions); otherwise they take up to two lines. */
     wrap?: boolean
     /** Layout tweaks for rows outside a ListGroup (padding, a divider). */
     className?: string
     ref?: Ref<HTMLButtonElement & HTMLDivElement>
     'aria-expanded'?: boolean
     'aria-haspopup'?: AriaAttributes['aria-haspopup']
+    /** A row that is one choice of several (pickers): `role="radio"` with `aria-checked`. */
+    role?: 'radio'
+    'aria-checked'?: boolean
 }) {
     // Title and subtitle take up to two lines (all of it with `wrap`) instead of cutting the end off.
-    const line = (node: ReactNode, className: string) => typeof node === 'string' && !props.wrap
-        ? <FitText kind="title" text={node} className={cn('leading-snug', className)} />
-        : props.wrap
-            ? <span className={cn('block whitespace-normal break-words leading-snug', className)}>{node}</span>
+    const line = (node: ReactNode, className: string) => props.wrap
+        ? <span className={cn('block whitespace-normal break-words leading-snug', className)}>{node}</span>
+        : typeof node === 'string'
+            ? <FitText kind="title" text={node} className={cn('leading-snug', className)} />
             : <FitLine lines={2} text={node} className={cn('leading-snug', className)} />
     const content = (
         <>
@@ -62,6 +65,8 @@ export function ListRow(props: {
             disabled={props.disabled}
             aria-expanded={props['aria-expanded']}
             aria-haspopup={props['aria-haspopup']}
+            role={props.role}
+            aria-checked={props['aria-checked']}
             className={cn(className, 'transition-colors hover:bg-[var(--social-hover)] active:bg-[var(--social-muted)] [-webkit-tap-highlight-color:transparent]')}
         >
             {content}

@@ -412,6 +412,7 @@ export function TerminalPanel(props: { sessionId: string; dockActions?: ReactNod
             <SubPageHeader
                 title={t('terminal.title')}
                 subtitle={subtitle}
+                subtitleKind="id"
                 onBack={dockActions ? undefined : goBack}
                 actions={(
                     <>

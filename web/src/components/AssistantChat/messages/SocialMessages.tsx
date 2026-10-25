@@ -269,7 +269,7 @@ function LiveStatusCard(props: {
         <div {...props.pressProps} className={cn('social-bubble-other w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3', props.pressClass)}>
             <div className="flex min-w-0 items-center gap-2.5">
                 <Spinner size="sm" label={null} className="shrink-0 text-[var(--social-fg)]" />
-                <FitText kind="title" text={title} className="flex-1 text-body font-semibold text-[var(--social-fg)]" />
+                <FitText kind="title" lines={1} text={title} className="flex-1 text-body font-semibold text-[var(--social-fg)]" />
             </div>
             {progress ? (
                 <FitText kind="preview" lines={3} text={progress} className="mt-1.5 pl-[26px] text-body leading-relaxed text-[var(--social-fg-muted)]" />

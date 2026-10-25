@@ -151,7 +151,9 @@ export async function startHappyServer(client: ApiSessionClient) {
     // Handler that sends title updates via the client
     const handler = async (title: string, shortTitle?: string) => {
         const normalizedTitle = normalizeTitleCandidate(title);
-        const normalizedShort = shortTitle ? normalizeTitleCandidate(shortTitle) : '';
+        // A short title is a few words; a long one is not short and is dropped, the title still changes.
+        const short = shortTitle ? normalizeTitleCandidate(shortTitle) : '';
+        const normalizedShort = short.length <= 40 ? short : '';
         const currentTitle = client.getCurrentSummaryText();
         const shouldSkipLowSignalUpdate = Boolean(
             currentTitle

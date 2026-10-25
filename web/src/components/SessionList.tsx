@@ -861,6 +861,7 @@ function SessionGroupRow(props: {
                     <FitText
                         kind="title"
                         text={group.displayName}
+                        title={group.directory}
                         className={minimal
                             ? 'text-footnote font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
                             : `font-semibold ${density === 'compact' ? 'text-body' : 'text-base'}`}

@@ -296,11 +296,6 @@ export function toNewSessionDefaults(config: LastSessionConfig): Omit<NewSession
     }
 }
 
-/**
- * The newer of this browser's last config and the copy shared through the hub (which also follows
- * model switches made inside a chat). Only the model settings are shared; session type, worktree
- * name and preview URL stay with the browser.
- */
 /** The remembered Claude account, when it is still enabled on the machine; otherwise the machine login. */
 export function rememberedAccountSelection(
     pool: ClaudeAccountPool | undefined,
@@ -312,6 +307,11 @@ export function rememberedAccountSelection(
         : undefined
 }
 
+/**
+ * The newer of this browser's last config and the copy shared through the hub (which also follows
+ * model switches made inside a chat). Only the model settings are shared; session type, worktree
+ * name and preview URL stay with the browser.
+ */
 export function pickRememberedConfig(
     local: LastSessionConfig | null,
     shared: NewSessionDefaults | null | undefined

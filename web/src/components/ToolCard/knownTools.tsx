@@ -180,7 +180,7 @@ export const knownTools: Record<string, {
         },
         subtitle: (opts) => {
             const prompt = getInputStringAny(opts.input, ['prompt'])
-            return prompt ? prompt : null
+            return prompt || null
         },
         minimal: (opts) => opts.childrenCount === 0
     },
@@ -210,7 +210,7 @@ export const knownTools: Record<string, {
         },
         subtitle: (opts) => {
             const summary = getInputStringAny(opts.input, ['summary'])
-            return summary ? summary : null
+            return summary || null
         },
         minimal: true
     },
@@ -353,7 +353,7 @@ export const knownTools: Record<string, {
         subtitle: (opts) => {
             const query = getWebSearchQueryFromPayload(opts.input)
                 ?? getWebSearchQueryFromPayload(opts.result)
-            return query ? query : null
+            return query || null
         },
         minimal: (opts) => opts.result == null
     },
@@ -410,7 +410,7 @@ export const knownTools: Record<string, {
         title: (opts) => getInputStringAny(opts.input, ['title']) ?? opts.t('mobile.turn.reasoning'),
         subtitle: (opts) => {
             const content = getInputStringAny(opts.result, ['content'])
-            return content ? content : null
+            return content || null
         },
         minimal: true
     },

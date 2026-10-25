@@ -282,6 +282,7 @@ export default function FilesPage() {
             <SubPageHeader
                 title={t('files.title')}
                 subtitle={subtitle}
+                subtitleKind="id"
                 onBack={goBack}
                 actions={(
                     <SubPageHeaderButton label={t('files.refresh')} onClick={handleRefresh}>

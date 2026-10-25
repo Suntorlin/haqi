@@ -306,7 +306,7 @@ export default function FilePage() {
 
     return (
         <div className="flex h-full flex-col">
-            <SubPageHeader title={fileName} subtitle={filePath || t('file.unknownPath')} onBack={goBack} />
+            <SubPageHeader title={fileName} subtitle={filePath || t('file.unknownPath')} subtitleKind="id" onBack={goBack} />
 
             <div className="bg-[var(--social-surface)]">
                 <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--social-divider)]">
