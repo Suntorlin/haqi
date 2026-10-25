@@ -488,6 +488,16 @@ export function ArrowDownIcon(props: IconProps) {
     )
 }
 
+export function DownloadIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={2}>
+            <line x1="12" y1="4" x2="12" y2="15" />
+            <polyline points="7 10 12 15 17 10" />
+            <path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+        </Svg>
+    )
+}
+
 export function ExternalLinkIcon(props: IconProps) {
     return (
         <Svg {...props} strokeWidth={2}>

@@ -128,12 +128,17 @@ export class ApiClient {
         }
     }
 
-    private async request<T>(
+    private async request<T>(path: string, init?: RequestInit): Promise<T> {
+        const res = await this.fetchAuthorized(path, init)
+        return await res.json() as T
+    }
+
+    private async fetchAuthorized(
         path: string,
         init?: RequestInit,
         attempt: number = 0,
         overrideToken?: string | null
-    ): Promise<T> {
+    ): Promise<Response> {
         const headers = new Headers(init?.headers)
         const liveToken = this.getToken ? this.getToken() : null
         const authToken = overrideToken !== undefined
@@ -156,7 +161,7 @@ export class ApiClient {
                 const refreshed = await this.onUnauthorized()
                 if (refreshed) {
                     this.token = refreshed
-                    return await this.request<T>(path, init, attempt + 1, refreshed)
+                    return await this.fetchAuthorized(path, init, attempt + 1, refreshed)
                 }
             }
             throw new ApiError('Session expired. Please sign in again.', 401, 'unauthorized')
@@ -172,7 +177,7 @@ export class ApiClient {
             )
         }
 
-        return await res.json() as T
+        return res
     }
 
     async authenticate(auth: { initData: string } | { accessToken: string }): Promise<AuthResponse> {
@@ -785,6 +790,15 @@ export class ApiClient {
             params.set('maxBytes', `${Math.max(0, Math.floor(options.maxBytes))}`)
         }
         return await this.request<FileReadResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/file?${params.toString()}`)
+    }
+
+    /** Returns the encrypted envelope; see `@hapi/protocol/fileTransfer`. */
+    async downloadSessionFile(sessionId: string, path: string, publicKey: string): Promise<Uint8Array<ArrayBuffer>> {
+        const res = await this.fetchAuthorized(`/api/sessions/${encodeURIComponent(sessionId)}/file/download`, {
+            method: 'POST',
+            body: JSON.stringify({ path, publicKey })
+        })
+        return new Uint8Array(await res.arrayBuffer())
     }
 
     async listSessionDirectory(sessionId: string, path?: string): Promise<ListDirectoryResponse> {

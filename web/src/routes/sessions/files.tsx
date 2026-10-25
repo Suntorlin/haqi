@@ -9,6 +9,7 @@ import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useGitStatusFiles } from '@/hooks/queries/useGitStatusFiles'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessionFileSearch } from '@/hooks/queries/useSessionFileSearch'
+import { useSessionFileDownload } from '@/hooks/useSessionFileDownload'
 import { encodeBase64 } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
@@ -187,6 +188,7 @@ export default function FilesPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/files' })
     const search = useSearch({ from: '/sessions/$sessionId/files' })
     const { session } = useSession(api, sessionId)
+    const fileDownload = useSessionFileDownload(api, sessionId)
     const [searchQuery, setSearchQuery] = useState('')
 
     const initialTab = search.tab === 'directories' ? 'directories' : 'changes'
@@ -367,6 +369,8 @@ export default function FilesPage() {
                             sessionId={sessionId}
                             rootLabel={rootLabel}
                             onOpenFile={(path) => handleOpenFile(path)}
+                            onDownloadFile={(path) => void fileDownload.download(path)}
+                            isDownloading={fileDownload.isDownloading}
                         />
                     ) : gitLoading ? (
                         <FileListSkeleton label={t('files.loadingGit')} />

@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import { FileIcon } from '@/components/FileIcon'
-import { DisclosureIcon, FolderIcon } from '@/components/mobile/icons'
+import { DisclosureIcon, DownloadIcon, FolderIcon } from '@/components/mobile/icons'
+import { IconButton } from '@/components/ui/IconButton'
+import { Spinner } from '@/components/Spinner'
 import { useSessionDirectory } from '@/hooks/queries/useSessionDirectory'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -44,6 +46,8 @@ function DirectoryNode(props: {
     label: string
     depth: number
     onOpenFile: (path: string) => void
+    onDownloadFile: (path: string) => void
+    isDownloading: (path: string) => boolean
     expanded: Set<string>
     onToggle: (path: string) => void
 }) {
@@ -93,6 +97,8 @@ function DirectoryNode(props: {
                                     label={entry.name}
                                     depth={childDepth}
                                     onOpenFile={props.onOpenFile}
+                                    onDownloadFile={props.onDownloadFile}
+                                    isDownloading={props.isDownloading}
                                     expanded={props.expanded}
                                     onToggle={props.onToggle}
                                 />
@@ -102,19 +108,33 @@ function DirectoryNode(props: {
                         {files.map((entry) => {
                             const filePath = props.path ? `${props.path}/${entry.name}` : entry.name
                             return (
-                                <button
+                                <div
                                     key={filePath}
-                                    type="button"
-                                    onClick={() => props.onOpenFile(filePath)}
-                                    className="flex min-h-11 w-full items-center gap-3 px-3 py-2 text-left hover:bg-[var(--social-hover)] transition-colors"
-                                    style={{ paddingLeft: childIndent }}
+                                    className="flex items-center hover:bg-[var(--social-hover)] transition-colors"
                                 >
-                                    <span className="h-4 w-4" />
-                                    <FileIcon fileName={entry.name} size={22} />
-                                    <div className="min-w-0 flex-1">
-                                        <div className="truncate font-semibold">{entry.name}</div>
-                                    </div>
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => props.onOpenFile(filePath)}
+                                        className="flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2 pl-3 text-left"
+                                        style={{ paddingLeft: childIndent }}
+                                    >
+                                        <span className="h-4 w-4" />
+                                        <FileIcon fileName={entry.name} size={22} />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate font-semibold">{entry.name}</div>
+                                        </div>
+                                    </button>
+                                    <IconButton
+                                        label={`${t('file.download')} ${entry.name}`}
+                                        onClick={() => props.onDownloadFile(filePath)}
+                                        disabled={props.isDownloading(filePath)}
+                                        className="mr-1"
+                                    >
+                                        {props.isDownloading(filePath)
+                                            ? <Spinner size="sm" label={null} />
+                                            : <DownloadIcon className="h-4 w-4" />}
+                                    </IconButton>
+                                </div>
                             )
                         })}
 
@@ -138,6 +158,8 @@ export function DirectoryTree(props: {
     sessionId: string
     rootLabel: string
     onOpenFile: (path: string) => void
+    onDownloadFile: (path: string) => void
+    isDownloading: (path: string) => boolean
 }) {
     const [expanded, setExpanded] = useState<Set<string>>(() => new Set(['']))
 
@@ -162,6 +184,8 @@ export function DirectoryTree(props: {
                 label={props.rootLabel}
                 depth={0}
                 onOpenFile={props.onOpenFile}
+                onDownloadFile={props.onDownloadFile}
+                isDownloading={props.isDownloading}
                 expanded={expanded}
                 onToggle={handleToggle}
             />

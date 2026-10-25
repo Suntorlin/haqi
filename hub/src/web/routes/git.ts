@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
+import { encryptFileForDownload, MAX_FILE_DOWNLOAD_BYTES } from '@hapi/protocol/fileTransfer'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
@@ -20,6 +21,10 @@ const fileReadSchema = z.object({
 })
 
 const pathOnlySchema = fileReadSchema.pick({ path: true })
+const fileDownloadSchema = z.object({
+    path: z.string().min(1),
+    publicKey: z.string().min(1).max(200)
+})
 const gitSnapshotSchema = z.object({
     path: z.string().min(1),
     source: z.enum(['head', 'index'])
@@ -193,6 +198,68 @@ export function createGitRoutes(getSyncEngine: () => SyncEngine | null): Hono<We
             allowOutsideWorkingDirectory
         }))
         return c.json(result)
+    })
+
+    // The browser sends a one-time public key; the response body is the encrypted file.
+    app.post('/sessions/:id/file/download', async (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        if (!sessionResult.session.metadata?.path) {
+            return c.json({ success: false, error: 'Session path not available' }, 409)
+        }
+
+        const parsed = fileDownloadSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) {
+            return c.json({ success: false, error: 'Invalid download request' }, 400)
+        }
+
+        const allowOutsideWorkingDirectory = isOutsideWorkspacePath(parsed.data.path)
+        if (allowOutsideWorkingDirectory && !isYoloPermissionMode(sessionResult.session.permissionMode)) {
+            return c.json({
+                success: false,
+                error: 'Outside-workspace paths require YOLO permission mode'
+            }, 403)
+        }
+
+        const result = await runRpc(() => engine.readSessionFile(sessionResult.sessionId, parsed.data.path, {
+            maxBytes: MAX_FILE_DOWNLOAD_BYTES,
+            allowOutsideWorkingDirectory
+        }))
+        if (!result.success) {
+            return c.json({ success: false, error: result.error ?? 'Failed to read file' }, 502)
+        }
+        if (result.truncated) {
+            return c.json({
+                success: false,
+                error: `File is larger than ${MAX_FILE_DOWNLOAD_BYTES / 1024 / 1024} MB`
+            }, 413)
+        }
+
+        let envelope: Uint8Array<ArrayBuffer>
+        try {
+            envelope = await encryptFileForDownload(
+                parsed.data.publicKey,
+                new Uint8Array(Buffer.from(result.content ?? '', 'base64')),
+                parsed.data.path
+            )
+        } catch {
+            return c.json({ success: false, error: 'Invalid public key' }, 400)
+        }
+
+        return new Response(envelope, {
+            headers: {
+                'Content-Type': 'application/octet-stream',
+                'Cache-Control': 'no-store'
+            }
+        })
     })
 
     app.get('/sessions/:id/files', async (c) => {

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useParams, useSearch } from '@tanstack/react-router'
 import type { GitCommandResponse } from '@/types/api'
 import { FileIcon } from '@/components/FileIcon'
-import { CopyIcon, CheckIcon } from '@/components/mobile/icons'
+import { CopyIcon, CheckIcon, DownloadIcon } from '@/components/mobile/icons'
 import { useAppContext } from '@/lib/app-context'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
@@ -15,6 +15,8 @@ import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
 import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { IconButton } from '@/components/ui/IconButton'
+import { Spinner } from '@/components/Spinner'
+import { useSessionFileDownload } from '@/hooks/useSessionFileDownload'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -145,6 +147,7 @@ export default function FilePage() {
     const staged = search.staged
 
     const filePath = useMemo(() => decodePath(encodedPath), [encodedPath])
+    const fileDownload = useSessionFileDownload(api, sessionId)
     const fileName = filePath.split('/').pop() || filePath || 'File'
     const outsideWorkspaceCandidate = useMemo(
         () => isOutsideWorkspacePathCandidate(filePath),
@@ -311,6 +314,18 @@ export default function FilePage() {
                     <IconButton label={t('file.copyPath')} onClick={() => copyPath(filePath)} className="-my-2">
                         {pathCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                     </IconButton>
+                    {filePath ? (
+                        <IconButton
+                            label={t('file.download')}
+                            onClick={() => void fileDownload.download(filePath)}
+                            disabled={fileDownload.isDownloading(filePath)}
+                            className="-my-2"
+                        >
+                            {fileDownload.isDownloading(filePath)
+                                ? <Spinner size="xs" label={null} />
+                                : <DownloadIcon className="h-3.5 w-3.5" />}
+                        </IconButton>
+                    ) : null}
                 </div>
             </div>
 
