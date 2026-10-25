@@ -13,6 +13,7 @@ import { ScheduleFormDialog } from '@/components/scheduled/ScheduleFormDialog'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FitText } from '@/components/ui/FitText'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { useScheduleActions } from '@/hooks/mutations/useScheduleActions'
@@ -28,7 +29,10 @@ function InfoRow(props: { label: string; value: ReactNode; long?: boolean }) {
     if (props.long) {
         return <ListRow wrap title={props.label} subtitle={<span className="break-all">{props.value}</span>} />
     }
-    return <ListRow title={props.label} trailing={<span className="block max-w-[55vw] truncate text-right sm:max-w-sm">{props.value}</span>} />
+    const trailing = typeof props.value === 'string'
+        ? <FitText kind="value" text={props.value} className="max-w-[55vw] text-right sm:max-w-sm" />
+        : <span className="block max-w-[55vw] text-right sm:max-w-sm">{props.value}</span>
+    return <ListRow title={props.label} trailing={trailing} />
 }
 
 function linkLabel(url: string): string {
@@ -94,7 +98,7 @@ function RunRow(props: { run: ScheduledRun; accountEmail: string | null; onOpenS
                             className="inline-flex min-h-11 min-w-0 items-center gap-1.5 text-footnote text-[var(--social-fg)] underline-offset-2 hover:underline"
                         >
                             <ExternalLinkIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
-                            <span className="truncate">{linkLabel(link)}</span>
+                            <FitText kind="id" text={linkLabel(link)} />
                         </a>
                     ))}
                 </div>
@@ -224,9 +228,13 @@ export default function ScheduledDetailPage() {
                             {schedule.promptFile ? <InfoRow label={t('scheduled.form.promptFile')} value={schedule.promptFile} long /> : null}
                             {schedule.prompt ? (
                                 <div className="flex flex-col gap-1 px-4 py-3">
-                                    <div className={promptOpen ? 'whitespace-pre-wrap break-words text-body text-[var(--social-fg)]' : 'line-clamp-3 whitespace-pre-wrap break-words text-body text-[var(--social-fg)]'}>
-                                        {schedule.prompt}
-                                    </div>
+                                    {promptOpen ? (
+                                        <div className="whitespace-pre-wrap break-words text-body text-[var(--social-fg)]">
+                                            {schedule.prompt}
+                                        </div>
+                                    ) : (
+                                        <FitText kind="preview" lines={3} text={schedule.prompt} className="whitespace-pre-wrap break-words text-body text-[var(--social-fg)]" />
+                                    )}
                                     <Button variant="ghost" size="xs" className="-ml-3 self-start" onClick={() => setPromptOpen((open) => !open)}>
                                         {promptOpen ? t('scheduled.detail.collapse') : t('scheduled.detail.expand')}
                                     </Button>

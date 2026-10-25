@@ -19,7 +19,8 @@ import { getToolFullViewComponent, getToolViewComponent } from '@/components/Too
 import { getToolResultViewComponent } from '@/components/ToolCard/views/_results'
 import { useHappyChatContext } from '@/components/AssistantChat/context'
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
-import { getInputString, getInputStringAny, truncate } from '@/lib/toolInputUtils'
+import { getInputString, getInputStringAny } from '@/lib/toolInputUtils'
+import { FitLine, FitText } from '@/components/ui/FitText'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
@@ -140,7 +141,7 @@ function formatTaskChildLabel(child: ToolCallBlock, metadata: SessionMetadataSum
     })
 
     if (presentation.subtitle) {
-        return truncate(`${presentation.title}: ${presentation.subtitle}`, 140)
+        return `${presentation.title}: ${presentation.subtitle}`
     }
 
     return presentation.title
@@ -184,14 +185,20 @@ function renderTaskSummary(
             <div className="flex flex-col gap-1">
                 {visible.map((child) => (
                     <div key={child.id} className="flex items-center gap-2">
-                        <div className="min-w-0 flex-1 font-mono text-caption text-[var(--social-fg-muted)]">
-                            <span className="mr-2 inline-block w-4 text-center align-middle">
-                                <TaskStateIcon state={child.tool.state} />
-                            </span>
-                            <span className="align-middle break-all">
-                                {formatTaskChildLabel(child, metadata, t)}
-                            </span>
-                        </div>
+                        <FitLine
+                            lines={2}
+                            className="flex-1 font-mono text-caption text-[var(--social-fg-muted)]"
+                            text={(
+                                <>
+                                    <span className="mr-2 inline-block w-4 text-center align-middle">
+                                        <TaskStateIcon state={child.tool.state} />
+                                    </span>
+                                    <span className="align-middle break-all">
+                                        {formatTaskChildLabel(child, metadata, t)}
+                                    </span>
+                                </>
+                            )}
+                        />
                     </div>
                 ))}
                 {remaining > 0 ? (
@@ -590,7 +597,7 @@ function ToolCardInner(props: ToolCardProps) {
     if (toolName === 'CodexReasoning') {
         const reasoningDetail = getInputStringAny(props.block.tool.result, ['content'])
         const compactDetail = reasoningDetail && reasoningDetail.trim() !== toolTitle
-            ? truncate(reasoningDetail, isCompact ? 120 : 180)
+            ? reasoningDetail
             : null
 
         return (
@@ -604,15 +611,11 @@ function ToolCardInner(props: ToolCardProps) {
                     <span className={cn('shrink-0', statusColorClass(props.block.tool.state))}>
                         <StatusIcon state={props.block.tool.state} />
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-caption text-[var(--social-fg-muted)]">
-                        {toolTitle}
-                    </span>
+                    <FitText kind="preview" lines={1} text={toolTitle} className="flex-1 text-caption text-[var(--social-fg-muted)]" />
                     <ElapsedView from={runningFrom} active={props.block.tool.state === 'running'} signal={progressSignal} />
                 </div>
                 {compactDetail ? (
-                    <div className="mt-1 pl-4 text-caption text-[var(--social-fg-muted)]">
-                        {compactDetail}
-                    </div>
+                    <FitText kind="preview" lines={isCompact ? 2 : 3} text={compactDetail} className="mt-1 pl-4 text-caption text-[var(--social-fg-muted)]" />
                 ) : null}
             </div>
         )
@@ -724,18 +727,18 @@ function ToolCardInner(props: ToolCardProps) {
 
     const compactSummary = (() => {
         if (toolName === 'Task' && taskStateSummaryText && runningAgentNames && subtitle) {
-            return truncate(`${taskStateSummaryText} — ${runningAgentNames} — ${subtitle}`, 96)
+            return `${taskStateSummaryText} — ${runningAgentNames} — ${subtitle}`
         }
         if (toolName === 'Task' && taskStateSummaryText && runningAgentNames) {
-            return truncate(`${taskStateSummaryText} — ${runningAgentNames}`, 96)
+            return `${taskStateSummaryText} — ${runningAgentNames}`
         }
         if (toolName === 'Task' && taskStateSummaryText && subtitle) {
-            return truncate(`${taskStateSummaryText} — ${subtitle}`, 96)
+            return `${taskStateSummaryText} — ${subtitle}`
         }
         if (toolName === 'Task' && taskStateSummaryText) {
-            return truncate(taskStateSummaryText, 96)
+            return taskStateSummaryText
         }
-        return subtitle ? truncate(subtitle, 96) : null
+        return subtitle || null
     })()
 
     return (
@@ -766,14 +769,19 @@ function ToolCardInner(props: ToolCardProps) {
                                         {presentation.icon}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <div className="truncate text-caption font-semibold leading-tight">
-                                            {toolTitle}
-                                            {compactSummary ? (
-                                                <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
-                                                    - {compactSummary}
-                                                </span>
-                                            ) : null}
-                                        </div>
+                                        <FitLine
+                                            className="text-caption font-semibold leading-tight"
+                                            text={(
+                                                <>
+                                                    {toolTitle}
+                                                    {compactSummary ? (
+                                                        <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
+                                                            - {compactSummary}
+                                                        </span>
+                                                    ) : null}
+                                                </>
+                                            )}
+                                        />
                                     </div>
                                     <Badge variant={statusBadgeTone}>
                                         <StatusIcon state={props.block.tool.state} />
@@ -806,14 +814,19 @@ function ToolCardInner(props: ToolCardProps) {
                                                 {presentation.icon}
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <div className="truncate text-caption font-semibold leading-tight">
-                                                    {toolTitle}
-                                                    {compactSummary ? (
-                                                        <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
-                                                            - {compactSummary}
-                                                        </span>
-                                                    ) : null}
-                                                </div>
+                                                <FitLine
+                                                    className="text-caption font-semibold leading-tight"
+                                                    text={(
+                                                        <>
+                                                            {toolTitle}
+                                                            {compactSummary ? (
+                                                                <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
+                                                                    - {compactSummary}
+                                                                </span>
+                                                            ) : null}
+                                                        </>
+                                                    )}
+                                                />
                                             </div>
                                             <Badge variant={statusBadgeTone}>
                                                 <StatusIcon state={props.block.tool.state} />
@@ -850,14 +863,19 @@ function ToolCardInner(props: ToolCardProps) {
                                             {presentation.icon}
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate text-caption font-semibold leading-tight">
-                                                {toolTitle}
-                                                {compactSummary ? (
-                                                    <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
-                                                        - {compactSummary}
-                                                    </span>
-                                                ) : null}
-                                            </div>
+                                            <FitLine
+                                                className="text-caption font-semibold leading-tight"
+                                                text={(
+                                                    <>
+                                                        {toolTitle}
+                                                        {compactSummary ? (
+                                                            <span className="ml-1 font-mono text-caption text-[var(--social-fg-muted)]">
+                                                                - {compactSummary}
+                                                            </span>
+                                                        ) : null}
+                                                    </>
+                                                )}
+                                            />
                                         </div>
                                         <Badge variant={statusBadgeTone}>
                                             <StatusIcon state={props.block.tool.state} />
@@ -938,7 +956,7 @@ function ToolCardInner(props: ToolCardProps) {
 
                                 {subtitle ? (
                                     <CardDescription className="font-mono text-caption break-all opacity-80">
-                                        {truncate(subtitle, 160)}
+                                        <FitText kind="preview" lines={3} text={subtitle} />
                                     </CardDescription>
                                 ) : null}
                                 {renderTaskStateBadge(taskStateSummaryText, runningAgentNames, toolName)}
@@ -984,7 +1002,7 @@ function ToolCardInner(props: ToolCardProps) {
 
                                 {subtitle ? (
                                     <CardDescription className="font-mono text-caption break-all opacity-80">
-                                        {truncate(subtitle, 160)}
+                                        <FitText kind="preview" lines={3} text={subtitle} />
                                     </CardDescription>
                                 ) : null}
                                 {renderTaskStateBadge(taskStateSummaryText, runningAgentNames, toolName)}
@@ -1030,7 +1048,7 @@ function ToolCardInner(props: ToolCardProps) {
 
                                     {subtitle ? (
                                         <CardDescription className="font-mono text-caption break-all opacity-80">
-                                            {truncate(subtitle, 160)}
+                                            <FitText kind="preview" lines={3} text={subtitle} />
                                         </CardDescription>
                                     ) : null}
                                     {toolName === 'Task' && taskStateSummaryText ? (

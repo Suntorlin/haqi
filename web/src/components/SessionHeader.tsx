@@ -329,15 +329,16 @@ export function SessionHeader(props: {
             <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
             <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
             <FitLine className="flex-1" text={<>
+                {/* A context about to run out comes first: the line is cut at its end. */}
+                {contextPercentLeft !== null && contextPercentLeft <= 20 ? (
+                    <span className={contextPercentLeft <= 5 ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'}>
+                        {`· ${t('mobile.chat.contextLeft', { percent: contextPercentLeft })} `}
+                    </span>
+                ) : null}
                 {zoomLevelLabel ? <span className="text-[var(--social-fg)]">{`· ${zoomLevelLabel} `}</span> : null}
                 {shortModel ? `· ${shortModel}` : ''}
                 {permissionLabel ? (
                     <span className={permissionToneClass}>{` · ${permissionLabel}`}</span>
-                ) : null}
-                {contextPercentLeft !== null && contextPercentLeft <= 20 ? (
-                    <span className={contextPercentLeft <= 5 ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'}>
-                        {` · ${t('mobile.chat.contextLeft', { percent: contextPercentLeft })}`}
-                    </span>
                 ) : null}
             </>} />
         </>

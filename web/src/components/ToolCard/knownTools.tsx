@@ -5,7 +5,7 @@ import { BulbIcon, ClipboardIcon, EyeIcon, FileDiffIcon, MessageSquareIcon, Puzz
 import type { ChecklistItem } from '@/components/ToolCard/checklist'
 import { extractTodoChecklist, extractUpdatePlanChecklist } from '@/components/ToolCard/checklist'
 import { basename, resolveDisplayPath } from '@/utils/path'
-import { getInputStringAny, truncate } from '@/lib/toolInputUtils'
+import { getInputStringAny } from '@/lib/toolInputUtils'
 import { en, zhCN } from '@/lib/locales'
 
 const DEFAULT_ICON_CLASS = 'h-3.5 w-3.5'
@@ -109,14 +109,14 @@ function getMcpSubtitle(input: unknown, result: unknown): string | null {
     const fromInput = getStringFromRecord(inputRecord, ['query', 'url', 'path', 'file', 'command', 'cmd', 'message'])
         ?? getStringFromRecord(argsRecord, ['query', 'url', 'path', 'file', 'command', 'cmd', 'message', 'title', 'pattern'])
     if (fromInput) {
-        return truncate(fromInput, 100)
+        return fromInput
     }
 
     const fromResult = getWebSearchQueryFromPayload(result)
         ?? getStringFromRecord(getRecord(result), ['message', 'error', 'status'])
         ?? getStringFromRecord(getRecord(getRecord(result)?.result), ['message', 'error', 'status'])
     if (fromResult) {
-        return truncate(fromResult, 100)
+        return fromResult
     }
 
     const tool = getStringFromRecord(inputRecord, ['tool'])
@@ -140,7 +140,7 @@ function getCollabSubtitle(input: unknown, result: unknown, t: Translate): strin
     if (!payload) return null
 
     const prompt = getInputStringAny(payload, ['prompt'])
-    if (prompt) return truncate(prompt, 100)
+    if (prompt) return prompt
 
     const receivers = Array.isArray(payload.receiver_thread_ids)
         ? payload.receiver_thread_ids.filter((value): value is string => typeof value === 'string')
@@ -180,7 +180,7 @@ export const knownTools: Record<string, {
         },
         subtitle: (opts) => {
             const prompt = getInputStringAny(opts.input, ['prompt'])
-            return prompt ? truncate(prompt, 120) : null
+            return prompt ? prompt : null
         },
         minimal: (opts) => opts.childrenCount === 0
     },
@@ -210,7 +210,7 @@ export const knownTools: Record<string, {
         },
         subtitle: (opts) => {
             const summary = getInputStringAny(opts.input, ['summary'])
-            return summary ? truncate(summary, 120) : null
+            return summary ? summary : null
         },
         minimal: true
     },
@@ -353,7 +353,7 @@ export const knownTools: Record<string, {
         subtitle: (opts) => {
             const query = getWebSearchQueryFromPayload(opts.input)
                 ?? getWebSearchQueryFromPayload(opts.result)
-            return query ? truncate(query, 80) : null
+            return query ? query : null
         },
         minimal: (opts) => opts.result == null
     },
@@ -410,7 +410,7 @@ export const knownTools: Record<string, {
         title: (opts) => getInputStringAny(opts.input, ['title']) ?? opts.t('mobile.turn.reasoning'),
         subtitle: (opts) => {
             const content = getInputStringAny(opts.result, ['content'])
-            return content ? truncate(content, 120) : null
+            return content ? content : null
         },
         minimal: true
     },
@@ -504,9 +504,9 @@ export const knownTools: Record<string, {
                 ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
-                return opts.t('tool.subtitle.more', { text: truncate(question, 100), n: count - 1 })
+                return opts.t('tool.subtitle.more', { text: question, n: count - 1 })
             }
-            return question.length > 0 ? truncate(question, 120) : null
+            return question.length > 0 ? question : null
         },
         minimal: true
     },
@@ -534,9 +534,9 @@ export const knownTools: Record<string, {
                 ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
-                return opts.t('tool.subtitle.more', { text: truncate(question, 100), n: count - 1 })
+                return opts.t('tool.subtitle.more', { text: question, n: count - 1 })
             }
-            return question.length > 0 ? truncate(question, 120) : null
+            return question.length > 0 ? question : null
         },
         minimal: true
     },
@@ -569,9 +569,9 @@ export const knownTools: Record<string, {
                 ? first.question.trim() : ''
 
             if (count > 1 && question.length > 0) {
-                return opts.t('tool.subtitle.more', { text: truncate(question, 100), n: count - 1 })
+                return opts.t('tool.subtitle.more', { text: question, n: count - 1 })
             }
-            return question.length > 0 ? truncate(question, 120) : null
+            return question.length > 0 ? question : null
         },
         minimal: true
     }
@@ -626,7 +626,7 @@ export function getToolPresentation(
     return {
         icon: <WrenchIcon className={DEFAULT_ICON_CLASS} />,
         title: opts.toolName,
-        subtitle: subtitle ? truncate(subtitle, 80) : null,
+        subtitle: subtitle || null,
         minimal: true
     }
 }

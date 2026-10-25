@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { FitText } from '@/components/ui/FitText'
 import { buildPathProbeKey, getOrLoadPathProbeResult, type PathProbeResult, type PathProbeState } from '@/lib/filePathProbe'
 import { encodeBase64 } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -316,10 +317,10 @@ export function PathActionLink(props: {
                 <button
                     type="button"
                     onClick={openFilePage}
-                    className={cn('max-w-[16rem] truncate font-mono text-[0.8em] text-[var(--social-fg)] underline decoration-dotted hover:opacity-90', TEXT_HIT_AREA_CLASS)}
+                    className={cn('min-w-0 max-w-[16rem] font-mono text-[0.8em] text-[var(--social-fg)] underline decoration-dotted hover:opacity-90', TEXT_HIT_AREA_CLASS)}
                     title={path}
                 >
-                    {path}
+                    <FitText kind="id" text={path} />
                 </button>
                 <button
                     type="button"
@@ -345,7 +346,7 @@ export function PathActionLink(props: {
                     </span>
                 ) : null}
                 {errorMessage ? (
-                    <span className="max-w-[8rem] truncate text-caption text-[var(--social-danger)]" title={errorMessage}>
+                    <span className="max-w-[8rem] text-caption text-[var(--social-danger)]" title={errorMessage}>
                         !
                     </span>
                 ) : null}

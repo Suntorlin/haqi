@@ -3,6 +3,7 @@ import type { TaskView } from '@/types/api'
 import { isTaskOpen } from '@/lib/tasks'
 import { BottomSheet, SheetNote, SheetOption, SheetSection } from '@/components/mobile/BottomSheet'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
+import { FitText } from '@/components/ui/FitText'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
@@ -55,9 +56,7 @@ export function SessionTaskSheet(props: {
                                         selected={linked}
                                         onSelect={() => props.onToggle(task, !linked)}
                                         label={(
-                                            <span className={cn('block truncate', !isTaskOpen(task) ? 'text-[var(--social-fg-muted)]' : null)}>
-                                                {task.name}
-                                            </span>
+                                            <FitText kind="title" text={task.name} className={cn(!isTaskOpen(task) ? 'text-[var(--social-fg-muted)]' : null)} />
                                         )}
                                     />
                                 )

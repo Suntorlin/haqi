@@ -90,6 +90,7 @@ import {
 import { useGroupInfoPanel } from './group-info'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Card } from '@/components/ui/card'
+import { FitText } from '@/components/ui/FitText'
 import { TaskReport, type TaskComposerOptions } from '@/components/tasks/TaskReport'
 import type { LatestMessage } from '@/components/report'
 import { formatRelativeTime } from '@/components/SessionList'
@@ -260,7 +261,7 @@ function MemberStatusLine(props: { session: SessionSummary | undefined; status: 
             ) : (
                 <span className="shrink-0">{status === 'online' ? t('misc.online') : status === 'finished' ? t('groups.member.finished') : t('misc.offline')}</span>
             )}
-            {meta ? <span className="min-w-0 truncate">{`· ${meta}`}</span> : null}
+            {meta ? <FitText kind="preview" lines={1} text={`· ${meta}`} /> : null}
         </span>
     )
 }
@@ -567,12 +568,13 @@ function SessionPickRow(props: { session: SessionSummary; disabled: boolean; onP
         >
             <SessionAvatar session={session} size={36} muted={!session.active} />
             <span className="min-w-0 flex-1">
-                <span className="block truncate text-body text-[var(--social-fg)]">
-                    {getSessionTitle(session, { fallbackIdLength: 12 })}
-                </span>
-                <span className="block truncate text-footnote text-[var(--social-fg-muted)]">
-                    {[session.metadata?.flavor, getProjectName(getSessionProjectPath(session))].filter(Boolean).join(' · ')}
-                </span>
+                <FitText kind="title" text={getSessionTitle(session, { fallbackIdLength: 12 })} className="text-body text-[var(--social-fg)]" />
+                <FitText
+                    kind="preview"
+                    lines={1}
+                    text={[session.metadata?.flavor, getProjectName(getSessionProjectPath(session))].filter(Boolean).join(' · ')}
+                    className="text-footnote text-[var(--social-fg-muted)]"
+                />
             </span>
         </button>
     )
@@ -733,7 +735,7 @@ function MemberRow(props: {
                     badgeCount={status === 'pending' ? session?.pendingRequestsCount : 0}
                 />
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body text-[var(--social-fg)]">{title}</span>
+                    <FitText kind="title" text={title} className="text-body text-[var(--social-fg)]" />
                     <MemberStatusLine session={session} status={status} />
                 </span>
             </button>
@@ -809,12 +811,14 @@ function GroupInfoSheet(props: {
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <GroupAvatar seed={props.groupId} members={memberSessions} size={48} />
                 <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-headline font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{props.name}</div>
-                    <div className="mt-1 truncate text-footnote text-[var(--social-fg-muted)]">
-                        {t('groups.info.summary', { n: props.members.length, m: onlineCount })}
-                    </div>
+                    <FitText kind="title" lines={2} text={props.name} className="text-headline font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]" />
+                    <FitText
+                        kind="value"
+                        text={t('groups.info.summary', { n: props.members.length, m: onlineCount })}
+                        className="mt-1 text-footnote text-[var(--social-fg-muted)]"
+                    />
                     {props.description ? (
-                        <div className="mt-0.5 line-clamp-2 text-footnote text-[var(--social-fg-muted)]">{props.description}</div>
+                        <FitText kind="preview" lines={2} text={props.description} className="mt-0.5 text-footnote text-[var(--social-fg-muted)]" />
                     ) : null}
                 </div>
             </div>
@@ -922,7 +926,7 @@ function MemberActionsSheet(props: {
                     <div className="flex items-center gap-3.5 px-5 pb-4 pt-2">
                         <SessionAvatar session={{ id: member.sessionId ?? `member:${member.id}` }} size={44} ring={getMemberRing(status)} muted={status === 'offline' || status === 'finished'} />
                         <div className="min-w-0 flex-1">
-                            <div className="line-clamp-2 text-headline font-semibold leading-snug text-[var(--social-fg)]">{title}</div>
+                            <FitText kind="title" lines={2} text={title} className="text-headline font-semibold leading-snug text-[var(--social-fg)]" />
                             <MemberStatusLine session={session} status={status} />
                         </div>
                     </div>
@@ -1054,7 +1058,7 @@ function PendingRequestsSheet(props: {
                 <div className="flex items-center gap-3 px-5 pb-4 pt-1">
                     <SessionAvatar session={{ id: props.sessionId }} size={40} ring={props.requests.length > 0 ? 'pending' : null} />
                     <div className="min-w-0 flex-1">
-                        <div className="truncate text-body font-semibold text-[var(--social-fg)]">{props.sessionTitle}</div>
+                        <FitText kind="title" text={props.sessionTitle} className="text-body font-semibold text-[var(--social-fg)]" />
                         <div className="text-footnote text-[var(--social-fg-muted)]">
                             {props.requests.length > 0 ? t('mobile.feed.pending', { n: props.requests.length }) : t('groups.pending.none')}
                         </div>
@@ -1069,7 +1073,7 @@ function PendingRequestsSheet(props: {
                 <section key={request.id} className="px-4 pb-3">
                     <Card className="overflow-hidden">
                         <div className="flex items-baseline gap-2 px-4 pt-3">
-                            <span className="min-w-0 flex-1 truncate text-body font-semibold text-[var(--social-fg)]">{request.tool}</span>
+                            <FitText kind="id" text={request.tool} className="flex-1 text-body font-semibold text-[var(--social-fg)]" />
                             {request.createdAt ? (
                                 <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">{formatTime(request.createdAt)}</span>
                             ) : null}
@@ -1124,7 +1128,7 @@ function PendingBanner(props: {
                 >
                     <SessionAvatar session={{ id: item.sessionId }} size={32} ring="pending" />
                     <span className="min-w-0 flex-1">
-                        <span className="block truncate text-body font-semibold text-[var(--social-fg)]">{item.title}</span>
+                        <FitText kind="title" text={item.title} className="text-body font-semibold text-[var(--social-fg)]" />
                         <span className="block text-footnote text-[var(--social-badge)]">{t('mobile.feed.pending', { n: item.count })}</span>
                     </span>
                     <span aria-hidden className={buttonVariants({ size: 'sm' })}>
@@ -1177,8 +1181,8 @@ function TaskStateList(props: { taskStates: LatestTaskStates; sessionMap: Map<st
                             <div key={task.taskId ?? task.id} className="flex min-w-0 items-center gap-2 text-caption">
                                 <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', taskStatusDotClass(status))} />
                                 <span className="shrink-0 text-[var(--social-fg)]">{t(`groups.task.status.${status}`)}</span>
-                                {target ? <span className="min-w-0 truncate text-[var(--social-fg-muted)]">{target}</span> : null}
-                                {error ? <span className="min-w-0 truncate text-[var(--social-danger)]">{error}</span> : null}
+                                {target ? <FitText kind="title" lines={1} text={target} className="text-[var(--social-fg-muted)]" /> : null}
+                                {error ? <FitText kind="preview" lines={1} text={error} className="text-[var(--social-danger)]" /> : null}
                             </div>
                         )
                     })}
@@ -1278,10 +1282,10 @@ function TimelineBubble(props: {
                             title={t('groups.message.openSession', { name: actorTitle })}
                         >
                             <SessionAvatar session={{ id: actorSessionId }} size={18} muted={!actorSession?.active} />
-                            <span className="truncate text-footnote font-semibold text-[var(--social-fg-muted)]">{actorTitle}</span>
+                            <FitText kind="title" lines={1} text={actorTitle} className="text-footnote font-semibold text-[var(--social-fg-muted)]" />
                         </button>
                     ) : (
-                        <div className="mb-1 max-w-[88%] truncate px-1 text-footnote font-semibold text-[var(--social-fg-muted)]">{actorTitle}</div>
+                        <FitText kind="title" lines={1} text={actorTitle} className="mb-1 max-w-[88%] px-1 text-footnote font-semibold text-[var(--social-fg-muted)]" />
                     )
                 ) : null}
                 <div className={cn('flex min-w-0 max-w-[88%] items-end gap-1 lg:max-w-[75%]', isUser ? 'flex-row-reverse' : 'flex-row')}>
@@ -1303,7 +1307,7 @@ function TimelineBubble(props: {
                                 )}
                             >
                                 <span className="font-semibold">{quoteInfo.actorName || t('groups.message.unknownActor')}</span>
-                                <span className="line-clamp-2 break-words">{truncateText(quoteInfo.quotedText, 120)}</span>
+                                <FitText kind="preview" lines={1} text={truncateText(quoteInfo.quotedText, 120)} />
                             </div>
                         ) : null}
                         {text ? (
@@ -1437,12 +1441,13 @@ function ComposerAttachmentList(props: {
                             </span>
                         )}
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-footnote text-[var(--social-fg)]">
-                                {attachment.filename}
-                            </div>
-                            <div className={cn('truncate text-caption', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}>
-                                {statusText}
-                            </div>
+                            <FitText kind="id" text={attachment.filename} className="text-footnote text-[var(--social-fg)]" />
+                            <FitText
+                                kind="preview"
+                                lines={1}
+                                text={statusText}
+                                className={cn('text-caption', attachment.status === 'error' ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg-subtle)]')}
+                            />
                         </div>
                         <IconButton
                             size="sm"
@@ -2975,7 +2980,7 @@ export default function GroupDetailPage() {
                             || t('groups.message.unknownActor')
                     })}
                 </span>
-                <span className="line-clamp-2 break-all">{truncateText(extractBubbleText(quotedMessage), 96)}</span>
+                <FitText kind="preview" lines={1} text={truncateText(extractBubbleText(quotedMessage), 96)} className="break-all" />
             </span>
             <IconButton
                 size="sm"

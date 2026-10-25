@@ -162,7 +162,7 @@ Cutting the end off is the last resort. Decide by what the text is:
 | `preview` | last message under a title | cut; opening it shows all |
 
 A native `<select>` cuts its label: `SelectInput` already shows the chosen option as wrapping text with the select invisible over it; a select outside a form does the same (`SessionHeader` account row).
-`truncate` / `line-clamp-*` anywhere but `FitText.tsx` fail `src/lib/textFit.guard.test.ts`; the places that still do it are in `src/lib/textFit.baseline.json`, which may only shrink.
+`truncate` / `line-clamp-*` (or a `truncate()` helper) anywhere but `FitText.tsx` fail `src/lib/textFit.guard.test.ts`. There are none left; keep it that way.
 
 ## 4. Do / don't
 

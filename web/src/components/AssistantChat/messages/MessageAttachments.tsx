@@ -1,5 +1,6 @@
 import type { AttachmentMetadata } from '@/types/api'
 import { FileIcon } from '@/components/FileIcon'
+import { FitText } from '@/components/ui/FitText'
 import { isImageMimeType } from '@/lib/fileAttachments'
 
 function formatFileSize(bytes: number): string {
@@ -18,9 +19,7 @@ function ImageAttachment(props: { attachment: AttachmentMetadata }) {
                 className="max-h-48 max-w-full object-contain"
             />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[var(--scrim-strong)] to-transparent px-2 py-1.5">
-                <span className="text-xs text-[var(--social-on-accent)] line-clamp-1">
-                    {attachment.filename}
-                </span>
+                <FitText kind="id" text={attachment.filename} className="text-xs text-[var(--social-on-accent)]" />
             </div>
         </div>
     )
@@ -32,9 +31,7 @@ function FileAttachment(props: { attachment: AttachmentMetadata }) {
         <div className="flex items-center gap-2 rounded-xl bg-[var(--social-surface)] px-3 py-2">
             <FileIcon fileName={attachment.filename} size={24} />
             <div className="min-w-0 flex-1">
-                <div className="truncate text-base font-semibold text-[var(--social-fg)]">
-                    {attachment.filename}
-                </div>
+                <FitText kind="id" text={attachment.filename} className="text-base font-semibold text-[var(--social-fg)]" />
                 <div className="text-xs text-[var(--social-fg-muted)]">
                     {formatFileSize(attachment.size)}
                 </div>

@@ -3,6 +3,7 @@ import type { ApiClient } from '@/api/client'
 import type { ChatToolCall } from '@/chat/types'
 import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
+import { FitText } from '@/components/ui/FitText'
 import { TextField } from '@/components/ui/TextField'
 import { ChevronDownIcon, CloseIcon } from '@/components/mobile/icons'
 import { Spinner } from '@/components/Spinner'
@@ -308,9 +309,7 @@ export function QuestionToolOverlay(props: {
                 <div className="pointer-events-auto flex w-full max-w-sm flex-col gap-2 rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] p-3 shadow-[var(--shadow-float)]">
                     <div className="flex items-center gap-2">
                         <div className="min-w-0 flex-1">
-                            <div className="truncate text-body font-semibold text-[var(--social-fg)]">
-                                {currentQuestion.header || t('tool.questionOverlay.title')}
-                            </div>
+                            <FitText kind="title" text={currentQuestion.header || t('tool.questionOverlay.title')} className="text-body font-semibold text-[var(--social-fg)]" />
                             <div className="text-footnote text-[var(--social-fg-muted)]">
                                 {t('tool.questionOverlay.minimizedDescription', { answeredCount, total })}
                             </div>
@@ -336,9 +335,13 @@ export function QuestionToolOverlay(props: {
             <div className="absolute inset-0 overflow-y-auto px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)] sm:flex sm:items-center sm:justify-center sm:p-6">
                 <div className="mx-auto flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-muted)] shadow-[var(--shadow-float)] sm:max-h-[min(88vh,860px)]">
                     <div className="flex shrink-0 items-center justify-between gap-2 py-1 pl-4 pr-2">
-                        <span className="min-w-0 truncate text-footnote text-[var(--social-fg-muted)]">
-                            {[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
-                        </span>
+                        <FitText
+                            kind="label"
+                            lines={1}
+                            text={[currentQuestion.header, total > 1 ? `${clampedStep + 1}/${total}` : null].filter(Boolean).join(' · ')}
+                            candidates={total > 1 ? [`${clampedStep + 1}/${total}`] : []}
+                            className="flex-1 text-footnote text-[var(--social-fg-muted)]"
+                        />
                         <div className="flex shrink-0 items-center">
                             <IconButton label={t('tool.questionOverlay.minimize')} disabled={loading} onClick={() => setIsMinimized(true)}>
                                 <ChevronDownIcon className="h-4 w-4" />

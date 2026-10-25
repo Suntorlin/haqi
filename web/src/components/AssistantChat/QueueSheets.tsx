@@ -207,9 +207,11 @@ function QueueEntryRow(props: {
                     aria-expanded={expanded}
                     aria-label={expanded ? t('queue.entry.showLess') : t('queue.entry.showMore')}
                     onClick={() => setExpanded((value) => !value)}
-                    className={cn('block w-full break-words text-left text-body leading-snug text-[var(--social-fg)]', expanded ? 'whitespace-pre-wrap' : 'line-clamp-3')}
+                    className={cn('block w-full break-words text-left text-body leading-snug text-[var(--social-fg)]', expanded && 'whitespace-pre-wrap')}
                 >
-                    {text || t('queue.dialog.emptyMessage')}
+                    {expanded
+                        ? text || t('queue.dialog.emptyMessage')
+                        : <FitText kind="preview" lines={3} text={text || t('queue.dialog.emptyMessage')} />}
                 </button>
                 <div className="mt-1 text-caption text-[var(--social-fg-subtle)]">
                     {new Date(entry.enqueuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

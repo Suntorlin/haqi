@@ -53,6 +53,7 @@ import {
 } from '@/components/AssistantChat/MobileComposerParts'
 import { HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { IconButton } from '@/components/ui/IconButton'
 import { CloseIcon } from '@/components/mobile/icons'
 import { SettingChip, SwitchChip, ToggleChip } from '@/components/ui/SettingChip'
@@ -1117,9 +1118,7 @@ export function HappyComposer(props: {
                     className="flex max-w-full items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote text-[var(--social-fg)]"
                     title={attachment.path}
                 >
-                    <span className="max-w-[180px] truncate">
-                        {attachment.filename}
-                    </span>
+                    <FitText kind="id" text={attachment.filename} className="max-w-[180px]" />
                     <IconButton
                         size="xs"
                         label={t('composer.attachment.remove')}
@@ -1277,7 +1276,7 @@ export function HappyComposer(props: {
                         <div className="relative flex items-end gap-2 px-3 pt-2 data-[dragging=true]:bg-[var(--social-muted)]">
                             {!active ? (
                                 <div className="absolute inset-x-3 bottom-0 top-2 z-20 flex items-center justify-between gap-3 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] pl-4 pr-1 text-body text-[var(--social-fg-muted)]">
-                                    <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
+                                    <FitText kind="label" lines={2} text={offlineWakeMessage ?? t('session.inactiveMessage')} />
                                     <Button
                                         size="sm"
                                         onClick={onOfflineWake}
@@ -1371,7 +1370,7 @@ export function HappyComposer(props: {
                     <div className="relative overflow-hidden rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] shadow-[var(--shadow-card)] transition-colors focus-within:border-[var(--social-fg-subtle)] data-[dragging=true]:border-[var(--social-fg)] data-[dragging=true]:bg-[var(--social-muted)]">
                         {!active ? (
                             <div className="absolute inset-0 z-20 flex items-center justify-between gap-3 bg-[var(--social-surface)] pl-5 pr-2.5 text-body text-[var(--social-fg-muted)]">
-                                <span className="min-w-0 truncate">{offlineWakeMessage ?? t('session.inactiveMessage')}</span>
+                                <FitText kind="label" lines={2} text={offlineWakeMessage ?? t('session.inactiveMessage')} />
                                 <Button
                                     size="sm"
                                     onClick={onOfflineWake}

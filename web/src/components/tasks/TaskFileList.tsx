@@ -5,6 +5,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { isImageMimeType } from '@/lib/fileAttachments'
 import { formatFileSize } from '@/lib/taskFiles'
 import { FileIcon } from '@/components/FileIcon'
+import { FitText } from '@/components/ui/FitText'
 
 type Loaded = { filename: string; mimeType: string; content: string }
 
@@ -71,8 +72,8 @@ export function TaskFileList(props: { api: ApiClient | null; task: TaskView }) {
                                 <span className="shrink-0"><FileIcon fileName={file.name} size={24} /></span>
                             )}
                             <span className="min-w-0 max-w-[180px]">
-                                <span className="block truncate text-footnote text-[var(--social-fg)]">{file.name}</span>
-                                <span className="block truncate text-caption text-[var(--social-fg-subtle)]">{formatFileSize(file.size)}</span>
+                                <FitText kind="id" text={file.name} className="text-footnote text-[var(--social-fg)]" />
+                                <FitText kind="value" text={formatFileSize(file.size)} className="text-caption text-[var(--social-fg-subtle)]" />
                             </span>
                         </button>
                     )

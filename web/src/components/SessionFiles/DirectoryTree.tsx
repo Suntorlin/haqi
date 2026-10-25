@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { ApiClient } from '@/api/client'
 import { FileIcon } from '@/components/FileIcon'
 import { DisclosureIcon, DownloadIcon, FolderIcon } from '@/components/mobile/icons'
+import { FitText } from '@/components/ui/FitText'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/Spinner'
 import { useSessionDirectory } from '@/hooks/queries/useSessionDirectory'
@@ -75,7 +76,7 @@ function DirectoryNode(props: {
                 <DisclosureIcon open={isExpanded} className="h-4 w-4 text-[var(--social-fg-muted)]" />
                 <FolderIcon className="h-[22px] w-[22px] text-[var(--social-fg)]" />
                 <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold">{props.label}</div>
+                    <FitText kind="title" text={props.label} className="font-semibold" />
                 </div>
             </button>
 
@@ -121,7 +122,7 @@ function DirectoryNode(props: {
                                         <span className="h-4 w-4" />
                                         <FileIcon fileName={entry.name} size={22} />
                                         <div className="min-w-0 flex-1">
-                                            <div className="truncate font-semibold">{entry.name}</div>
+                                            <FitText kind="title" text={entry.name} className="font-semibold" />
                                         </div>
                                     </button>
                                     <IconButton

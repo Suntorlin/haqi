@@ -2,6 +2,7 @@ import { memo, useState } from 'react'
 import type { ToolCallBlock } from '@/chat/types'
 import { Spinner } from '@/components/Spinner'
 import { getToolPresentation } from '@/components/ToolCard/knownTools'
+import { FitText } from '@/components/ui/FitText'
 import { useTranslation } from '@/lib/use-translation'
 import { useOptionalHappyChatContext } from '@/components/AssistantChat/context'
 import { isObject } from '@hapi/protocol'
@@ -163,9 +164,7 @@ export const CliToolBlock = memo(function CliToolBlock(props: { block: ToolCallB
 
                 {/* Subtitle / key param */}
                 {pres.subtitle && (
-                    <span className="text-[var(--social-fg-muted)] truncate opacity-70">
-                        {pres.subtitle}
-                    </span>
+                    <FitText kind="preview" lines={1} text={pres.subtitle} className="flex-1 text-[var(--social-fg-muted)] opacity-70" />
                 )}
 
                 {/* Duration */}

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useMemo } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { FitText } from '@/components/ui/FitText'
 import { usePointerFocusRing } from '@/hooks/usePointerFocusRing'
 import { useTheme } from '@/hooks/useTheme'
 import { buildSyntheticUnifiedDiff, inferGitDiffLanguage, normalizeGitDiffLanguage } from '@/lib/gitDiff'
@@ -70,15 +71,13 @@ export function DiffView(props: {
                 >
                     <div className="overflow-hidden rounded-md border border-[var(--social-border)] bg-[var(--social-hover)] transition-colors hover:bg-[var(--social-muted)]">
                         {props.filePath ? (
-                            <div className="truncate border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1 text-xs text-[var(--social-fg-muted)]">
-                                {props.filePath}
+                            <div className="border-b border-[var(--social-border)] bg-[var(--social-hover)] px-2 py-1 text-xs text-[var(--social-fg-muted)]">
+                                <FitText kind="id" text={props.filePath} />
                             </div>
                         ) : null}
                         <div className="px-2 py-2">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0 truncate font-mono text-xs text-[var(--social-fg-muted)]">
-                                    {props.filePath ? stats.label : subtitle}
-                                </div>
+                                <FitText kind="label" text={props.filePath ? stats.label : subtitle} className="font-mono text-xs text-[var(--social-fg-muted)]" />
                                 <div className="shrink-0 text-xs text-[var(--social-fg)]">
                                     {t('diff.view')}
                                 </div>

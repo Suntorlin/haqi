@@ -110,7 +110,7 @@ export function DesignShowcase() {
                             <div className={`h-14 ${cls}`} />
                             <div className="px-3 py-2">
                                 <div className="text-footnote font-semibold">{label}</div>
-                                <div className="truncate text-caption text-[var(--social-fg-muted)]">{name}</div>
+                                <FitText kind="id" text={name} className="text-caption text-[var(--social-fg-muted)]" />
                             </div>
                         </div>
                     ))}
@@ -126,7 +126,7 @@ export function DesignShowcase() {
                                     <div className={`h-11 w-16 shrink-0 border border-[var(--social-fg-subtle)] bg-[var(--social-muted)] ${cls}`} />
                                     <div className="min-w-0">
                                         <div className="text-footnote font-semibold">{name} <span className="font-normal text-[var(--social-fg-muted)]">{px}px</span></div>
-                                        <div className="truncate text-caption text-[var(--social-fg-muted)]">{use}</div>
+                                        <FitText kind="title" text={use} className="text-caption text-[var(--social-fg-muted)]" />
                                     </div>
                                 </div>
                             ))}
@@ -397,7 +397,7 @@ export function DesignShowcase() {
                             return (
                                 <div key={name} className="flex flex-col items-center gap-1.5 rounded-xl border border-[var(--social-border)] px-1 py-3">
                                     <Glyph className="h-5 w-5" />
-                                    <span className="w-full truncate text-center text-caption text-[var(--social-fg-muted)]">{name.replace(/Icon$/, '')}</span>
+                                    <FitText kind="id" text={name.replace(/Icon$/, '')} className="w-full text-center text-caption text-[var(--social-fg-muted)]" />
                                 </div>
                             )
                         })}

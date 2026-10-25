@@ -14,6 +14,7 @@ import { decodeBase64 } from '@/lib/utils'
 import { isOutsideWorkspacePathCandidate } from '@/lib/pathLinks'
 import { useTranslation } from '@/lib/use-translation'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
+import { FitText } from '@/components/ui/FitText'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spinner } from '@/components/Spinner'
 import { useSessionFileDownload } from '@/hooks/useSessionFileDownload'
@@ -310,7 +311,7 @@ export default function FilePage() {
             <div className="bg-[var(--social-surface)]">
                 <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--social-divider)]">
                     <FileIcon fileName={fileName} size={20} />
-                    <span className="min-w-0 flex-1 truncate text-xs text-[var(--social-fg-muted)]">{filePath}</span>
+                    <FitText kind="id" text={filePath} className="flex-1 text-xs text-[var(--social-fg-muted)]" />
                     <IconButton label={t('file.copyPath')} onClick={() => copyPath(filePath)} className="-my-2">
                         {pathCopied ? <CheckIcon className="h-3.5 w-3.5" /> : <CopyIcon className="h-3.5 w-3.5" />}
                     </IconButton>

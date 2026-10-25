@@ -49,6 +49,7 @@ import {
 } from '@/components/settings/SettingsParts'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FitText } from '@/components/ui/FitText'
 
 const locales: { value: Locale; nativeLabel: string }[] = [
     { value: 'en', nativeLabel: 'English' },
@@ -1294,9 +1295,7 @@ export default function SettingsPage() {
                                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                                         <div className="min-w-0">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="truncate text-body font-semibold text-[var(--social-fg)]">
-                                                                    {profile.name}
-                                                                </span>
+                                                                <FitText kind="title" text={profile.name} className="text-body font-semibold text-[var(--social-fg)]" />
                                                                 {profile.isActive ? (
                                                                     <Badge variant="success" dot>
                                                                         {t('settings.codexCredentials.profile.active')}

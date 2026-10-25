@@ -5,6 +5,7 @@ import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/componen
 import { ChevronRightIcon, SearchIcon } from '@/components/mobile/icons'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { FormField, SegmentedControl } from '@/components/ui/FormControls'
 import { TextField } from '@/components/ui/TextField'
 import { matchesSessionSearch } from '@/lib/session-search'
@@ -60,9 +61,11 @@ function SessionPicker(props: {
                 aria-expanded={open}
             >
                 {selected ? <SessionAvatar session={selected} size={30} muted={!selected.active} /> : null}
-                <span className={cn('min-w-0 flex-1 truncate text-body', selected ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)]')}>
-                    {selected ? getSessionTitle(selected, { fallbackIdLength: 12 }) : t('loops.create.pickSession')}
-                </span>
+                <FitText
+                    kind="title"
+                    text={selected ? getSessionTitle(selected, { fallbackIdLength: 12 }) : t('loops.create.pickSession')}
+                    className={cn('flex-1 text-body', selected ? 'text-[var(--social-fg)]' : 'text-[var(--social-fg-subtle)]')}
+                />
                 <ChevronRightIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', open ? 'rotate-90' : '')} />
             </button>
             {open ? (
@@ -94,11 +97,12 @@ function SessionPicker(props: {
                             >
                                 <SessionAvatar session={session} size={28} muted={!session.active} />
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-body text-[var(--social-fg)]">{getSessionTitle(session, { fallbackIdLength: 12 })}</span>
-                                    <span className="block truncate text-caption text-[var(--social-fg-muted)]">
-                                        {getProjectName(getSessionProjectPath(session))}
-                                        {session.active ? '' : ` · ${t('misc.offline')}`}
-                                    </span>
+                                    <FitText kind="title" text={getSessionTitle(session, { fallbackIdLength: 12 })} className="text-body text-[var(--social-fg)]" />
+                                    <FitText
+                                        kind="preview"
+                                        text={`${getProjectName(getSessionProjectPath(session))}${session.active ? '' : ` · ${t('misc.offline')}`}`}
+                                        className="text-caption text-[var(--social-fg-muted)]"
+                                    />
                                 </span>
                             </button>
                         ))}

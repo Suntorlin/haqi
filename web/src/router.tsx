@@ -28,6 +28,7 @@ import { MobileSearchField } from '@/components/mobile/MobileSearchField'
 import { GroupAvatar, Orb, PairAvatar } from '@/components/mobile/SessionAvatar'
 import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
+import { FitText } from '@/components/ui/FitText'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
 import { NewSession } from '@/components/NewSession'
@@ -156,7 +157,7 @@ function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: (
             style={{ transform: CSS.Transform.toString(transform), transition }}
             className={`${tagChipClass(selected)} cursor-grab select-none active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''}`}
         >
-            #{tag}
+            <FitText kind="label" lines={1} text={`#${tag}`} />
         </button>
     )
 }
@@ -548,7 +549,7 @@ function SessionsPage() {
                             onClick={() => selectTagView(tag)}
                             className={tagChipClass(selectedSessionTag === tag)}
                         >
-                            #{tag}
+                            <FitText kind="label" lines={1} text={`#${tag}`} />
                         </button>
                     )) : (
                         // Desktop keeps drag-to-reorder for tag filters.

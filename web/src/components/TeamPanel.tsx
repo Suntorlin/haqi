@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import type { AgentState, TeamControlAction, TeamControlRequest, TeamState } from '@hapi/protocol/types'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { FormField, SelectInput } from '@/components/ui/FormControls'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { useTranslation } from '@/lib/use-translation'
@@ -211,12 +212,8 @@ export function TeamPanel(props: {
             >
                 <UsersIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold text-[var(--social-fg)]">
-                        {teamState ? t('team.title', { name: title }) : title}
-                    </span>
-                    <span className="block truncate text-caption text-[var(--social-fg-muted)]">
-                        {summary}
-                    </span>
+                    <FitText kind="title" text={teamState ? t('team.title', { name: title }) : title} className="font-semibold text-[var(--social-fg)]" />
+                    <FitText kind="label" text={summary} className="text-caption text-[var(--social-fg-muted)]" />
                 </span>
                 <ChevronDownIcon className={cn('h-4 w-4 shrink-0 text-[var(--social-fg-subtle)] transition-transform', expanded && 'rotate-180')} />
             </button>

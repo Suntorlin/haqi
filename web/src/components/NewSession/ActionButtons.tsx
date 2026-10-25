@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { Spinner } from '@/components/Spinner'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -25,7 +26,7 @@ export function ActionButtons(props: {
                         {t('newSession.creating')}
                     </>
                 ) : props.projectName ? (
-                    <span className="truncate">{t('newSession.startIn', { name: props.projectName })}</span>
+                    <FitText kind="label" lines={1} text={t('newSession.startIn', { name: props.projectName })} />
                 ) : (
                     t('newSession.create')
                 )}

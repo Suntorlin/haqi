@@ -7,6 +7,7 @@ import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { FitText } from '@/components/ui/FitText'
 import { ChoiceChips, FieldHint, SegmentedControl } from '@/components/ui/FormControls'
 import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
@@ -43,7 +44,7 @@ function useDebounced(value: string, ms: number): string {
 
 /** Long sentences stay at three lines in lists; the edit sheet shows all of it. */
 function Clamp(props: { text: string }) {
-    return <span className="line-clamp-3">{props.text}</span>
+    return <FitText kind="preview" lines={3} text={props.text} />
 }
 
 /** The round mark of a row in select mode. */

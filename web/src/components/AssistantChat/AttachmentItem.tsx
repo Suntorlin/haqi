@@ -1,5 +1,6 @@
 import { AttachmentPrimitive, useThreadComposerAttachment } from '@assistant-ui/react'
 import { Spinner } from '@/components/Spinner'
+import { FitText } from '@/components/ui/FitText'
 import { IconButton } from '@/components/ui/IconButton'
 import { AlertCircleIcon, CloseIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
@@ -18,7 +19,7 @@ export function AttachmentItem() {
                     <AlertCircleIcon className="h-4 w-4" />
                 </span>
             ) : null}
-            <span className="max-w-[180px] truncate">{name}</span>
+            <FitText kind="id" text={name} className="max-w-[180px]" />
             <AttachmentPrimitive.Remove asChild>
                 <IconButton size="xs" label={t('composer.attachment.remove')} className="ml-auto">
                     <CloseIcon className="h-3.5 w-3.5" />

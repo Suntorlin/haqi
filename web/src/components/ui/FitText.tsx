@@ -34,22 +34,31 @@ export function FitText(props: {
         const el = ref.current
         if (!el) return
         const fit = () => {
+            // Measure with the full text in place: in a container sized by its content (a chip with
+            // a max width) the shown short form would make the space look smaller than it is.
+            const node = el.firstChild
+            const rendered = node?.nodeType === Node.TEXT_NODE ? node.nodeValue : null
+            if (node && rendered !== null) node.nodeValue = props.text
             let next = props.text
             if (props.kind === 'id') next = middleCut(el, props.text)
             else if (props.kind === 'label') next = forms.find((form) => fitsIn(el, form, lines ?? 2)) ?? forms[forms.length - 1] ?? props.text
+            const cut = next !== props.text || (lines !== undefined && !fitsIn(el, next, lines))
+            if (node && rendered !== null) node.nodeValue = rendered
             setShown(next)
             // Clamped title / preview: the hover title then carries the full text.
-            setClipped(next !== props.text || (lines !== undefined && !fitsIn(el, next, lines)))
+            setClipped(cut)
         }
         fit()
         if (typeof ResizeObserver === 'undefined') return
-        let width = el.clientWidth
+        // The element and its container: a container that grows frees room the element cannot see.
+        const watched = [el, el.parentElement].filter((node): node is HTMLElement => Boolean(node))
+        const widths = new Map(watched.map((node) => [node, node.clientWidth]))
         const observer = new ResizeObserver(() => {
-            if (el.clientWidth === width) return
-            width = el.clientWidth
+            if (watched.every((node) => widths.get(node) === node.clientWidth)) return
+            for (const node of watched) widths.set(node, node.clientWidth)
             fit()
         })
-        observer.observe(el)
+        for (const node of watched) observer.observe(node)
         void document.fonts?.ready.then(fit)
         return () => observer.disconnect()
     }, [formsKey, props.kind, props.text, lines]) // formsKey stands for forms
@@ -128,5 +137,5 @@ export function FitLine(props: { text: ReactNode; candidates?: ReadonlyArray<str
     const lines = props.lines ?? 1
     return typeof props.text === 'string'
         ? <FitText kind="label" lines={lines} text={props.text} candidates={props.candidates} className={props.className} />
-        : <span className={cn('block min-w-0 break-words', CLAMP[lines], props.className)}>{props.text}</span>
+        : <span data-fit="line" className={cn('block min-w-0 break-words', CLAMP[lines], props.className)}>{props.text}</span>
 }

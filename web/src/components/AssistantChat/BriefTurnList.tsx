@@ -19,6 +19,7 @@ import { useNestedScrollPassthrough } from '@/components/AssistantChat/useNested
 import { Spinner } from '@/components/Spinner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { HIT_AREA_CLASS, TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { cn } from '@/lib/utils'
@@ -376,9 +377,7 @@ function LivePreviewCarousel(props: {
             <div className={`whitespace-pre-wrap break-words text-body leading-6 text-[var(--social-fg-muted)] transition-all duration-200 ease-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'}`}>
                 {activeLine}
             </div>
-            <div className="truncate text-caption leading-5 text-[var(--social-fg-muted)]">
-                {props.liveActivity}
-            </div>
+            <FitText kind="preview" text={props.liveActivity} className="text-caption leading-5 text-[var(--social-fg-muted)]" />
         </div>
     )
 }

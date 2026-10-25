@@ -21,6 +21,7 @@ import {
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { ChevronLeftIcon } from '@/components/mobile/icons'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { ReportSheet, reportMarkdownForApp } from './ReportSheet'
@@ -170,8 +171,8 @@ function CheckSheet(props: { task: TaskView; run: TaskRun; criterion: Acceptance
                         <div className="flex items-center gap-3 border-t border-[var(--social-divider)] pt-4">
                             <ProgressOrb seed={owner.sessionId ?? owner.id} size={36} progress={criteriaDone(run, owner).done / criteriaDone(run, owner).total} tone={SUBTASK_TONE[owner.state]} />
                             <span className="min-w-0 flex-1">
-                                <span className="block truncate text-body text-[var(--social-fg)]">{owner.title}</span>
-                                <span className="block truncate text-footnote text-[var(--social-fg-muted)]">{t(`taskRun.state.${owner.state}`)}</span>
+                                <FitText kind="title" text={owner.title} className="text-body text-[var(--social-fg)]" />
+                                <FitText kind="label" lines={1} text={t(`taskRun.state.${owner.state}`)} className="text-footnote text-[var(--social-fg-muted)]" />
                             </span>
                             {owner.sessionId ? (
                                 <Button size="sm" variant="secondary" onClick={() => void navigate({ to: '/sessions/$sessionId', params: { sessionId: owner.sessionId! } })}>{t('taskRun.seeProcess')}</Button>
@@ -228,7 +229,9 @@ function Summary(props: { text: string; t: Translate }) {
         <>
             <SectionCaption>{props.t('taskRun.summary')}</SectionCaption>
             <button type="button" onClick={() => setOpen(!open)} className="mx-5 block text-left">
-                <span className={`whitespace-pre-line text-body leading-relaxed text-[var(--social-fg-muted)] ${open ? 'block' : 'line-clamp-3'}`}>{props.text}</span>
+                {open
+                    ? <span className="block whitespace-pre-line text-body leading-relaxed text-[var(--social-fg-muted)]">{props.text}</span>
+                    : <FitText kind="preview" lines={3} text={props.text} className="whitespace-pre-line text-body leading-relaxed text-[var(--social-fg-muted)]" />}
             </button>
         </>
     )
@@ -254,7 +257,7 @@ function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubta
             <button type="button" onClick={props.onBack} className="flex min-h-11 w-full items-center gap-1 px-4 text-left">
                 <ChevronLeftIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-muted)]" />
                 <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body font-semibold text-[var(--social-fg)]">{subtask.title}</span>
+                    <FitText kind="title" text={subtask.title} className="text-body font-semibold text-[var(--social-fg)]" />
                     {used ? <span className="block text-caption text-[var(--social-fg-muted)]">{t('taskRun.used', { time: used })}{subtask.branch ? ` · ${subtask.branch}` : ''}</span> : null}
                 </span>
             </button>

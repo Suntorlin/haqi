@@ -24,6 +24,7 @@ import { TaskFileList } from './TaskFileList'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { CheckRow } from '@/components/ui/CheckRow'
 import { IconButton } from '@/components/ui/IconButton'
 import { CloseIcon, PencilIcon, PlusIcon } from '@/components/mobile/icons'
@@ -102,7 +103,9 @@ function ApprovalCard(props: { tool: string; args: unknown; onAllow: () => void;
             <SectionCaption>{props.t('taskReport.approval')}</SectionCaption>
             <div className="mx-4 rounded-2xl bg-[var(--social-muted)] p-4">
                 <p className="text-body font-semibold text-[var(--social-fg)]">{props.t('taskReport.approvalTitle', { tool: props.tool })}</p>
-                <pre className="mt-2 line-clamp-4 whitespace-pre-wrap break-all rounded-xl bg-[var(--social-surface)] px-3 py-2 font-mono text-footnote text-[var(--social-fg)]">{detail}</pre>
+                <pre className="mt-2 rounded-xl bg-[var(--social-surface)] px-3 py-2 font-mono text-footnote text-[var(--social-fg)]">
+                    <FitText kind="value" text={detail} className="whitespace-pre-wrap break-all" />
+                </pre>
                 <div className="mt-3 flex gap-2">
                     <Button variant="secondary" disabled={props.pending} onClick={props.onDeny}>{props.t('taskReport.deny')}</Button>
                     <Button className="flex-1" disabled={props.pending} onClick={props.onAllow}>{props.t('taskReport.allow')}</Button>

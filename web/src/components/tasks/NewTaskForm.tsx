@@ -10,6 +10,7 @@ import { DictationBar, MobileComposerAction } from '@/components/AssistantChat/M
 import { SessionSettingChips, type SessionThinkEffort } from '@/components/AssistantChat/SessionSettingChips'
 import { Spinner } from '@/components/Spinner'
 import { AutoTextarea } from '@/components/ui/AutoTextarea'
+import { FitText } from '@/components/ui/FitText'
 import { IconButton } from '@/components/ui/IconButton'
 import { SwitchChip } from '@/components/ui/SettingChip'
 import { AlertCircleIcon, CloseIcon, PaperclipIcon } from '@/components/mobile/icons'
@@ -176,7 +177,7 @@ export function NewTaskForm(props: {
                             >
                                 {!file.upload && !file.error ? <Spinner size="sm" label={null} className="text-[var(--social-fg-subtle)]" /> : null}
                                 {file.error ? <span className="text-[var(--social-danger)]"><AlertCircleIcon className="h-4 w-4" /></span> : null}
-                                <span className="max-w-[180px] truncate">{file.name}</span>
+                                <FitText kind="id" text={file.name} className="max-w-[180px]" />
                                 <IconButton
                                     size="xs"
                                     label={t('composer.attachment.remove')}

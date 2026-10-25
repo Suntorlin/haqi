@@ -20,6 +20,7 @@ import type { HappyChatMessageMetadata } from '@/lib/assistant-runtime'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { Chip } from '@/components/ui/Chip'
 import { TEXT_HIT_AREA_CLASS } from '@/components/AssistantChat/hitArea'
 import { extractReportLinks } from '@/components/AssistantChat/reportLinks'
@@ -268,12 +269,12 @@ function LiveStatusCard(props: {
         <div {...props.pressProps} className={cn('social-bubble-other w-full min-w-0 rounded-2xl rounded-tl-md px-4 py-3', props.pressClass)}>
             <div className="flex min-w-0 items-center gap-2.5">
                 <Spinner size="sm" label={null} className="shrink-0 text-[var(--social-fg)]" />
-                <span className="min-w-0 flex-1 truncate text-body font-semibold text-[var(--social-fg)]">{title}</span>
+                <FitText kind="title" text={title} className="flex-1 text-body font-semibold text-[var(--social-fg)]" />
             </div>
             {progress ? (
-                <p className="mt-1.5 line-clamp-3 pl-[26px] text-body leading-relaxed text-[var(--social-fg-muted)]">{progress}</p>
+                <FitText kind="preview" lines={3} text={progress} className="mt-1.5 pl-[26px] text-body leading-relaxed text-[var(--social-fg-muted)]" />
             ) : toolDetail ? (
-                <p className="mt-1.5 truncate pl-[26px] font-mono text-footnote text-[var(--social-fg-muted)]">{toolDetail}</p>
+                <FitText kind="preview" text={toolDetail} className="mt-1.5 pl-[26px] font-mono text-footnote text-[var(--social-fg-muted)]" />
             ) : null}
             {props.onToggle ? (
                 <button

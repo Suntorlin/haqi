@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { TextField } from '@/components/ui/TextField'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { FitText } from '@/components/ui/FitText'
 import { ListRow } from '@/components/ui/ListRow'
 import { cn } from '@/lib/utils'
 
@@ -81,7 +82,7 @@ function GitFileRow(props: {
                     {props.file.repo ? (
                         <Badge className="shrink-0">{props.file.repo}</Badge>
                     ) : null}
-                    <span className="truncate">{subtitle}</span>
+                    <FitText kind="id" text={subtitle} />
                 </span>
             )}
             trailing={(

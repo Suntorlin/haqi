@@ -18,6 +18,7 @@ import {
 } from '@/components/mobile/icons'
 import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { Button } from '@/components/ui/button'
+import { FitText } from '@/components/ui/FitText'
 import { CountBadge, DotBadge } from '@/components/ui/badge'
 import { ActionTile } from '@/components/mobile/ActionTile'
 import { IconButton } from '@/components/ui/IconButton'
@@ -213,9 +214,11 @@ export function QueueStrip(props: {
                 <span className="shrink-0 font-semibold text-[var(--social-fg)]">
                     {props.pendingCount > 0 ? t('queue.inline.pending', { count: props.pendingCount }) : t('queue.inline.empty')}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[var(--social-fg-muted)]" title={props.nextPreview || undefined}>
-                    {props.nextPreview ? `· ${t('queue.inline.next')}：${props.nextPreview}` : ''}
-                </span>
+                <FitText
+                    kind="preview"
+                    text={props.nextPreview ? `· ${t('queue.inline.next')}：${props.nextPreview}` : ''}
+                    className="flex-1 text-[var(--social-fg-muted)]"
+                />
                 {props.onOpen ? (
                     <Button
                         variant="secondary"
@@ -232,7 +235,7 @@ export function QueueStrip(props: {
                     {entries.slice(0, 5).map((entry, index) => (
                         <div key={entry.id} className="flex min-w-0 items-center gap-2 text-footnote">
                             <span className="w-4 shrink-0 tabular-nums text-[var(--social-fg-subtle)]">{index + 1}</span>
-                            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{entry.preview || t('queue.dialog.emptyMessage')}</span>
+                            <FitText kind="preview" text={entry.preview || t('queue.dialog.emptyMessage')} className="flex-1 text-[var(--social-fg)]" />
                             <span className="shrink-0 text-[var(--social-fg-subtle)]">
                                 {new Date(entry.enqueuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -265,7 +268,7 @@ export function VoiceCallBar(props: {
     return (
         <div role="status" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
             <DotBadge className={cn('h-2 w-2 shrink-0 ring-0', connecting ? 'opacity-50' : 'animate-pulse')} />
-            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">{label}</span>
+            <FitText kind="label" lines={1} text={label} className="flex-1 text-[var(--social-fg)]" />
             {props.onToggleMic && !connecting ? (
                 <IconButton
                     size="xs"
@@ -335,7 +338,7 @@ export function DictationBar(props: {
     if (props.error && props.status === 'idle') {
         return (
             <div role="alert" className="flex items-center gap-2 rounded-full border border-[var(--social-border)] bg-[var(--social-surface)] py-1 pl-3.5 pr-1 text-footnote">
-                <span className="min-w-0 flex-1 truncate text-[var(--social-danger)]">{t(`dictation.error.${props.error}`)}</span>
+                <FitText kind="label" lines={1} text={t(`dictation.error.${props.error}`)} className="flex-1 text-[var(--social-danger)]" />
                 <Button variant="ghost" size="xs" onClick={props.onDismissError}>
                     {t('button.close')}
                 </Button>
@@ -353,11 +356,14 @@ export function DictationBar(props: {
             ) : (
                 <Spinner size="sm" label={null} className="shrink-0 text-[var(--social-fg-muted)]" />
             )}
-            <span className="min-w-0 flex-1 truncate text-[var(--social-fg)]">
-                {recording
+            <FitText
+                kind="label"
+                lines={1}
+                text={recording
                     ? t('dictation.recording', { time: formatDictationTime(props.elapsedMs) })
                     : t('dictation.transcribing')}
-            </span>
+                className="flex-1 text-[var(--social-fg)]"
+            />
             {recording ? (
                 <>
                     <Button variant="ghost" size="xs" onClick={props.onCancel}>

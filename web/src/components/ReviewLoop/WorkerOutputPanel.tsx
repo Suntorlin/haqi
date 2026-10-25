@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { FitText } from '@/components/ui/FitText'
 import { ChevronRightIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -88,9 +89,9 @@ export function WorkerOutputPanel({ output }: { output: WorkerOutput }) {
                             const name = f.replace(/^[MAD]\s+/, '')
                             const prefixColor = prefix === 'D' ? 'var(--app-badge-error-text)' : prefix === 'A' ? 'var(--app-badge-success-text)' : 'var(--app-badge-info-text)'
                             return (
-                                <div key={i} className="min-w-0 truncate font-mono text-footnote">
-                                    <span className="font-semibold" style={{ color: prefixColor }}>{prefix}</span>{' '}
-                                    <span className="text-[var(--social-fg)]">{name}</span>
+                                <div key={i} className="flex min-w-0 font-mono text-footnote">
+                                    <span className="shrink-0 font-semibold" style={{ color: prefixColor }}>{prefix}</span>
+                                    <FitText kind="id" text={name} className="ml-[1ch] flex-1 text-[var(--social-fg)]" />
                                 </div>
                             )
                         })}

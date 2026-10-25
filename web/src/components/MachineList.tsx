@@ -1,5 +1,6 @@
 import type { Machine } from '@/types/api'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { FitText } from '@/components/ui/FitText'
 import { useTranslation } from '@/lib/use-translation'
 
 function getMachineTitle(machine: Machine): string {
@@ -27,9 +28,11 @@ export function MachineList(props: {
                         onClick={() => props.onSelect(m.id)}
                     >
                         <CardHeader className="pb-2">
-                            <CardTitle className="truncate">{getMachineTitle(m)}</CardTitle>
-                            <CardDescription className="truncate">
-                                {m.metadata?.platform ? m.metadata.platform : t('machine.unknown')}
+                            <CardTitle>
+                                <FitText kind="title" text={getMachineTitle(m)} />
+                            </CardTitle>
+                            <CardDescription>
+                                <FitText kind="value" text={m.metadata?.platform ? m.metadata.platform : t('machine.unknown')} />
                             </CardDescription>
                         </CardHeader>
                     </Card>

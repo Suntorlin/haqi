@@ -18,6 +18,7 @@ import {
     type NodeProps
 } from '@xyflow/react'
 import { FitViewIcon, MinusIcon, PlusIcon, SearchIcon } from '@/components/mobile/icons'
+import { FitText } from '@/components/ui/FitText'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
@@ -69,7 +70,7 @@ function MemoryNode(props: NodeProps<MemoryFlowNode>) {
                 )}
             >
                 <LevelIcon level={memory.level} className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 truncate">{shortLabel(memory.text)}</span>
+                <FitText kind="preview" text={shortLabel(memory.text)} />
             </div>
         </>
     )
