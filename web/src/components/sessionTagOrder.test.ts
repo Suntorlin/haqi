@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
     applySessionTagOrder,
+    loadHiddenSessionTags,
     loadSessionTagOrder,
     moveSessionTag,
     normalizeSessionTagOrder,
+    persistHiddenSessionTags,
     persistSessionTagOrder
 } from './sessionTagOrder'
 
@@ -28,6 +30,13 @@ describe('sessionTagOrder helpers', () => {
 
     it('persists the order locally', () => {
         persistSessionTagOrder(['model', 'agent'])
+        expect(loadSessionTagOrder()).toEqual(['model', 'agent'])
+    })
+
+    it('stores hidden tags apart from the order', () => {
+        persistSessionTagOrder(['model', 'agent'])
+        persistHiddenSessionTags(['sa'])
+        expect(loadHiddenSessionTags()).toEqual(['sa'])
         expect(loadSessionTagOrder()).toEqual(['model', 'agent'])
     })
 })

@@ -55,6 +55,7 @@ export default {
   'sessions.search.open': '搜索会话',
   'sessions.search.placeholder': '搜索会话…',
   'sessions.tags.all': '全部标签',
+  'sessions.tags.allHint': '全部标签（长按或右键管理标签）',
   'groups.action.copyTitle': '复制标题',
   'groups.action.copied': '已复制标题',
   'groups.action.copyFailed': '复制失败',
@@ -276,6 +277,10 @@ export default {
   'dialog.tags.hint': '用逗号分隔，最多 20 个标签；留空可清除标签。',
   'dialog.tags.saving': '保存中…',
   'dialog.tags.error': '标签保存失败，请检查格式后重试。',
+  'dialog.tagManager.title': '管理标签',
+  'dialog.tagManager.description': '关掉的标签不在标签栏显示。会话上的标签不会删除。',
+  'dialog.tagManager.count': '{n} 个会话',
+  'dialog.tagManager.show': '在标签栏显示 #{tag}',
 
   'dialog.archive.title': '归档会话',
   'dialog.archive.description': '确定要归档 "{name}" 吗？这将断开活动会话。',

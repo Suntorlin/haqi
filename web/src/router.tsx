@@ -30,7 +30,8 @@ import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { FitText } from '@/components/ui/FitText'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
-import { applySessionTagOrder, loadSessionTagOrder, moveSessionTag, persistSessionTagOrder } from '@/components/sessionTagOrder'
+import { applySessionTagOrder, loadHiddenSessionTags, loadSessionTagOrder, moveSessionTag, persistHiddenSessionTags, persistSessionTagOrder } from '@/components/sessionTagOrder'
+import { SessionTagManagerDialog } from '@/components/SessionTagManagerDialog'
 import { NewSession } from '@/components/NewSession'
 import {
     loadLastSessionConfig,
@@ -248,6 +249,16 @@ function SessionsPage() {
     const [selectedSessionTag, setSelectedSessionTag] = useState<string | null>(null)
     const selectTagView = setSelectedSessionTag
     const [sessionTagOrder, setSessionTagOrder] = useState<string[]>(loadSessionTagOrder)
+    const [hiddenSessionTags, setHiddenSessionTags] = useState<string[]>(loadHiddenSessionTags)
+    const [tagManagerOpen, setTagManagerOpen] = useState(false)
+    const { haptic } = usePlatform()
+    const allTagsPressHandlers = useLongPress({
+        onLongPress: () => {
+            haptic.impact('medium')
+            setTagManagerOpen(true)
+        },
+        onClick: () => selectTagView(null)
+    })
     const tagSensors = useSensors(
         useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
         useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
@@ -284,10 +295,25 @@ function SessionsPage() {
         () => applySessionTagOrder(sessionTags, sessionTagOrder),
         [sessionTags, sessionTagOrder]
     )
+    const visibleSessionTags = useMemo(
+        () => orderedSessionTags.filter((tag) => !hiddenSessionTags.includes(tag)),
+        [orderedSessionTags, hiddenSessionTags]
+    )
+    const sessionTagCounts = useMemo(
+        () => orderedSessionTags.map((tag) => ({
+            tag,
+            count: sessions.filter((session) => getUserTags(session).includes(tag)).length
+        })),
+        [orderedSessionTags, sessions]
+    )
 
     useEffect(() => {
         persistSessionTagOrder(sessionTagOrder)
     }, [sessionTagOrder])
+
+    useEffect(() => {
+        persistHiddenSessionTags(hiddenSessionTags)
+    }, [hiddenSessionTags])
 
     const handleTagDragEnd = ({ active, over }: DragEndEvent) => {
         if (!over || active.id === over.id) return
@@ -299,10 +325,10 @@ function SessionsPage() {
     }
 
     useEffect(() => {
-        if (selectedSessionTag && !sessionTags.includes(selectedSessionTag)) {
+        if (selectedSessionTag && !visibleSessionTags.includes(selectedSessionTag)) {
             setSelectedSessionTag(null)
         }
-    }, [selectedSessionTag, sessionTags])
+    }, [selectedSessionTag, visibleSessionTags])
 
     // Snoozed sessions fold into their own section until the wake time; search still finds them.
     // Pinned sessions live in the row at the top; the list below only repeats them in search results.
@@ -534,15 +560,16 @@ function SessionsPage() {
                 <div className="flex flex-wrap gap-2 px-5 pb-1 pt-0.5">
                     <button
                         type="button"
-                        onClick={() => selectTagView(null)}
-                        className={`${tagChipClass(selectedSessionTag === null)} justify-center px-2.5`}
+                        {...allTagsPressHandlers}
+                        style={{ WebkitTouchCallout: 'none' }}
+                        className={`${tagChipClass(selectedSessionTag === null)} select-none justify-center px-2.5`}
                         aria-label={t('sessions.tags.all')}
                         aria-pressed={selectedSessionTag === null}
-                        title={t('sessions.tags.all')}
+                        title={t('sessions.tags.allHint')}
                     >
                         <TagIcon className="h-4 w-4" />
                     </button>
-                    {isMobileLayout ? orderedSessionTags.map((tag) => (
+                    {isMobileLayout ? visibleSessionTags.map((tag) => (
                         <button
                             key={tag}
                             type="button"
@@ -554,8 +581,8 @@ function SessionsPage() {
                     )) : (
                         // Desktop keeps drag-to-reorder for tag filters.
                         <DndContext sensors={tagSensors} onDragEnd={handleTagDragEnd}>
-                            <SortableContext items={orderedSessionTags} strategy={rectSortingStrategy}>
-                                {orderedSessionTags.map((tag) => (
+                            <SortableContext items={visibleSessionTags} strategy={rectSortingStrategy}>
+                                {visibleSessionTags.map((tag) => (
                                     <SortableSessionTag
                                         key={tag}
                                         tag={tag}
@@ -568,6 +595,13 @@ function SessionsPage() {
                     )}
                 </div>
             ) : null}
+            <SessionTagManagerDialog
+                isOpen={tagManagerOpen}
+                onClose={() => setTagManagerOpen(false)}
+                tags={sessionTagCounts}
+                hiddenTags={hiddenSessionTags}
+                onHiddenTagsChange={setHiddenSessionTags}
+            />
         </div>
     )
 

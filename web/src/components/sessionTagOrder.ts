@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'hapi:sessionTagOrder'
+const HIDDEN_STORAGE_KEY = 'hapi:hiddenSessionTags'
 
 export function normalizeSessionTagOrder(value: string | null): string[] {
     if (!value) return []
@@ -11,20 +12,37 @@ export function normalizeSessionTagOrder(value: string | null): string[] {
     }
 }
 
-export function loadSessionTagOrder(): string[] {
+function loadTagList(key: string): string[] {
     try {
-        return normalizeSessionTagOrder(localStorage.getItem(STORAGE_KEY))
+        return normalizeSessionTagOrder(localStorage.getItem(key))
     } catch {
         return []
     }
 }
 
-export function persistSessionTagOrder(order: string[]): void {
+function persistTagList(key: string, tags: string[]): void {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(order))
+        localStorage.setItem(key, JSON.stringify(tags))
     } catch {
-        // Ignore storage failures; the current page still keeps the new order.
+        // Ignore storage failures; the current page still keeps the new list.
     }
+}
+
+export function loadSessionTagOrder(): string[] {
+    return loadTagList(STORAGE_KEY)
+}
+
+export function persistSessionTagOrder(order: string[]): void {
+    persistTagList(STORAGE_KEY, order)
+}
+
+/** Tags left out of the tag filter bar. Only the bar hides them: the sessions keep their tags. */
+export function loadHiddenSessionTags(): string[] {
+    return loadTagList(HIDDEN_STORAGE_KEY)
+}
+
+export function persistHiddenSessionTags(tags: string[]): void {
+    persistTagList(HIDDEN_STORAGE_KEY, tags)
 }
 
 export function applySessionTagOrder(tags: string[], order: string[]): string[] {
