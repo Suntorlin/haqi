@@ -1142,9 +1142,12 @@ export class SyncEngine {
      * one, newest first.
      */
     private async taskMachines(namespace: string): Promise<MachinesOffered | null> {
-        const online = this.machineCache.getOnlineMachinesByNamespace(namespace)
-        if (online.length < 2) return null
+        if (this.machineCache.getOnlineMachinesByNamespace(namespace).length < 2) return null
         const map = await this.machineProbe.repos(namespace)
+        // A machine that did not answer the probe has no known paths, so it is not offered.
+        const failed = new Set(map.failed.map((f) => f.machineId))
+        const online = this.machineCache.getOnlineMachinesByNamespace(namespace).filter((machine) => !failed.has(machine.id))
+        if (online.length < 2) return null
         const sessions = this.getSessionsByNamespace(namespace).filter((session) => session.active)
         const machines = online.map((machine) => ({
             id: machine.id,
