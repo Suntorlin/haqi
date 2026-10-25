@@ -94,27 +94,38 @@ export const isFixId = (id: string) => id.startsWith('fix-')
 /** The lead's hand-over to the user, one per report. */
 export const isDeliverId = (id: string) => id.startsWith('deliver-')
 
-/** The user reads the hand-over on a phone. Links do not count: the lead has to give them. */
-export const DELIVERY_LIMITS = { chars: 800, conclusion: 40 } as const
+/**
+ * The user reads the hand-over on a phone, and the part above "## 详情" must fit one screen; the details are
+ * folded. Links do not count: the lead has to give them.
+ */
+export const DELIVERY_LIMITS = { main: 300, details: 800, conclusion: 40, todo: 3 } as const
+export const DELIVERY_DETAILS = '## 详情'
 
 const deliveryLength = (text: string) => [...text.replace(/https?:\/\/\S+/g, '').replace(/\s/g, '')].length
 
 /** Why a hand-over is too long for the user, or null when it fits. */
 export function deliveryTooLong(text: string): string | null {
-    const { conclusion } = splitDelivery(text)
+    const { conclusion, body, details } = splitDelivery(text)
+    const main = deliveryLength(conclusion) + deliveryLength(body)
+    const todo = body.match(/## 要你做的事\n([\s\S]*?)(?=\n## |$)/)?.[1]?.split('\n').filter((line) => /^\d+\./.test(line.trim())).length ?? 0
     const problems = [
-        deliveryLength(text) > DELIVERY_LIMITS.chars ? `it has ${deliveryLength(text)} characters without links, the limit is ${DELIVERY_LIMITS.chars}` : null,
-        deliveryLength(conclusion) > DELIVERY_LIMITS.conclusion ? `its first line has ${deliveryLength(conclusion)} characters, the limit is ${DELIVERY_LIMITS.conclusion}` : null
+        main > DELIVERY_LIMITS.main ? `the part above "${DELIVERY_DETAILS}" has ${main} characters without links, the limit is ${DELIVERY_LIMITS.main}` : null,
+        details && deliveryLength(details) > DELIVERY_LIMITS.details ? `"${DELIVERY_DETAILS}" has ${deliveryLength(details)} characters, the limit is ${DELIVERY_LIMITS.details}` : null,
+        deliveryLength(conclusion) > DELIVERY_LIMITS.conclusion ? `its first line has ${deliveryLength(conclusion)} characters, the limit is ${DELIVERY_LIMITS.conclusion}` : null,
+        todo > DELIVERY_LIMITS.todo ? `"## 要你做的事" has ${todo} items, the limit is ${DELIVERY_LIMITS.todo}` : null
     ].filter(Boolean)
     return problems.length ? problems.join('; ') : null
 }
 
-/** The lead's hand-over: its first line is the conclusion, the rest the body. */
-export function splitDelivery(text: string): { conclusion: string; body: string } {
+/** The lead's hand-over: its first line is the conclusion, then the body, then the folded details. */
+export function splitDelivery(text: string): { conclusion: string; body: string; details: string | null } {
     const lines = text.trim().split('\n')
     const first = lines.findIndex((line) => line.trim())
     const conclusion = (lines[first] ?? '').replace(/^[#>*\s]+/, '').replace(/\*+$/, '').trim()
-    return { conclusion, body: lines.slice(first + 1).join('\n').trim() }
+    const rest = lines.slice(first + 1)
+    const cut = rest.findIndex((line) => line.trim() === DELIVERY_DETAILS)
+    const details = cut < 0 ? null : rest.slice(cut + 1).join('\n').trim() || null
+    return { conclusion, body: (cut < 0 ? rest : rest.slice(0, cut)).join('\n').trim(), details }
 }
 
 /** The id a session has now, after any `session_replaced` events. */

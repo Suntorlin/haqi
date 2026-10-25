@@ -174,7 +174,8 @@ export type TaskRevision = {
     doneAt: number | null
 }
 
-export type TaskDelivery = { conclusion: string; body: string; at: number }
+/** The lead's hand-over: conclusion and body fit one phone screen; details are folded. */
+export type TaskDelivery = { conclusion: string; body: string; details: string | null; at: number }
 
 export type TaskRun = {
     phase: TaskPhase

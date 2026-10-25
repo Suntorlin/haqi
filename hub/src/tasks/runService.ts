@@ -12,7 +12,7 @@ import type { StoredGroup, StoredTaskEvent } from '../store/types'
 import { TaskError } from './errors'
 import type { TaskKernel } from './kernel/kernel'
 import {
-    RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, deliveryTooLong, isDeliverId, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
+    DELIVERY_DETAILS, RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, deliveryTooLong, isDeliverId, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
 } from './kernel/run'
 import { matchPrecedent } from './plugins/decisions/precedent'
 import { observe, type WatchedSession } from './plugins/observer/observer'
@@ -348,7 +348,7 @@ export class RunService {
             ],
             principles: this.principles(namespace, task),
             worktree: run.integration?.worktree ?? null,
-            previous: run.delivery ? [run.delivery.conclusion, run.delivery.body].join('\n') : null
+            previous: run.delivery ? [run.delivery.conclusion, run.delivery.body, ...(run.delivery.details ? [DELIVERY_DETAILS, run.delivery.details] : [])].join('\n') : null
         })
         const lead = await this.wakeLead(namespace, task, text, id).catch(() => null)
         if (!lead) {

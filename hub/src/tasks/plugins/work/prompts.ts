@@ -3,7 +3,7 @@
  * WORK_MARKER so memory never reads it as the user's words.
  */
 import type { AcceptanceCriterion, TaskSubtask } from '@hapi/protocol/types'
-import { DELIVERY_LIMITS } from '../../kernel/run'
+import { DELIVERY_DETAILS, DELIVERY_LIMITS } from '../../kernel/run'
 
 export const WORK_MARKER = '[HAQI_TASK_WORK]'
 
@@ -175,15 +175,12 @@ export function deliverPrompt(brief: TaskBrief, input: {
         '',
         '## 要做的事',
         `1. 读上面的材料。要核对时，只读${input.worktree ? `结果目录 ${input.worktree} 里的` : '相关'}文件，不改文件，不提交。`,
-        `2. 写交付说明（markdown，不超过 ${DELIVERY_LIMITS.chars} 字，链接不算；超了 HAQI 会退回）。用户只看这一份，你对它负责：`,
+        `2. 写交付说明（markdown）。用户在手机上看，「${DELIVERY_DETAILS}」以上的部分要一屏看完：不超过 ${DELIVERY_LIMITS.main} 字，链接不算；超了 HAQI 会退回。用户只看这一份，你对它负责：`,
         `   - 第一行：一句话结论，不超过 ${DELIVERY_LIMITS.conclusion} 字，不加 # 或 **。`,
-        '   - 「## 要你做的事」：编号，最多 3 条；没有就写「没有。」',
-        ...(brief.userMessages?.some((line) => line.startsWith('验收时要改：'))
-            ? ['   - 「## 按你的意见改了」：用户验收时要改的，每条一句：改了什么，在哪看。']
-            : []),
+        `   - 「## 要你做的事」：编号，最多 ${DELIVERY_LIMITS.todo} 条，每条一句，写做什么，不写为什么；没有就写「没有。」`,
+        '   - 「## 风险」：最多 2 条，每条一句；没有就不写这一节。',
         '   - 「## 交付物」：给公网链接（报告、截图），一行一个，写清是什么。不给 localhost 或本机路径以外的内网地址。',
-        '   - 「## 关键数字」：最多 3 条，只放影响用户决定的。',
-        '   - 「## 风险」：没有就不写这一节。',
+        `   - 「${DELIVERY_DETAILS}」（放最后，HAQI 会折叠，不超过 ${DELIVERY_LIMITS.details} 字）：${brief.userMessages?.some((line) => line.startsWith('验收时要改：')) ? '「### 按你的意见改了」每条一句：改了什么，在哪看；' : ''}「### 关键数字」最多 3 条，只放影响用户决定的；要你做的事的理由也放这里。`,
         '   - 只写结论和用户要用的东西，不写过程，不贴执行会话的原话。',
         `3. 调用 subtask_done：task_id 填 "${brief.taskId}"，subtask_id 填 "${input.subtaskId}"，summary 填交付说明全文。`,
         '4. 提交后停下。'

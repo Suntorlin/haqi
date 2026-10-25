@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import { FitText } from '@/components/ui/FitText'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
-import { ReportSheet, reportMarkdownForApp } from './ReportSheet'
+import { ReportFold, ReportSheet, reportMarkdownForApp } from './ReportSheet'
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
@@ -443,6 +443,7 @@ export function RunReport(props: {
                     <SectionCaption>{t('taskRun.delivery')}</SectionCaption>
                     <div className="mx-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
                         <BriefFullMarkdownContent content={reportMarkdownForApp(delivery.body)} className="text-body [&>*:first-child]:!mt-0" />
+                        {delivery.details ? <ReportFold title={t('taskRun.deliveryDetails')} text={reportMarkdownForApp(delivery.details)} /> : null}
                     </div>
                 </>
             ) : revision ? (

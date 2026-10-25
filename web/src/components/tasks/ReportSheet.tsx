@@ -27,7 +27,8 @@ export function reportParts(markdown: string): ReportPart[] {
     return parts.map((part) => ({ ...part, text: reportMarkdownForApp(part.text).trim() })).filter((part) => part.text)
 }
 
-function ReportFold(props: { title: string; text: string }) {
+/** A folded part of the report: one 44px row that opens it. */
+export function ReportFold(props: { title: string; text: string }) {
     const [open, setOpen] = useState(false)
     return (
         <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--social-border)]">

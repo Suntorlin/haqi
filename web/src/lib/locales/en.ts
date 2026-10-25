@@ -128,6 +128,7 @@ export default {
   'taskRun.reporting': 'Done; waiting for your verdict',
   'taskRun.delivering': 'Review done; the lead is preparing what you get',
   'taskRun.delivery': 'From the lead',
+  'taskRun.deliveryDetails': 'Details',
   'taskRun.restart': 'Start again',
   'taskRun.restarting': 'Starting…',
   'taskRun.state.waiting': 'Waits for an earlier subtask',

@@ -67,7 +67,7 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         '',
         `**${conclusion}**`,
         '',
-        ...(delivery ? [delivery.body, ''] : [
+        ...(delivery ? [delivery.body, '', ...(delivery.details ? ['<details><summary>详情</summary>', '', delivery.details, '', '</details>', ''] : [])] : [
             `目标：${input.goal}`,
             '',
             ...(revision ? ['## 按你的意见改了', `你说：「${revision.request}」`, '', revision.summary!, ''] : []),
