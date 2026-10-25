@@ -25,7 +25,14 @@ class FakeRecorder {
     constructor(public stream: unknown, public options?: { mimeType?: string }) {
         FakeRecorder.last = this
     }
-    start() { this.state = 'recording' }
+    timeslice?: number
+    start(timeslice?: number) {
+        this.state = 'recording'
+        this.timeslice = timeslice
+    }
+    emit(text: string) {
+        this.ondataavailable?.({ data: new Blob([text], { type: 'audio/mp4' }) })
+    }
     stop() {
         this.state = 'inactive'
         this.ondataavailable?.({ data: new Blob(['audio-bytes'], { type: 'audio/mp4' }) })
@@ -117,5 +124,83 @@ describe('useDictation', () => {
         act(() => hook.result.current!.finish())
         await waitFor(() => expect(hook.result.current!.error).toBe('failed'))
         expect(onText).not.toHaveBeenCalled()
+    })
+
+    describe('in segments', () => {
+        const segmentedStatus = async () => ({ available: true, segmentSeconds: 5 })
+
+        it('sends each chunk while recording and takes the text from the final one', async () => {
+            const sendDictationChunk = vi.fn(async (_id: string, _seq: number, _chunk: Blob, options?: { final?: boolean }) =>
+                options?.final ? { stream: true, text: '五秒一段' } : { stream: true })
+            const transcribeAudio = vi.fn()
+            const { hook, onText } = setup({ getDictationStatus: segmentedStatus, sendDictationChunk, transcribeAudio })
+            await waitFor(() => expect(hook.result.current).not.toBeNull())
+
+            act(() => hook.result.current!.start())
+            await waitFor(() => expect(hook.result.current!.status).toBe('recording'))
+            expect(FakeRecorder.last?.timeslice).toBe(1000)
+            act(() => FakeRecorder.last!.emit('one'))
+            act(() => FakeRecorder.last!.emit('two'))
+            await waitFor(() => expect(sendDictationChunk).toHaveBeenCalledTimes(2))
+
+            act(() => hook.result.current!.finish())
+            await waitFor(() => expect(onText).toHaveBeenCalledWith('五秒一段'))
+            expect(transcribeAudio).not.toHaveBeenCalled()
+            const calls = sendDictationChunk.mock.calls
+            expect(calls.map((call) => call[1])).toEqual([0, 1, 2, 3])
+            expect(new Set(calls.map((call) => call[0])).size).toBe(1)
+            expect(calls[0][3]).toMatchObject({ hotwords: ['haqi'] })
+            expect(calls[3][3]).toMatchObject({ final: true })
+            expect(calls.slice(0, 3).every((call) => !call[3]?.final)).toBe(true)
+        })
+
+        it('uploads the whole recording once when a chunk fails', async () => {
+            const sendDictationChunk = vi.fn(async (_id: string, seq: number, _chunk?: Blob, _options?: { final?: boolean }) => {
+                if (seq === 1) throw new Error('HTTP 502')
+                return { stream: true }
+            })
+            const transcribeAudio = vi.fn(async () => ({ text: '整段上传' }))
+            const { hook, onText } = setup({ getDictationStatus: segmentedStatus, sendDictationChunk, transcribeAudio })
+            await waitFor(() => expect(hook.result.current).not.toBeNull())
+            act(() => hook.result.current!.start())
+            await waitFor(() => expect(hook.result.current!.status).toBe('recording'))
+            act(() => FakeRecorder.last!.emit('one'))
+            act(() => FakeRecorder.last!.emit('two'))
+            await waitFor(() => expect(sendDictationChunk).toHaveBeenCalledTimes(2))
+            act(() => hook.result.current!.finish())
+            await waitFor(() => expect(onText).toHaveBeenCalledWith('整段上传'))
+            const [audio] = transcribeAudio.mock.calls[0] as unknown as [Blob]
+            expect(audio.size).toBe('onetwoaudio-bytes'.length)
+            expect(sendDictationChunk.mock.calls.some((call) => call[3]?.final)).toBe(false)
+        })
+
+        it('uploads the whole recording once when the service does not take segments', async () => {
+            const sendDictationChunk = vi.fn(async () => ({ text: 'one chunk only' }))
+            const transcribeAudio = vi.fn(async () => ({ text: '整段上传' }))
+            const { hook, onText } = setup({ getDictationStatus: segmentedStatus, sendDictationChunk, transcribeAudio })
+            await waitFor(() => expect(hook.result.current).not.toBeNull())
+            act(() => hook.result.current!.start())
+            await waitFor(() => expect(hook.result.current!.status).toBe('recording'))
+            act(() => FakeRecorder.last!.emit('one'))
+            act(() => hook.result.current!.finish())
+            await waitFor(() => expect(onText).toHaveBeenCalledWith('整段上传'))
+            expect(onText).toHaveBeenCalledTimes(1)
+        })
+
+        it('tells the service to drop the stream on cancel', async () => {
+            const sendDictationChunk = vi.fn(async () => ({ stream: true }))
+            const transcribeAudio = vi.fn()
+            const { hook, onText } = setup({ getDictationStatus: segmentedStatus, sendDictationChunk, transcribeAudio })
+            await waitFor(() => expect(hook.result.current).not.toBeNull())
+            act(() => hook.result.current!.start())
+            await waitFor(() => expect(hook.result.current!.status).toBe('recording'))
+            act(() => FakeRecorder.last!.emit('one'))
+            await waitFor(() => expect(sendDictationChunk).toHaveBeenCalledTimes(1))
+            act(() => hook.result.current!.cancel())
+            await waitFor(() => expect(hook.result.current!.status).toBe('idle'))
+            await waitFor(() => expect(sendDictationChunk.mock.calls.some((call) => (call as unknown[])[3] && ((call as unknown[])[3] as { cancel?: boolean }).cancel)).toBe(true))
+            expect(transcribeAudio).not.toHaveBeenCalled()
+            expect(onText).not.toHaveBeenCalled()
+        })
     })
 })

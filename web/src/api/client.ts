@@ -1375,8 +1375,31 @@ export class ApiClient {
         })
     }
 
-    async getDictationStatus(): Promise<{ available: boolean; model?: string }> {
+    async getDictationStatus(): Promise<{ available: boolean; model?: string; segmentSeconds?: number }> {
         return await this.request('/api/voice/dictation')
+    }
+
+    /**
+     * One recorder chunk of a segmented dictation. The service turns the audio into text about
+     * every few seconds while recording; the final chunk returns the whole text.
+     * `stream: true` in the reply confirms the service took it as a segment.
+     */
+    async sendDictationChunk(
+        streamId: string,
+        seq: number,
+        chunk: Blob,
+        options?: { final?: boolean; cancel?: boolean; hotwords?: string[] }
+    ): Promise<{ stream?: boolean; text?: string }> {
+        const params = new URLSearchParams({ stream: streamId, seq: String(seq) })
+        if (options?.final) params.set('final', '1')
+        if (options?.cancel) params.set('cancel', '1')
+        const hotwords = options?.hotwords?.filter(Boolean) ?? []
+        if (seq === 0 && hotwords.length > 0) params.set('hotwords', hotwords.join(','))
+        return await this.request(`/api/voice/transcribe?${params.toString()}`, {
+            method: 'POST',
+            headers: { 'content-type': chunk.type || 'application/octet-stream' },
+            body: chunk
+        })
     }
 
     async transcribeAudio(audio: Blob, options?: { hotwords?: string[] }): Promise<{ text: string; audioSeconds?: number }> {

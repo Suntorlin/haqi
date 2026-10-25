@@ -19,6 +19,9 @@ export type DictationController = {
 /** Recordings stop by themselves after this long, then go to the speech-to-text service. */
 export const DICTATION_MAX_MS = 5 * 60_000
 
+/** While recording, the browser hands the service a chunk this often (segmented dictation). */
+export const DICTATION_CHUNK_MS = 1000
+
 // Chrome/Android record webm/opus; iOS Safari only records mp4/aac.
 const MIME_CANDIDATES = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus']
 
@@ -47,10 +50,20 @@ export function appendDictatedText(draft: string, dictated: string): string {
     return draft + (needsSpace ? ' ' : '') + text
 }
 
+function newStreamId(): string {
+    return typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`
+}
+
 /**
  * Push-to-talk dictation against the local speech-to-text service: record in the browser,
- * upload when the user taps done, hand the text to `onText`. Returns null when the hub has no
+ * hand the text to `onText` when the user taps done. Returns null when the hub has no
  * dictation service or the browser cannot record, so callers can hide the button.
+ *
+ * When the service supports segments, each recorder chunk goes up while recording and the
+ * service transcribes as it goes, so after done only the last few seconds are left. If any
+ * chunk fails, the whole recording is uploaded once at the end, as without segments.
  */
 export function useDictation(options: {
     api: ApiClient | null | undefined
@@ -76,6 +89,8 @@ export function useDictation(options: {
     const chunksRef = useRef<Blob[]>([])
     const startedAtRef = useRef(0)
     const discardRef = useRef(false)
+    // Segmented upload of the current recording: null when off or after a chunk failed.
+    const segmentsRef = useRef<{ id: string; seq: number; queue: Promise<void> } | null>(null)
     const latestRef = useRef(options)
     latestRef.current = options
 
@@ -84,21 +99,51 @@ export function useDictation(options: {
         streamRef.current = null
     }, [])
 
+    const sendChunk = useCallback((chunk: Blob, options?: { final?: boolean; cancel?: boolean }) => {
+        const segments = segmentsRef.current
+        const client = latestRef.current.api
+        if (!segments || !client) return
+        const seq = segments.seq++
+        segments.queue = segments.queue.then(async () => {
+            if (segmentsRef.current !== segments) return
+            const result = await client.sendDictationChunk(segments.id, seq, chunk, {
+                ...options,
+                hotwords: latestRef.current.hotwords
+            })
+            if (!result.stream) throw new Error('The service did not take the chunk as a segment')
+        }).catch(() => {
+            if (segmentsRef.current === segments) segmentsRef.current = null
+        })
+    }, [])
+
     const upload = useCallback(async (audio: Blob) => {
         const client = latestRef.current.api
+        const segments = segmentsRef.current
         if (!client) {
             setStatus('idle')
             return
         }
         setStatus('transcribing')
         try {
-            const result = await client.transcribeAudio(audio, { hotwords: latestRef.current.hotwords })
-            if (result.text.trim()) {
-                latestRef.current.onText(result.text)
+            let text: string | null = null
+            if (segments) {
+                await segments.queue
+                if (segmentsRef.current === segments) {
+                    text = await client.sendDictationChunk(segments.id, segments.seq++, new Blob([], { type: audio.type }), { final: true })
+                        .then((result) => (result.stream && typeof result.text === 'string' ? result.text : null))
+                        .catch(() => null)
+                }
+            }
+            if (text === null) {
+                text = (await client.transcribeAudio(audio, { hotwords: latestRef.current.hotwords })).text
+            }
+            if (text.trim()) {
+                latestRef.current.onText(text)
             }
         } catch {
             setError('failed')
         } finally {
+            segmentsRef.current = null
             setStatus('idle')
         }
     }, [])
@@ -123,8 +168,12 @@ export function useDictation(options: {
             recorderRef.current = recorder
             chunksRef.current = []
             discardRef.current = false
+            const segmented = (statusQuery.data?.segmentSeconds ?? 0) > 0
+            segmentsRef.current = segmented ? { id: newStreamId(), seq: 0, queue: Promise.resolve() } : null
             recorder.ondataavailable = (event) => {
-                if (event.data.size > 0) chunksRef.current.push(event.data)
+                if (event.data.size === 0) return
+                chunksRef.current.push(event.data)
+                if (!discardRef.current) sendChunk(event.data)
             }
             recorder.onstop = () => {
                 releaseMic()
@@ -132,17 +181,23 @@ export function useDictation(options: {
                 const audio = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || 'audio/webm' })
                 chunksRef.current = []
                 if (discardRef.current || audio.size === 0) {
+                    const segments = segmentsRef.current
+                    if (segments && segments.seq > 0) {
+                        // Tell the service to drop what it has; best effort.
+                        void latestRef.current.api?.sendDictationChunk(segments.id, segments.seq, new Blob([]), { cancel: true }).catch(() => {})
+                    }
+                    segmentsRef.current = null
                     setStatus('idle')
                     return
                 }
                 void upload(audio)
             }
-            recorder.start()
+            recorder.start(segmented ? DICTATION_CHUNK_MS : undefined)
             startedAtRef.current = Date.now()
             setElapsedMs(0)
             setStatus('recording')
         })()
-    }, [releaseMic, status, upload])
+    }, [releaseMic, sendChunk, status, statusQuery.data?.segmentSeconds, upload])
 
     const finish = useCallback(() => {
         const recorder = recorderRef.current
