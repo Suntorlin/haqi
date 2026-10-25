@@ -24,6 +24,8 @@ import {
 } from './reports'
 
 const DEFAULT_SHARE_TOKEN_BYTES = 24
+/** Every public report link expires: three days is the default and the longest life. */
+export const SHARE_MAX_LIFETIME_MS = 3 * 24 * 60 * 60 * 1000
 
 export class ReportStore {
     private readonly db: Database
@@ -130,6 +132,8 @@ export class ReportStore {
         expiresAt?: number | null
         token?: string
     }): StoredReportShare {
+        const latestExpiresAt = Date.now() + SHARE_MAX_LIFETIME_MS
+        const expiresAt = Math.min(options.expiresAt ?? latestExpiresAt, latestExpiresAt)
         const maxAttempts = 6
         let attempt = 0
 
@@ -142,7 +146,7 @@ export class ReportStore {
                     namespace: options.namespace,
                     token,
                     createdBy: options.createdBy,
-                    expiresAt: options.expiresAt
+                    expiresAt
                 })
             } catch (error) {
                 const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()

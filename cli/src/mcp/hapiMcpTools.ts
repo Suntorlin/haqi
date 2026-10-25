@@ -22,7 +22,7 @@ export const reportCreateInputSchema: z.ZodTypeAny = z.object({
     markdown: z.string().max(400_000).optional(),
     html_path: z.string().min(1).max(1000).optional().describe(HTML_PATH_DESCRIPTION),
     metadata: z.unknown().optional(),
-    share_expires_in_hours: z.number().positive().max(24 * 365).optional()
+    share_expires_in_hours: z.number().positive().max(24 * 365).optional().describe('Hours until the public link expires. At most 72 (3 days), which is also the default.')
 })
 
 export const memoryProposeInputSchema: z.ZodTypeAny = z.object({
@@ -92,7 +92,7 @@ export const reportAddAssetInputSchema: z.ZodTypeAny = z.object({
 
 export const reportCreateShareInputSchema: z.ZodTypeAny = z.object({
     report_id: z.string().min(1).max(255),
-    expires_in_hours: z.number().positive().max(24 * 365).optional(),
+    expires_in_hours: z.number().positive().max(24 * 365).optional().describe('Hours until the public link expires. At most 72 (3 days), which is also the default.'),
     created_by: z.string().min(1).max(255).optional()
 })
 

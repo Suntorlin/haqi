@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import type { Database } from 'bun:sqlite'
 
 import { Store } from './index'
+import { SHARE_MAX_LIFETIME_MS } from './reportStore'
 
 function closeStore(store: Store): void {
     const db = (store as unknown as { db: Database }).db
@@ -90,6 +91,25 @@ describe('ReportStore', () => {
         expect(shares).toHaveLength(1)
         expect(shares[0]?.id).toBe(share.id)
         expect(shares[0]?.revokedAt).not.toBeNull()
+
+        closeStore(store)
+    })
+
+    it('gives every share link at most three days', () => {
+        const store = new Store(':memory:')
+        const report = store.reports.createReport({ namespace: 'default', title: 'Expiry', markdown: '# x' })
+        const before = Date.now()
+
+        const byDefault = store.reports.createShare({ reportId: report.id, namespace: 'default' })
+        const tooLong = store.reports.createShare({ reportId: report.id, namespace: 'default', expiresAt: before + 30 * SHARE_MAX_LIFETIME_MS })
+        const shorter = store.reports.createShare({ reportId: report.id, namespace: 'default', expiresAt: before + 60_000 })
+
+        const after = Date.now()
+        for (const share of [byDefault, tooLong]) {
+            expect(share.expiresAt).toBeGreaterThanOrEqual(before + SHARE_MAX_LIFETIME_MS)
+            expect(share.expiresAt).toBeLessThanOrEqual(after + SHARE_MAX_LIFETIME_MS)
+        }
+        expect(shorter.expiresAt).toBe(before + 60_000)
 
         closeStore(store)
     })
