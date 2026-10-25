@@ -1,7 +1,8 @@
-import { useId } from 'react'
 import type { Machine } from '@/types/api'
-import { FormField, SelectInput } from '@/components/ui/FormControls'
+import { CheckIcon } from '@/components/mobile/icons'
+import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { useTranslation } from '@/lib/use-translation'
+import { Section } from './Section'
 
 export function getMachineTitle(machine: Machine): string {
     if (machine.metadata?.displayName) return machine.metadata.displayName
@@ -9,38 +10,41 @@ export function getMachineTitle(machine: Machine): string {
     return machine.id.slice(0, 8)
 }
 
+/**
+ * Step zero: pick the machine. It comes first because the recent projects, the folder suggestions
+ * and the Claude accounts below all belong to the chosen machine.
+ */
 export function MachineSelector(props: {
     machines: Machine[]
     machineId: string | null
-    isLoading?: boolean
     isDisabled: boolean
     onChange: (machineId: string) => void
 }) {
     const { t } = useTranslation()
-    const id = useId()
+    // The platform only tells machines apart when they differ.
+    const showPlatform = new Set(props.machines.map((m) => m.metadata?.platform)).size > 1
 
     return (
-        <FormField label={t('newSession.machine')} htmlFor={id}>
-            <SelectInput
-                id={id}
-                value={props.machineId ?? ''}
-                onChange={(e) => props.onChange(e.target.value)}
-                disabled={props.isDisabled}
-            >
-                {props.isLoading && (
-                    <option value="">{t('loading.machines')}</option>
-                )}
-                {!props.isLoading && props.machines.length === 0 && (
-                    <option value="">{t('misc.noMachines')}</option>
-                )}
-                {props.machines.map((m) => (
-                    <option key={m.id} value={m.id}>
-                        {getMachineTitle(m)}
-                        {m.metadata?.role === 'portable' ? ` · ${t('machine.portableSuffix')}` : ''}
-                        {m.metadata?.platform ? ` (${m.metadata.platform})` : ''}
-                    </option>
-                ))}
-            </SelectInput>
-        </FormField>
+        <Section title={t('newSession.machine')}>
+            <ListGroup>
+                {props.machines.map((m) => {
+                    const details = [
+                        showPlatform ? m.metadata?.platform : undefined,
+                        m.metadata?.role === 'portable' ? t('machine.portableSuffix') : undefined
+                    ].filter(Boolean).join(' · ')
+                    return (
+                        <ListRow
+                            key={m.id}
+                            title={getMachineTitle(m)}
+                            subtitle={details || undefined}
+                            trailing={m.id === props.machineId ? <CheckIcon className="h-[18px] w-[18px] text-[var(--social-fg)]" /> : undefined}
+                            chevron={false}
+                            disabled={props.isDisabled}
+                            onClick={() => props.onChange(m.id)}
+                        />
+                    )
+                })}
+            </ListGroup>
+        </Section>
     )
 }

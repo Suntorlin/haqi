@@ -22,7 +22,7 @@ import {
 } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
-import { MachineSelector, getMachineTitle } from './MachineSelector'
+import { MachineSelector } from './MachineSelector'
 import { ProjectPicker } from './ProjectPicker'
 import {
     loadLastSessionConfig,
@@ -476,9 +476,8 @@ export function NewSession(props: {
         const parts: string[] = []
         if (sessionType === 'worktree') parts.push(t('newSession.type.worktree'))
         if (experimentalSettings.previewEnabled && previewUrlInput.trim()) parts.push(t('newSession.previewUrl'))
-        if (props.machines.length > 1 && selectedMachine) parts.push(getMachineTitle(selectedMachine))
         return parts.length > 0 ? parts.join(' · ') : t('newSession.moreHint')
-    }, [sessionType, experimentalSettings.previewEnabled, previewUrlInput, props.machines.length, selectedMachine, t])
+    }, [sessionType, experimentalSettings.previewEnabled, previewUrlInput, t])
 
     return (
         <form
@@ -496,6 +495,14 @@ export function NewSession(props: {
                 <div className="rounded-2xl bg-[var(--app-badge-warning-bg)] px-4 py-3 text-footnote text-[var(--app-badge-warning-text)]">
                     {t('misc.noMachines')}
                 </div>
+            ) : null}
+            {props.machines.length > 1 ? (
+                <MachineSelector
+                    machines={props.machines}
+                    machineId={machineId}
+                    isDisabled={isFormDisabled}
+                    onChange={handleMachineChange}
+                />
             ) : null}
             <ProjectPicker
                 directory={directory}
@@ -582,15 +589,6 @@ export function NewSession(props: {
                                     )}
                                 </InputHistory>
                             </FormField>
-                        ) : null}
-                        {props.machines.length > 1 ? (
-                            <MachineSelector
-                                machines={props.machines}
-                                machineId={machineId}
-                                isLoading={props.isLoading}
-                                isDisabled={isFormDisabled}
-                                onChange={handleMachineChange}
-                            />
                         ) : null}
                     </div>
                 ) : null}
