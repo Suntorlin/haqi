@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
@@ -118,4 +118,15 @@ function middleCut(el: HTMLElement, text: string): string {
         }
     }
     return best
+}
+
+/**
+ * Heading or caption that may be any node, in `lines` lines (default 1). A string fits as a label
+ * (the longest of `candidates` that fits); any other node is clamped.
+ */
+export function FitLine(props: { text: ReactNode; candidates?: ReadonlyArray<string | null | undefined>; lines?: 1 | 2; className?: string }) {
+    const lines = props.lines ?? 1
+    return typeof props.text === 'string'
+        ? <FitText kind="label" lines={lines} text={props.text} candidates={props.candidates} className={props.className} />
+        : <span className={cn('block min-w-0 break-words', CLAMP[lines], props.className)}>{props.text}</span>
 }

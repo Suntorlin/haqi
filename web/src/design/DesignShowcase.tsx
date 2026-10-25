@@ -7,6 +7,8 @@ import { Badge, CountBadge, DotBadge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/Switch'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { FitText } from '@/components/ui/FitText'
+import { FeedRow } from '@/components/ui/FeedRow'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { CheckRow } from '@/components/ui/CheckRow'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { SwitchChip } from '@/components/ui/SettingChip'
@@ -305,6 +307,16 @@ export function DesignShowcase() {
                         <ListRow title="目录" trailing={<span className="block w-32"><FitText kind="id" text="/Users/me/dev/projects/fish" /></span>} />
                         <ListRow title="一个很长的会话标题，会在两行之内显示完，而不是只剩半句话然后省略号" />
                     </ListGroup>
+                    <div className="sm:col-span-2">
+                        <FeedRow
+                            avatar={<Orb seed="feed-demo" size={44} />}
+                            title="一个很长的会话标题，在列表里最多两行，不会只剩半句话"
+                            aside="3 分钟前"
+                            status={<span className="shrink-0 font-semibold text-[var(--social-fg)]">正在思考 ·</span>}
+                            subtitle="fish · opus-5-5 · #agent · #infra"
+                            end={<span className="shrink-0 text-caption tabular-nums text-[var(--social-fg-subtle)]">2/5</span>}
+                        />
+                    </div>
                     <div className="flex gap-4">
                         {['规划 · Implement this design from Figma', '形象创建与新风格 Figma 改版实现（Web+API）'].map((text) => (
                             <span key={text} className="w-14">

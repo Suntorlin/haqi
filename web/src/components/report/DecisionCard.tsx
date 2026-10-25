@@ -8,6 +8,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { CheckRing } from './indicators'
 import type { CheckItem, Decision, DecisionOption } from './types'
+import { FitText } from '@/components/ui/FitText'
 
 function OptionBlock(props: { option: DecisionOption; selected: boolean; onSelect: () => void }) {
     const { t } = useTranslation()
@@ -143,12 +144,9 @@ export function DecisionPeek(props: { decision: Decision; onOpen: () => void }) 
         <button type="button" onClick={props.onOpen} className="flex min-h-[44px] w-full items-center gap-3 rounded-2xl bg-[var(--social-muted)] px-4 py-3 text-left">
             {source ? <Orb seed={source.seed} size={20} /> : null}
             <span className="min-w-0 flex-1">
-                <span className="block truncate text-body font-semibold text-[var(--social-fg)]">{props.decision.question}</span>
+                <FitText kind="title" text={props.decision.question} className="text-body font-semibold text-[var(--social-fg)]" />
                 {source ? (
-                    <span className="block truncate text-caption text-[var(--social-fg-muted)]">
-                        {source.name}
-                        {source.meta ? ` · ${source.meta}` : ''}
-                    </span>
+                    <FitText kind="preview" text={`${source.name}${source.meta ? ` · ${source.meta}` : ''}`} className="text-caption text-[var(--social-fg-muted)]" />
                 ) : null}
             </span>
             <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />
@@ -172,9 +170,11 @@ export function Checklist(props: { items: CheckItem[] }) {
                     <>
                         <CheckRing state={item.state} />
                         <span className="min-w-0 flex-1">
-                            <span className={cn('block text-body leading-snug', item.onClick && 'line-clamp-2', item.state === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}>
-                                {item.title}
-                            </span>
+                            <FitText
+                                kind={item.onClick ? 'title' : 'value'}
+                                text={item.title}
+                                className={cn('text-body leading-snug', item.state === 'done' ? 'text-[var(--social-fg-muted)]' : 'text-[var(--social-fg)]')}
+                            />
                             {item.subtitle ? <span className="mt-0.5 block text-footnote leading-snug text-[var(--social-fg-muted)]">{item.subtitle}</span> : null}
                         </span>
                         {item.waiting ? (

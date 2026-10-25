@@ -1,13 +1,7 @@
 import type { AriaAttributes, ReactNode, Ref } from 'react'
 import { ChevronRightIcon } from '@/components/mobile/icons'
 import { cn } from '@/lib/utils'
-import { FitText } from './FitText'
-
-/**
- * Feed row (sessions, groups, review loops): avatar + two lines, full-bleed on phones, inset
- * rounded pill on desktop. Not a ListRow: feed rows have no group container and no chevron.
- */
-export const FEED_ROW_CLASS = 'social-pressable flex w-full items-center gap-3.5 px-5 py-2.5 text-left select-none lg:mx-2 lg:w-[calc(100%-1rem)] lg:rounded-2xl lg:px-3'
+import { FitLine, FitText } from './FitText'
 
 /** Group of rows with a hairline between them (iOS inset-grouped list, Instagram settings). */
 export function ListGroup(props: { title?: ReactNode; children: ReactNode; className?: string }) {
@@ -45,7 +39,9 @@ export function ListRow(props: {
     // Title and subtitle take up to two lines (all of it with `wrap`) instead of cutting the end off.
     const line = (node: ReactNode, className: string) => typeof node === 'string' && !props.wrap
         ? <FitText kind="title" text={node} className={cn('leading-snug', className)} />
-        : <span className={cn('block break-words leading-snug', props.wrap ? 'whitespace-normal' : 'line-clamp-2', className)}>{node}</span>
+        : props.wrap
+            ? <span className={cn('block whitespace-normal break-words leading-snug', className)}>{node}</span>
+            : <FitLine lines={2} text={node} className={cn('leading-snug', className)} />
     const content = (
         <>
             {props.icon ? <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[var(--social-fg-muted)]">{props.icon}</span> : null}

@@ -52,6 +52,7 @@ export function InputHistory(props: {
                         <ContextMenuItem
                             key={item}
                             label={props.format ? props.format(item) : item}
+                            labelKind="id"
                             onSelect={() => {
                                 setOpen(false)
                                 props.onPick(item)

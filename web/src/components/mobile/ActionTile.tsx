@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react'
 import { CountBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { FitText } from '@/components/ui/FitText'
 
 /**
  * Square-ish quick action (icon over a caption) for action grids: the top of the session info
@@ -34,7 +35,7 @@ export function ActionTile({
             )}
         >
             {icon}
-            <span className="line-clamp-2 max-w-full break-words text-center leading-tight">{label}</span>
+            <FitText kind="label" text={label} className="w-full text-center leading-tight" />
             {badge ? <CountBadge count={badge} className="absolute -right-1 -top-1" /> : null}
         </button>
     )

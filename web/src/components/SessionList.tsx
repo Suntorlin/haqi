@@ -21,7 +21,7 @@ import type { SessionSummary, TaskView } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
 import { cn } from '@/lib/utils'
-import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
+import { FeedRow } from '@/components/ui/FeedRow'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
@@ -308,39 +308,45 @@ function getLivePendingCount(session: SessionSummary): number {
     return session.active ? session.pendingRequestsCount : 0
 }
 
-function FeedPreview(props: { session: SessionSummary; active: boolean; thinking: boolean }) {
+/** The line under a session's title: who waits on it, then project · model · tags, then todo progress. */
+function FeedPreviewStatus(props: { session: SessionSummary; active: boolean; thinking: boolean }) {
     const { t } = useTranslation()
     const { session: s } = props
+    if (props.active && s.pendingRequestsCount > 0) {
+        return (
+            <span className="shrink-0 font-semibold text-[var(--social-badge)]">
+                {t('mobile.feed.pending', { n: s.pendingRequestsCount })} ·
+            </span>
+        )
+    }
+    if (!props.thinking) return null
+    return (
+        <span className="inline-flex shrink-0 items-center font-semibold text-[var(--social-fg)]">
+            {t('mobile.feed.thinking')}
+            <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
+                <span /><span /><span />
+            </span>
+        </span>
+    )
+}
+
+function feedPreviewText(s: SessionSummary): string {
     const projectName = getProjectName(getSessionProjectPath(s))
     const model = s.metadata?.model?.trim() || s.modelMode || ''
-    const progress = getTodoProgress(s)
-    const meta = [
+    return [
         projectName,
         model && model !== 'default' ? shortModelName(model) : null,
         ...getUserTags(s).map((tag) => `#${tag}`)
     ].filter(Boolean).join(' · ')
+}
 
+function FeedProgress(props: { session: SessionSummary }) {
+    const progress = getTodoProgress(props.session)
+    if (!progress) return null
     return (
-        <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
-            {props.active && s.pendingRequestsCount > 0 ? (
-                <span className="shrink-0 font-semibold text-[var(--social-badge)]">
-                    {t('mobile.feed.pending', { n: s.pendingRequestsCount })} ·
-                </span>
-            ) : props.thinking ? (
-                <span className="inline-flex shrink-0 items-center font-semibold text-[var(--social-fg)]">
-                    {t('mobile.feed.thinking')}
-                    <span className="typing-dots ml-0.5 inline-flex items-center" aria-hidden="true">
-                        <span /><span /><span />
-                    </span>
-                </span>
-            ) : null}
-            <span className="min-w-0 truncate">{meta}</span>
-            {progress ? (
-                <span className="ml-auto shrink-0 pl-1 text-caption tabular-nums text-[var(--social-fg-subtle)]">
-                    {progress.completed}/{progress.total}
-                </span>
-            ) : null}
-        </div>
+        <span className="shrink-0 pl-1 text-caption tabular-nums text-[var(--social-fg-subtle)]">
+            {progress.completed}/{progress.total}
+        </span>
     )
 }
 
@@ -488,35 +494,28 @@ function SessionItem(props: {
                 }}
             >
                 {isFeed ? (
-                    <button
-                        type="button"
+                    <FeedRow
                         {...longPressHandlers}
-                        className={cn('session-list-item focus-visible:outline-none', FEED_ROW_CLASS, sortable && 'max-lg:pr-12', effectiveActive && s.pendingRequestsCount > 0 && 'bg-[var(--social-muted)]/60')}
+                        className={cn('session-list-item focus-visible:outline-none', sortable && 'max-lg:pr-12', effectiveActive && s.pendingRequestsCount > 0 && 'bg-[var(--social-muted)]/60')}
                         style={{ WebkitTouchCallout: 'none' }}
                         aria-current={selected ? 'page' : undefined}
-                    >
-                        <SessionAvatar
-                            session={s}
-                            size={44}
-                            ring={effectiveActive && s.pendingRequestsCount > 0 ? 'pending' : effectiveThinking ? 'live' : null}
-                            muted={!effectiveActive}
-                            badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
-                            unread={unreadSessions.has(s.id)}
-                        />
-                        <div className="flex min-w-0 flex-1 flex-col justify-center">
-                            <div className="flex items-baseline gap-2">
-                                <FitText
-                                    kind="title"
-                                    text={sessionName}
-                                    className={`flex-1 text-body leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}
-                                />
-                                <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">
-                                    {snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
-                                </span>
-                            </div>
-                            <FeedPreview session={s} active={effectiveActive} thinking={effectiveThinking} />
-                        </div>
-                    </button>
+                        avatar={(
+                            <SessionAvatar
+                                session={s}
+                                size={44}
+                                ring={effectiveActive && s.pendingRequestsCount > 0 ? 'pending' : effectiveThinking ? 'live' : null}
+                                muted={!effectiveActive}
+                                badgeCount={effectiveActive ? s.pendingRequestsCount : 0}
+                                unread={unreadSessions.has(s.id)}
+                            />
+                        )}
+                        title={sessionName}
+                        titleClassName={effectiveActive ? 'font-semibold' : undefined}
+                        aside={snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
+                        status={<FeedPreviewStatus session={s} active={effectiveActive} thinking={effectiveThinking} />}
+                        subtitle={feedPreviewText(s)}
+                        end={<FeedProgress session={s} />}
+                    />
                 ) : (
                     <button
                         type="button"
@@ -532,9 +531,7 @@ function SessionItem(props: {
                                         className={`h-2 w-2 rounded-full ${statusDotClass}`}
                                     />
                                 </span>
-                                <div className={`truncate font-semibold ${isCompact ? 'text-body' : 'text-base'}`}>
-                                    {sessionName}
-                                </div>
+                                <FitText kind="title" text={sessionName} className={`font-semibold ${isCompact ? 'text-body' : 'text-base'}`} />
                             </div>
                             <div className={`flex items-center gap-2 shrink-0 text-xs`}>
                                 {effectiveThinking ? (
@@ -565,9 +562,7 @@ function SessionItem(props: {
                             </div>
                         </div>
                         {showPath ? (
-                            <div className="truncate text-xs text-[var(--social-fg-muted)]">
-                                {s.metadata?.path ?? s.id}
-                            </div>
+                            <FitText kind="id" text={s.metadata?.path ?? s.id} className="text-xs text-[var(--social-fg-muted)]" />
                         ) : null}
                         {userTags.length ? (
                             <div className="flex flex-wrap gap-1">
@@ -862,15 +857,14 @@ function SessionGroupRow(props: {
                     className={minimal ? 'h-3.5 w-3.5 text-[var(--social-fg-subtle)]' : 'h-4 w-4 text-[var(--social-fg-muted)]'}
                     open={!isCollapsed}
                 />
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <span
+                <div className="flex min-w-0 flex-1 items-center gap-2" title={group.directory}>
+                    <FitText
+                        kind="title"
+                        text={group.displayName}
                         className={minimal
-                            ? 'truncate text-footnote font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
-                            : `font-semibold break-words ${density === 'compact' ? 'text-body' : 'text-base'}`}
-                        title={group.directory}
-                    >
-                        {group.displayName}
-                    </span>
+                            ? 'text-footnote font-semibold tracking-[-0.01em] text-[var(--social-fg)]'
+                            : `font-semibold ${density === 'compact' ? 'text-body' : 'text-base'}`}
+                    />
                     {isProjectOffline ? (
                         <span className="shrink-0 rounded-md bg-[var(--social-hover)] px-1.5 py-0.5 text-caption uppercase tracking-wide text-[var(--social-fg-muted)]">
                             {t('misc.offline')}

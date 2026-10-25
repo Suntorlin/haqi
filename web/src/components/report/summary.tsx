@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ReportStat, Shot } from './types'
+import { FitText } from '@/components/ui/FitText'
 
 /** Section caption inside a report page ("等你", "进度", "风险"). */
 export function SectionCaption(props: { children: ReactNode; trailing?: ReactNode }) {
@@ -62,7 +63,7 @@ export function ShotRow(props: { shots: Shot[] }) {
             {props.shots.map((shot) => (
                 <figure key={shot.src} className="min-w-0 flex-1">
                     <img src={shot.src} alt={shot.caption} className="aspect-[393/852] w-full rounded-xl border border-[var(--social-border)] object-cover object-top" />
-                    <figcaption className="mt-1.5 truncate text-caption text-[var(--social-fg-muted)]">{shot.caption}</figcaption>
+                    <figcaption className="mt-1.5 text-caption text-[var(--social-fg-muted)]"><FitText kind="title" text={shot.caption} /></figcaption>
                 </figure>
             ))}
         </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { IconButton } from '@/components/ui/IconButton'
+import { FitLine } from '@/components/ui/FitText'
 import { SidebarIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -10,6 +11,8 @@ import { useTranslation } from '@/lib/use-translation'
 export function DesktopPaneHeader(props: {
     avatar?: ReactNode
     title: ReactNode
+    /** Shorter forms of a string title, tried when it does not fit on the line. */
+    titleCandidates?: ReadonlyArray<string | null | undefined>
     subtitle?: ReactNode
     actions?: ReactNode
     listVisible?: boolean
@@ -23,9 +26,7 @@ export function DesktopPaneHeader(props: {
         <>
             {props.avatar}
             <div className="min-w-0 flex-1">
-                <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
-                    {props.title}
-                </div>
+                <FitLine text={props.title} candidates={props.titleCandidates} className="text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]" />
                 {props.subtitle ? (
                     <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-caption leading-tight text-[var(--social-fg-muted)]">
                         {props.subtitle}

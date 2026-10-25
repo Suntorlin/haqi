@@ -52,22 +52,10 @@ import { useTranslation } from '@/lib/use-translation'
 import { accountsKey } from '@/components/ClaudeAccounts/Settings'
 import { quotaOptionLabel } from '@/components/ClaudeAccounts/Selector'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
-import { FitText } from '@/components/ui/FitText'
+import { FitLine, FitText } from '@/components/ui/FitText'
+import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { useMachines } from '@/hooks/queries/useMachines'
-
-function getSessionTitle(session: Session): string {
-    if (session.metadata?.name) {
-        return session.metadata.name
-    }
-    if (session.metadata?.summary?.text) {
-        return session.metadata.summary.text
-    }
-    if (session.metadata?.path) {
-        const parts = session.metadata.path.split('/').filter(Boolean)
-        return parts.length > 0 ? parts[parts.length - 1] : session.id.slice(0, 8)
-    }
-    return session.id.slice(0, 8)
-}
+import { getSessionLabelCandidates, getSessionTitle } from '@/lib/session-title'
 
 const PERMISSION_TONE_TEXT: Record<PermissionModeTone, string> = {
     neutral: 'text-[var(--social-fg-muted)]',
@@ -124,6 +112,7 @@ export function SessionHeader(props: {
     const [infoAnchor, setInfoAnchor] = useState<{ right: number; bottom: number } | null>(null)
     const infoButtonRef = useRef<HTMLButtonElement>(null)
     const title = useMemo(() => getSessionTitle(session), [session])
+    const titleCandidates = useMemo(() => getSessionLabelCandidates(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
     const displayModel = session.metadata?.model?.trim() || session.modelMode || 'default'
     const displayThinkEffort = session.metadata?.thinkEffort?.trim()
@@ -339,7 +328,7 @@ export function SessionHeader(props: {
         <>
             <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
             <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
-            <span className="min-w-0 truncate">
+            <FitLine className="flex-1" text={<>
                 {zoomLevelLabel ? <span className="text-[var(--social-fg)]">{`· ${zoomLevelLabel} `}</span> : null}
                 {shortModel ? `· ${shortModel}` : ''}
                 {permissionLabel ? (
@@ -350,7 +339,7 @@ export function SessionHeader(props: {
                         {` · ${t('mobile.chat.contextLeft', { percent: contextPercentLeft })}`}
                     </span>
                 ) : null}
-            </span>
+            </>} />
         </>
     )
 
@@ -367,11 +356,11 @@ export function SessionHeader(props: {
             <div className="flex items-center gap-3.5 px-5 pb-5 pt-2">
                 <SessionAvatar session={session} size={48} ring={avatarRing} muted={!session.active} />
                 <div className="min-w-0 flex-1">
-                    <div className="line-clamp-2 text-headline font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{title}</div>
+                    <FitText kind="title" text={title} className="text-headline font-semibold leading-snug tracking-[-0.01em] text-[var(--social-fg)]" />
                     <div className="mt-1 flex min-w-0 items-center gap-1.5 text-footnote text-[var(--social-fg-muted)]">
                         <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass)} />
                         <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
-                        <span className="truncate">· {flavor ?? 'unknown'} · {getProjectName(getSessionProjectPath(session))}</span>
+                        <FitText kind="preview" className="flex-1" text={`· ${flavor ?? 'unknown'} · ${getProjectName(getSessionProjectPath(session))}`} />
                     </div>
                 </div>
             </div>
@@ -530,6 +519,7 @@ export function SessionHeader(props: {
                 <DesktopPaneHeader
                     avatar={<SessionAvatar session={session} size={36} ring={avatarRing} muted={!session.active} />}
                     title={title}
+                    titleCandidates={titleCandidates}
                     subtitle={statusLine}
                     listVisible={props.sidebarVisible}
                     onToggleList={props.onToggleSidebar}
@@ -566,31 +556,19 @@ export function SessionHeader(props: {
 
     return (
         <>
-            <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
-                <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
-                    <IconButton label={t('button.back')} onClick={props.onBack} className="text-[var(--social-fg)]">
-                        <ChevronLeftIcon className="h-[26px] w-[26px]" />
-                    </IconButton>
-                    <button
-                        type="button"
-                        onClick={() => setInfoOpen(true)}
-                        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pr-1 text-left [-webkit-tap-highlight-color:transparent]"
-                    >
-                        <SessionAvatar session={session} size={38} ring={avatarRing} muted={!session.active} />
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
-                                {title}
-                            </div>
-                            <div className="mt-[3px] flex min-w-0 items-center gap-1.5 text-caption leading-tight text-[var(--social-fg-muted)]">
-                                {statusLine}
-                            </div>
-                        </div>
-                    </button>
+            <SubPageHeader
+                onBack={props.onBack}
+                avatar={<SessionAvatar session={session} size={38} ring={avatarRing} muted={!session.active} />}
+                title={title}
+                titleCandidates={titleCandidates}
+                subtitle={statusLine}
+                onTitleClick={() => setInfoOpen(true)}
+                actions={(
                     <IconButton label={t('mobile.chat.info')} onClick={() => setInfoOpen(true)} className="text-[var(--social-fg)]">
                         <MoreHorizontalIcon className="h-6 w-6" />
                     </IconButton>
-                </div>
-            </div>
+                )}
+            />
             {infoSheet}
             {dialogs}
         </>

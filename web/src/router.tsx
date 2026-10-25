@@ -75,7 +75,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { FEED_ROW_CLASS } from '@/components/ui/ListRow'
+import { FeedRow } from '@/components/ui/FeedRow'
 import { IconButton } from '@/components/ui/IconButton'
 import { TextField } from '@/components/ui/TextField'
 import type { GroupDetail, SessionSummary, TaskStatus, TaskView } from '@/types/api'
@@ -1028,42 +1028,36 @@ function GroupRow(props: {
     const badge = status && status !== 'active' ? status : null
 
     return (
-        <button
-            type="button"
+        <FeedRow
             {...longPressHandlers}
-            className={FEED_ROW_CLASS}
             style={{ WebkitTouchCallout: 'none' }}
             aria-current={props.selected ? 'page' : undefined}
-        >
-            {props.task?.run && (props.task.status === 'active' || props.task.status === 'done') ? (
+            avatar={props.task?.run && (props.task.status === 'active' || props.task.status === 'done') ? (
                 <ProgressOrb seed={item.group.id} size={44} progress={taskProgress(props.task)} tone={taskTone(props.task)} />
             ) : (
                 <GroupAvatar seed={item.group.id} members={members} size={44} />
             )}
-            <div className="flex min-w-0 flex-1 flex-col justify-center">
-                <div className="flex items-baseline gap-2">
-                    <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">{item.group.name}</span>
+            title={item.group.name}
+            aside={(
+                <>
                     {badge ? <Badge variant={TASK_STATUS_BADGE[badge]} className="shrink-0 self-center">{t(`tasks.status.${badge}`)}</Badge> : null}
-                    <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">{formatRelativeTime(item.group.updatedAt, t)}</span>
-                </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-footnote leading-snug text-[var(--social-fg-muted)]">
+                    <span>{formatRelativeTime(item.group.updatedAt, t)}</span>
+                </>
+            )}
+            status={(
+                <>
                     {hasLiveMember ? (
                         <span className="shrink-0 font-semibold text-[var(--social-fg)]">{t('mobile.feed.thinking')} ·</span>
                     ) : null}
                     {status && item.group.status === 'guiding' && props.task?.guide.state === 'ready' ? (
                         <DotBadge className="shrink-0" />
                     ) : null}
-                    <span className="min-w-0 truncate">
-                        {status && (item.group.status === 'guiding' || item.group.goal || item.group.tag) ? taskRowSubtitle(item, props.task, t) : (
-                            <>
-                                {t('mobile.groups.members', { n: item.members.length })}
-                                {item.group.description?.trim() ? ` · ${item.group.description}` : ''}
-                            </>
-                        )}
-                    </span>
-                </div>
-            </div>
-        </button>
+                </>
+            )}
+            subtitle={status && (item.group.status === 'guiding' || item.group.goal || item.group.tag)
+                ? taskRowSubtitle(item, props.task, t)
+                : `${t('mobile.groups.members', { n: item.members.length })}${item.group.description?.trim() ? ` · ${item.group.description}` : ''}`}
+        />
     )
 }
 
@@ -1372,41 +1366,18 @@ function GroupsLayout() {
 
         return (
             <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
-                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
-                    <div className="flex h-[54px] items-center gap-0.5 pl-1 pr-1.5">
-                        <IconButton
-                            label={t('button.back')}
-                            onClick={() => navigate({ to: '/groups' })}
-                            className="text-[var(--social-fg)]"
-                        >
-                            <ChevronLeftIcon className="h-[26px] w-[26px]" />
-                        </IconButton>
-                        <button
-                            type="button"
-                            onClick={() => setGroupInfoOpen(true)}
-                            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl py-1 pr-1 text-left [-webkit-tap-highlight-color:transparent]"
-                        >
-                            {selectedGroup ? (
-                                <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} />
-                            ) : null}
-                            <div className="min-w-0 flex-1">
-                                <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
-                                    {selectedGroup?.group.name ?? ''}
-                                </div>
-                                <div className="mt-[3px] truncate text-caption leading-tight text-[var(--social-fg-muted)]">
-                                    {groupSubtitle}
-                                </div>
-                            </div>
-                        </button>
-                        <IconButton
-                            label={groupInfoLabel}
-                            onClick={() => setGroupInfoOpen(true)}
-                            className="text-[var(--social-fg)]"
-                        >
+                <SubPageHeader
+                    onBack={() => navigate({ to: '/groups' })}
+                    avatar={selectedGroup ? <GroupAvatar seed={selectedGroup.group.id} members={membersOf(selectedGroup)} size={38} /> : null}
+                    title={selectedGroup?.group.name ?? ''}
+                    subtitle={groupSubtitle}
+                    onTitleClick={() => setGroupInfoOpen(true)}
+                    actions={(
+                        <IconButton label={groupInfoLabel} onClick={() => setGroupInfoOpen(true)} className="text-[var(--social-fg)]">
                             <MoreHorizontalIcon className="h-6 w-6" />
                         </IconButton>
-                    </div>
-                </div>
+                    )}
+                />
                 <div className="min-h-0 flex-1">
                     <GroupInfoPanelContext.Provider value={groupInfoPanel}>
                         <Outlet />
@@ -1613,29 +1584,16 @@ function ReviewLoopsLayout() {
                 <EmptyState variant="page" title={t('mobile.loops.empty')} />
             ) : (
                 visibleLoops.map((item) => (
-                    <button
+                    <FeedRow
                         key={item.id}
-                        type="button"
                         onClick={() => navigate({ to: '/review-loops/$loopId', params: { loopId: item.id } })}
-                        className={FEED_ROW_CLASS}
                         aria-current={selectedLoopId === item.id ? 'page' : undefined}
-                    >
-                        {loopAvatar(item, 44)}
-                        <div className="flex min-w-0 flex-1 flex-col justify-center">
-                            <div className="flex items-baseline gap-2">
-                                <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em]">
-                                    {item.requirement}
-                                </span>
-                                <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">
-                                    {formatRelativeTime(item.updatedAt, t)}
-                                </span>
-                            </div>
-                            <div className="mt-1 flex items-center gap-2 text-caption text-[var(--social-fg-muted)]">
-                                <ReviewLoopStatusBadge status={item.status} />
-                                <span>{t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}</span>
-                            </div>
-                        </div>
-                    </button>
+                        avatar={loopAvatar(item, 44)}
+                        title={item.requirement}
+                        aside={formatRelativeTime(item.updatedAt, t)}
+                        status={<ReviewLoopStatusBadge status={item.status} />}
+                        subtitle={t('mobile.loops.round', { n: item.currentRound, max: item.maxRounds })}
+                    />
                 ))
             )}
         </div>
@@ -1666,28 +1624,12 @@ function ReviewLoopsLayout() {
 
         return (
             <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
-                <div className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
-                    <div className="flex h-[54px] items-center gap-2.5 pl-1 pr-4">
-                        <IconButton
-                            label={t('button.back')}
-                            onClick={() => navigate({ to: '/review-loops' })}
-                            className="text-[var(--social-fg)]"
-                        >
-                            <ChevronLeftIcon className="h-[26px] w-[26px]" />
-                        </IconButton>
-                        {selectedLoop ? loopAvatar(selectedLoop, 38) : null}
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-body font-semibold leading-tight tracking-[-0.01em] text-[var(--social-fg)]">
-                                {selectedLoop?.requirement ?? ''}
-                            </div>
-                            {loopSubtitle ? (
-                                <div className="mt-[3px] truncate text-caption leading-tight text-[var(--social-fg-muted)]">
-                                    {loopSubtitle}
-                                </div>
-                            ) : null}
-                        </div>
-                    </div>
-                </div>
+                <SubPageHeader
+                    onBack={() => navigate({ to: '/review-loops' })}
+                    avatar={selectedLoop ? loopAvatar(selectedLoop, 38) : null}
+                    title={selectedLoop?.requirement ?? ''}
+                    subtitle={loopSubtitle ?? undefined}
+                />
                 <div className="min-h-0 flex-1">
                     <Outlet />
                 </div>

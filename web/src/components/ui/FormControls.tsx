@@ -1,9 +1,10 @@
-import type { ReactNode, SelectHTMLAttributes } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { useTranslation } from '@/lib/use-translation'
 import { Chip } from '@/components/ui/Chip'
 import { cn } from '@/lib/utils'
 import { ChevronDownIcon } from '@/components/mobile/icons'
+import { FitLine, FitText } from './FitText'
 
 const CAPTION_CLASS = 'px-1 text-caption font-semibold text-[var(--social-fg-muted)]'
 
@@ -43,14 +44,30 @@ export function FieldHint(props: { children: ReactNode }) {
     return <p className="px-1 text-caption leading-snug text-[var(--social-fg-subtle)]">{props.children}</p>
 }
 
-/** Native select dressed like the text inputs; phones keep the system picker. */
+/**
+ * Native select dressed like the text inputs; phones keep the system picker. The chosen option is
+ * shown as text that wraps (a native select cuts it), with the select laid invisible over it.
+ */
 export function SelectInput(props: SelectHTMLAttributes<HTMLSelectElement>) {
-    const { className, ...rest } = props
+    const { className, onChange, ...rest } = props
+    const ref = useRef<HTMLSelectElement>(null)
+    const [label, setLabel] = useState('')
+    const readLabel = () => setLabel(ref.current?.selectedOptions[0]?.text ?? '')
+    // Options may arrive after the value (loading lists): read the label after every render.
+    useLayoutEffect(readLabel)
     return (
-        <div className="relative min-w-0">
+        <div className={cn('relative min-w-0 [&:has(select:focus-visible)>div]:border-[var(--social-fg-subtle)]', props.disabled && 'opacity-50')}>
+            <div aria-hidden="true" className={cn(DIALOG_INPUT_CLASS, 'pr-10', className)}>
+                <FitText kind="value" text={label || '\u00a0'} />
+            </div>
             <select
+                ref={ref}
                 {...rest}
-                className={cn(DIALOG_INPUT_CLASS, 'cursor-pointer appearance-none truncate pr-10 disabled:cursor-not-allowed disabled:opacity-50', className)}
+                onChange={(event) => {
+                    readLabel()
+                    onChange?.(event)
+                }}
+                className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0 disabled:cursor-not-allowed"
             />
             <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--social-fg-subtle)]" />
         </div>
@@ -119,13 +136,13 @@ export function SegmentedControl<T extends string>(props: {
                         disabled={props.disabled}
                         onClick={() => props.onChange(option.value)}
                         className={cn(
-                            'min-h-11 min-w-0 flex-1 truncate rounded-xl px-2 py-2 text-body transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                            'min-h-11 min-w-0 flex-1 rounded-xl px-2 py-2 text-body transition-colors disabled:cursor-not-allowed disabled:opacity-50',
                             selected
                                 ? 'bg-[var(--social-surface)] font-semibold text-[var(--social-fg)] shadow-[var(--shadow-raised)]'
                                 : 'text-[var(--social-fg-muted)] hover:text-[var(--social-fg)]'
                         )}
                     >
-                        {option.label}
+                        <FitLine text={option.label} />
                     </button>
                 )
             })}

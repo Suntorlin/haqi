@@ -9,7 +9,8 @@ import { PausedBadge, RunStatusBadge } from '@/components/scheduled/RunBadges'
 import { ScheduleFormDialog } from '@/components/scheduled/ScheduleFormDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { IconButton } from '@/components/ui/IconButton'
-import { FEED_ROW_CLASS, ListGroup, ListRow } from '@/components/ui/ListRow'
+import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { FeedRow } from '@/components/ui/FeedRow'
 import { useScheduleActions } from '@/hooks/mutations/useScheduleActions'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSchedules } from '@/hooks/queries/useSchedules'
@@ -61,15 +62,13 @@ function ScheduleFeedRow(props: { schedule: ScheduledTask; now: number; selected
     const label = describeSpec(schedule.spec, schedule.timezone, locale === 'zh-CN' ? 'zh' : 'en')
     const next = useNextText(schedule, props.now)
     return (
-        <button type="button" onClick={props.onOpen} className={FEED_ROW_CLASS} aria-current={props.selected ? 'page' : undefined}>
-            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
-                <div className="flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em] text-[var(--social-fg)]">{schedule.name}</span>
-                    <ScheduleBadges schedule={schedule} />
-                </div>
-                <div className="truncate text-caption text-[var(--social-fg-muted)]">{[label, next].filter(Boolean).join(' · ')}</div>
-            </div>
-        </button>
+        <FeedRow
+            onClick={props.onOpen}
+            aria-current={props.selected ? 'page' : undefined}
+            title={schedule.name}
+            aside={<ScheduleBadges schedule={schedule} />}
+            subtitle={[label, next].filter(Boolean).join(' · ')}
+        />
     )
 }
 

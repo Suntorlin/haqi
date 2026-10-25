@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { FitText } from './FitText'
 
 export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     /** Filled when chosen (filters, single-choice groups). */
@@ -10,13 +11,13 @@ export interface ChipProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
 
 /** Pill shortcut / filter / choice. 32px tall; keep rows scrollable or wrapping with 8px gaps. */
 export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
-    ({ className, selected, size = 'default', type = 'button', ...props }, ref) => (
+    ({ className, selected, size = 'default', type = 'button', children, ...props }, ref) => (
         <button
             ref={ref}
             type={type}
             aria-pressed={selected}
             className={cn(
-                'inline-flex max-w-full items-center truncate rounded-full border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [-webkit-tap-highlight-color:transparent]',
+                'inline-flex max-w-full items-center rounded-full border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50 [-webkit-tap-highlight-color:transparent]',
                 size === 'sm'
                     ? "relative h-6 gap-1 px-2.5 text-caption after:absolute after:-inset-2.5 after:content-['']"
                     : 'h-8 px-3.5 text-footnote',
@@ -26,7 +27,9 @@ export const Chip = React.forwardRef<HTMLButtonElement, ChipProps>(
                 className
             )}
             {...props}
-        />
+        >
+            {typeof children === 'string' ? <FitText kind="label" lines={1} text={children} /> : children}
+        </button>
     )
 )
 Chip.displayName = 'Chip'

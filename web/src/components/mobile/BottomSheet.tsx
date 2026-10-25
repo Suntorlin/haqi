@@ -7,7 +7,7 @@ import { CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/mobile/icon
 import { SwitchTrack } from '@/components/ui/Switch'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
-import { FitText } from '@/components/ui/FitText'
+import { FitLine, FitText } from '@/components/ui/FitText'
 
 /**
  * Secondary panel shared by both layouts: an iOS-style bottom sheet with a grabber on phones,
@@ -75,9 +75,9 @@ export function BottomSheet(props: {
                     >
                         <div className="flex h-14 shrink-0 items-center gap-2 pl-5 pr-3">
                             <DialogPrimitive.Title
-                                className={props.hideTitle ? 'sr-only' : 'min-w-0 flex-1 truncate text-body font-semibold'}
+                                className={props.hideTitle ? 'sr-only' : 'min-w-0 flex-1 text-body font-semibold'}
                             >
-                                {props.title}
+                                {props.hideTitle ? props.title : <FitLine text={props.title} />}
                             </DialogPrimitive.Title>
                             <DialogPrimitive.Close asChild>
                                 <IconButton size="sm" label={t('button.close')} className="ml-auto">

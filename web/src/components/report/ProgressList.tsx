@@ -2,6 +2,7 @@ import { DotBadge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { CheckRing, ProgressOrb } from './indicators'
 import type { ProgressItem } from './types'
+import { FitText } from '@/components/ui/FitText'
 
 export function ProgressRow(props: { item: ProgressItem; onOpen: () => void }) {
     const { item } = props
@@ -16,10 +17,8 @@ export function ProgressRow(props: { item: ProgressItem; onOpen: () => void }) {
                 )}
                 {item.unread ? <DotBadge className="absolute -right-1 -top-1" /> : null}
             </span>
-            <span className="w-24 shrink-0 truncate text-body text-[var(--social-fg)]">{item.name}</span>
-            <span className={cn('min-w-0 flex-1 truncate text-footnote', attention ? 'text-[var(--app-badge-warning-text)]' : 'text-[var(--social-fg-muted)]')}>
-                {item.status}
-            </span>
+            <FitText kind="label" lines={1} text={item.name} className="w-24 shrink-0 text-body text-[var(--social-fg)]" />
+            <FitText kind="preview" text={item.status} className={cn('flex-1 text-footnote', attention ? 'text-[var(--app-badge-warning-text)]' : 'text-[var(--social-fg-muted)]')} />
             <span className="shrink-0 text-footnote tabular-nums text-[var(--social-fg-subtle)]">
                 {item.tone === 'done' ? item.when : `${item.done}/${item.total}`}
             </span>

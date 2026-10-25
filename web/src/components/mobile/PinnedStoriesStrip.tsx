@@ -162,9 +162,7 @@ export function PinnedStoriesStrip(props: {
                             <PlusIcon className="h-5 w-5" />
                         </span>
                         {/* mt-1.5 matches the story labels (they leave room for the status badge) so the row's captions line up */}
-                        <span className="mt-1.5 w-full truncate text-center text-caption text-[var(--social-fg-muted)]">
-                            {t('mobile.stories.new')}
-                        </span>
+                        <FitText kind="label" text={t('mobile.stories.new')} className="mt-1.5 w-full text-center text-caption text-[var(--social-fg-muted)]" />
                     </button>
 
                     {stories.map((session) => (

@@ -38,6 +38,7 @@ export const Autocomplete = memo(function Autocomplete(props: AutocompleteProps)
                 <ContextMenuItem
                     key={suggestion.key}
                     label={suggestion.label}
+                    labelKind="id"
                     description={suggestion.description}
                     wrapDescription
                     active={index === selectedIndex}

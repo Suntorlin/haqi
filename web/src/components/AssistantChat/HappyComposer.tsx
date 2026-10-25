@@ -1199,6 +1199,7 @@ export function HappyComposer(props: {
                 <SettingChip
                     title={t('newSession.serviceTier')}
                     valueLabel={t('composer.chip.tier', { value: optionLabel(serviceTierOptions, currentServiceTierValue) })}
+                    valueCandidates={[optionLabel(serviceTierOptions, currentServiceTierValue)]}
                     disabled={controlsDisabled}
                     group={{ options: serviceTierOptions, value: currentServiceTierValue, onChange: (value) => applyChatSetting(() => onServiceTierChange?.(value as SessionServiceTier)) }}
                 />
@@ -1207,6 +1208,7 @@ export function HappyComposer(props: {
                 <SwitchChip
                     title={t('mobile.composer.sendMode')}
                     valueLabel={t('composer.chip.sendMode', { value: optionLabel(sendModeChoices, codexSendMode) })}
+                    valueCandidates={[optionLabel(sendModeChoices, codexSendMode)]}
                     disabled={controlsDisabled}
                     onToggle={() => handleCodexSendModeChange(codexSendMode === 'queue' ? 'direct' : 'queue')}
                 />

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { FitLine, FitText } from '@/components/ui/FitText'
 
 type Point = { x: number; y: number }
 
@@ -114,6 +115,8 @@ export function ContextMenuItem(props: {
     active?: boolean
     /** Let the description wrap to two lines instead of one (slash-command help). */
     wrapDescription?: boolean
+    /** `id` for paths and URLs: one line, cut in the middle so both ends stay. Default: two lines. */
+    labelKind?: 'title' | 'id'
 }) {
     const checkable = props.checked !== undefined
     return (
@@ -137,14 +140,16 @@ export function ContextMenuItem(props: {
                     {props.icon}
                 </span>
             ) : null}
-            {props.description ? (
-                <span className="min-w-0 flex-1">
-                    <span className="block truncate">{props.label}</span>
-                    <span className={cn('mt-1 block text-caption text-[var(--social-fg-muted)]', props.wrapDescription ? 'line-clamp-2 leading-snug' : 'truncate')}>{props.description}</span>
-                </span>
-            ) : (
-                <span className="min-w-0 flex-1 truncate">{props.label}</span>
-            )}
+            <span className="min-w-0 flex-1">
+                {typeof props.label === 'string'
+                    ? <FitText kind={props.labelKind ?? 'title'} text={props.label} />
+                    : <FitLine text={props.label} />}
+                {props.description ? (
+                    typeof props.description === 'string'
+                        ? <FitText kind="preview" lines={props.wrapDescription ? 2 : 1} text={props.description} className="mt-1 text-caption leading-snug text-[var(--social-fg-muted)]" />
+                        : <FitLine text={props.description} className="mt-1 text-caption text-[var(--social-fg-muted)]" />
+                ) : null}
+            </span>
             {props.trailing}
         </button>
     )

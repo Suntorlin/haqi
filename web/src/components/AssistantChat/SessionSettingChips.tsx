@@ -88,6 +88,7 @@ export function SessionSettingChips(props: {
                 <SettingChip
                     title={t('newSession.think')}
                     valueLabel={t('composer.chip.think', { value: optionLabel(thinkOptions, props.think.value) })}
+                    valueCandidates={[optionLabel(thinkOptions, props.think.value)]}
                     disabled={props.disabled}
                     group={{ options: thinkOptions, value: props.think.value, onChange: props.think.onChange }}
                 />
@@ -96,6 +97,7 @@ export function SessionSettingChips(props: {
                 <SettingChip
                     title={t('misc.permissionMode')}
                     valueLabel={t('composer.chip.permission', { value: permissionModeText(props.permission.value, t) })}
+                    valueCandidates={[permissionModeText(props.permission.value, t)]}
                     disabled={props.disabled}
                     group={{ options: permissionOptions, value: props.permission.value as string, onChange: (value) => props.permission!.onChange(value as PermissionMode) }}
                 />

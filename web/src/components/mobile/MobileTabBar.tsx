@@ -8,6 +8,7 @@ import { ChatsIcon, GroupsIcon, MeIcon, MemoryIcon, ScheduledIcon } from '@/comp
 import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { FitLine } from '@/components/ui/FitText'
 
 export type MobileTab = 'sessions' | 'groups' | 'memory' | 'scheduled' | 'settings'
 
@@ -149,13 +150,9 @@ export function MobilePageHeader(props: {
         <header className="social-bar relative z-20 shrink-0 pt-[env(safe-area-inset-top)]">
             <div className={cn('mx-auto flex h-[54px] items-center gap-2 pr-3 lg:h-[68px]', props.contentWidth ? 'max-w-content pl-3' : 'max-w-xl pl-5')}>
                 <div className="min-w-0 flex-1">
-                    <div className="truncate text-title font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">
-                        {props.title}
-                    </div>
+                    <FitLine text={props.title} className="text-title font-semibold leading-tight tracking-[-0.035em] text-[var(--social-fg)]" />
                     {props.subtitle ? (
-                        <div className="mt-1 truncate text-caption leading-none text-[var(--social-fg-muted)]">
-                            {props.subtitle}
-                        </div>
+                        <FitLine text={props.subtitle} className="mt-0.5 text-caption leading-tight text-[var(--social-fg-muted)]" />
                     ) : null}
                 </div>
                 {props.actions ? (

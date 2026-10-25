@@ -6,6 +6,7 @@ import type { DictationController } from '@/hooks/useDictation'
 import { TextField } from '@/components/ui/TextField'
 import { useTranslation } from '@/lib/use-translation'
 import type { LatestMessage } from './types'
+import { FitText } from '@/components/ui/FitText'
 
 /** The lead's latest line with the "All chats" link: the bottom bar's first row, above the input. */
 export function LatestLine(props: {
@@ -37,7 +38,7 @@ export function LatestLine(props: {
                         </button>
                     ) : null}
                 </div>
-                <div className="mt-0.5 line-clamp-2 text-body leading-snug text-[var(--social-fg)]">{latest.text}</div>
+                <FitText kind="preview" lines={2} text={latest.text} className="mt-0.5 text-body leading-snug text-[var(--social-fg)]" />
             </div>
         </div>
     )

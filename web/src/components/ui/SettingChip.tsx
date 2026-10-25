@@ -4,6 +4,7 @@ import { ContextMenu, ContextMenuItem } from '@/components/mobile/ContextMenu'
 import { CheckIcon, ChevronDownIcon, SwapIcon } from '@/components/mobile/icons'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { cn } from '@/lib/utils'
+import { FitText } from './FitText'
 
 export type Choice<T extends string> = { value: T; label: string; description?: string }
 
@@ -23,6 +24,8 @@ const chipClass = `relative flex h-8 min-w-0 max-w-[16rem] shrink-0 items-center
 export function SettingChip<T extends string>(props: {
     title: string
     valueLabel: string
+    /** Shorter forms of the value label, tried when it does not fit (e.g. just the value). */
+    valueCandidates?: ReadonlyArray<string | null | undefined>
     group: ChoiceGroup<T>
     disabled?: boolean
 }) {
@@ -55,7 +58,7 @@ export function SettingChip<T extends string>(props: {
                 title={props.title}
                 className={chipClass}
             >
-                <span className="truncate">{props.valueLabel}</span>
+                <FitText kind="label" lines={1} text={props.valueLabel} candidates={props.valueCandidates} />
                 <ChevronDownIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
             </button>
             {isMobileLayout ? (
@@ -115,7 +118,7 @@ export function ToggleChip(props: { label: string; title?: string; pressed: bool
 }
 
 /** Two-state setting shown as its current value; each tap flips to the other one. */
-export function SwitchChip(props: { valueLabel: string; title: string; disabled?: boolean; onToggle: () => void }) {
+export function SwitchChip(props: { valueLabel: string; valueCandidates?: ReadonlyArray<string | null | undefined>; title: string; disabled?: boolean; onToggle: () => void }) {
     return (
         <button
             type="button"
@@ -125,7 +128,7 @@ export function SwitchChip(props: { valueLabel: string; title: string; disabled?
             title={props.title}
             className={chipClass}
         >
-            <span className="truncate">{props.valueLabel}</span>
+            <FitText kind="label" lines={1} text={props.valueLabel} candidates={props.valueCandidates} />
             <SwapIcon className="h-3.5 w-3.5 shrink-0 opacity-60" />
         </button>
     )
