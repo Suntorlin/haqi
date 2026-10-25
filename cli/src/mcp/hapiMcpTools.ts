@@ -7,6 +7,8 @@ export type HapiMcpToolDefinition = {
     inputSchema: z.ZodTypeAny
 }
 
+const HTML_PATH_DESCRIPTION = 'Absolute path of a full HTML page (up to 10 MB) on this machine. The share link then shows this page in place of the markdown, and keeps the same link when you update it.'
+
 export const changeTitleInputSchema: z.ZodTypeAny = z.object({
     title: z.string().describe('The new title for the chat session')
 })
@@ -17,6 +19,7 @@ export const reportCreateInputSchema: z.ZodTypeAny = z.object({
     title: z.string().min(1).max(200).optional(),
     status: z.string().min(1).max(40).optional(),
     markdown: z.string().max(400_000).optional(),
+    html_path: z.string().min(1).max(1000).optional().describe(HTML_PATH_DESCRIPTION),
     metadata: z.unknown().optional(),
     share_expires_in_hours: z.number().positive().max(24 * 365).optional()
 })
@@ -42,6 +45,7 @@ export const reportUpdateInputSchema: z.ZodTypeAny = z.object({
     title: z.string().min(1).max(200).optional(),
     status: z.string().min(1).max(40).optional(),
     markdown: z.string().max(400_000).optional(),
+    html_path: z.string().max(1000).optional().describe(`${HTML_PATH_DESCRIPTION} An empty string removes the page.`),
     metadata: z.unknown().optional()
 })
 
@@ -204,6 +208,46 @@ export const reviewLoopReviewerSubmitInputSchema: z.ZodTypeAny = z.object({
     })).describe('Status of each acceptance criterion')
 })
 
+export const scheduledRunDoneInputSchema: z.ZodTypeAny = z.object({
+    status: z.enum(['success', 'failed', 'skipped']).describe('success: done; failed: it could not be done; skipped: nothing to do this time'),
+    summary: z.string().min(1).max(2000).describe('One sentence: the result, in the language of the task'),
+    links: z.array(z.string().min(1).max(2000)).max(20).optional().describe('Links to what the run produced')
+})
+
+const scheduleFields = {
+    name: z.string().min(1).max(120).optional().describe('Short name of the task'),
+    prompt: z.string().max(20_000).optional().describe('What to do on each run'),
+    prompt_file: z.string().min(1).max(1000).optional().describe('Absolute path of a file with the instructions; it is read fresh on each run'),
+    cron: z.string().min(9).max(120).optional().describe('Five-field cron in the time zone, e.g. "0 9 * * 1-5" (weekdays 09:00). Sunday is 0'),
+    run_at: z.string().min(1).max(40).optional().describe('One run at this ISO 8601 time instead of a cron, e.g. "2026-10-26T15:00:00+09:00"'),
+    timezone: z.string().min(1).max(80).optional().describe('IANA time zone of the cron, e.g. "Asia/Tokyo". Default: this machine\'s time zone'),
+    directory: z.string().min(1).max(1000).optional().describe('Folder the run starts in. Default: this session\'s folder'),
+    model: z.string().min(1).max(100).optional(),
+    permission_mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional().describe('bypassPermissions runs without permission prompts'),
+    max_minutes: z.number().int().min(1).max(1440).optional().describe('A run still open after this fails and stops (default 90)'),
+    enabled: z.boolean().optional()
+}
+
+export const scheduleCreateInputSchema: z.ZodTypeAny = z.object({
+    ...scheduleFields,
+    name: z.string().min(1).max(120).describe('Short name of the task')
+})
+
+export const scheduleUpdateInputSchema: z.ZodTypeAny = z.object({
+    id: z.string().min(1).max(80).describe('The scheduled task id, from schedule_list'),
+    ...scheduleFields,
+    manual: z.boolean().optional().describe('true: remove the clock; the task runs only with Run now')
+})
+
+export const scheduleListInputSchema: z.ZodTypeAny = z.object({})
+
+export const SCHEDULE_TOOL_DESCRIPTIONS = {
+    scheduled_run_done: 'Report the result of this scheduled run to HAQI. Call it once, at the end of every scheduled run. A run without it counts as failed and raises an alert.',
+    schedule_create: 'Create a HAQI scheduled task: at each time of its cron (or once at run_at) HAQI starts a new session on this machine and sends the prompt. Give a cron, a run_at, or neither (run only on demand).',
+    schedule_list: "List the user's HAQI scheduled tasks with their next run and last result.",
+    schedule_update: 'Change a HAQI scheduled task: its prompt, schedule, folder or settings. enabled=false pauses it; enabled=true resumes it.'
+} as const
+
 export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'change_title',
@@ -232,7 +276,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'report_update',
         title: 'Update Report',
-        description: 'Update report title/status/markdown/metadata',
+        description: 'Update report title/status/markdown/metadata, or its full HTML page (html_path). The share link stays the same.',
         inputSchema: reportUpdateInputSchema
     },
     {
@@ -270,6 +314,10 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     { name: 'task_decision_ask', title: 'Ask the User to Decide', description: TASK_RUN_TOOL_DESCRIPTIONS.task_decision_ask, inputSchema: taskDecisionAskInputSchema },
     { name: 'task_integrated', title: 'Branches Merged', description: TASK_RUN_TOOL_DESCRIPTIONS.task_integrated, inputSchema: taskIntegratedInputSchema },
     { name: 'task_review_submit', title: 'Submit Task Review', description: TASK_RUN_TOOL_DESCRIPTIONS.task_review_submit, inputSchema: taskReviewSubmitInputSchema },
+    { name: 'scheduled_run_done', title: 'Scheduled Run Done', description: SCHEDULE_TOOL_DESCRIPTIONS.scheduled_run_done, inputSchema: scheduledRunDoneInputSchema },
+    { name: 'schedule_create', title: 'Create Scheduled Task', description: SCHEDULE_TOOL_DESCRIPTIONS.schedule_create, inputSchema: scheduleCreateInputSchema },
+    { name: 'schedule_list', title: 'List Scheduled Tasks', description: SCHEDULE_TOOL_DESCRIPTIONS.schedule_list, inputSchema: scheduleListInputSchema },
+    { name: 'schedule_update', title: 'Update Scheduled Task', description: SCHEDULE_TOOL_DESCRIPTIONS.schedule_update, inputSchema: scheduleUpdateInputSchema },
     {
         name: 'review_loop_worker_submit',
         title: 'Submit Review Loop Worker Output',

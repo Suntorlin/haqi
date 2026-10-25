@@ -181,3 +181,25 @@ describe('public report markdown rendering', () => {
         closeStore(store)
     })
 })
+
+describe('public report page', () => {
+    it('shows the full HTML page at the same share link after every update, sandboxed', async () => {
+        const store = new Store(':memory:')
+        const report = store.reports.createReport({ namespace: 'default', title: 'Daily', markdown: '# Summary' })
+        const share = store.reports.createShare({ reportId: report.id, namespace: 'default' })
+        const app = createPublicReportsRoutes({ store, reportsStorageDir: tmpdir() })
+
+        store.reports.setPage(report.id, 'default', '<!doctype html><html><body><script>1</script>day one</body></html>')
+        const first = await app.request(`/share/r/${share.token}`)
+        expect(first.headers.get('content-security-policy')).toContain('sandbox allow-scripts')
+        expect(await first.text()).toContain('day one')
+
+        store.reports.setPage(report.id, 'default', '<!doctype html><html><body>day two</body></html>')
+        expect(await (await app.request(`/share/r/${share.token}`)).text()).toContain('day two')
+        expect(await (await app.request(`/share/r/${share.token}?view=markdown`)).text()).toContain('Summary')
+
+        store.reports.setPage(report.id, 'default', null)
+        expect(await (await app.request(`/share/r/${share.token}`)).text()).toContain('Summary')
+        closeStore(store)
+    })
+})

@@ -649,6 +649,11 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
     ReviewLoopChangedSchema.extend({
         type: z.literal('review-loop-round-updated'),
         round: z.unknown()
+    }),
+    SessionEventBaseSchema.extend({
+        /** A scheduled task or one of its runs changed. */
+        type: z.literal('schedule-updated'),
+        scheduleId: z.string()
     })
 ])
 

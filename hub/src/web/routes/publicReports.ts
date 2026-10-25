@@ -324,6 +324,18 @@ export function createPublicReportsRoutes(options: {
             return c.text('Report not found', 404)
         }
 
+        // A report with a full page shows it as is. The sandbox gives the page an opaque origin, so its scripts
+        // run but cannot reach this site's cookies or storage. ?view=markdown still shows the markdown.
+        const page = c.req.query('view') === 'markdown' ? null : options.store.reports.getPage(report.id)
+        if (page) {
+            return c.body(page.html, 200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Content-Security-Policy': 'sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox allow-downloads allow-forms',
+                'Cache-Control': 'no-cache',
+                'X-Content-Type-Options': 'nosniff'
+            })
+        }
+
         const assets = options.store.reports.listAssets(report.id)
         const html = buildSharePageHtml({
             token,

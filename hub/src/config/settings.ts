@@ -36,6 +36,13 @@ export interface Settings {
     listenPort?: number
     publicUrl?: string
     reportPublicBaseUrl?: string
+    /** Feishu/Lark custom bot for scheduled-task failures. Kept here, never in the repository. */
+    alertWebhook?: {
+        url?: string
+        /** A macOS keychain generic password holding the URL, in place of `url`. */
+        keychainService?: string
+        secret?: string
+    }
     corsOrigins?: string[]
     // Legacy field names (for migration, read-only)
     webappHost?: string

@@ -74,6 +74,27 @@ export class ReportStore {
         return updateReport(this.db, options)
     }
 
+    /** null removes the page; the share link shows the markdown again. */
+    setPage(reportId: string, namespace: string, html: string | null): void {
+        if (html === null) {
+            this.db.prepare('DELETE FROM report_pages WHERE report_id = ? AND namespace = ?').run(reportId, namespace)
+            return
+        }
+        this.db.prepare(`
+            INSERT INTO report_pages (report_id, namespace, html, updated_at) VALUES (?, ?, ?, ?)
+            ON CONFLICT(report_id) DO UPDATE SET html = excluded.html, updated_at = excluded.updated_at
+        `).run(reportId, namespace, html, Date.now())
+    }
+
+    getPage(reportId: string): { html: string; updatedAt: number } | null {
+        const row = this.db.prepare('SELECT html, updated_at FROM report_pages WHERE report_id = ?').get(reportId) as { html: string; updated_at: number } | null
+        return row ? { html: row.html, updatedAt: row.updated_at } : null
+    }
+
+    hasPage(reportId: string): boolean {
+        return Boolean(this.db.prepare('SELECT 1 FROM report_pages WHERE report_id = ?').get(reportId))
+    }
+
     createAsset(options: {
         reportId: string
         namespace: string

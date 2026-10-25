@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
+import { ClaudeAccountPoolSchema } from '@hapi/protocol/schemas'
 /**
  * Sync Engine for HAPI Telegram Bot (Direct Connect)
  *
@@ -39,6 +40,7 @@ import {
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession, type TaskSessionSettings } from '../tasks/taskService'
+import { ACCOUNT_NOTE, SCHEDULE_TICK_MS, ScheduleService, type ScheduleAlert, type ScheduleSpawnInput, type ScheduleSpawnResult } from '../schedules/scheduleService'
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
 import { sessionActivity } from '../tasks/sessionActivity'
@@ -488,7 +490,10 @@ export class SyncEngine {
     private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
     private pushNotifier: ((namespace: string, notice: { title: string; body: string; url: string; tag: string }) => Promise<void>) | null = null
     private reportShareBase: string | null = null
+    private alertNotifier: ((namespace: string, alert: ScheduleAlert) => Promise<void>) | null = null
     private taskObserverTimer: NodeJS.Timeout | null = null
+    private readonly scheduleService: ScheduleService
+    private scheduleTimer: NodeJS.Timeout | null = null
 
     constructor(
         store: Store,
@@ -630,7 +635,36 @@ export class SyncEngine {
             },
             load: (namespace, sessionIds, since) => this.loadService.taskLoad(namespace, sessionIds, since)
         })
+        this.scheduleService = new ScheduleService(store, {
+            spawn: (input) => this.spawnScheduledRun(input),
+            session: (namespace, sessionId) => {
+                const session = this.getSessionByNamespace(sessionId, namespace)
+                if (!session) return null
+                return {
+                    active: session.active,
+                    thinking: session.thinking,
+                    pendingRequests: Object.keys(session.agentState?.requests ?? {}).length
+                }
+            },
+            lastActivity: (sessionId) => {
+                const last = sessionActivity(this.store.messages.getMessages(sessionId, 20), 0).lastMessageAt
+                return last > 0 ? last : null
+            },
+            machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
+            archive: async (sessionId) => { await this.archiveSession(sessionId) },
+            changed: (namespace, scheduleId) => this.eventPublisher.emit({ type: 'schedule-updated', namespace, scheduleId }),
+            alert: async (namespace, alert) => {
+                if (this.alertNotifier) {
+                    await this.alertNotifier(namespace, alert)
+                } else {
+                    await this.pushNotifier?.(namespace, { title: alert.title, body: alert.body, url: alert.url, tag: `schedule:${alert.url}` })
+                }
+            }
+        })
         if (store.getDatabasePath() !== ':memory:') {
+            this.scheduleTimer = setInterval(() => {
+                void this.scheduleService.tick().catch((error: unknown) => console.warn('[Schedules] tick failed', error))
+            }, SCHEDULE_TICK_MS)
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
             this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
             this.taskObserverTimer = setInterval(() => this.observeTasks(), TASK_OBSERVER_INTERVAL_MS)
@@ -645,6 +679,10 @@ export class SyncEngine {
         return this.taskService
     }
 
+    getScheduleService(): ScheduleService {
+        return this.scheduleService
+    }
+
     getLoadService(): LoadService {
         return this.loadService
     }
@@ -657,6 +695,11 @@ export class SyncEngine {
     /** Push to the user's devices; the task run uses it when the user has to step in. */
     setPushNotifier(notifier: (namespace: string, notice: { title: string; body: string; url: string; tag: string }) => Promise<void>): void {
         this.pushNotifier = notifier
+    }
+
+    /** Scheduled-run results: a failure goes to every channel (push, Telegram, webhook), a success to push only. */
+    setAlertNotifier(notifier: (namespace: string, alert: ScheduleAlert) => Promise<void>): void {
+        this.alertNotifier = notifier
     }
 
     /** Public base URL of report share links (task reports). */
@@ -703,6 +746,10 @@ export class SyncEngine {
         if (this.taskObserverTimer) {
             clearInterval(this.taskObserverTimer)
             this.taskObserverTimer = null
+        }
+        if (this.scheduleTimer) {
+            clearInterval(this.scheduleTimer)
+            this.scheduleTimer = null
         }
     }
 
@@ -2633,6 +2680,80 @@ ${note.content}
         }
     }
 
+    /**
+     * Starts a scheduled run's session. For Claude on a machine with an account pool it tries the default account,
+     * then the other enabled accounts of the same trust group, and moves on when an account is logged out (checked
+     * before the start, or refused by the runner) or its session does not come up.
+     */
+    private async spawnScheduledRun(input: ScheduleSpawnInput): Promise<ScheduleSpawnResult> {
+        const yolo = input.permissionMode === 'bypassPermissions' || input.permissionMode === 'yolo'
+        const options = {
+            agent: input.agent,
+            ...(input.model ? { model: input.model } : {}),
+            ...(input.thinkEffort ? { thinkEffort: input.thinkEffort as 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh' } : {}),
+            yolo,
+            sessionType: input.worktree ? 'worktree' as const : 'simple' as const,
+            ...(input.worktree ? { worktreeName: `scheduled-${Date.now().toString(36)}` } : {})
+        }
+        const prompt = {
+            text: input.text,
+            meta: input.meta,
+            ...(input.permissionMode ? { permissionMode: input.permissionMode as PermissionMode } : {})
+        }
+        const pool = input.agent === 'claude' ? await this.scheduledAccountOrder(input.machineId, input.accountId) : null
+        const candidates: Array<{ id: string; automatic: boolean } | null> = pool && pool.ids.length > 0
+            ? pool.ids.map((id) => ({ id, automatic: pool.autoSwitch }))
+            : [null]
+        const notes: string[] = []
+        let attempts = 0
+        for (const candidate of candidates) {
+            if (candidate) {
+                const check = await this.claudeAccounts(input.machineId, 'check', { id: candidate.id }).catch((error: unknown) => ({ error: String(error) }))
+                const checkError = (check as { error?: unknown } | null)?.error
+                if (typeof checkError === 'string') {
+                    notes.push(`${candidate.id}: ${checkError}`)
+                    continue
+                }
+            }
+            attempts += 1
+            const result = await this.spawnAndPrompt(input.machineId, input.directory, {
+                ...options,
+                ...(candidate ? { claudeAccount: { accountId: candidate.id, automatic: candidate.automatic } } : {})
+            }, prompt)
+            if (result.type === 'success') {
+                await this.renameSession(result.sessionId, input.name).catch(() => {})
+                const tags = this.getSession(result.sessionId)?.metadata?.tags ?? []
+                if (!tags.includes('scheduled')) await this.setSessionTags(result.sessionId, [...tags, 'scheduled']).catch(() => {})
+                const accountId = this.getSession(result.sessionId)?.metadata?.claudeAccount?.id ?? candidate?.id ?? null
+                return {
+                    sessionId: result.sessionId,
+                    accountId,
+                    attempts,
+                    note: notes.length > 0 ? `${ACCOUNT_NOTE}：${notes.join('；')}` : null
+                }
+            }
+            notes.push(`${candidate?.id ?? '默认账号'}: ${result.message}`)
+            if (!candidate || !isAccountStartFailure(result.message)) break
+        }
+        return { error: notes.join('；') || '没有可用的账号', attempts }
+    }
+
+    /**
+     * The account pool's start order: the task's own account (or the pool's default), then the other enabled accounts
+     * of its trust group. Null without a pool.
+     */
+    private async scheduledAccountOrder(machineId: string, preferred: string | null): Promise<{ ids: string[]; autoSwitch: boolean } | null> {
+        const reply = await this.claudeAccounts(machineId, 'get').catch(() => null) as { pool?: unknown } | null
+        const parsed = ClaudeAccountPoolSchema.safeParse(reply?.pool)
+        if (!parsed.success || parsed.data.profiles.length === 0) return null
+        const pool = parsed.data
+        const first = pool.profiles.find((profile) => profile.id === preferred && profile.enabled)
+            ?? pool.profiles.find((profile) => profile.id === pool.initialAccount && profile.enabled)
+        if (!first) return null
+        const rest = pool.profiles.filter((profile) => profile.enabled && profile.id !== first.id && profile.trustGroup === first.trustGroup)
+        return { ids: [first.id, ...rest.map((profile) => profile.id)], autoSwitch: pool.autoSwitch }
+    }
+
     async waitForSessionActive(sessionId: string, timeoutMs: number = 15_000): Promise<boolean> {
         const start = Date.now()
         while (Date.now() - start < timeoutMs) {
@@ -3227,4 +3348,9 @@ function toTaskSession(session: Session): TaskSession {
         tags: metadata?.tags ?? [],
         updatedAt: session.updatedAt
     }
+}
+
+/** A start failure that another account may not have: a logged-out account, or a session that never came up. */
+function isAccountStartFailure(message: string): boolean {
+    return /尚未在隔离目录登录|claude auth login|账号身份检查失败|会话没能在 15 秒内启动|所选账号不存在或已停用|session_stale_relogin|invalid_grant|OAuth/i.test(message)
 }

@@ -13,6 +13,8 @@ import {
 
 const MAX_MARKDOWN_CHARS = 400_000
 const MAX_ASSET_BYTES = 20 * 1024 * 1024
+/** A full HTML page for the share link; empty string removes it. */
+const MAX_PAGE_CHARS = 10 * 1024 * 1024
 
 const listReportsQuerySchema = z.object({
     limit: z.coerce.number().int().min(1).max(200).optional(),
@@ -25,6 +27,7 @@ const createReportSchema = z.object({
     title: z.string().trim().min(1).max(200).optional(),
     status: z.string().trim().min(1).max(40).optional(),
     markdown: z.string().max(MAX_MARKDOWN_CHARS).optional(),
+    html: z.string().max(MAX_PAGE_CHARS).optional(),
     metadata: z.unknown().optional(),
     createShare: z.boolean().optional(),
     shareExpiresInHours: z.number().positive().max(24 * 365).optional()
@@ -35,6 +38,7 @@ const updateReportSchema = z.object({
     title: z.string().trim().min(1).max(200).optional(),
     status: z.string().trim().min(1).max(40).optional(),
     markdown: z.string().max(MAX_MARKDOWN_CHARS).optional(),
+    html: z.string().max(MAX_PAGE_CHARS).optional(),
     metadata: z.unknown().optional()
 })
 
@@ -175,13 +179,15 @@ function toApiReport(
     assets: StoredReportAsset[],
     shares: StoredReportShare[],
     requestUrl: string,
-    publicBaseUrl?: string
+    publicBaseUrl?: string,
+    hasPage?: boolean
 ) {
     const mappedShares = shares.map((share) => toApiShare(share, requestUrl, publicBaseUrl))
     const activeShare = mappedShares.find((share) => share.active)
 
     return {
         ...report,
+        hasPage: hasPage ?? false,
         reportUrl: toAbsoluteUrl(requestUrl, `/api/reports/${encodeURIComponent(report.id)}`, publicBaseUrl),
         publicShareUrl: activeShare?.shareUrl ?? null,
         assets: assets.map((asset) => toApiAsset(report, asset, requestUrl, publicBaseUrl)),
@@ -290,7 +296,7 @@ export function createReportsRoutes(options: {
         const payload = reports.map((report) => {
             const assets = options.store.reports.listAssetsByNamespace(report.id, namespace)
             const shares = options.store.reports.listSharesByNamespace(report.id, namespace)
-            return toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl())
+            return toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id))
         })
 
         return c.json({ reports: payload })
@@ -321,6 +327,7 @@ export function createReportsRoutes(options: {
             markdown: parsed.data.markdown ?? '',
             metadata: parsed.data.metadata
         })
+        if (parsed.data.html) options.store.reports.setPage(report.id, namespace, parsed.data.html)
 
         if (parsed.data.createShare) {
             options.store.reports.createShare({
@@ -333,7 +340,7 @@ export function createReportsRoutes(options: {
 
         const assets = options.store.reports.listAssetsByNamespace(report.id, namespace)
         const shares = options.store.reports.listSharesByNamespace(report.id, namespace, { includeRevoked: true })
-        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl()) }, 201)
+        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)) }, 201)
     })
 
     app.get('/reports/:id', (c) => {
@@ -347,7 +354,7 @@ export function createReportsRoutes(options: {
 
         const assets = options.store.reports.listAssetsByNamespace(report.id, namespace)
         const shares = options.store.reports.listSharesByNamespace(report.id, namespace, { includeRevoked: true })
-        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl()) })
+        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)) })
     })
 
     app.patch('/reports/:id', async (c) => {
@@ -374,9 +381,11 @@ export function createReportsRoutes(options: {
             return c.json({ error: 'Report not found' }, 404)
         }
 
+        if (parsed.data.html !== undefined) options.store.reports.setPage(report.id, namespace, parsed.data.html || null)
+
         const assets = options.store.reports.listAssetsByNamespace(report.id, namespace)
         const shares = options.store.reports.listSharesByNamespace(report.id, namespace, { includeRevoked: true })
-        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl()) })
+        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)) })
     })
 
     app.post('/reports/:id/assets', async (c) => {

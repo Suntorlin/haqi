@@ -11,6 +11,7 @@
 import { createConfiguration, type ConfigSource } from './configuration'
 import { Store } from './store'
 import { SyncEngine, type SyncEvent } from './sync/syncEngine'
+import { loadAlertWebhook, sendWebhookText } from './schedules/alerts'
 import { NotificationHub } from './notifications/notificationHub'
 import type { NotificationChannel } from './notifications/notificationTypes'
 import { HappyBot } from './telegram/bot'
@@ -27,6 +28,7 @@ import { waitForTunnelTlsReady } from './tunnel/tlsGate'
 import QRCode from 'qrcode'
 import type { Server as BunServer } from 'bun'
 import type { WebSocketData } from '@socket.io/bun-engine'
+import { appendFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { loadReportPublicBaseUrlSettings } from './config/reportPublicBaseUrl'
 
@@ -228,6 +230,45 @@ async function main() {
     }
 
     notificationHub = new NotificationHub(syncEngine, notificationChannels)
+
+    // Scheduled-task results. A failure must reach the user: push, Telegram and the Feishu webhook all get it.
+    syncEngine.setAlertNotifier(async (namespace, alert) => {
+        // The report base is the address the user can open from outside; publicUrl may be a local one.
+        const link = alert.url.startsWith('http') ? alert.url : `${reportPublicBaseUrlSettings.value.replace(/\/$/, '')}${alert.url}`
+        const sends: Array<{ channel: string; send: Promise<string> }> = [{
+            channel: 'push',
+            send: pushService.sendToNamespace(namespace, {
+                title: alert.title,
+                body: alert.body,
+                tag: `schedule:${alert.url}`,
+                data: { type: 'schedule', sessionId: '', url: alert.url }
+            }).then(() => 'sent')
+        }]
+        if (alert.everywhere) {
+            const text = `${alert.title}\n${alert.body}\n${link}`
+            if (happyBot) sends.push({ channel: 'telegram', send: happyBot.sendText(namespace, text).then(() => 'sent') })
+            sends.push({
+                channel: 'webhook',
+                send: loadAlertWebhook(config.settingsFile).then(async (webhook) => {
+                    if (!webhook) return 'skipped: no webhook configured'
+                    await sendWebhookText(webhook, text)
+                    return 'sent'
+                })
+            })
+        }
+        const results = await Promise.allSettled(sends.map((item) => item.send))
+        // One line per channel, so a missing or repeated alert can be checked afterwards. Hub stdout is not kept.
+        const lines = results.map((result, index) => JSON.stringify({
+            at: new Date().toISOString(),
+            runId: alert.runId,
+            channel: sends[index]!.channel,
+            title: alert.title,
+            result: result.status === 'fulfilled' ? result.value : `failed: ${String(result.reason)}`
+        })).join('\n')
+        await mkdir(join(config.dataDir, 'logs'), { recursive: true })
+            .then(() => appendFile(join(config.dataDir, 'logs', 'schedule-alerts.log'), `${lines}\n`))
+            .catch((error: unknown) => console.error('[Schedules] alert log failed:', error))
+    })
 
     // Start HTTP service first (before tunnel, so tunnel has something to forward to)
     webServer = await startWebServer({

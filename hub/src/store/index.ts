@@ -16,6 +16,7 @@ import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
 import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
 import { MessageClassStore } from './messageClassStore'
+import { ScheduleStore } from './scheduleStore'
 import { TaskEventStore } from './taskEventStore'
 import { createConversationTurnsSchema } from './turns'
 import { createGroupConversationTurnsSchema } from './groupTurns'
@@ -88,7 +89,10 @@ const REQUIRED_TABLES = [
     'memory_vectors',
     'memory_tags',
     'task_events',
-    'message_classes'
+    'message_classes',
+    'scheduled_tasks',
+    'scheduled_task_runs',
+    'report_pages'
 ] as const
 
 export class Store {
@@ -109,6 +113,7 @@ export class Store {
     readonly memories: MemoryStore
     readonly taskEvents: TaskEventStore
     readonly messageClasses: MessageClassStore
+    readonly schedules: ScheduleStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -159,6 +164,7 @@ export class Store {
         this.memories = new MemoryStore(this.db)
         this.taskEvents = new TaskEventStore(this.db)
         this.messageClasses = new MessageClassStore(this.db)
+        this.schedules = new ScheduleStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -662,6 +668,71 @@ export class Store {
             );
             CREATE INDEX IF NOT EXISTS idx_message_classes_namespace_created
                 ON message_classes(namespace, created_at);
+
+            -- A report's full HTML page, shown at its share link in place of the markdown. Its own table keeps a
+            -- multi-megabyte page out of report lists. Added without a schema version bump.
+            CREATE TABLE IF NOT EXISTS report_pages (
+                report_id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                html TEXT NOT NULL,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (report_id) REFERENCES reports(id) ON DELETE CASCADE
+            );
+
+            -- Scheduled tasks. Added without a schema version bump, like task_events.
+            CREATE TABLE IF NOT EXISTS scheduled_tasks (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                name TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                prompt_file TEXT,
+                machine_id TEXT NOT NULL,
+                directory TEXT NOT NULL,
+                agent TEXT NOT NULL,
+                model TEXT,
+                think_effort TEXT,
+                permission_mode TEXT,
+                account_id TEXT,
+                worktree INTEGER NOT NULL DEFAULT 0,
+                max_minutes INTEGER NOT NULL DEFAULT 90,
+                spec TEXT NOT NULL,
+                timezone TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                next_run_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_scheduled_tasks_due
+                ON scheduled_tasks(enabled, next_run_at);
+
+            CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+                id TEXT PRIMARY KEY,
+                namespace TEXT NOT NULL DEFAULT 'default',
+                schedule_id TEXT NOT NULL,
+                trigger TEXT NOT NULL,
+                status TEXT NOT NULL,
+                scheduled_for INTEGER,
+                started_at INTEGER NOT NULL,
+                finished_at INTEGER,
+                session_id TEXT,
+                failure TEXT,
+                reported TEXT,
+                summary TEXT,
+                links TEXT NOT NULL DEFAULT '[]',
+                account_id TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                saw_busy INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (schedule_id) REFERENCES scheduled_tasks(id) ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_schedule
+                ON scheduled_task_runs(schedule_id, started_at);
+            -- One run per planned time: a second start of the same time is refused. Manual runs have no planned time.
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduled_task_runs_planned
+                ON scheduled_task_runs(schedule_id, scheduled_for);
+            CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_session
+                ON scheduled_task_runs(session_id);
+            CREATE INDEX IF NOT EXISTS idx_scheduled_task_runs_status
+                ON scheduled_task_runs(status);
         `)
         this.db.exec(MEMORY_SCHEMA_SQL)
     }

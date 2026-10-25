@@ -5,6 +5,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { AddressInfo } from "node:net";
 import { logger } from "@/ui/logger";
@@ -15,6 +16,11 @@ import { configuration } from "@/configuration";
 import { getAuthToken } from "@/api/auth";
 import {
     changeTitleInputSchema,
+    scheduledRunDoneInputSchema,
+    scheduleCreateInputSchema,
+    scheduleListInputSchema,
+    scheduleUpdateInputSchema,
+    SCHEDULE_TOOL_DESCRIPTIONS,
     MEMORY_PROPOSE_DESCRIPTION,
     MEMORY_SEARCH_DESCRIPTION,
     memoryProposeInputSchema,
@@ -114,6 +120,12 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
 
         return payload ?? {};
+    };
+
+    /** The page is read here, on the session's machine, so the hub never reads local paths. */
+    const readHtmlPage = async (path: string | undefined): Promise<string | undefined> => {
+        if (!path) return undefined;
+        return await readFile(path, 'utf8');
     };
 
     const buildToolResult = (payload: JsonObject, summary: string) => ({
@@ -226,6 +238,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         title?: string
         status?: string
         markdown?: string
+        html_path?: string
         metadata?: unknown
         share_expires_in_hours?: number
     }) => {
@@ -238,6 +251,7 @@ export async function startHappyServer(client: ApiSessionClient) {
                     title: args.title,
                     status: args.status,
                     markdown: args.markdown,
+                    html: await readHtmlPage(args.html_path),
                     metadata: args.metadata,
                     createShare: true,
                     shareExpiresInHours: args.share_expires_in_hours
@@ -299,6 +313,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         title?: string
         status?: string
         markdown?: string
+        html_path?: string
         metadata?: unknown
     }) => {
         try {
@@ -309,6 +324,7 @@ export async function startHappyServer(client: ApiSessionClient) {
                     title: args.title,
                     status: args.status,
                     markdown: args.markdown,
+                    html: args.html_path === '' ? '' : await readHtmlPage(args.html_path),
                     metadata: args.metadata
                 })
             });
@@ -434,6 +450,102 @@ export async function startHappyServer(client: ApiSessionClient) {
     taskRunTool('task_review_submit', 'Submit Task Review', taskReviewSubmitInputSchema, (a) => taskPath(a, 'review'), (a) => ({
         results: a.results.map((r: any) => ({ criterionId: r.criterion_id, status: r.status, evidence: r.evidence })), suggestions: a.suggestions ?? []
     }));
+
+    type ScheduleArgs = {
+        id?: string; name?: string; prompt?: string; prompt_file?: string; cron?: string; run_at?: string; timezone?: string
+        directory?: string; model?: string; permission_mode?: string; max_minutes?: number; enabled?: boolean; manual?: boolean
+    };
+    const scheduleBody = (args: ScheduleArgs, creating: boolean): JsonObject => {
+        const body: JsonObject = {};
+        if (args.name !== undefined) body.name = args.name;
+        if (args.prompt !== undefined) body.prompt = args.prompt;
+        if (args.prompt_file !== undefined) body.promptFile = args.prompt_file;
+        if (args.directory !== undefined) body.directory = args.directory;
+        if (args.model !== undefined) body.model = args.model;
+        if (args.permission_mode !== undefined) body.permissionMode = args.permission_mode;
+        if (args.max_minutes !== undefined) body.maxMinutes = args.max_minutes;
+        if (args.enabled !== undefined) body.enabled = args.enabled;
+        if (args.run_at) {
+            const at = Date.parse(args.run_at);
+            if (!Number.isFinite(at)) throw new Error(`run_at is not an ISO 8601 time: ${args.run_at}`);
+            body.spec = { kind: 'once', at };
+        } else if (args.cron) {
+            body.spec = { kind: 'cron', expr: args.cron.trim() };
+        } else if (creating || args.manual) {
+            body.spec = { kind: 'manual' };
+        }
+        if (args.timezone !== undefined || creating) body.timezone = args.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return body;
+    };
+    const describeSchedule = (schedule: JsonObject): string => {
+        const next = typeof schedule.nextRunAt === 'number' ? new Date(schedule.nextRunAt).toISOString() : 'none';
+        const last = schedule.lastRun as JsonObject | null | undefined;
+        const lastText = last ? `${String(last.status)}${last.summary ? ` (${String(last.summary)})` : ''}` : 'never ran';
+        return `- ${String(schedule.id)} · ${String(schedule.name)} · ${JSON.stringify(schedule.spec)} ${String(schedule.timezone)} · ${schedule.enabled ? 'active' : 'paused'} · next ${next} · last ${lastText}`;
+    };
+
+    mcp.registerTool<any, any>('scheduled_run_done', {
+        description: SCHEDULE_TOOL_DESCRIPTIONS.scheduled_run_done,
+        title: 'Scheduled Run Done',
+        inputSchema: scheduledRunDoneInputSchema
+    }, async (args: { status: string; summary: string; links?: string[] }) => {
+        try {
+            await requestHubJson('/api/schedules/runs/done', {
+                method: 'POST',
+                body: JSON.stringify({ sessionId: client.sessionId, status: args.status, summary: args.summary, links: args.links ?? [] })
+            });
+            return { content: [{ type: 'text' as const, text: `Run recorded as ${args.status}.` }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to record the scheduled run', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('schedule_create', {
+        description: SCHEDULE_TOOL_DESCRIPTIONS.schedule_create,
+        title: 'Create Scheduled Task',
+        inputSchema: scheduleCreateInputSchema
+    }, async (args: ScheduleArgs) => {
+        try {
+            const payload = await requestHubJson('/api/schedules', {
+                method: 'POST',
+                body: JSON.stringify({ ...scheduleBody(args, true), fromSessionId: client.sessionId })
+            });
+            const schedule = payload.schedule as JsonObject;
+            return { content: [{ type: 'text' as const, text: `Scheduled task created.\n${describeSchedule(schedule)}` }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to create the scheduled task', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('schedule_list', {
+        description: SCHEDULE_TOOL_DESCRIPTIONS.schedule_list,
+        title: 'List Scheduled Tasks',
+        inputSchema: scheduleListInputSchema
+    }, async () => {
+        try {
+            const payload = await requestHubJson('/api/schedules');
+            const schedules = Array.isArray(payload.schedules) ? payload.schedules as JsonObject[] : [];
+            return { content: [{ type: 'text' as const, text: schedules.length > 0 ? schedules.map(describeSchedule).join('\n') : 'No scheduled tasks.' }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to list scheduled tasks', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('schedule_update', {
+        description: SCHEDULE_TOOL_DESCRIPTIONS.schedule_update,
+        title: 'Update Scheduled Task',
+        inputSchema: scheduleUpdateInputSchema
+    }, async (args: ScheduleArgs & { id: string }) => {
+        try {
+            const payload = await requestHubJson(`/api/schedules/${encodeURIComponent(args.id)}`, {
+                method: 'PATCH',
+                body: JSON.stringify(scheduleBody(args, false))
+            });
+            return { content: [{ type: 'text' as const, text: `Scheduled task updated.\n${describeSchedule(payload.schedule as JsonObject)}` }], isError: false };
+        } catch (error) {
+            return buildToolError(`Failed to update scheduled task ${args.id}`, error);
+        }
+    });
 
     mcp.registerTool<any, any>('task_draft_submit', {
         description: TASK_DRAFT_SUBMIT_DESCRIPTION,
@@ -611,7 +723,11 @@ export async function startHappyServer(client: ApiSessionClient) {
             'task_integrated',
             'task_review_submit',
             'review_loop_worker_submit',
-            'review_loop_reviewer_submit'
+            'review_loop_reviewer_submit',
+            'scheduled_run_done',
+            'schedule_create',
+            'schedule_list',
+            'schedule_update'
         ],
         stop: () => {
             logger.debug('[hapiMCP] Stopping server');

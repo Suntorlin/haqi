@@ -158,6 +158,17 @@ export class HappyBot implements NotificationChannel {
         })
     }
 
+    /** Plain text to every chat bound to the namespace, such as a scheduled-task alert. */
+    async sendText(namespace: string, text: string): Promise<void> {
+        for (const chatId of this.getBoundChatIds(namespace)) {
+            try {
+                await this.bot.api.sendMessage(chatId, text)
+            } catch (error) {
+                console.error('[HAPIBot] Failed to send text:', error)
+            }
+        }
+    }
+
     /**
      * Get bound Telegram chat IDs from storage.
      */
