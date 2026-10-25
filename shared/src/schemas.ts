@@ -125,6 +125,57 @@ export const MachineLoadSchema = z.object({
 })
 export type MachineLoad = z.infer<typeof MachineLoadSchema>
 
+/** A count of commits on each side: `behind` only on the other side, `ahead` only on this checkout. */
+const CommitGapSchema = z.object({ behind: z.number().int().nonnegative(), ahead: z.number().int().nonnegative() })
+
+/** One checkout of a git repository on a machine, as the runner finds it. Facts only; the hub judges them. */
+export const ProbedRepoSchema = z.object({
+    /** Top folder of this checkout. */
+    root: z.string(),
+    /** The main clone this checkout belongs to: equal to root unless this is a worktree. */
+    mainRoot: z.string(),
+    /** Fetch URLs as host/owner/name, sorted. Two checkouts that share one are the same repository. */
+    remotes: z.array(z.string()),
+    /** Null when HEAD is detached. */
+    branch: z.string().nullable(),
+    head: z.string(),
+    /** Commit time of HEAD, in seconds. */
+    headTime: z.number(),
+    changed: z.number().int().nonnegative(),
+    untracked: z.number().int().nonnegative(),
+    /** Worktrees of the main clone, the main clone left out. */
+    worktrees: z.number().int().nonnegative(),
+    upstream: CommitGapSchema.extend({ name: z.string() }).optional(),
+    /** Against the base commit, when one was asked for; 'missing' when this checkout does not have it. */
+    base: z.union([CommitGapSchema, z.literal('missing')]).optional(),
+    /** One entry per lockfile found at the root. installed is absent where a package manager keeps no local folder. */
+    deps: z.array(z.object({
+        manager: z.string(),
+        lockfile: z.string(),
+        lockHash: z.string(),
+        installed: z.boolean().optional()
+    }))
+})
+export type ProbedRepo = z.infer<typeof ProbedRepoSchema>
+
+/** A folder the hub asked about: missing, a checkout, or a plain folder with the checkouts directly inside it. */
+export const ProbedDirSchema = z.discriminatedUnion('kind', [
+    z.object({ dir: z.string(), kind: z.literal('missing') }),
+    z.object({ dir: z.string(), kind: z.literal('repo'), repo: ProbedRepoSchema }),
+    z.object({ dir: z.string(), kind: z.literal('folder'), repos: z.array(ProbedRepoSchema) })
+])
+export type ProbedDir = z.infer<typeof ProbedDirSchema>
+
+export const MachineProbeRequestSchema = z.object({
+    dirs: z.array(z.string().min(1)).max(200),
+    /** A commit to measure each checkout against. */
+    base: z.string().regex(/^[0-9a-f]{7,64}$/).optional()
+})
+export type MachineProbeRequest = z.infer<typeof MachineProbeRequestSchema>
+
+export const MachineProbeResponseSchema = z.object({ dirs: z.array(ProbedDirSchema) })
+export type MachineProbeResponse = z.infer<typeof MachineProbeResponseSchema>
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),

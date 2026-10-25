@@ -55,6 +55,17 @@ const machineSettingsSchema = z.object({
     env: machineEnvSchema.optional()
 }).strict()
 
+const repoMapQuerySchema = z.object({
+    base: z.string().regex(/^[0-9a-f]{7,64}$/).optional(),
+    repo: z.string().min(1).max(300).optional(),
+    fresh: z.enum(['0', '1']).optional()
+}).refine((query) => !query.base || query.repo, 'base needs repo: a base commit belongs to one repository')
+
+const repoPinSchema = z.object({
+    key: z.string().min(1).max(300),
+    path: z.string().min(1).max(1000).nullable()
+}).strict()
+
 export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
@@ -131,6 +142,57 @@ export function createMachinesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             return c.json({ error: 'Machine not found' }, 404)
         }
         return c.json({ machine })
+    })
+
+    // Repositories on the online machines and where work on each goes; see repoMap.ts.
+    app.get('/machines/repos', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+        const parsed = repoMapQuerySchema.safeParse(c.req.query())
+        if (!parsed.success) {
+            return c.json({ error: parsed.error.issues[0]?.message ?? 'Invalid query' }, 400)
+        }
+        const namespace = c.get('namespace')
+        const map = await engine.machineProbe.repos(namespace, { ...parsed.data, fresh: parsed.data.fresh === '1' })
+        const machines = engine.getOnlineMachinesByNamespace(namespace)
+            .map((m) => ({ id: m.id, name: m.metadata?.displayName ?? m.metadata?.host ?? m.id.slice(0, 8) }))
+        return c.json({ ...map, machines })
+    })
+
+    // Confirms where a repository lives on a machine, the first time work goes there; a null path forgets it.
+    app.put('/machines/:id/repos', async (c) => {
+        const engine = getSyncEngine()
+        if (!engine) {
+            return c.json({ error: 'Not connected' }, 503)
+        }
+        const machineId = c.req.param('id')
+        const machine = requireMachine(c, engine, machineId)
+        if (machine instanceof Response) {
+            return machine
+        }
+        const parsed = repoPinSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) {
+            return c.json({ error: parsed.error.issues[0]?.message ?? 'Invalid body' }, 400)
+        }
+        let path = parsed.data.path
+        if (path) {
+            const probed = await engine.machineProbe.probeOne(machineId, path).catch(() => null)
+            if (probed?.kind !== 'repo') {
+                return c.json({ error: `这台机器上 ${path} 不是 git 仓库` }, 400)
+            }
+            const { key } = parsed.data
+            if (!key.startsWith('local:') && !probed.repo.remotes.includes(key)) {
+                return c.json({ error: `${path} 不是 ${key}：它的远程是 ${probed.repo.remotes.join('、') || '（无）'}` }, 400)
+            }
+            path = probed.repo.root
+        }
+        const updated = engine.updateMachineSettings(machineId, c.get('namespace'), { repo: { key: parsed.data.key, path } })
+        if (!updated) {
+            return c.json({ error: 'Machine not found' }, 404)
+        }
+        return c.json({ machine: updated })
     })
 
     app.post('/machines/:id/spawn', async (c) => {

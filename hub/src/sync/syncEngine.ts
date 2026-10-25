@@ -38,6 +38,7 @@ import {
     type RpcReadFileResponse,
     type RpcUploadFileResponse
 } from './rpcGateway'
+import { MachineProbeService } from './machineProbeService'
 import { SessionCache } from './sessionCache'
 import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession, type TaskSessionSettings } from '../tasks/taskService'
@@ -476,6 +477,8 @@ export class SyncEngine {
     private readonly groupService: GroupService
     private readonly reviewLoopService: ReviewLoopService
     private readonly rpcGateway: RpcGateway
+    /** Repositories on the online machines, read from the folders sessions ran in. */
+    readonly machineProbe: MachineProbeService
     private readonly autoApprovalInFlight: Set<string> = new Set()
     private readonly activeGroupRoutesBySession: Map<string, GroupRouteContext> = new Map()
     // Routes registered at queue-dispatch time for flavors (claude/gemini) that don't
@@ -534,6 +537,13 @@ export class SyncEngine {
             async (payload) => this.notifyReviewLoopUser(payload)
         )
         this.rpcGateway = new RpcGateway(io, rpcRegistry)
+        this.machineProbe = new MachineProbeService({
+            machines: (namespace) => this.machineCache.getOnlineMachinesByNamespace(namespace)
+                .map((machine) => ({ id: machine.id, repos: machine.metadata?.repos })),
+            sessions: (namespace) => this.getSessionsByNamespace(namespace)
+                .map((session) => ({ machineId: session.metadata?.machineId ?? null, path: session.metadata?.path ?? null, updatedAt: session.updatedAt })),
+            probe: (machineId, request) => this.rpcGateway.probeMachine(machineId, request)
+        })
         this.reloadAll()
         this.syncGroupNoteMarkdownFiles()
         this.inactivityTimer = setInterval(() => this.expireInactive(), 5_000)

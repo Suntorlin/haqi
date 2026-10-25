@@ -14,6 +14,8 @@ const machineMetadataSchema = z.object({
     happyLibDir: z.string().optional(),
     role: z.enum(['always-on', 'portable']).optional(),
     env: z.record(z.string(), z.string()).optional(),
+    /** Confirmed checkout path by repository key (host/owner/name); set from the web. */
+    repos: z.record(z.string(), z.string()).optional(),
     fingerprint: z.string().optional()
 })
 
@@ -36,6 +38,8 @@ export type MachineSettingsPatch = {
     displayName?: string | null
     role?: MachineRole
     env?: Record<string, string>
+    /** Confirms where a repository lives on this machine; a null path forgets it. */
+    repo?: { key: string; path: string | null }
 }
 
 export type RegisterRunnerResult =
@@ -60,6 +64,7 @@ export interface Machine {
         happyLibDir?: string
         role?: MachineRole
         env?: Record<string, string>
+        repos?: Record<string, string>
     } | null
     metadataVersion: number
     runnerState: unknown | null
@@ -166,6 +171,13 @@ export class MachineCache {
             if (Object.keys(patch.env).length > 0) merged.env = patch.env
             else delete merged.env
         }
+        if (patch.repo !== undefined) {
+            const repos: Record<string, string> = { ...(current.success ? current.data.repos : {}) }
+            if (patch.repo.path) repos[patch.repo.key] = patch.repo.path
+            else delete repos[patch.repo.key]
+            if (Object.keys(repos).length > 0) merged.repos = repos
+            else delete merged.repos
+        }
         this.writeMetadata(id, namespace, merged, stored.metadataVersion)
         return this.refreshMachine(id)
     }
@@ -203,7 +215,7 @@ export class MachineCache {
             const homeDir = typeof data.homeDir === 'string' ? data.homeDir : undefined
             const happyHomeDir = typeof data.happyHomeDir === 'string' ? data.happyHomeDir : undefined
             const happyLibDir = typeof data.happyLibDir === 'string' ? data.happyLibDir : undefined
-            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir, role: data.role, env: data.env }
+            return { host, platform, happyCliVersion, displayName, homeDir, happyHomeDir, happyLibDir, role: data.role, env: data.env, repos: data.repos }
         })()
 
         const storedActiveAt = stored.activeAt ?? stored.createdAt

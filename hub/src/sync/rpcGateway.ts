@@ -1,4 +1,5 @@
-import type { ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
+import type { ClaudeAccountSelection, ClaudeAccountPoolView, MachineProbeRequest, MachineProbeResponse } from '@hapi/protocol/schemas'
+import { MachineProbeResponseSchema } from '@hapi/protocol/schemas'
 import type {
     CodexCredentialExportResponse,
     CodexCredentialStateResponse,
@@ -237,6 +238,15 @@ export class RpcGateway {
         } catch (error) {
             return { type: 'error', message: error instanceof Error ? error.message : String(error) }
         }
+    }
+
+    /** The folders and checkouts a machine has; see probe.ts in the CLI. */
+    async probeMachine(machineId: string, request: MachineProbeRequest): Promise<MachineProbeResponse> {
+        const result = await this.machineRpc(machineId, 'machine-probe', request)
+        const parsed = MachineProbeResponseSchema.safeParse(result)
+        if (parsed.success) return parsed.data
+        const error = result && typeof result === 'object' && 'error' in result ? String(result.error) : 'Unexpected machine-probe result'
+        throw new Error(error)
     }
 
     async checkPathsExist(machineId: string, paths: string[]): Promise<Record<string, boolean>> {

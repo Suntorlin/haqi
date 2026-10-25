@@ -5,7 +5,7 @@
 import { io, type Socket } from 'socket.io-client'
 import { stat } from 'node:fs/promises'
 import { readPool, savePool, checkPoolAccount } from '@/claude/accounts/registry'
-import { ClaudeAccountSelectionSchema } from '@hapi/protocol/schemas'
+import { ClaudeAccountSelectionSchema, MachineProbeRequestSchema } from '@hapi/protocol/schemas'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
@@ -27,6 +27,7 @@ import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/
 import { applyVersionedAck } from './versionedUpdate'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
 import { readMachineLoad } from './machineLoad'
+import { probeMachine } from '@/modules/machineProbe/probe'
 
 const LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS = 10_000
 
@@ -116,6 +117,12 @@ export class ApiMachineClient {
             }))
 
             return { exists }
+        })
+
+        this.rpcHandlerManager.registerHandler('machine-probe', async (params: unknown) => {
+            const request = MachineProbeRequestSchema.safeParse(params)
+            if (!request.success) throw new Error('Invalid machine-probe request')
+            return await probeMachine(request.data)
         })
 
         this.rpcHandlerManager.registerHandler('codex-credentials-status', async () => {
