@@ -179,7 +179,7 @@ export function deliverPrompt(brief: TaskBrief, input: {
         `   - 第一行：一句话结论，不超过 ${DELIVERY_LIMITS.conclusion} 字，不加 # 或 **。`,
         `   - 「## 要你做的事」：编号，最多 ${DELIVERY_LIMITS.todo} 条，每条一句，写做什么，不写为什么；没有就写「没有。」`,
         '   - 「## 风险」：最多 2 条，每条一句；没有就不写这一节。',
-        '   - 「## 交付物」：给公网链接（报告、截图），一行一个，写清是什么。不给 localhost 或本机路径以外的内网地址。',
+        '   - 「## 交付物」：给公网链接（报告、截图），一行一个，写成 [是什么](链接)，不贴裸链接。不给 localhost 或本机路径以外的内网地址。',
         `   - 「${DELIVERY_DETAILS}」（放最后，HAQI 会折叠，不超过 ${DELIVERY_LIMITS.details} 字）：${brief.userMessages?.some((line) => line.startsWith('验收时要改：')) ? '「### 按你的意见改了」每条一句：改了什么，在哪看；' : ''}「### 关键数字」最多 3 条，只放影响用户决定的；要你做的事的理由也放这里。`,
         '   - 只写结论和用户要用的东西，不写过程，不贴执行会话的原话。',
         `3. 调用 subtask_done：task_id 填 "${brief.taskId}"，subtask_id 填 "${input.subtaskId}"，summary 填交付说明全文。`,
