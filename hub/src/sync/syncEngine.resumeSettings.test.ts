@@ -60,6 +60,40 @@ describe('SyncEngine.resumeSession settings', () => {
         expect(rpcCalls[0]![9]).toBe('native-id')
     })
 
+    // claudeAccount = 10, sourceClaudeAccountId = 11
+    it('wakes a pinned session under its account, also on the fresh-process fallback', async () => {
+        const { engine, store, rpcCalls, internals, spawnedSessionId } = createHarness()
+        const session = store.sessions.getOrCreateSession(
+            'pinned-session',
+            {
+                path: '/repo', host: 'dev', machineId: 'machine-1', flavor: 'claude', claudeSessionId: 'native-id',
+                claudeAccount: { id: 'account-a', email: 'a@example.com', automatic: true, status: 'active', updatedAt: 1 }
+            },
+            null,
+            'default'
+        )
+        spawnedSessionId.value = session.id
+        internals.waitForSessionActive = async () => true
+        // The native resume fails once (stale token); the fresh process must stay on the same account.
+        ;(internals.rpcGateway as { spawnSession: (...args: unknown[]) => Promise<unknown> }).spawnSession = async (...args) => {
+            rpcCalls.push(args)
+            return rpcCalls.length === 1
+                ? { type: 'error', message: 'resume failed' }
+                : { type: 'success', sessionId: session.id }
+        }
+
+        const result = await engine.resumeSession(session.id, 'default')
+
+        expect(result.type).toBe('success')
+        expect(rpcCalls).toHaveLength(2)
+        expect(rpcCalls[0]![9]).toBe('native-id')
+        expect(rpcCalls[0]![10]).toEqual({ accountId: 'account-a', automatic: true })
+        expect(rpcCalls[0]![11]).toBe('account-a')
+        expect(rpcCalls[1]![9]).toBeUndefined()
+        expect(rpcCalls[1]![10]).toEqual({ accountId: 'account-a', automatic: true })
+        expect(rpcCalls[1]![11]).toBeUndefined()
+    })
+
     it('does not turn YOLO on for a session that was not in YOLO', async () => {
         const { engine, store, rpcCalls, internals, spawnedSessionId } = createHarness()
         const session = store.sessions.getOrCreateSession(
@@ -74,6 +108,7 @@ describe('SyncEngine.resumeSession settings', () => {
         await engine.resumeSession(session.id, 'default')
 
         expect(rpcCalls[0]![6]).toBeUndefined()
+        expect(rpcCalls[0]![10]).toBeUndefined()
     })
 })
 

@@ -2561,6 +2561,10 @@ ${note.content}
         const yolo = await this.alwaysYolo() || (session.permissionMode !== undefined
             && YOLO_PERMISSION_MODES.has(session.permissionMode)
             && isPermissionModeAllowedForFlavor(session.permissionMode, flavor))
+        // The native transcript lives in the account's config dir, so a pinned session wakes under its account.
+        // Both attempts keep it: if the runner lacks the account, the wake fails with the reason instead of
+        // silently starting on the default login without the transcript.
+        const pinnedAccount = flavor === 'claude' ? metadata.claudeAccount : undefined
 
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
@@ -2572,7 +2576,9 @@ ${note.content}
             yolo || undefined,
             undefined,
             undefined,
-            resumeSessionId
+            resumeSessionId,
+            pinnedAccount ? { accountId: pinnedAccount.id, automatic: pinnedAccount.automatic } : undefined,
+            resumeSessionId ? pinnedAccount?.id : undefined
         )
 
         // Sessions that never produced a native transcript have no resume token, and
