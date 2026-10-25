@@ -87,6 +87,7 @@ export class ApiSessionClient extends EventEmitter {
                 sessionId: this.sessionId
             },
             path: '/socket.io/',
+            extraHeaders: configuration.hubAccessHeaders,
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,

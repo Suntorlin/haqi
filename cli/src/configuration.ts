@@ -14,6 +14,8 @@ import { getCliArgs } from '@/utils/cliArgs'
 class Configuration {
     private _apiUrl: string
     private _cliApiToken: string
+    private _cfAccessClientId: string
+    private _cfAccessClientSecret: string
     public readonly isRunnerProcess: boolean
 
     // Directories and paths (from persistence)
@@ -34,6 +36,8 @@ class Configuration {
         // Server configuration
         this._apiUrl = process.env.HAPI_API_URL || 'http://localhost:3006'
         this._cliApiToken = process.env.CLI_API_TOKEN || ''
+        this._cfAccessClientId = process.env.HAPI_CF_ACCESS_CLIENT_ID || ''
+        this._cfAccessClientSecret = process.env.HAPI_CF_ACCESS_CLIENT_SECRET || ''
 
         // Check if we're running as runner based on process args
         const args = getCliArgs()
@@ -84,6 +88,25 @@ class Configuration {
 
     _setCliApiToken(token: string): void {
         this._cliApiToken = token
+    }
+
+    /**
+     * Cloudflare Access service token headers for a hub behind Access.
+     * Empty when no service token is configured.
+     */
+    get hubAccessHeaders(): Record<string, string> {
+        if (!this._cfAccessClientId || !this._cfAccessClientSecret) {
+            return {}
+        }
+        return {
+            'CF-Access-Client-Id': this._cfAccessClientId,
+            'CF-Access-Client-Secret': this._cfAccessClientSecret
+        }
+    }
+
+    _setCfAccess(clientId: string, clientSecret: string): void {
+        this._cfAccessClientId = clientId
+        this._cfAccessClientSecret = clientSecret
     }
 }
 

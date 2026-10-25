@@ -23,6 +23,9 @@ interface Settings {
   apiUrl?: string
   // Legacy field name (for migration, read-only)
   serverUrl?: string
+  // Cloudflare Access service token, for a hub behind Access (env HAPI_CF_ACCESS_CLIENT_ID/SECRET win)
+  cfAccessClientId?: string
+  cfAccessClientSecret?: string
 }
 
 const defaultSettings: Settings = {}

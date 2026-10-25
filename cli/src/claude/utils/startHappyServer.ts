@@ -67,6 +67,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         const response = await fetch(resolveHubUrl("/api/auth"), {
             method: "POST",
             headers: {
+                ...configuration.hubAccessHeaders,
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({ accessToken: getAuthToken() })
@@ -95,6 +96,9 @@ export async function startHappyServer(client: ApiSessionClient) {
     const requestHubJson = async (path: string, init?: RequestInit): Promise<JsonObject> => {
         const doRequest = async (token: string): Promise<Response> => {
             const headers = new Headers(init?.headers);
+            for (const [name, value] of Object.entries(configuration.hubAccessHeaders)) {
+                headers.set(name, value);
+            }
             headers.set("Authorization", `Bearer ${token}`);
             if (init?.body !== undefined && !headers.has("Content-Type")) {
                 headers.set("Content-Type", "application/json");

@@ -297,6 +297,7 @@ export class ApiMachineClient {
                 machineId: this.machine.id
             },
             path: '/socket.io/',
+            extraHeaders: configuration.hubAccessHeaders,
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000
