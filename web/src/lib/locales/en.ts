@@ -317,6 +317,8 @@ export default {
   'newSession.model.customPlaceholder': 'Custom model name',
   'newSession.claudeAccount': 'Claude account',
   'newSession.claudeAccount.machineDefault': 'Machine default login',
+  'newSession.claudeAccount.machineLoginFailed': 'The last session on it failed to log in',
+  'newSession.claudeAccount.machineLoginFailedHint': 'The default login on this machine no longer works. Pick another account, or log in again on the machine.',
   'newSession.claudeAccount.default': 'default',
   'newSession.claudeAccount.remaining': '{percent} left',
   'newSession.claudeAccount.remainingUnknown': 'remaining unknown',

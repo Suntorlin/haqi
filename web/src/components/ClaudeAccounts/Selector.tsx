@@ -72,11 +72,16 @@ export function ClaudeAccountRow({ api, machineId, selection, onChange, disabled
         return null
     }
 
+    const machineLogin = query.data?.machineLogin
     const options = [
         {
             value: '',
-            label: t('newSession.claudeAccount.machineDefault'),
-            description: t('newSession.claudeAccount.autoSwitch', { state: pool.autoSwitch ? t('newSession.claudeAccount.enabled') : t('newSession.claudeAccount.disabled') })
+            label: machineLogin?.email
+                ? `${t('newSession.claudeAccount.machineDefault')} · ${machineLogin.email}`
+                : t('newSession.claudeAccount.machineDefault'),
+            description: machineLogin?.failedAt
+                ? t('newSession.claudeAccount.machineLoginFailed')
+                : t('newSession.claudeAccount.autoSwitch', { state: pool.autoSwitch ? t('newSession.claudeAccount.enabled') : t('newSession.claudeAccount.disabled') })
         },
         ...profiles.map((p) => ({
             value: p.id,
@@ -90,6 +95,9 @@ export function ClaudeAccountRow({ api, machineId, selection, onChange, disabled
     return (
         <SettingsSelectRow
             title={t('newSession.claudeAccount')}
+            subtitle={!value && machineLogin?.failedAt ? (
+                <span className="text-[var(--social-danger)]">{t('newSession.claudeAccount.machineLoginFailedHint')}</span>
+            ) : undefined}
             valueLabel={current}
             disabled={disabled}
             options={options}

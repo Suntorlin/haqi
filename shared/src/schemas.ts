@@ -98,10 +98,16 @@ export const ClaudeAccountRuntimeSchema = z.object({
 export type ClaudeAccountPool = z.infer<typeof ClaudeAccountPoolSchema>
 export type ClaudeAccountSelection = z.infer<typeof ClaudeAccountSelectionSchema>
 export type ClaudeAccountRuntime = z.infer<typeof ClaudeAccountRuntimeSchema>
+/** The login a session uses when no pool account is picked. failedAt: a session on it last failed to authenticate. */
+export type ClaudeMachineLogin = {
+    email?: string
+    failedAt?: number
+}
 export type ClaudeAccountPoolView = {
     pool: ClaudeAccountPool
     revision: string
     usage?: Record<string, ClaudeRateLimitSnapshot>
+    machineLogin?: ClaudeMachineLogin
 }
 
 export const MetadataSchema = z.object({

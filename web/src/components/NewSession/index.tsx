@@ -30,6 +30,7 @@ import {
     loadPreferredSessionType,
     loadPreferredYoloMode,
     pickRememberedConfig,
+    rememberedAccountSelection,
     resolveSessionModelParams,
     saveLastSessionConfig,
     savePreferredAgent,
@@ -199,10 +200,7 @@ export function NewSession(props: {
         const restoreKey = `${machineId}:${rememberedAccountId ?? ''}`
         if (restoredAccountKeyRef.current === restoreKey) return
         restoredAccountKeyRef.current = restoreKey
-        const wanted = rememberedAccountId
-        setClaudeAccount(wanted && pool.profiles.some((profile) => profile.enabled && profile.id === wanted)
-            ? { accountId: wanted, automatic: pool.autoSwitch }
-            : undefined)
+        setClaudeAccount(rememberedAccountSelection(pool, rememberedAccountId))
     }, [accountsQuery.data, agent, machineId, rememberedAccountId])
 
     const selectedMachine = useMemo(

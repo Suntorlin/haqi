@@ -331,6 +331,21 @@ describe('NewSession settings shared through the hub', () => {
         expect(screen.getByRole('radio', { name: 'codex' })).toBeChecked()
     })
 
+    it('warns when the machine login last failed to authenticate', async () => {
+        const api = apiWith({
+            getNewSessionDefaults: vi.fn(async () => ({ defaults: null })),
+            getClaudeAccounts: vi.fn(async () => ({
+                revision: 'r1',
+                pool: { initialAccount: 'account-a', autoSwitch: false, profiles: [{ id: 'account-a', email: 'test@example.com', trustGroup: 'personal', enabled: true }] },
+                machineLogin: { email: 'test@example.com', failedAt: 1000 }
+            }))
+        })
+
+        renderWithProviders(<NewSession api={api} machines={machines} onSuccess={vi.fn()} onCancel={vi.fn()} />)
+
+        expect(await screen.findByText(/default login on this machine no longer works/)).toBeInTheDocument()
+    })
+
     it('shares the settings it created with to the hub', async () => {
         const saveNewSessionDefaults = vi.fn(async (payload: Record<string, unknown>) => ({ defaults: { ...payload, updatedAt: 3000 } }))
         const api = apiWith({

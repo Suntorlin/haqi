@@ -1,3 +1,4 @@
+import type { ClaudeAccountPool, ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import type { NewSessionDefaults } from '@/types/api'
 import type { AgentType, ServiceTier, SessionType, ThinkEffort } from './types'
 import { CODEX_SERVICE_TIER_OPTIONS, MODEL_OPTIONS, getModelOptionsForAgent, getThinkEffortOptions } from './types'
@@ -300,6 +301,17 @@ export function toNewSessionDefaults(config: LastSessionConfig): Omit<NewSession
  * model switches made inside a chat). Only the model settings are shared; session type, worktree
  * name and preview URL stay with the browser.
  */
+/** The remembered Claude account, when it is still enabled on the machine; otherwise the machine login. */
+export function rememberedAccountSelection(
+    pool: ClaudeAccountPool | undefined,
+    accountId: string | undefined
+): ClaudeAccountSelection | undefined {
+    if (!pool || !accountId) return undefined
+    return pool.profiles.some((profile) => profile.enabled && profile.id === accountId)
+        ? { accountId, automatic: pool.autoSwitch }
+        : undefined
+}
+
 export function pickRememberedConfig(
     local: LastSessionConfig | null,
     shared: NewSessionDefaults | null | undefined

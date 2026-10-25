@@ -319,6 +319,8 @@ export default {
   'newSession.model.customPlaceholder': '自定义模型名',
   'newSession.claudeAccount': 'Claude 账号',
   'newSession.claudeAccount.machineDefault': '机器默认登录',
+  'newSession.claudeAccount.machineLoginFailed': '上次用它启动的会话登录失败',
+  'newSession.claudeAccount.machineLoginFailedHint': '这台机器的默认登录已失效。换个账号，或在机器上重新登录。',
   'newSession.claudeAccount.default': '默认',
   'newSession.claudeAccount.remaining': '余 {percent}',
   'newSession.claudeAccount.remainingUnknown': '余量未知',

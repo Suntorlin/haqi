@@ -5,17 +5,20 @@ import { z } from 'zod';
 import { ClaudeAccountPoolSchema, type ClaudeAccountPoolView } from '@hapi/protocol/schemas';
 import { accountEnvironment, loadAccounts, verifyAccount } from './profiles';
 import { getDefaultClaudeCodePath } from '../sdk/utils';
+import { readMachineLogin } from './machineLogin';
 
 const revisionOf = (raw: string) => createHash('sha256').update(raw).digest('hex');
 const empty = { initialAccount: '', autoSwitch: false, profiles: [] };
 export const SavePoolSchema = z.object({ pool: ClaudeAccountPoolSchema, revision: z.string() }).strict();
 
 export async function readPool(home: string): Promise<ClaudeAccountPoolView> {
+    const machineLogin = await readMachineLogin(home);
     let raw: string;
     try { raw = await readFile(join(home, 'claude-accounts.json'), 'utf8'); }
-    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { pool: empty, revision: revisionOf('') }; throw error; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { pool: empty, revision: revisionOf(''), machineLogin }; throw error; }
     const config = JSON.parse(raw) as { initialAccount: string; autoSwitch: boolean; profiles: Array<Record<string, unknown>> };
     return {
+        machineLogin,
         revision: revisionOf(raw),
         pool: ClaudeAccountPoolSchema.parse({ initialAccount: config.initialAccount, autoSwitch: config.autoSwitch,
             profiles: config.profiles.map(p => ({ id: p.id, email: p.email, trustGroup: p.trustGroup, enabled: p.enabled ?? true })) })

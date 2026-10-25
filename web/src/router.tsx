@@ -39,8 +39,11 @@ import {
     loadPreferredServiceTier,
     loadPreferredThinkEffort,
     loadPreferredYoloMode,
-    pickRememberedConfig
+    pickRememberedConfig,
+    rememberedAccountSelection
 } from '@/components/NewSession/preferences'
+import { accountsKey } from '@/components/ClaudeAccounts/Settings'
+import type { ClaudeAccountSelection } from '@hapi/protocol/schemas'
 import { resolveSpawnModel, resolveSpawnServiceTier, resolveSpawnSessionSettings, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
 import { LoadingState } from '@/components/LoadingState'
 import { useAppContext } from '@/lib/app-context'
@@ -374,6 +377,23 @@ function SessionsPage() {
             const quickYolo = lastConfig?.yoloMode ?? loadPreferredYoloMode()
             const quickPreviewUrl = lastConfig?.previewUrl ?? ''
 
+            // Claude: the account picked last, like the form. A machine login that last failed to
+            // authenticate would fail again, so let the form show it and offer the other accounts.
+            let quickAccount: ClaudeAccountSelection | undefined
+            if (quickCreateAgent === 'claude') {
+                const machineId = preset.machineId
+                const accounts = await queryClient.fetchQuery({
+                    queryKey: accountsKey(machineId),
+                    queryFn: () => api.getClaudeAccounts(machineId),
+                    retry: false
+                }).catch(() => null)
+                quickAccount = rememberedAccountSelection(accounts?.pool, lastConfig?.claudeAccountId)
+                if (!quickAccount && accounts?.machineLogin?.failedAt) {
+                    openNewSession(preset)
+                    return
+                }
+            }
+
             const resolvedModel = resolveSpawnModel(quickCreateAgent, quickModel, quickCustomModel)
             const resolvedThinkEffort = resolveSpawnThinkEffort(quickCreateAgent, quickThinkEffort)
             const resolvedServiceTier = resolveSpawnServiceTier(quickCreateAgent, quickServiceTier)
@@ -390,7 +410,8 @@ function SessionsPage() {
                 yolo: quickYolo,
                 sessionType: sessionSettings.sessionType,
                 worktreeName: sessionSettings.worktreeName,
-                previewUrl: sessionSettings.previewUrl
+                previewUrl: sessionSettings.previewUrl,
+                ...(quickAccount ? { claudeAccount: quickAccount } : {})
             })
 
             if (result.type !== 'success') {

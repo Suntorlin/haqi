@@ -10,6 +10,8 @@ import type { ClaudeHookEvent as SessionHookData } from './hooks';
 import { readClaudeTeamSnapshotForSession } from './utils/claudeTeamSnapshot';
 import { applyRateLimitEvent, type SdkRateLimitInfo } from './utils/rateLimitSnapshot';
 import type { ClaudeUsageLimit } from '@hapi/protocol/schemas';
+import { configuration } from '@/configuration';
+import { clearMachineLoginFailure, recordMachineLoginFailure, usesMachineLogin } from './accounts/machineLogin';
 
 type LocalLaunchFailure = {
     message: string;
@@ -254,6 +256,7 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         }
 
         if (data.hook_event_name === 'Stop' || data.hook_event_name === 'StopFailure') {
+            this.noteMachineLoginResult(data.hook_event_name === 'Stop' ? 'ok' : data.error === 'authentication_failed' ? 'failed' : null);
             // A tool call another PreToolUse hook blocked never gets PostToolUse; no tool
             // outlives the turn, so drop them all or the session reads as busy forever.
             this.clearAuxiliaryActivity('claude-tool:');
@@ -340,6 +343,15 @@ export class Session extends AgentSessionBase<EnhancedMode> {
             this.refreshClaudeTeamSnapshot();
         }
     };
+
+    /** Tell the new-session form whether the machine login still works (see accounts/machineLogin). */
+    private noteMachineLoginResult(result: 'ok' | 'failed' | null): void {
+        if (!result || !usesMachineLogin()) return;
+        const write = result === 'failed'
+            ? recordMachineLoginFailure(configuration.happyHomeDir)
+            : clearMachineLoginFailure(configuration.happyHomeDir);
+        write.catch((error) => logger.debug('[claude] machine login state not saved', error));
+    }
 
     ensureClaudeTeamSnapshotPolling = (): void => {
         if (this.teamSnapshotPoller || !this.sessionId) {
