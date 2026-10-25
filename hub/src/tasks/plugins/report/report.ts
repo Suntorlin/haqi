@@ -1,7 +1,7 @@
 /**
  * The report: the task compressed for the user, in a fixed order so the first two parts are enough to decide —
- * conclusion (and what changed, when the user asked for a change), what the user has to do, each criterion with evidence, numbers, risks, decisions taken by precedent,
- * the process (folded), and one line on how often the user had to step in.
+ * conclusion (and what changed, when the user asked for a change), what the user has to do; then, folded, what HAQI checked
+ * (each criterion with evidence, numbers, risks, decisions taken by precedent) and the process; and one line on how often the user had to step in.
  */
 import type { AcceptanceCriterion, TaskLoad, TaskRun } from '@hapi/protocol/types'
 
@@ -60,12 +60,14 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         ? `你开口 ${load.progress + load.correction + load.decision + load.request} 次：拍板 ${load.decision}、纠正 ${load.correction}、追问 ${load.progress}、新要求 ${load.request}；HAQI 推送提醒 ${notified} 次，请你拍板 ${userDecisions.length + open.length} 次。`
         : `HAQI 推送提醒 ${notified} 次，请你拍板 ${userDecisions.length + open.length} 次。`
 
+    const checked = `HAQI 的核对：验收 ${met}/${input.acceptance.length} 达到${fixes.length ? `，返工 ${fixes.length} 次` : ''}${risks.length ? `，风险 ${risks.length} 条` : ''}`
+
     const lines = [
         `# ${input.name}`,
         '',
         `**${conclusion}**`,
         '',
-        ...(delivery ? [delivery.body, '', '---', '', '## 附：HAQI 的核对', ''] : [
+        ...(delivery ? [delivery.body, ''] : [
             `目标：${input.goal}`,
             '',
             ...(revision ? ['## 按你的意见改了', `你说：「${revision.request}」`, '', revision.summary!, ''] : []),
@@ -73,6 +75,9 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
             ...(todo.length ? todo.map((line, i) => `${i + 1}. ${line}`) : ['没有。']),
             ''
         ]),
+        // What HAQI checked backs the hand-over up; it stays folded so the user reads only the hand-over.
+        `<details><summary>${checked}</summary>`,
+        '',
         '## 验收标准',
         '| # | 标准 | 结论 | 证据 |',
         '|---|---|---|---|',
@@ -93,6 +98,8 @@ export function composeReport(input: ReportInput): { conclusion: string; markdow
         ...(precedents.length ? precedents.map((d) => `- ${d.question} → ${d.answer!.label}（经验 ${d.answer!.memoryId ?? ''}）`) : ['- 没有。']),
         ...(userDecisions.length ? ['', '## 你拍板的', ...userDecisions.map((d) => `- ${d.question} → ${d.answer!.label}`)] : []),
         ...(run.review?.suggestions.length ? ['', '## 评审的建议（不影响验收）', ...run.review.suggestions.map((line) => `- ${line}`)] : []),
+        '',
+        '</details>',
         '',
         '<details><summary>过程</summary>',
         '',

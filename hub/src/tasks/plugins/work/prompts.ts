@@ -3,6 +3,7 @@
  * WORK_MARKER so memory never reads it as the user's words.
  */
 import type { AcceptanceCriterion, TaskSubtask } from '@hapi/protocol/types'
+import { DELIVERY_LIMITS } from '../../kernel/run'
 
 export const WORK_MARKER = '[HAQI_TASK_WORK]'
 
@@ -147,9 +148,6 @@ export function fixPrompt(brief: TaskBrief, items: string[], worktree: string, s
     ].join('\n')
 }
 
-/** The user reads the hand-over on a phone: short, well inside subtask_done's summary limit. */
-const DELIVERY_MAX = 800
-
 /**
  * After review the lead hands the result to the user: it alone decides what the user sees, in the user's own
  * writing rules. A new hand-over replaces the last one, so it says what changed since.
@@ -177,8 +175,8 @@ export function deliverPrompt(brief: TaskBrief, input: {
         '',
         '## 要做的事',
         `1. 读上面的材料。要核对时，只读${input.worktree ? `结果目录 ${input.worktree} 里的` : '相关'}文件，不改文件，不提交。`,
-        `2. 写交付说明（markdown，不超过 ${DELIVERY_MAX} 字）。用户只看这一份，你对它负责：`,
-        '   - 第一行：一句话结论，不超过 40 字，不加 # 或 **。',
+        `2. 写交付说明（markdown，不超过 ${DELIVERY_LIMITS.chars} 字，链接不算；超了 HAQI 会退回）。用户只看这一份，你对它负责：`,
+        `   - 第一行：一句话结论，不超过 ${DELIVERY_LIMITS.conclusion} 字，不加 # 或 **。`,
         '   - 「## 要你做的事」：编号，最多 3 条；没有就写「没有。」',
         ...(brief.userMessages?.some((line) => line.startsWith('验收时要改：'))
             ? ['   - 「## 按你的意见改了」：用户验收时要改的，每条一句：改了什么，在哪看。']

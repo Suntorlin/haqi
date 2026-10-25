@@ -94,6 +94,21 @@ export const isFixId = (id: string) => id.startsWith('fix-')
 /** The lead's hand-over to the user, one per report. */
 export const isDeliverId = (id: string) => id.startsWith('deliver-')
 
+/** The user reads the hand-over on a phone. Links do not count: the lead has to give them. */
+export const DELIVERY_LIMITS = { chars: 800, conclusion: 40 } as const
+
+const deliveryLength = (text: string) => [...text.replace(/https?:\/\/\S+/g, '').replace(/\s/g, '')].length
+
+/** Why a hand-over is too long for the user, or null when it fits. */
+export function deliveryTooLong(text: string): string | null {
+    const { conclusion } = splitDelivery(text)
+    const problems = [
+        deliveryLength(text) > DELIVERY_LIMITS.chars ? `it has ${deliveryLength(text)} characters without links, the limit is ${DELIVERY_LIMITS.chars}` : null,
+        deliveryLength(conclusion) > DELIVERY_LIMITS.conclusion ? `its first line has ${deliveryLength(conclusion)} characters, the limit is ${DELIVERY_LIMITS.conclusion}` : null
+    ].filter(Boolean)
+    return problems.length ? problems.join('; ') : null
+}
+
 /** The lead's hand-over: its first line is the conclusion, the rest the body. */
 export function splitDelivery(text: string): { conclusion: string; body: string } {
     const lines = text.trim().split('\n')

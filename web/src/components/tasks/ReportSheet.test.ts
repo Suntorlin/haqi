@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { reportMarkdownForApp } from './ReportSheet'
+import { reportMarkdownForApp, reportParts } from './ReportSheet'
 
 describe('reportMarkdownForApp', () => {
-    it('drops the title and turns the process block into a section', () => {
-        const markdown = '# 任务\n\n**全部达到。**\n\n<details><summary>过程</summary>\n\n- 做了\n\n</details>\n'
-        expect(reportMarkdownForApp(markdown)).toBe('**全部达到。**\n\n## 过程\n\n- 做了\n\n\n')
+    it('drops the title and splits the folded blocks into parts of their own', () => {
+        const markdown = '# 任务\n\n**全部达到。**\n\n<details><summary>HAQI 的核对：验收 2/2 达到</summary>\n\n## 验收标准\n\n</details>\n\n<details><summary>过程</summary>\n\n- 做了\n\n</details>\n\n> 推送 1 次'
+        expect(reportParts(markdown)).toEqual([
+            { text: '**全部达到。**', fold: null },
+            { text: '## 验收标准', fold: 'HAQI 的核对：验收 2/2 达到' },
+            { text: '- 做了', fold: '过程' },
+            { text: '> 推送 1 次', fold: null }
+        ])
     })
 
     it('turns the criteria table into a list, keeping escaped pipes in the text', () => {

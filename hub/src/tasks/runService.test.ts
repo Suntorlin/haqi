@@ -194,12 +194,17 @@ describe('task run after the guide step', () => {
         const handover = t.sent.filter((m) => m.sessionId === lead).at(-1)!
         expect([handover.text.includes('请写交给用户的交付说明'), handover.text.includes('subtask_id 填 "deliver-1"')]).toEqual([true, true])
         expect(handover.text).toContain('## 用户的原则（必须遵守）')
-        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '归档的记忆能恢复了，没推送。\n\n## 要你做的事\n1. 看分支，决定要不要合并。' })
+        // A hand-over too long for a phone goes back to the lead; links do not count.
+        await expect(t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: `归档的记忆能恢复了。\n\n${'过程'.repeat(396)}` })).rejects.toThrow('802 characters without links, the limit is 800')
+        await expect(t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: `${'结论'.repeat(21)}\n\n正文` })).rejects.toThrow('first line has 42 characters')
+        expect(t.service.get('default', task.id)!.run!.phase).toBe('delivering')
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '归档的记忆能恢复了，没推送。\n\n## 要你做的事\n1. 看分支，决定要不要合并。\n\n## 交付物\n- 报告：https://example.test/share/r/' + 'x'.repeat(800) })
         await t.settle()
         const reporting = t.service.get('default', task.id)!
         expect(reporting.run!.phase).toBe('reporting')
         expect(reporting.run!.report).toMatchObject({ conclusion: '归档的记忆能恢复了，没推送。', shareUrl: 'https://example.test/share/r/x' })
-        expect(t.reports.at(-1)).toContain('## 要你做的事\n1. 看分支，决定要不要合并。\n\n---\n\n## 附：HAQI 的核对')
+        expect(t.reports.at(-1)).toContain('## 要你做的事\n1. 看分支，决定要不要合并。')
+        expect(t.reports.at(-1)).toContain('<details><summary>HAQI 的核对：验收 3/3 达到，返工 1 次</summary>')
         expect(t.reports.at(-1)).toContain('返工 · 返工 1')
         expect(t.reports.at(-1)).not.toContain('负责人整理交付')
         expect(t.stopped).not.toContain(lead)

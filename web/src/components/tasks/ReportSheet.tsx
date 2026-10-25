@@ -2,18 +2,47 @@ import { useState } from 'react'
 import { BriefCardMarkdownPreview } from '@/components/AssistantChat/BriefCardMarkdownPreview'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
-import { ChevronRightIcon } from '@/components/mobile/icons'
+import { ChevronRightIcon, DisclosureIcon } from '@/components/mobile/icons'
 import { useTranslation } from '@/lib/use-translation'
 
-/**
- * The report is plain markdown with one <details> block for the process. The app does not render HTML in
- * markdown, so the block becomes an ordinary section; the leading "# name" goes, the sheet already shows it.
- */
+/** The report is plain markdown; the leading "# name" goes, the sheet already shows it. */
 export function reportMarkdownForApp(markdown: string): string {
-    return escapeTildes(criteriaTableAsList(markdown))
-        .replace(/^# .*\n+/, '')
-        .replace(/<details><summary>(.*?)<\/summary>/g, '## $1')
-        .replace(/<\/details>/g, '')
+    return escapeTildes(criteriaTableAsList(markdown)).replace(/^# .*\n+/, '')
+}
+
+export type ReportPart = { text: string; fold: string | null }
+
+/**
+ * The report's <details> blocks (what HAQI checked, the process) as parts of their own. The app does not render
+ * HTML in markdown, so the sheet folds them itself; the card leaves them out.
+ */
+export function reportParts(markdown: string): ReportPart[] {
+    const parts: ReportPart[] = []
+    let last = 0
+    for (const match of markdown.matchAll(/<details><summary>(.*?)<\/summary>([\s\S]*?)<\/details>/g)) {
+        parts.push({ text: markdown.slice(last, match.index), fold: null }, { text: match[2]!, fold: match[1]! })
+        last = match.index! + match[0].length
+    }
+    parts.push({ text: markdown.slice(last), fold: null })
+    return parts.map((part) => ({ ...part, text: reportMarkdownForApp(part.text).trim() })).filter((part) => part.text)
+}
+
+function ReportFold(props: { title: string; text: string }) {
+    const [open, setOpen] = useState(false)
+    return (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--social-border)]">
+            <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setOpen((value) => !value)}
+                className="flex min-h-[44px] w-full items-center gap-2 px-4 py-2.5 text-left text-body font-semibold text-[var(--social-fg)] transition-colors hover:bg-[var(--social-muted)]"
+            >
+                <DisclosureIcon open={open} className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />
+                <span className="min-w-0 flex-1">{props.title}</span>
+            </button>
+            {open ? <BriefFullMarkdownContent content={props.text} className="border-t border-[var(--social-divider)] px-4 pb-4 text-body" /> : null}
+        </div>
+    )
 }
 
 /** Paths like ~/dev/x come in pairs in a report; GFM would strike the text between them. Code spans stay as they are. */
@@ -48,7 +77,9 @@ export function ReportSheet(props: { open: boolean; onOpenChange: (open: boolean
     return (
         <BottomSheet open={props.open} onOpenChange={props.onOpenChange} title={props.title} className="md:w-[640px]">
             <div className="px-5 pb-6">
-                <BriefFullMarkdownContent content={reportMarkdownForApp(props.markdown)} className="text-body" />
+                {reportParts(props.markdown).map((part, index) => part.fold
+                    ? <ReportFold key={index} title={part.fold} text={part.text} />
+                    : <BriefFullMarkdownContent key={index} content={part.text} className={index ? 'mt-4 text-body' : 'text-body'} />)}
                 {props.shareUrl ? (
                     <a href={props.shareUrl} target="_blank" rel="noreferrer" className="mt-5 inline-block text-caption text-[var(--social-fg-muted)] underline underline-offset-4">
                         {t('taskRun.openShare')}
@@ -68,7 +99,7 @@ export function TaskReportCard(props: { text: string; markdown: string; title: s
             <div className="px-4 pb-3 pt-3.5">
                 <p className="text-caption font-semibold text-[var(--social-fg-muted)]">{t('taskRun.reportCard')}</p>
                 <p className="mt-1 text-body font-semibold leading-snug text-[var(--social-fg)]">{props.text}</p>
-                <BriefCardMarkdownPreview content={reportMarkdownForApp(props.markdown).replace(/^\*\*.*\*\*\n+/, '')} className="mt-2 max-h-[120px] text-footnote text-[var(--social-fg-muted)]" />
+                <BriefCardMarkdownPreview content={reportParts(props.markdown).filter((part) => !part.fold).map((part) => part.text).join('\n\n').replace(/^\*\*.*\*\*\n+/, '')} className="mt-2 max-h-[120px] text-footnote text-[var(--social-fg-muted)]" />
             </div>
             <button
                 type="button"

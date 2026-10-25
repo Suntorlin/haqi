@@ -22,7 +22,7 @@ describe('report', () => {
     it('puts the conclusion and what the user has to do first', () => {
         const { conclusion, markdown } = composeReport({ name: '任务', goal: '目标', acceptance, run: run({ round: 1, results: [{ criterionId: 'c1', status: 'met', evidence: '全过' }, { criterionId: 'c2', status: 'met', evidence: '截图' }], suggestions: ['加个缓存'] }), load: null, startedAt: 0, now: 30 * 60_000 })
         expect(conclusion).toBe('2 条验收标准全部达到，结果在本地分支 task/t1（未推送）。')
-        const order = ['**2 条', '## 要你做的事', '## 验收标准', '## 关键数字', '## 风险和不一致', '## 按先例做的决定', '## 评审的建议', '<details>', '> HAQI 推送提醒']
+        const order = ['**2 条', '## 要你做的事', '<details><summary>HAQI 的核对：验收 2/2 达到</summary>', '## 验收标准', '## 关键数字', '## 风险和不一致', '## 按先例做的决定', '## 评审的建议', '</details>', '<details><summary>过程</summary>', '> HAQI 推送提醒']
         const positions = order.map((part) => markdown.indexOf(part))
         expect(positions.every((p, i) => p >= 0 && (i === 0 || p > positions[i - 1]!))).toBe(true)
         expect(markdown).toContain('放哪里 → B（经验 m9）')

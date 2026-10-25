@@ -12,7 +12,7 @@ import type { StoredGroup, StoredTaskEvent } from '../store/types'
 import { TaskError } from './errors'
 import type { TaskKernel } from './kernel/kernel'
 import {
-    RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, isDeliverId, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
+    RUN_EVENT, RUN_LIMITS, currentSessionId, decisionAskSchema, deliveryTooLong, isDeliverId, integratedSchema, planInputSchema, readRun, readyToStart, reviewSubmitSchema, subtaskDoneSchema
 } from './kernel/run'
 import { matchPrecedent } from './plugins/decisions/precedent'
 import { observe, type WatchedSession } from './plugins/observer/observer'
@@ -193,6 +193,10 @@ export class RunService {
         const subtask = run?.subtasks.find((s) => s.id === parsed.data.subtaskId)
         if (!run || !subtask) throw new TaskError(`Unknown subtask ${parsed.data.subtaskId}.`, 404)
         if (subtask.state === 'done') return { message: 'Already recorded. You are done.' }
+        const tooLong = isDeliverId(subtask.id) ? deliveryTooLong(parsed.data.summary) : null
+        if (tooLong) {
+            throw new TaskError(`Rejected: the hand-over is too long for the user: ${tooLong}. Cut process, repeated facts and anything the user does not need to decide; keep the sections. Then call subtask_done again.`)
+        }
         // An executor waits for the user's answer to its own question: an answer that comes after it stopped would
         // reach no one. The lead's hand-over is not held; its open questions go into the report.
         const open = isDeliverId(subtask.id) || !subtask.sessionId ? [] : run.decisions.filter((d) => !d.answer && d.askedBy === subtask.sessionId)
