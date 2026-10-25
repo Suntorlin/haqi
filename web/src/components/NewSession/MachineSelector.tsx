@@ -36,6 +36,7 @@ export function MachineSelector(props: {
                 {props.machines.map((m) => (
                     <option key={m.id} value={m.id}>
                         {getMachineTitle(m)}
+                        {m.metadata?.role === 'portable' ? ` · ${t('machine.portableSuffix')}` : ''}
                         {m.metadata?.platform ? ` (${m.metadata.platform})` : ''}
                     </option>
                 ))}

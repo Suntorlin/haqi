@@ -15,6 +15,7 @@ import { ListGroup } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { TextField } from '@/components/ui/TextField'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { getMachineTitle } from '@/components/NewSession/MachineSelector'
 
 export const accountsKey = (machineId: string) => ['claude-accounts', machineId] as const
 // Claude keys its keychain entry by the literal CLAUDE_CONFIG_DIR string, while the runner passes the symlink-resolved path
@@ -142,7 +143,7 @@ export function ClaudeAccountsSettings({ api, machines }: { api: ApiClient; mach
     return <div className="flex flex-col gap-4">
         {online.length > 1 && <FormField label={t('settings.claudeAccounts.machine')}>
             <SelectInput aria-label={t('settings.claudeAccounts.machine')} value={machineId} onChange={e => setSelected(e.target.value)}>
-                {online.map(m => <option key={m.id} value={m.id}>{m.metadata?.host ?? m.id}</option>)}
+                {online.map(m => <option key={m.id} value={m.id}>{getMachineTitle(m)}</option>)}
             </SelectInput>
         </FormField>}
         <PoolEditor key={machineId} api={api} machineId={machineId} />

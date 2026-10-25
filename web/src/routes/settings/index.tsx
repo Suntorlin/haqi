@@ -1,4 +1,5 @@
 import { ClaudeAccountsSettings } from '@/components/ClaudeAccounts/Settings'
+import { MachinesSettings } from '@/components/Machines/MachinesSettings'
 import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
@@ -65,6 +66,7 @@ const SETTINGS_GROUP_EXPANDED_STORAGE_KEY = 'hapi-settings-group-expanded-v1'
 
 type SettingsGroupExpandedState = {
     claudeAccounts: boolean
+    machines: boolean
     general: boolean
     interaction: boolean
     dataDiagnostics: boolean
@@ -74,6 +76,7 @@ type SettingsGroupExpandedState = {
 function getDefaultSettingsGroupExpandedState(): SettingsGroupExpandedState {
     return {
         claudeAccounts: false,
+        machines: false,
         general: true,
         interaction: true,
         dataDiagnostics: false,
@@ -97,6 +100,7 @@ function readSettingsGroupExpandedState(): SettingsGroupExpandedState {
         }
         return {
             claudeAccounts: typeof parsed.claudeAccounts === 'boolean' ? parsed.claudeAccounts : defaults.claudeAccounts,
+            machines: typeof parsed.machines === 'boolean' ? parsed.machines : defaults.machines,
             general: typeof parsed.general === 'boolean' ? parsed.general : defaults.general,
             interaction: typeof parsed.interaction === 'boolean' ? parsed.interaction : defaults.interaction,
             dataDiagnostics: typeof parsed.dataDiagnostics === 'boolean' ? parsed.dataDiagnostics : defaults.dataDiagnostics,
@@ -576,6 +580,13 @@ export default function SettingsPage() {
         }
     }
 
+    const handleMachinesGroupToggle = () => {
+        setGroupExpandedState((previousState) => ({
+            ...previousState,
+            machines: !previousState.machines
+        }))
+    }
+
     const handleClaudeAccountsGroupToggle = () => {
         setGroupExpandedState((previousState) => ({
             ...previousState,
@@ -863,6 +874,15 @@ export default function SettingsPage() {
                         onToggle={handleClaudeAccountsGroupToggle}
                     >
                         <ClaudeAccountsSettings api={api} machines={machines} />
+                    </SettingsGroup>
+
+                    <SettingsGroup
+                        title={t('settings.group.machines.title')}
+                        description={t('settings.group.machines.description')}
+                        isExpanded={groupExpandedState.machines}
+                        onToggle={handleMachinesGroupToggle}
+                    >
+                        <MachinesSettings api={api} />
                     </SettingsGroup>
 
                     <SettingsGroup

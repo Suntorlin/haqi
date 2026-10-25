@@ -952,8 +952,18 @@ export class ApiClient {
         })
     }
 
-    async getMachines(): Promise<MachinesResponse> {
-        return await this.request<MachinesResponse>('/api/machines')
+    async getMachines(options?: { includeOffline?: boolean }): Promise<MachinesResponse> {
+        return await this.request<MachinesResponse>(options?.includeOffline ? '/api/machines?include=offline' : '/api/machines')
+    }
+
+    async updateMachine(
+        machineId: string,
+        patch: { displayName?: string | null; role?: import('@/types/api').MachineRole; env?: Record<string, string> }
+    ): Promise<{ machine: import('@/types/api').Machine }> {
+        return await this.request<{ machine: import('@/types/api').Machine }>(`/api/machines/${encodeURIComponent(machineId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch)
+        })
     }
 
     async checkMachinePathsExists(

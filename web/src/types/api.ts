@@ -89,6 +89,8 @@ export type RunnerState = {
     } | null
 }
 
+export type MachineRole = 'always-on' | 'portable'
+
 export type Machine = {
     id: string
     active: boolean
@@ -97,6 +99,10 @@ export type Machine = {
         platform: string
         happyCliVersion: string
         displayName?: string
+        /** Unset means always-on. */
+        role?: MachineRole
+        /** Extra env for the sessions this machine starts. */
+        env?: Record<string, string>
     } | null
     runnerState?: RunnerState | null
 }

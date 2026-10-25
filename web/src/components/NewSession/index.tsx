@@ -179,8 +179,10 @@ export function NewSession(props: {
                 const paths = getRecentPaths(foundLast.id)
                 if (paths[0]) setDirectory(paths[0])
             }
-        } else if (props.machines[0]) {
-            setMachineId(props.machines[0].id)
+        } else {
+            // No last choice: an always-on machine first, so a session does not land on a laptop that may leave.
+            const first = props.machines.find((m) => m.metadata?.role !== 'portable') ?? props.machines[0]
+            if (first) setMachineId(first.id)
         }
     }, [props.machines, machineId, getLastUsedMachineId, getRecentPaths, hasPresetDirectory])
 
