@@ -374,6 +374,29 @@ export type GroupTaskActionResponse = {
     task: GroupTask
 }
 
+// ---- Scheduled task types ----
+
+export type {
+    ScheduleSpec,
+    ScheduledRun,
+    ScheduledRunFailure,
+    ScheduledRunStatus,
+    ScheduledRunTrigger,
+    ScheduledTask,
+    ScheduledTaskInput,
+    ScheduledTaskPatch
+} from '@hapi/protocol/schedules'
+
+export type SchedulesResponse = {
+    schedules: import('@hapi/protocol/schedules').ScheduledTask[]
+}
+
+export type ScheduleDetailResponse = {
+    schedule: import('@hapi/protocol/schedules').ScheduledTask
+    /** Newest first, up to 50. */
+    runs: import('@hapi/protocol/schedules').ScheduledRun[]
+}
+
 // ---- ReviewLoop types ----
 
 export type ReviewLoopStatus = 'executing' | 'reviewing' | 'waiting_user' | 'paused' | 'accepted' | 'aborted' | 'canceled'

@@ -780,6 +780,16 @@ export function MemoryIcon(props: TabIconProps) {
     )
 }
 
+export function ScheduledIcon(props: TabIconProps) {
+    return (
+        <svg viewBox="0 0 24 24" className={props.className ?? 'h-[25px] w-[25px]'} fill="none" stroke="currentColor" strokeWidth={props.filled ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12.5" r="8.5" />
+            <path d="M12 8v4.5l3 2" />
+            <path d="M4.5 4.5 7 2.5M19.5 4.5 17 2.5" />
+        </svg>
+    )
+}
+
 export function MeIcon(props: TabIconProps) {
     return (
         <svg viewBox="0 0 24 24" className={props.className ?? 'h-[25px] w-[25px]'} fill={props.filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={props.filled ? 0 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

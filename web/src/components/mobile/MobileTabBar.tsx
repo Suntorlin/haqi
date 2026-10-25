@@ -4,17 +4,18 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { usePlatform } from '@/hooks/usePlatform'
 import { CountBadge } from '@/components/ui/badge'
 import { IconButton } from '@/components/ui/IconButton'
-import { ChatsIcon, GroupsIcon, MeIcon, MemoryIcon } from '@/components/mobile/icons'
+import { ChatsIcon, GroupsIcon, MeIcon, MemoryIcon, ScheduledIcon } from '@/components/mobile/icons'
 import { useAppContext } from '@/lib/app-context'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 
-export type MobileTab = 'sessions' | 'groups' | 'memory' | 'settings'
+export type MobileTab = 'sessions' | 'groups' | 'memory' | 'scheduled' | 'settings'
 
-const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/memory' | '/settings'> = {
+const TAB_ROUTES: Record<MobileTab, '/sessions' | '/groups' | '/memory' | '/scheduled' | '/settings'> = {
     sessions: '/sessions',
     groups: '/groups',
     memory: '/memory',
+    scheduled: '/scheduled',
     settings: '/settings'
 }
 
@@ -26,6 +27,7 @@ function useNavTabs(sessionsBadge?: number): NavTab[] {
         { key: 'sessions', label: t('mobile.tab.sessions'), icon: (filled) => <ChatsIcon filled={filled} />, badge: sessionsBadge },
         { key: 'groups', label: t('mobile.tab.groups'), icon: (filled) => <GroupsIcon filled={filled} /> },
         { key: 'memory', label: t('mobile.tab.memory'), icon: (filled) => <MemoryIcon filled={filled} /> },
+        { key: 'scheduled', label: t('mobile.tab.scheduled'), icon: (filled) => <ScheduledIcon filled={filled} /> },
         { key: 'settings', label: t('mobile.tab.me'), icon: (filled) => <MeIcon filled={filled} /> }
     ]
 }
@@ -74,8 +76,9 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
 
 function getActiveTab(pathname: string): MobileTab {
     if (pathname.startsWith('/groups')) return 'groups'
-    // Loops moved under 我 (settings): its pages light that tab.
+    // Review loops have no entry of their own any more; their pages light 我 (settings).
     if (pathname.startsWith('/review-loops')) return 'settings'
+    if (pathname.startsWith('/scheduled')) return 'scheduled'
     if (pathname.startsWith('/memory')) return 'memory'
     if (pathname.startsWith('/settings')) return 'settings'
     return 'sessions'

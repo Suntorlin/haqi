@@ -609,6 +609,11 @@ export function useSSE(options: {
                 void queryClient.removeQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
             }
 
+            // The detail key sits under the list key, so one call refreshes both.
+            if (event.type === 'schedule-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.schedules })
+            }
+
             if (event.type === 'review-loop-round-updated') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
             }

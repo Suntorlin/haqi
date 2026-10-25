@@ -1314,6 +1314,43 @@ export class ApiClient {
         })
     }
 
+    // ---- Scheduled task API ----
+
+    async getSchedules(): Promise<import('../types/api').SchedulesResponse> {
+        return await this.request('/api/schedules')
+    }
+
+    async getSchedule(scheduleId: string): Promise<import('../types/api').ScheduleDetailResponse> {
+        return await this.request(`/api/schedules/${encodeURIComponent(scheduleId)}`)
+    }
+
+    async createSchedule(input: import('../types/api').ScheduledTaskInput): Promise<{ schedule: import('../types/api').ScheduledTask }> {
+        return await this.request('/api/schedules', {
+            method: 'POST',
+            body: JSON.stringify(input)
+        })
+    }
+
+    async updateSchedule(scheduleId: string, patch: import('../types/api').ScheduledTaskPatch): Promise<{ schedule: import('../types/api').ScheduledTask }> {
+        return await this.request(`/api/schedules/${encodeURIComponent(scheduleId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch)
+        })
+    }
+
+    async deleteSchedule(scheduleId: string): Promise<{ ok: true }> {
+        return await this.request(`/api/schedules/${encodeURIComponent(scheduleId)}`, {
+            method: 'DELETE'
+        })
+    }
+
+    /** 409 when the previous run is still open or the machine is offline. */
+    async runScheduleNow(scheduleId: string): Promise<{ run: import('../types/api').ScheduledRun }> {
+        return await this.request(`/api/schedules/${encodeURIComponent(scheduleId)}/run`, {
+            method: 'POST'
+        })
+    }
+
     async getDictationStatus(): Promise<{ available: boolean; model?: string }> {
         return await this.request('/api/voice/dictation')
     }

@@ -32,6 +32,9 @@ export const queryKeys = {
     ] as const,
     slashCommands: (sessionId: string) => ['slash-commands', sessionId] as const,
     skills: (sessionId: string) => ['skills', sessionId] as const,
+    schedules: ['schedules'] as const,
+    /** Under `schedules`, so a schedule-updated event refreshes it with the list. */
+    schedule: (scheduleId: string) => ['schedules', scheduleId] as const,
     reviewLoops: ['review-loops'] as const,
     reviewLoop: (loopId: string) => ['review-loop', loopId] as const,
 }

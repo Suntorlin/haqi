@@ -97,6 +97,8 @@ import GroupDetailPage from '@/routes/groups/detail'
 import { GroupInfoPanelContext } from '@/routes/groups/group-info'
 import ReviewLoopsIndexPage from '@/routes/review-loops/index'
 import ReviewLoopDetailPage from '@/routes/review-loops/detail'
+import ScheduledListPage from '@/routes/scheduled/index'
+import ScheduledDetailPage from '@/routes/scheduled/detail'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -1461,6 +1463,38 @@ function filterLoopsBySearch(loops: ReviewLoop[], query: string): ReviewLoop[] {
     })
 }
 
+/**
+ * Scheduled tasks. Phone: the list page, or one task's page. Desktop: the list column beside the selected task, like
+ * the sessions page; with none selected the pane invites a pick or a new task.
+ */
+function ScheduledLayout() {
+    const { t } = useTranslation()
+    const matchRoute = useMatchRoute()
+    const isMobileLayout = useIsMobileLayout()
+    const [createOpen, setCreateOpen] = useState(false)
+    const detailMatch = matchRoute({ to: '/scheduled/$scheduleId', fuzzy: true })
+    const selectedId = detailMatch ? detailMatch.scheduleId : null
+
+    if (isMobileLayout) {
+        return selectedId ? <Outlet /> : <ScheduledListPage />
+    }
+
+    return (
+        <DesktopSplitView
+            listVisible
+            list={<ScheduledListPage variant="panel" selectedId={selectedId} createOpen={createOpen} onCreateOpenChange={setCreateOpen} />}
+        >
+            {selectedId ? <Outlet /> : (
+                <DesktopEmptyState
+                    title={t('scheduled.desktop.pick')}
+                    subtitle={t('scheduled.desktop.pickHint')}
+                    action={{ label: t('scheduled.new'), onClick: () => setCreateOpen(true) }}
+                />
+            )}
+        </DesktopSplitView>
+    )
+}
+
 function ReviewLoopsLayout() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -1806,6 +1840,24 @@ const memoryRoute = createRoute({
     component: MemoryPage,
 })
 
+const scheduledRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/scheduled',
+    component: ScheduledLayout,
+})
+
+const scheduledIndexRoute = createRoute({
+    getParentRoute: () => scheduledRoute,
+    path: '/',
+    component: () => null,
+})
+
+const scheduledDetailRoute = createRoute({
+    getParentRoute: () => scheduledRoute,
+    path: '$scheduleId',
+    component: ScheduledDetailPage,
+})
+
 const debugDiffRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/debug/diff',
@@ -1870,6 +1922,10 @@ export const routeTree = rootRoute.addChildren([
         reviewLoopDetailRoute,
     ]),
     memoryRoute,
+    scheduledRoute.addChildren([
+        scheduledIndexRoute,
+        scheduledDetailRoute,
+    ]),
     settingsRoute,
 ])
 
