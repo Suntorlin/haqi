@@ -474,7 +474,7 @@ describe('task run after the guide step', () => {
         expect(t.lines.at(-1)!.text).toBe('你问了「用哪条测试路」：scale api 是哪个？（已转给数据）')
         expect(t.service.get('default', task.id)!.run!.decisions.find((d) => d.id === 'd1')!.asked).toMatchObject({ text: 'scale api 是哪个？', to: worker })
         // The asker answers by asking again: the new question replaces d1, the other one stays, ids do not repeat.
-        await t.runs.askDecision('default', task.id, { question: '用本地测试路，行吗', context: 'scale api 是 billing-cost-api，不是模型接口。', options: [{ label: '行' }, { label: '不行' }], sessionId: worker })
+        await t.runs.askDecision('default', task.id, { question: '用本地测试路，行吗', context: 'cost api 是 billing-cost-api，不是模型接口。', options: [{ label: '行' }, { label: '不行' }], sessionId: worker })
         expect(t.service.get('default', task.id)!.run!.decisions.map((d) => d.id)).toEqual(['d2', 'd3'])
         // Nobody to take it: the asker and the lead have stopped.
         t.sessions.get(worker)!.active = false
