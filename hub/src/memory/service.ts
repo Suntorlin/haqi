@@ -1055,8 +1055,14 @@ function matchesFilter(memory: StoredMemory, filter: SearchFilter): boolean {
 }
 
 /** Two different memories, neither of them the offer to promote the other (that pair is the same text on purpose). */
+/**
+ * An offer waiting for the user (a pending memory that replaces another) takes no part in merges: a twin of the
+ * memory it would replace belongs to that memory, not to the offer. Same text as its source, it used to tie with it
+ * and win half the time.
+ */
 function mayMerge(a: StoredMemory, b: StoredMemory): boolean {
-    return a.id !== b.id && a.replaces !== b.id && b.replaces !== a.id
+    const openOffer = (m: StoredMemory) => m.status === 'pending' && m.replaces !== null
+    return a.id !== b.id && a.replaces !== b.id && b.replaces !== a.id && !openOffer(a) && !openOffer(b)
 }
 
 /** Global when any of them is global; otherwise the kept one's project, the narrower reading. */
