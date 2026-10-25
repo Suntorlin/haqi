@@ -3,11 +3,11 @@ import baseline from './textFit.baseline.json'
 
 /*
  * Text that does not fit goes through <FitText kind=...> (web/DESIGN.md "Text that does not fit").
- * Cutting text by hand with `truncate` / `line-clamp-*` is allowed only in components/ui.
+ * Cutting text by hand with `truncate` / `line-clamp-*` belongs in FitText only.
  * The places that still do it are listed in textFit.baseline.json; the list may only shrink.
  */
 const CUT = /\btruncate\b|\bline-clamp-\d\b/g
-const SOURCES = import.meta.glob<string>(['../**/*.tsx', '!../**/*.test.tsx', '!../components/ui/**'], { query: '?raw', import: 'default', eager: true })
+const SOURCES = import.meta.glob<string>(['../**/*.tsx', '!../**/*.test.tsx', '!../components/ui/FitText.tsx'], { query: '?raw', import: 'default', eager: true })
 
 function handCuts(): Record<string, number> {
     const counts: Record<string, number> = {}
