@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { IconButton } from '@/components/ui/IconButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ArrowDownIcon, ArrowUpIcon, CloseIcon, PencilIcon } from '@/components/mobile/icons'
+import { FitText } from '@/components/ui/FitText'
 
 type Translate = (key: string, params?: Record<string, string | number>) => string
 
@@ -122,7 +123,7 @@ export function QueueStatusSheet(props: {
                 <SheetSection title={t('queue.dialog.title')}>
                     <QueueSummaryRows status={props.status} />
                     {props.status.nextPreview ? (
-                        <SheetRow label={t('queueStatus.field.next')} value={props.status.nextPreview} />
+                        <SheetRow label={t('queueStatus.field.next')} value={<FitText kind="preview" lines={2} text={props.status.nextPreview} />} />
                     ) : null}
                 </SheetSection>
             ) : null}
