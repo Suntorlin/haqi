@@ -10,6 +10,7 @@ import {
     type PointerEvent as ReactPointerEvent,
     type TouchEvent as ReactTouchEvent
 } from 'react'
+import { FitText } from '@/components/ui/FitText'
 import { useUnreadSessions } from '@/lib/unread-sessions'
 import { DndContext, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
@@ -504,9 +505,11 @@ function SessionItem(props: {
                         />
                         <div className="flex min-w-0 flex-1 flex-col justify-center">
                             <div className="flex items-baseline gap-2">
-                                <span className={`min-w-0 flex-1 truncate text-body leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}>
-                                    {sessionName}
-                                </span>
+                                <FitText
+                                    kind="title"
+                                    text={sessionName}
+                                    className={`flex-1 text-body leading-snug tracking-[-0.01em] ${effectiveActive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg)]'}`}
+                                />
                                 <span className="shrink-0 text-caption text-[var(--social-fg-subtle)]">
                                     {snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
                                 </span>

@@ -22,6 +22,7 @@ const ENABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 export const TITLE_INSTRUCTION = trimIdent(`
     Based on this message, call functions.haqi__change_title to set a useful chat session title for the main task.
     Keep titles specific and stable across follow-up steps.
+    Also pass short_title: the same title in a few words (at most 6 Chinese characters or 3 English words), shown where space is narrow.
     Title must summarize the most important outcome of the session, not a secondary step.
     If you implemented a feature and also ran tests, title the feature work, not test execution.
     Do NOT downgrade to generic action-only titles like "Commit changes".

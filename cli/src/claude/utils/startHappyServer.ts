@@ -149,8 +149,9 @@ export async function startHappyServer(client: ApiSessionClient) {
     });
 
     // Handler that sends title updates via the client
-    const handler = async (title: string) => {
+    const handler = async (title: string, shortTitle?: string) => {
         const normalizedTitle = normalizeTitleCandidate(title);
+        const normalizedShort = shortTitle ? normalizeTitleCandidate(shortTitle) : '';
         const currentTitle = client.getCurrentSummaryText();
         const shouldSkipLowSignalUpdate = Boolean(
             currentTitle
@@ -176,6 +177,7 @@ export async function startHappyServer(client: ApiSessionClient) {
             client.sendClaudeSessionMessage({
                 type: 'summary',
                 summary: normalizedTitle,
+                ...(normalizedShort && normalizedShort !== normalizedTitle ? { short: normalizedShort } : {}),
                 leafUuid: randomUUID()
             });
             
@@ -198,8 +200,8 @@ export async function startHappyServer(client: ApiSessionClient) {
         description: 'Change the title of the current chat session',
         title: 'Change Chat Title',
         inputSchema: changeTitleInputSchema,
-    }, async (args: { title: string }) => {
-        const response = await handler(args.title);
+    }, async (args: { title: string; short_title?: string }) => {
+        const response = await handler(args.title, args.short_title);
         logger.debug('[hapiMCP] Response:', response);
         
         if (response.success) {

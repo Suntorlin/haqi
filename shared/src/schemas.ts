@@ -6,6 +6,8 @@ export const ModelModeSchema = z.enum(MODEL_MODES)
 
 const MetadataSummarySchema = z.object({
     text: z.string(),
+    /** A few words for narrow places (avatar captions); falls back to rules on text when absent. */
+    short: z.string().optional(),
     updatedAt: z.number()
 })
 

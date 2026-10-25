@@ -4,7 +4,8 @@ import type { SessionSummary } from '@/types/api'
 import { useEdgeBounce } from '@/hooks/useEdgeBounce'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
-import { getSessionTitle } from '@/lib/session-title'
+import { getSessionLabelCandidates, getSessionTitle } from '@/lib/session-title'
+import { FitText } from '@/components/ui/FitText'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
@@ -52,11 +53,11 @@ function PinnedStory(props: {
         <button
             type="button"
             {...pressHandlers}
-            className="flex w-14 shrink-0 select-none flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
+            className="flex w-16 shrink-0 select-none flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
             style={{ WebkitTouchCallout: 'none' }}
             title={title}
         >
-            <span className="relative flex h-[46px] w-14 items-center justify-center">
+            <span className="relative flex h-[46px] w-16 items-center justify-center">
                 <SessionAvatar
                     session={session}
                     size={46}
@@ -76,9 +77,12 @@ function PinnedStory(props: {
                     </Badge>
                 ) : null}
             </span>
-            <span className={cn('mt-1.5 w-full truncate text-center text-caption', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
-                {title}
-            </span>
+            <FitText
+                kind="label"
+                text={title}
+                candidates={getSessionLabelCandidates(session)}
+                className={cn('mt-1.5 w-full text-center text-caption', isPending || isLive ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}
+            />
         </button>
     )
 }
@@ -148,11 +152,11 @@ export function PinnedStoriesStrip(props: {
             {/* The inner row carries the side padding (WebKit leaves a scroller's own end padding out of
                 its scroll width) and moves with the edge bounce. */}
             <div ref={scrollerRef} className="overflow-x-auto overscroll-x-none">
-                <div ref={rowRef} className="flex w-max gap-4 px-5 pb-3 pt-1">
+                <div ref={rowRef} className="flex w-max gap-2 px-4 pb-3 pt-1">
                     <button
                         type="button"
                         onClick={props.onNewSession}
-                        className="flex w-14 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
+                        className="flex w-16 shrink-0 flex-col items-center gap-1.5 [-webkit-tap-highlight-color:transparent]"
                     >
                         <span className="flex h-[46px] w-[46px] items-center justify-center rounded-full bg-[var(--social-muted)] text-[var(--social-fg-muted)] transition-colors hover:text-[var(--social-fg)]">
                             <PlusIcon className="h-5 w-5" />

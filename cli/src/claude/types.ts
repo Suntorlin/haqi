@@ -60,6 +60,8 @@ export const RawJSONLinesSchema = z.discriminatedUnion("type", [
   RawJSONLinesBaseSchema.extend({
     type: z.literal("summary"),
     summary: z.string(),
+    /** HAQI only: the short form of the title, from change_title. */
+    short: z.string().optional(),
     leafUuid: z.string(),
   }),
 

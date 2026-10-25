@@ -10,7 +10,7 @@ export type SessionSummaryMetadata = {
     thinkEffort?: string
     serviceTier?: string
     collaborationMode?: string
-    summary?: { text: string }
+    summary?: { text: string; short?: string }
     flavor?: string | null
     worktree?: WorktreeMetadata
 }
@@ -40,7 +40,9 @@ export function toSessionSummary(session: Session): SessionSummary {
         thinkEffort: session.metadata.thinkEffort,
         serviceTier: session.metadata.serviceTier,
         collaborationMode: session.metadata.collaborationMode,
-        summary: session.metadata.summary ? { text: session.metadata.summary.text } : undefined,
+        summary: session.metadata.summary
+            ? { text: session.metadata.summary.text, ...(session.metadata.summary.short ? { short: session.metadata.summary.short } : {}) }
+            : undefined,
         flavor: session.metadata.flavor ?? null,
         worktree: session.metadata.worktree
     } : null

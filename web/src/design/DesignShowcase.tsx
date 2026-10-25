@@ -6,6 +6,7 @@ import { Chip } from '@/components/ui/Chip'
 import { Badge, CountBadge, DotBadge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/Switch'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { FitText } from '@/components/ui/FitText'
 import { CheckRow } from '@/components/ui/CheckRow'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { SwitchChip } from '@/components/ui/SettingChip'
@@ -292,6 +293,23 @@ export function DesignShowcase() {
                                 editLabel="改这一行"
                                 tag={<Badge variant={row.warn ? 'warning' : 'default'}>{row.source}</Badge>}
                             />
+                        ))}
+                    </div>
+                </div>
+            </Section>
+
+            <Section title="6b · 放不下的文字 FitText" note="按文字是什么来适配，不默认截尾：键值换行、标题两行、窄标签挑放得下的最长写法、标识符省略中间、预览才截断。截了的悬停能看全文。">
+                <div className="grid gap-4 sm:grid-cols-2">
+                    <ListGroup>
+                        <ListRow title="账号" trailing={<span className="block w-40"><FitText kind="value" text="机器默认登录 · test@example.com" className="text-right" /></span>} />
+                        <ListRow title="目录" trailing={<span className="block w-32"><FitText kind="id" text="/Users/me/dev/projects/fish" /></span>} />
+                        <ListRow title="一个很长的会话标题，会在两行之内显示完，而不是只剩半句话然后省略号" />
+                    </ListGroup>
+                    <div className="flex gap-4">
+                        {['规划 · Implement this design from Figma', '形象创建与新风格 Figma 改版实现（Web+API）'].map((text) => (
+                            <span key={text} className="w-14">
+                                <FitText kind="label" text={text} candidates={[text.replace(/^[^·]{1,8}\s+·\s+/, ''), text.length > 20 ? '形象改版' : 'Figma 设计']} className="text-center text-caption" />
+                            </span>
                         ))}
                     </div>
                 </div>

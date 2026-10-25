@@ -52,6 +52,7 @@ import { useTranslation } from '@/lib/use-translation'
 import { accountsKey } from '@/components/ClaudeAccounts/Settings'
 import { quotaOptionLabel } from '@/components/ClaudeAccounts/Selector'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
+import { FitText } from '@/components/ui/FitText'
 import { useMachines } from '@/hooks/queries/useMachines'
 
 function getSessionTitle(session: Session): string {
@@ -138,6 +139,8 @@ export function SessionHeader(props: {
     const sessionMachine = machines.find((machine) => machine.id === session.metadata?.machineId)
     const machineLabel = sessionMachine ? getMachineTitle(sessionMachine) : session.metadata?.host
     const machineLoginEmail = accountQuery.data?.machineLogin?.email
+    const machineDefaultLabel = machineLoginEmail ? `${t('sessionAccount.machineDefault')} · ${machineLoginEmail}` : t('sessionAccount.machineDefault')
+    const accountLabel = session.metadata?.claudeAccount?.email ?? machineDefaultLabel
     const [accountSwitching, setAccountSwitching] = useState(false)
     const [accountSwitchError, setAccountSwitchError] = useState<string | null>(null)
     const [renameOpen, setRenameOpen] = useState(false)
@@ -417,19 +420,24 @@ export function SessionHeader(props: {
                     <SheetRow
                         label={t('mobile.chat.account')}
                         value={(
-                            <select
-                                aria-label={t('sessionAccount.switch')}
-                                value={session.metadata.claudeAccount?.id ?? ''}
-                                disabled={accountSwitching}
-                                onChange={(event) => void handleAccountSwitch(event.target.value)}
-                                className="min-h-11 max-w-[210px] truncate bg-transparent text-right text-headline text-[var(--social-fg-muted)] outline-none"
-                            >
-                                {!session.metadata.claudeAccount ? <option value="">{machineLoginEmail ? `${t('sessionAccount.machineDefault')} · ${machineLoginEmail}` : t('sessionAccount.machineDefault')}</option> : null}
-                                {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
-                                    const quota = quotaOptionLabel(accountQuery.data?.usage?.[profile.id], t)
-                                    return <option key={profile.id} value={profile.id}>{profile.email}{quota ? ` · ${quota}` : ''}</option>
-                                })}
-                            </select>
+                            // The native select keeps its own picker; it sits invisible over a label that wraps.
+                            <span className="relative flex min-h-11 items-center justify-end gap-1">
+                                <FitText kind="value" text={accountLabel} className="text-right" />
+                                <ChevronDownIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />
+                                <select
+                                    aria-label={t('sessionAccount.switch')}
+                                    value={session.metadata.claudeAccount?.id ?? ''}
+                                    disabled={accountSwitching}
+                                    onChange={(event) => void handleAccountSwitch(event.target.value)}
+                                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                                >
+                                    {!session.metadata.claudeAccount ? <option value="">{machineDefaultLabel}</option> : null}
+                                    {accountQuery.data.pool.profiles.filter(profile => profile.enabled).map(profile => {
+                                        const quota = quotaOptionLabel(accountQuery.data?.usage?.[profile.id], t)
+                                        return <option key={profile.id} value={profile.id}>{profile.email}{quota ? ` · ${quota}` : ''}</option>
+                                    })}
+                                </select>
+                            </span>
                         )}
                     />
                 ) : null}

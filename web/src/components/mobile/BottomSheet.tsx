@@ -7,6 +7,7 @@ import { CheckIcon, ChevronRightIcon, CloseIcon } from '@/components/mobile/icon
 import { SwitchTrack } from '@/components/ui/Switch'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
+import { FitText } from '@/components/ui/FitText'
 
 /**
  * Secondary panel shared by both layouts: an iOS-style bottom sheet with a grabber on phones,
@@ -178,9 +179,14 @@ export function SheetRow(props: {
             <span className={cn('min-w-0 shrink-0 text-body', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>
                 {props.label}
             </span>
-            <span className="min-w-0 flex-1 truncate text-right text-footnote text-[var(--social-fg-muted)]">
-                {props.value}
-            </span>
+            {/* A value never gets cut: a long one wraps under itself (email, path, model). */}
+            {typeof props.value === 'string' ? (
+                <FitText kind="value" text={props.value} className="flex-1 text-right text-footnote text-[var(--social-fg-muted)]" />
+            ) : (
+                <span className="min-w-0 flex-1 break-words text-right text-footnote text-[var(--social-fg-muted)]">
+                    {props.value}
+                </span>
+            )}
             {props.chevron ? (
                 <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" />
             ) : null}

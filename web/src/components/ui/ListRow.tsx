@@ -1,6 +1,7 @@
 import type { AriaAttributes, ReactNode, Ref } from 'react'
 import { ChevronRightIcon } from '@/components/mobile/icons'
 import { cn } from '@/lib/utils'
+import { FitText } from './FitText'
 
 /**
  * Feed row (sessions, groups, review loops): avatar + two lines, full-bleed on phones, inset
@@ -41,13 +42,16 @@ export function ListRow(props: {
     'aria-expanded'?: boolean
     'aria-haspopup'?: AriaAttributes['aria-haspopup']
 }) {
-    const text = props.wrap ? 'block whitespace-normal break-words leading-snug' : 'block truncate'
+    // Title and subtitle take up to two lines (all of it with `wrap`) instead of cutting the end off.
+    const line = (node: ReactNode, className: string) => typeof node === 'string' && !props.wrap
+        ? <FitText kind="title" text={node} className={cn('leading-snug', className)} />
+        : <span className={cn('block break-words leading-snug', props.wrap ? 'whitespace-normal' : 'line-clamp-2', className)}>{node}</span>
     const content = (
         <>
             {props.icon ? <span className="flex h-6 w-6 shrink-0 items-center justify-center text-[var(--social-fg-muted)]">{props.icon}</span> : null}
             <span className="min-w-0 flex-1 text-left">
-                <span className={cn(text, 'text-body', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]')}>{props.title}</span>
-                {props.subtitle ? <span className={cn(text, 'mt-0.5 text-footnote text-[var(--social-fg-muted)]')}>{props.subtitle}</span> : null}
+                {line(props.title, cn('text-body', props.destructive ? 'text-[var(--social-danger)]' : 'text-[var(--social-fg)]'))}
+                {props.subtitle ? line(props.subtitle, 'mt-0.5 text-footnote text-[var(--social-fg-muted)]') : null}
             </span>
             {props.trailing ? <span className="shrink-0 text-footnote text-[var(--social-fg-muted)]">{props.trailing}</span> : null}
             {(props.chevron ?? Boolean(props.onClick)) ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}

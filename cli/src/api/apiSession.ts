@@ -381,6 +381,7 @@ export class ApiSessionClient extends EventEmitter {
                 ...metadata,
                 summary: {
                     text: body.summary,
+                    ...(body.short ? { short: body.short } : {}),
                     updatedAt: Date.now()
                 }
             }))

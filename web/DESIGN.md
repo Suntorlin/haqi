@@ -123,6 +123,7 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `Chip` | `Chip.tsx` | 32px pill, `selected` = filled. Filters, choices, shortcuts. `size="sm"` (24px, `text-caption`, 44px hit area) for a chip inside a line of text. `tagChipClass()` (`tagChip.ts`) = same look for session tags. |
 | `Badge` | `badge.tsx` | **State** pill (no border): default / solid / info / success / warning / destructive; `dot`, `live`. Never for actions. |
 | `CountBadge`, `DotBadge` | `badge.tsx` | **Unread** (brand red). Position with `absolute -right-1 -top-1` on a `relative` parent. |
+| `FitText` | `FitText.tsx` | Text that may not fit. `kind`: `value` (wraps, never cut: email, path, model in a key-value row), `title` (up to `lines`, default 2), `label` (narrow caption: `candidates` long -> short, shows the longest that fits), `id` (one line, cut in the middle: `~/dev/…/fish`), `preview` (clamped; the full text is one tap away). Full text is the hover title when cut. `ListRow` titles and `SheetRow` values already use it. |
 | `ListGroup`, `ListRow` | `ListRow.tsx` | iOS grouped list: rounded-2xl container, hairlines, >= 52px rows; `icon`, `title`, `subtitle`, `trailing`, `onClick` (adds chevron), `wrap`, `disabled`, `destructive`. Settings rows.; `className` for a row outside a group. `FEED_ROW_CLASS` (same file) = avatar + two-line rows in the session, group and loop lists. |
 | `CheckRow` | `CheckRow.tsx` | A row the user ticks on or off: 44px checkbox, text, optional `subtitle` and `tag` (a source `Badge`), and with `onEdit` a pencil `IconButton` on the right. Unticked stays visible, struck through. Acceptance criteria on a task card. |
 | `Switch`, `SwitchTrack` | `Switch.tsx` | Monochrome toggle. |
@@ -146,6 +147,21 @@ All in `web/src/components/ui/` unless noted. Business pages compose these; do n
 | `HIT_AREA_CLASS`, `TEXT_HIT_AREA_CLASS` | `components/AssistantChat/hitArea.ts` | Pad a small visual to a 44px hit area. For a 28px button use `size="xs"` instead. |
 
 Showcase: `web/design.html` + `web/src/design/DesignShowcase.tsx`. Add every new primitive there (light + dark) in the same change.
+
+## 3b. Text that does not fit
+
+Cutting the end off is the last resort. Decide by what the text is:
+
+| Kind | Example | Do |
+|---|---|---|
+| `value` | account email, machine, model, directory | wrap; never cut |
+| `title` | session title in a list | two lines (measured: 7 of 9 cut titles at 390px fit in two) |
+| `label` | caption under a pinned avatar (56px) | pass shorter forms: `getSessionLabelCandidates(session)` (title, title without its leading tag, the agent's `short_title`; never the project folder, it names every session of a project the same) |
+| `id` | path, email, id on one line | cut the middle so both ends stay |
+| `preview` | last message under a title | cut; opening it shows all |
+
+A native `<select>` whose label may be long: show the label with `FitText` and lay the select invisible over it (`SessionHeader` account row).
+`truncate` / `line-clamp-*` outside `components/ui/` fail `src/lib/textFit.guard.test.ts`; the places that still do it are in `src/lib/textFit.baseline.json`, which may only shrink.
 
 ## 4. Do / don't
 
