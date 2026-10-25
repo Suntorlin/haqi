@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,13 @@ function Score(props: { value: number }) {
 
 const LEVELS: Level[] = ['fact', 'experience', 'principle']
 
+/** Keys typed into a field or an open dialog, or pressed on a control of the detail itself, keep their own meaning. */
+export function ownsKey(target: EventTarget | null, root: HTMLElement | null): boolean {
+    if (!(target instanceof HTMLElement)) return false
+    if (target.isContentEditable || target.closest('input, textarea, select, [role="dialog"]')) return true
+    return Boolean(root?.contains(target) && target.closest('button, a'))
+}
+
 export type MemoryEdit = { text?: string; level?: Level; scope?: string }
 
 /** One memory: edit the sentence, its level and scope; see what Jev said and what it is linked to. */
@@ -55,6 +62,8 @@ export function MemoryDetail(props: {
     /** The merge this memory came out of, while it can be undone. */
     merged?: MemoryMerge
     onUndoMerge: (eventId: string) => void
+    /** Desktop pane: Enter approves and X dismisses a memory that waits for you. */
+    hotkeys?: boolean
 }) {
     const { memory } = props
     const { api } = useAppContext()
@@ -84,9 +93,33 @@ export function MemoryDetail(props: {
         ...(level !== memory.level ? { level } : {}),
         ...(scope !== memory.scope ? { scope } : {})
     }
+    const root = useRef<HTMLDivElement>(null)
+    // The listener stays put; it reads the edits and handlers of the latest render.
+    const latest = useRef({ patch, props })
+    latest.current = { patch, props }
+    const waits = pending || onTrial
+
+    useEffect(() => {
+        if (!props.hotkeys || !waits) return
+        const onKey = (event: KeyboardEvent) => {
+            if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return
+            if (ownsKey(event.target, root.current)) return
+            const { patch: edits, props: current } = latest.current
+            if (current.busy) return
+            if (event.key === 'Enter') {
+                event.preventDefault()
+                current.onConfirm(edits)
+            } else if (event.key === 'x' || event.key === 'X') {
+                event.preventDefault()
+                current.onDismiss()
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [props.hotkeys, waits])
 
     return (
-        <div className="space-y-5 px-4 pb-6">
+        <div ref={root} className="space-y-5 px-4 pb-6">
             {pending && memory.reason ? (
                 <p className="text-body leading-relaxed text-[var(--social-fg)]">
                     {memory.reason}
@@ -175,10 +208,13 @@ export function MemoryDetail(props: {
                 {memory.version > 1 ? ` · ${t('memoryPage.detail.version', { version: memory.version })}` : ''}
             </p>
 
-            {pending || onTrial ? (
-                <div className="flex gap-2">
-                    <Button className="flex-1" disabled={props.busy} onClick={() => props.onConfirm(patch)}>{onTrial ? t('memoryPage.detail.applyNow') : t('memoryPage.detail.approve')}</Button>
-                    <Button variant="secondary" className="flex-1" disabled={props.busy} onClick={props.onDismiss}>{t('memoryPage.detail.dismiss')}</Button>
+            {waits ? (
+                <div className="space-y-2">
+                    <div className="flex gap-2">
+                        <Button className="flex-1" disabled={props.busy} onClick={() => props.onConfirm(patch)}>{onTrial ? t('memoryPage.detail.applyNow') : t('memoryPage.detail.approve')}</Button>
+                        <Button variant="secondary" className="flex-1" disabled={props.busy} onClick={props.onDismiss}>{t('memoryPage.detail.dismiss')}</Button>
+                    </div>
+                    {props.hotkeys ? <p className="px-1 text-center text-caption text-[var(--social-fg-subtle)]">{t('memoryPage.detail.hotkeys')}</p> : null}
                 </div>
             ) : (
                 <div className="flex items-center gap-2">

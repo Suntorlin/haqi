@@ -18,7 +18,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
 import type { MemoriesResponse, MemoryItem } from '@/types/api'
-import { MemoryDetail, type MemoryEdit } from './MemoryDetail'
+import { MemoryDetail, ownsKey, type MemoryEdit } from './MemoryDetail'
 import { MergeSheet } from './MergeSheet'
 import { actionLabel, evidenceOf, formatWhen, levelLabel, recentRows, scopeLabel, scopesInOrder, sourceLabel, trialLabel, type Level, type Translate } from './model'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -114,6 +114,9 @@ export function MemoryPage() {
     const count = (level: Level) => memories.filter((m) => m.level === level && m.status === 'active').length
     const mode = data?.settings.mode ?? 'record'
 
+    // Desktop lists keep the open memory in a pane next to them; phones and the graph use a sheet.
+    const paneDetail = !isMobile && tab !== 'graph'
+
     const run = (job: () => Promise<unknown>, after?: () => void) => {
         if (!api) return
         action.mutate(job, { onSuccess: () => after?.() })
@@ -130,7 +133,7 @@ export function MemoryPage() {
             else next.add(m.id)
             return next
         }) }
-        : { onClick: () => setOpenId(m.id) }
+        : { onClick: () => setOpenId(m.id), current: paneDetail && openId === m.id }
 
     const empty = (
         <EmptyState variant="page" title={t('memoryPage.empty.title')} subtitle={t('memoryPage.empty.description')}>
@@ -193,6 +196,7 @@ export function MemoryPage() {
                                     title={<Clamp text={memory?.text ?? event.text} />}
                                     subtitle={[actionLabel(event.action, t), memory ? levelLabel(memory.level, t) : null, memory ? scopeLabel(memory.scope, t) : null, formatWhen(event.createdAt, t)].filter(Boolean).join(' · ')}
                                     onClick={memory ? () => setOpenId(memory.id) : undefined}
+                                    current={paneDetail && Boolean(memory) && openId === memory?.id}
                                 />
                             ))}
                         </ListGroup>
@@ -205,11 +209,36 @@ export function MemoryPage() {
         )
     }
 
-    const levelList = (level: Level) => {
+    const levelView = (level: Level) => {
         const ofLevel = memories.filter((m) => m.level === level)
         const levelTags = Array.from(new Set(ofLevel.flatMap((m) => m.tags))).sort((a, b) => a.localeCompare(b))
         const activeTag = levelTags.includes(tagFilter) ? tagFilter : ''
         const list = activeTag ? ofLevel.filter((m) => m.tags.includes(activeTag)) : ofLevel
+        return { ofLevel, levelTags, activeTag, list, scopes: scopesInOrder(list) }
+    }
+
+    /** Memory ids in the order the list shows them: arrow keys and "next after approve" walk this. */
+    const visibleIds = (): string[] => {
+        if (search.trim()) return (hits.data ?? []).map((m) => m.id)
+        if (tab === 'graph') return []
+        if (tab === 'recent') {
+            const rows = recentRows(data?.recent ?? [], memories).flatMap(({ memory }) => memory ? [memory.id] : [])
+            return Array.from(new Set([...pending.map((m) => m.id), ...(trialOpen ? onTrial.map((m) => m.id) : []), ...rows]))
+        }
+        const { list, scopes } = levelView(tab)
+        return scopes.flatMap((scope) => list.filter((m) => m.scope === scope).map((m) => m.id))
+    }
+
+    /** After approving or dismissing in the pane: the next memory on screen that still waits, else none. */
+    const nextWaiting = (memory: MemoryItem): string | null => {
+        const status = new Map(memories.map((m) => [m.id, m.status]))
+        const same = visibleIds().filter((id) => id === memory.id || status.get(id) === memory.status)
+        const at = same.indexOf(memory.id)
+        return same[at + 1] ?? same[at - 1] ?? null
+    }
+
+    const levelList = (level: Level) => {
+        const { ofLevel, levelTags, activeTag, list, scopes } = levelView(level)
         if (ofLevel.length === 0) return <EmptyState title={t(`memoryPage.levelEmpty.${level}`)} />
         return (
             <div className="space-y-6">
@@ -222,7 +251,7 @@ export function MemoryPage() {
                         className="-mx-4 flex-nowrap overflow-x-auto px-4"
                     />
                 ) : null}
-                {scopesInOrder(list).map((scope) => (
+                {scopes.map((scope) => (
                     <ListGroup key={scope || 'global'} title={scopeLabel(scope, t)}>
                         {list.filter((m) => m.scope === scope).map((m) => {
                             const backing = evidenceOf(m.id, links).length
@@ -308,12 +337,64 @@ export function MemoryPage() {
             ? <p className="pt-10 text-center text-footnote text-[var(--social-danger)]">{t('memoryPage.loadFailed', { error: query.error instanceof Error ? query.error.message : t('memoryPage.unknownError') })}</p>
             : tab === 'recent' ? recent() : tab === 'graph' ? null : levelList(tab)
 
+    /** Save edits, then maybe approve. The pane keeps an edited memory open and moves on from an approved one. */
     const saveThen = (memory: MemoryItem, patch: MemoryEdit, then?: () => Promise<unknown>) => run(async () => {
         if (Object.keys(patch).length > 0) await api!.editMemoryItem(memory.id, patch)
         if (then) await then()
-    }, () => setOpenId(null))
+    }, () => setOpenId(!paneDetail ? null : then ? nextWaiting(memory) : memory.id))
 
     const projects = data?.settings.projects ?? []
+
+    // Arrow keys (or j / k) walk the list while the pane shows the memory; the listener reads the latest render.
+    const walk = useRef({ ids: visibleIds, openId })
+    walk.current = { ids: visibleIds, openId }
+    useEffect(() => {
+        if (!paneDetail) return
+        const onKey = (event: KeyboardEvent) => {
+            if (event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented || ownsKey(event.target, null)) return
+            const step = event.key === 'ArrowDown' || event.key === 'j' ? 1 : event.key === 'ArrowUp' || event.key === 'k' ? -1 : 0
+            if (!step) return
+            const ids = walk.current.ids()
+            if (ids.length === 0) return
+            event.preventDefault()
+            const at = walk.current.openId ? ids.indexOf(walk.current.openId) : -1
+            setOpenId(ids[at < 0 ? 0 : Math.min(Math.max(at + step, 0), ids.length - 1)])
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [paneDetail])
+    useEffect(() => {
+        if (paneDetail && openId) scroller.current?.querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' })
+    }, [paneDetail, openId])
+
+    const detail = open ? (
+        <MemoryDetail
+            key={`${open.id}:${open.updatedAt}`}
+            memory={open}
+            all={memories}
+            links={links}
+            projects={projects}
+            busy={action.isPending}
+            onOpen={setOpenId}
+            onSave={(patch) => saveThen(open, patch)}
+            onConfirm={(patch) => saveThen(open, patch, () => api!.confirmMemoryItem(open.id))}
+            onDismiss={() => run(() => api!.dismissMemoryItem(open.id), () => setOpenId(paneDetail ? nextWaiting(open) : null))}
+            trial={data?.trial[open.id]}
+            onMerge={(other) => {
+                action.reset()
+                setOpenId(null)
+                setMergeIds([open.id, other])
+            }}
+            merged={data?.merges[open.id]}
+            onUndoMerge={(eventId) => run(async () => {
+                await api!.undoMemoryMerge(eventId)
+                say(t('memoryPage.notice.unmerged'))
+            }, () => setOpenId(null))}
+            onDelete={() => setDeleteId(open.id)}
+            hotkeys={paneDetail}
+        />
+    ) : null
+    const detailTitle = open?.status === 'pending' ? t('memoryPage.status.pending') : t('memoryPage.detail.title')
 
     return (
         <div className="flex h-full min-h-0 flex-col bg-[var(--social-surface)]">
@@ -333,72 +414,66 @@ export function MemoryPage() {
                     </div>
                 </div>
             ) : (
-                <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
-                    <div className="mx-auto max-w-content px-4 pb-8">
-                        {desktopTitle}
-                        <div className="pt-2">
-                            <MobileSearchField value={search} onChange={setSearch} placeholder={t('memoryPage.search.placeholder')} />
+                <div className="flex min-h-0 flex-1">
+                    <div
+                        ref={scroller}
+                        className={paneDetail
+                            ? 'min-h-0 w-[44%] min-w-[400px] max-w-[600px] shrink-0 overflow-y-auto border-r border-[var(--social-border)]'
+                            : 'min-h-0 flex-1 overflow-y-auto'}
+                    >
+                        <div className={paneDetail ? 'px-4 pb-8' : 'mx-auto max-w-content px-4 pb-8'}>
+                            {desktopTitle}
+                            <div className="pt-2">
+                                <MobileSearchField value={search} onChange={setSearch} placeholder={t('memoryPage.search.placeholder')} />
+                            </div>
+                            {search.trim() ? null : chips(true)}
+                            {memories.length > 0 ? (
+                                <div className="flex items-center justify-between gap-2 px-1 pt-2">
+                                    <span className="text-footnote text-[var(--social-fg-muted)]">{selected ? t('memoryPage.select.hint', { count: selected.size }) : ''}</span>
+                                    <Button variant="ghost" size="xs" onClick={() => setSelected(selected ? null : new Set())}>{selected ? t('memoryPage.select.done') : t('memoryPage.select.start')}</Button>
+                                </div>
+                            ) : null}
+                            {notice ? (
+                                <p className="px-1 pt-2 text-footnote text-[var(--social-fg-muted)]">
+                                    {notice}
+                                    {undoId ? (
+                                        <Button variant="ghost" size="xs" className="ml-1 text-[var(--social-fg)]" disabled={action.isPending} onClick={() => run(async () => {
+                                            await api!.undoMemoryMerge(undoId)
+                                            say(t('memoryPage.notice.unmerged'))
+                                        })}>{t('memoryPage.notice.undo')}</Button>
+                                    ) : null}
+                                </p>
+                            ) : null}
+                            <div className="pt-3">{body}</div>
+                            {selected && selected.size > 0 ? (
+                                <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex gap-2 border-t border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3">
+                                    <Button variant="secondary" className="flex-1" disabled={action.isPending} onClick={() => setArchiveOpen(true)}>{t('memoryPage.select.archive', { count: selected.size })}</Button>
+                                    <Button className="flex-1" disabled={action.isPending || selected.size < 2} onClick={() => {
+                                        action.reset()
+                                        setMergeIds([...selected])
+                                    }}>{t('memoryPage.select.merge', { count: selected.size })}</Button>
+                                </div>
+                            ) : null}
                         </div>
-                        {search.trim() ? null : chips(true)}
-                        {memories.length > 0 ? (
-                            <div className="flex items-center justify-between gap-2 px-1 pt-2">
-                                <span className="text-footnote text-[var(--social-fg-muted)]">{selected ? t('memoryPage.select.hint', { count: selected.size }) : ''}</span>
-                                <Button variant="ghost" size="xs" onClick={() => setSelected(selected ? null : new Set())}>{selected ? t('memoryPage.select.done') : t('memoryPage.select.start')}</Button>
-                            </div>
-                        ) : null}
-                        {notice ? (
-                            <p className="px-1 pt-2 text-footnote text-[var(--social-fg-muted)]">
-                                {notice}
-                                {undoId ? (
-                                    <Button variant="ghost" size="xs" className="ml-1 text-[var(--social-fg)]" disabled={action.isPending} onClick={() => run(async () => {
-                                        await api!.undoMemoryMerge(undoId)
-                                        say(t('memoryPage.notice.unmerged'))
-                                    })}>{t('memoryPage.notice.undo')}</Button>
-                                ) : null}
-                            </p>
-                        ) : null}
-                        <div className="pt-3">{body}</div>
-                        {selected && selected.size > 0 ? (
-                            <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex gap-2 border-t border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3">
-                                <Button variant="secondary" className="flex-1" disabled={action.isPending} onClick={() => setArchiveOpen(true)}>{t('memoryPage.select.archive', { count: selected.size })}</Button>
-                                <Button className="flex-1" disabled={action.isPending || selected.size < 2} onClick={() => {
-                                    action.reset()
-                                    setMergeIds([...selected])
-                                }}>{t('memoryPage.select.merge', { count: selected.size })}</Button>
-                            </div>
-                        ) : null}
                     </div>
+                    {paneDetail ? (
+                        <div className="min-h-0 flex-1 overflow-y-auto">
+                            {open ? (
+                                <div className="mx-auto max-w-[640px] pt-6">
+                                    <h2 className="px-4 pb-4 text-body font-semibold text-[var(--social-fg)]">{detailTitle}</h2>
+                                    {detail}
+                                </div>
+                            ) : (
+                                <EmptyState variant="page" title={t('memoryPage.pane.emptyTitle')} subtitle={t('memoryPage.pane.emptyHint')} />
+                            )}
+                        </div>
+                    ) : null}
                 </div>
             )}
             {isMobile ? <MobileTabBar active="memory" /> : null}
 
-            <BottomSheet open={Boolean(open)} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={open?.status === 'pending' ? t('memoryPage.status.pending') : t('memoryPage.detail.title')}>
-                {open ? (
-                    <MemoryDetail
-                        key={`${open.id}:${open.updatedAt}`}
-                        memory={open}
-                        all={memories}
-                        links={links}
-                        projects={projects}
-                        busy={action.isPending}
-                        onOpen={setOpenId}
-                        onSave={(patch) => saveThen(open, patch)}
-                        onConfirm={(patch) => saveThen(open, patch, () => api!.confirmMemoryItem(open.id))}
-                        onDismiss={() => run(() => api!.dismissMemoryItem(open.id), () => setOpenId(null))}
-                        trial={data?.trial[open.id]}
-                        onMerge={(other) => {
-                            action.reset()
-                            setOpenId(null)
-                            setMergeIds([open.id, other])
-                        }}
-                        merged={data?.merges[open.id]}
-                        onUndoMerge={(eventId) => run(async () => {
-                            await api!.undoMemoryMerge(eventId)
-                            say(t('memoryPage.notice.unmerged'))
-                        }, () => setOpenId(null))}
-                        onDelete={() => setDeleteId(open.id)}
-                    />
-                ) : null}
+            <BottomSheet open={Boolean(open) && !paneDetail} onOpenChange={(value) => { if (!value) setOpenId(null) }} title={detailTitle}>
+                {paneDetail ? null : detail}
             </BottomSheet>
 
             <BottomSheet open={Boolean(mergeIds)} onOpenChange={(value) => { if (!value) setMergeIds(null) }} title={t('memoryPage.merge.title')}>

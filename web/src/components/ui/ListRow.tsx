@@ -38,6 +38,8 @@ export function ListRow(props: {
     /** A row that is one choice of several (pickers): `role="radio"` with `aria-checked`. */
     role?: 'radio'
     'aria-checked'?: boolean
+    /** The row whose content the pane next to the list shows (list | detail layouts). */
+    current?: boolean
 }) {
     // Title and subtitle take up to two lines (all of it with `wrap`) instead of cutting the end off.
     const line = (node: ReactNode, className: string) => props.wrap
@@ -56,7 +58,7 @@ export function ListRow(props: {
             {(props.chevron ?? Boolean(props.onClick)) ? <ChevronRightIcon className="h-4 w-4 shrink-0 text-[var(--social-fg-subtle)]" /> : null}
         </>
     )
-    const className = cn('flex min-h-[52px] w-full items-center gap-3 px-4 py-2', props.disabled && 'pointer-events-none opacity-50', props.className)
+    const className = cn('flex min-h-[52px] w-full items-center gap-3 px-4 py-2', props.disabled && 'pointer-events-none opacity-50', props.current && 'bg-[var(--social-muted)]', props.className)
     return props.onClick ? (
         <button
             ref={props.ref}
@@ -67,6 +69,7 @@ export function ListRow(props: {
             aria-haspopup={props['aria-haspopup']}
             role={props.role}
             aria-checked={props['aria-checked']}
+            aria-current={props.current || undefined}
             className={cn(className, 'transition-colors hover:bg-[var(--social-hover)] active:bg-[var(--social-muted)] [-webkit-tap-highlight-color:transparent]')}
         >
             {content}
