@@ -33,8 +33,13 @@ describe('machine login', () => {
         await utimes(join(configDir, '.credentials.json'), new Date(), new Date(Date.now() + 60_000));
         expect(await readMachineLogin(home, env)).toEqual({ email: 'test@example.com' });
 
+        // Logging in to another account can leave the stored credentials' time unchanged.
         await recordMachineLoginFailure(home, env, 2000);
+        await writeFile(join(configDir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'other@example.com', accountUuid: 'uuid-2' } }));
+        expect(await readMachineLogin(home, env)).toEqual({ email: 'other@example.com' });
+
+        await recordMachineLoginFailure(home, env, 3000);
         await clearMachineLoginFailure(home);
-        expect(await readMachineLogin(home, env)).toEqual({ email: 'test@example.com' });
+        expect(await readMachineLogin(home, env)).toEqual({ email: 'other@example.com' });
     });
 });

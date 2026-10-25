@@ -15,7 +15,7 @@ import type { ClaudeMachineLogin } from '@hapi/protocol/schemas';
  */
 
 const FAILURE_FILE = 'claude-machine-login.json';
-const FailureSchema = z.object({ failedAt: z.number(), stamp: z.string().nullable() });
+const FailureSchema = z.object({ failedAt: z.number(), stamp: z.string() });
 
 function configDir(env: NodeJS.ProcessEnv): string | undefined {
     return env.CLAUDE_CONFIG_DIR || undefined;
@@ -28,7 +28,7 @@ function keychainService(dir: string | undefined): string {
 }
 
 /** When the stored credentials last changed. Reads item attributes only, never the secret. */
-async function credentialStamp(env: NodeJS.ProcessEnv): Promise<string | null> {
+async function credentialsChangedAt(env: NodeJS.ProcessEnv): Promise<string | null> {
     const dir = configDir(env);
     if (process.platform === 'darwin') {
         const service = keychainService(dir);
@@ -47,15 +47,25 @@ async function credentialStamp(env: NodeJS.ProcessEnv): Promise<string | null> {
     }
 }
 
-async function loginEmail(env: NodeJS.ProcessEnv): Promise<string | undefined> {
+const OAuthAccountSchema = z.object({ oauthAccount: z.object({ emailAddress: z.string(), accountUuid: z.string().optional() }) });
+
+async function loginAccount(env: NodeJS.ProcessEnv): Promise<{ email?: string; accountUuid?: string }> {
     const dir = configDir(env);
     try {
         const raw = JSON.parse(await readFile(dir ? join(dir, '.claude.json') : join(homedir(), '.claude.json'), 'utf8')) as unknown;
-        const email = z.object({ oauthAccount: z.object({ emailAddress: z.string() }) }).safeParse(raw);
-        return email.success ? email.data.oauthAccount.emailAddress : undefined;
+        const parsed = OAuthAccountSchema.safeParse(raw);
+        return parsed.success ? { email: parsed.data.oauthAccount.emailAddress, accountUuid: parsed.data.oauthAccount.accountUuid } : {};
     } catch {
-        return undefined;
+        return {};
     }
+}
+
+/**
+ * Identifies the login a failure belongs to. A new login can keep the keychain item untouched
+ * (seen on macOS) while it switches the account, so both parts count.
+ */
+async function loginStamp(env: NodeJS.ProcessEnv, accountUuid: string | undefined): Promise<string> {
+    return `${await credentialsChangedAt(env) ?? ''}|${accountUuid ?? ''}`;
 }
 
 async function readFailure(home: string): Promise<z.infer<typeof FailureSchema> | null> {
@@ -68,15 +78,15 @@ async function readFailure(home: string): Promise<z.infer<typeof FailureSchema> 
 }
 
 export async function readMachineLogin(home: string, env: NodeJS.ProcessEnv = process.env): Promise<ClaudeMachineLogin> {
-    const [email, failure] = await Promise.all([loginEmail(env), readFailure(home)]);
+    const [{ email, accountUuid }, failure] = await Promise.all([loginAccount(env), readFailure(home)]);
     if (!failure) return { email };
     // Logged in again since the failure: the old failure says nothing about the new login.
-    if (failure.stamp !== await credentialStamp(env)) return { email };
+    if (failure.stamp !== await loginStamp(env, accountUuid)) return { email };
     return { email, failedAt: failure.failedAt };
 }
 
 export async function recordMachineLoginFailure(home: string, env: NodeJS.ProcessEnv = process.env, now: number = Date.now()): Promise<void> {
-    const stamp = await credentialStamp(env);
+    const stamp = await loginStamp(env, (await loginAccount(env)).accountUuid);
     await writeFile(join(home, FAILURE_FILE), JSON.stringify({ failedAt: now, stamp }), { mode: 0o600 });
 }
 
