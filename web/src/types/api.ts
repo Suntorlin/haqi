@@ -7,6 +7,7 @@ import type {
     TaskView,
     WorktreeMetadata
 } from '@hapi/protocol/types'
+import type { MachineLoad } from '@hapi/protocol/schemas'
 
 export type {
     AgentState,
@@ -105,6 +106,8 @@ export type Machine = {
         env?: Record<string, string>
     } | null
     runnerState?: RunnerState | null
+    /** From the latest heartbeat (every 20 s); null until the runner sends one. */
+    load?: MachineLoad | null
 }
 
 export type AuthResponse = {

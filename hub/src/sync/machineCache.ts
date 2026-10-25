@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { MachineLoad } from '@hapi/protocol/schemas'
 import type { Store } from '../store'
 import { clampAliveTime } from './aliveTime'
 import { EventPublisher } from './eventPublisher'
@@ -63,6 +64,8 @@ export interface Machine {
     metadataVersion: number
     runnerState: unknown | null
     runnerStateVersion: number
+    /** From the latest heartbeat; kept in memory only. */
+    load?: MachineLoad | null
 }
 
 export class MachineCache {
@@ -218,7 +221,8 @@ export class MachineCache {
             metadata,
             metadataVersion: stored.metadataVersion,
             runnerState: stored.runnerState,
-            runnerStateVersion: stored.runnerStateVersion
+            runnerStateVersion: stored.runnerStateVersion,
+            load: existing?.load ?? null
         }
 
         this.machines.set(machineId, machine)
@@ -233,7 +237,7 @@ export class MachineCache {
         }
     }
 
-    handleMachineAlive(payload: { machineId: string; time: number }): void {
+    handleMachineAlive(payload: { machineId: string; time: number; load?: MachineLoad }): void {
         const t = clampAliveTime(payload.time)
         if (!t) return
 
@@ -243,6 +247,7 @@ export class MachineCache {
         const wasActive = machine.active
         machine.active = true
         machine.activeAt = Math.max(machine.activeAt, t)
+        machine.load = payload.load ?? null
 
         const now = Date.now()
         const lastBroadcastAt = this.lastBroadcastAtByMachineId.get(machine.id) ?? 0

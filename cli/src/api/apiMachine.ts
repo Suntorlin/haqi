@@ -9,6 +9,7 @@ import { ClaudeAccountSelectionSchema } from '@hapi/protocol/schemas'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
+import type { MachineLoad } from '@hapi/protocol/schemas'
 import {
     activateCodexCredential,
     deleteCodexCredential,
@@ -25,6 +26,7 @@ import { registerCommonHandlers } from '../modules/common/registerCommonHandlers
 import type { SpawnSessionOptions, SpawnSessionResult } from '../modules/common/rpcTypes'
 import { applyVersionedAck } from './versionedUpdate'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
+import { readMachineLoad } from './machineLoad'
 
 const LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS = 10_000
 
@@ -35,7 +37,7 @@ interface ServerToRunnerEvents {
 }
 
 interface RunnerToServerEvents {
-    'machine-alive': (data: { machineId: string; time: number }) => void
+    'machine-alive': (data: { machineId: string; time: number; load?: MachineLoad }) => void
     'machine-update-metadata': (data: { machineId: string; metadata: unknown; expectedVersion: number }, cb: (answer: {
         result: 'error'
     } | {
@@ -400,12 +402,12 @@ export class ApiMachineClient {
 
     private startKeepAlive(): void {
         this.stopKeepAlive()
-        this.keepAliveInterval = setInterval(() => {
-            this.socket.emit('machine-alive', {
-                machineId: this.machine.id,
-                time: Date.now()
-            })
-        }, 20_000)
+        const beat = () => void readMachineLoad()
+            .catch(() => undefined)
+            .then((load) => this.socket.emit('machine-alive', { machineId: this.machine.id, time: Date.now(), ...(load ? { load } : {}) }))
+        // The first beat goes out now, so the web sees the load as soon as the runner connects.
+        beat()
+        this.keepAliveInterval = setInterval(beat, 20_000)
     }
 
     private stopKeepAlive(): void {

@@ -61,6 +61,19 @@ describe('MachineCache.registerRunner', () => {
     })
 })
 
+describe('MachineCache.handleMachineAlive', () => {
+    it('keeps the load of the latest heartbeat, also when the web changes the machine settings', () => {
+        const cache = createCache()
+        cache.registerRunner('m1', reported(), null, 'default')
+        const load = { cores: 10, memGb: 32, memFreePct: 51, load1: 6.5 }
+        cache.handleMachineAlive({ machineId: 'm1', time: Date.now(), load })
+
+        cache.updateSettings('m1', 'default', { role: 'always-on' })
+
+        expect(cache.getMachine('m1')?.load).toEqual(load)
+    })
+})
+
 describe('MachineCache.updateSettings', () => {
     it('clears the name and env when given empty values', () => {
         const cache = createCache()

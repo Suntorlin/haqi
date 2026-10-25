@@ -190,7 +190,7 @@ Namespace: `/cli`
 - `update-state` - Update agent state.
 - `session-alive` - Keep session active.
 - `session-end` - Mark session ended.
-- `machine-alive` - Keep machine online.
+- `machine-alive` - Keep machine online; carries the machine's load (cores, memory, load average, battery).
 - `rpc-register` - Register RPC handler.
 - `rpc-unregister` - Unregister RPC handler.
 

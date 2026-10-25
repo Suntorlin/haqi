@@ -1,4 +1,5 @@
 import type { ModelMode, PermissionMode } from '@hapi/protocol/types'
+import type { MachineLoad } from '@hapi/protocol/schemas'
 import type { Store, StoredMachine, StoredSession } from '../../../store'
 import type { RpcRegistry } from '../../rpcRegistry'
 import type { SyncEvent } from '../../../sync/syncEngine'
@@ -27,6 +28,7 @@ type SessionEndPayload = {
 type MachineAlivePayload = {
     machineId: string
     time: number
+    load?: MachineLoad
 }
 
 export type CliHandlersDeps = {

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { ModelMode, PermissionMode } from './modes'
+import type { MachineLoad } from './schemas'
 
 export type SocketErrorReason = 'namespace-missing' | 'access-denied' | 'not-found'
 
@@ -167,7 +168,7 @@ export interface ClientToServerEvents {
         agentState: unknown | null
     }) => void) => void
     'update-team-state': (data: { sid: string; teamState: unknown | null }) => void
-    'machine-alive': (data: { machineId: string; time: number }) => void
+    'machine-alive': (data: { machineId: string; time: number; load?: MachineLoad }) => void
     'machine-update-metadata': (data: { machineId: string; expectedVersion: number; metadata: unknown }, cb: (answer: {
         result: 'error'
         reason?: SocketErrorReason

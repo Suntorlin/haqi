@@ -248,7 +248,7 @@ Graceful runner shutdown.
 `ApiMachineClient` handles bidirectional communication:
 
 **Runner to Server:**
-- `machine-alive` - 20-second heartbeat
+- `machine-alive` - 20-second heartbeat, with the machine's load (see `machineLoad.ts`)
 - `machine-update-metadata` - static machine info changes
 - `machine-update-state` - runner status changes
 

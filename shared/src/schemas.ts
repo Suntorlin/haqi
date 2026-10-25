@@ -112,6 +112,19 @@ export type ClaudeAccountPoolView = {
     machineLogin?: ClaudeMachineLogin
 }
 
+/** How busy a machine is. The runner sends it with every heartbeat; the hub keeps only the latest in memory. */
+export const MachineLoadSchema = z.object({
+    cores: z.number().int().positive(),
+    memGb: z.number().nonnegative(),
+    /** Share of memory still available, 0-100. Absent where the platform does not tell. */
+    memFreePct: z.number().min(0).max(100).optional(),
+    /** Average number of processes that want a core, over the last minute. */
+    load1: z.number().nonnegative(),
+    /** Absent on a machine without a battery. */
+    battery: z.object({ pct: z.number().min(0).max(100), onBattery: z.boolean() }).optional()
+})
+export type MachineLoad = z.infer<typeof MachineLoadSchema>
+
 export const MetadataSchema = z.object({
     path: z.string(),
     host: z.string(),

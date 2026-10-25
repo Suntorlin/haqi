@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView } from '@hapi/protocol/schemas'
+import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView, MachineLoad } from '@hapi/protocol/schemas'
 import { ClaudeAccountPoolSchema } from '@hapi/protocol/schemas'
 /**
  * Sync Engine for HAPI Telegram Bot (Direct Connect)
@@ -1117,7 +1117,7 @@ export class SyncEngine {
         this.queuePendingRoutes.delete(payload.sid)
     }
 
-    handleMachineAlive(payload: { machineId: string; time: number }): void {
+    handleMachineAlive(payload: { machineId: string; time: number; load?: MachineLoad }): void {
         this.machineCache.handleMachineAlive(payload)
     }
 

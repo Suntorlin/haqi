@@ -203,6 +203,14 @@ export function NewSession(props: {
         setClaudeAccount(rememberedAccountSelection(pool, rememberedAccountId))
     }, [accountsQuery.data, agent, machineId, rememberedAccountId])
 
+    const sessionCounts = useMemo(() => {
+        const counts: Record<string, number> = {}
+        for (const session of sessions) {
+            const id = session.metadata?.machineId
+            if (session.active && id) counts[id] = (counts[id] ?? 0) + 1
+        }
+        return counts
+    }, [sessions])
     const selectedMachine = useMemo(
         () => (machineId ? props.machines.find((machine) => machine.id === machineId) ?? null : null),
         [machineId, props.machines]
@@ -498,6 +506,7 @@ export function NewSession(props: {
                 <MachineSelector
                     machines={props.machines}
                     machineId={machineId}
+                    sessionCounts={sessionCounts}
                     isDisabled={isFormDisabled}
                     onChange={handleMachineChange}
                 />

@@ -1,4 +1,5 @@
 import type { ClientToServerEvents } from '@hapi/protocol'
+import { MachineLoadSchema, type MachineLoad } from '@hapi/protocol/schemas'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 import type { Store, StoredMachine } from '../../../store'
@@ -9,6 +10,7 @@ import type { AccessErrorReason, AccessResult } from './types'
 type MachineAlivePayload = {
     machineId: string
     time: number
+    load?: MachineLoad
 }
 
 type ResolveMachineAccess = (machineId: string) => AccessResult<StoredMachine>
@@ -50,7 +52,9 @@ export function registerMachineHandlers(socket: CliSocketWithData, deps: Machine
             emitAccessError('machine', data.machineId, machineAccess.reason)
             return
         }
-        onMachineAlive?.(data)
+        // A load that does not parse is dropped; the heartbeat still counts.
+        const load = MachineLoadSchema.safeParse(data.load)
+        onMachineAlive?.({ machineId: data.machineId, time: data.time, ...(load.success ? { load: load.data } : {}) })
     })
 
     const handleMachineMetadataUpdate: MachineUpdateMetadataHandler = (data, cb) => {
