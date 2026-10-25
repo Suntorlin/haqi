@@ -18,6 +18,8 @@ Settings (env):
     HAQI_ASR_HOST      default 127.0.0.1
     HAQI_ASR_PORT      default 18790
     HAQI_ASR_HUB_URL   default http://127.0.0.1:3006 (used to check tokens)
+    HAQI_ASR_WIRED_GB  default 4 (GB of model memory kept out of swap; 0 turns it off)
+    HAQI_ASR_KEEP_WARM_SECONDS  default 60 (idle seconds before a 1 s silent run keeps the model hot; 0 turns it off)
     HAQI_ASR_HOTWORDS  path to a file with one hotword per line (default ~/.hapi/asr-hotwords.txt)
 """
 
@@ -41,6 +43,11 @@ MODEL_ID = os.environ.get("HAQI_ASR_MODEL", "mlx-community/Qwen3-ASR-1.7B-8bit")
 HOST = os.environ.get("HAQI_ASR_HOST", "127.0.0.1")
 PORT = int(os.environ.get("HAQI_ASR_PORT", "18790"))
 HUB_URL = os.environ.get("HAQI_ASR_HUB_URL", "http://127.0.0.1:3006").rstrip("/")
+# Keep the model resident: on a busy Mac the weights otherwise get swapped out and a 3 s request takes 15 s.
+WIRED_GB = float(os.environ.get("HAQI_ASR_WIRED_GB", "4"))
+# The wired limit alone does not stop it: after hours idle the first request still took 13-52 s.
+# A short silent run every minute keeps the weights and kernels hot.
+KEEP_WARM_SECONDS = float(os.environ.get("HAQI_ASR_KEEP_WARM_SECONDS", "60"))
 HOTWORDS_FILE = Path(os.environ.get("HAQI_ASR_HOTWORDS", str(Path.home() / ".hapi" / "asr-hotwords.txt")))
 
 MAX_AUDIO_BYTES = 20 * 1024 * 1024
@@ -54,13 +61,15 @@ model = None
 # MLX runs one generation at a time; requests queue behind this lock.
 model_lock = asyncio.Lock()
 valid_tokens: dict[str, float] = {}
+last_run = 0.0
 
 
 @asynccontextmanager
 async def lifespan(_app):
-    task = asyncio.create_task(load_model_in_background())
+    tasks = [asyncio.create_task(load_model_in_background()), asyncio.create_task(keep_warm())]
     yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -145,6 +154,7 @@ async def dictation_status(request: Request):
 
 @app.post("/api/voice/transcribe")
 async def transcribe(request: Request):
+    global last_run
     if not await authorized(request):
         return JSONResponse({"error": "Invalid token"}, status_code=401)
     if model is None:
@@ -174,6 +184,7 @@ async def transcribe(request: Request):
         else:
             async with model_lock:
                 text = await asyncio.to_thread(transcribe_file, wav, hotwords, language)
+                last_run = time.time()
     finally:
         os.unlink(wav)
 
@@ -212,15 +223,44 @@ async def health():
     return {"status": "ok" if model is not None else "loading", "model": MODEL_ID}
 
 
+def make_silence() -> str:
+    path = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    f"anullsrc=r={SAMPLE_RATE}:cl=mono", "-t", "1", path], check=True)
+    return path
+
+
+async def keep_warm():
+    """While idle, run the model on 1 s of silence every KEEP_WARM_SECONDS so the next request is not cold."""
+    global last_run
+    if KEEP_WARM_SECONDS <= 0:
+        return
+    silence = await asyncio.to_thread(make_silence)
+    try:
+        while True:
+            await asyncio.sleep(KEEP_WARM_SECONDS / 4)
+            if model is None or time.time() - last_run < KEEP_WARM_SECONDS or model_lock.locked():
+                continue
+            async with model_lock:
+                started = time.time()
+                await asyncio.to_thread(model.generate, silence)
+                last_run = time.time()
+            if last_run - started > 3:
+                log(f"keep-warm run took {last_run - started:.1f}s (model was cold)")
+    finally:
+        os.unlink(silence)
+
+
 async def load_model_in_background():
     global model
+    import mlx.core as mx
     from mlx_audio.stt.utils import load_model
+    if WIRED_GB > 0:
+        mx.set_wired_limit(int(WIRED_GB * 1024 ** 3))
     started = time.time()
     loaded = await asyncio.to_thread(load_model, MODEL_ID)
     # One short run compiles the kernels, so the first real request is fast.
-    silence = tempfile.NamedTemporaryFile(suffix=".wav", delete=False).name
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "lavfi", "-i",
-                    f"anullsrc=r={SAMPLE_RATE}:cl=mono", "-t", "1", silence], check=True)
+    silence = make_silence()
     await asyncio.to_thread(loaded.generate, silence)
     os.unlink(silence)
     model = loaded
