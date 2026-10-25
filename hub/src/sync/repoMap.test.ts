@@ -37,8 +37,8 @@ describe('buildRepoMap', () => {
 
         expect(view.key).toBe('github.com/owner/app')
         expect(view.machines.map((m) => m.pick?.path)).toEqual(['/Users/me/dev/app', '/home/me/code/app'])
-        expect(view.machines[0].issues.map((i) => i.code)).toEqual(['lock-differs'])
-        expect(view.machines[1].issues.map((i) => i.code)).toEqual(['base-missing', 'deps-missing', 'lock-differs'])
+        expect(view.machines[0].issues).toEqual([])
+        expect(view.machines[1].issues.map((i) => i.code)).toEqual(['base-missing', 'deps-missing'])
     })
 
     it('lists a machine without the repository, so the first use there gets confirmed', () => {

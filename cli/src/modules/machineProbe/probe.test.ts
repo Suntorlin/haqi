@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
-import { normalizeRemote, probeMachine } from './probe'
+import { canonicalRemote, normalizeRemote, probeMachine } from './probe'
 
 const run = promisify(execFile)
 const git = (cwd: string, ...args: string[]) => run('git', args, { cwd }).then((r) => r.stdout.trim())
@@ -29,6 +29,10 @@ describe('normalizeRemote', () => {
         expect(normalizeRemote('git@github.com:Owner/App.git')).toBe('github.com/owner/app')
         expect(normalizeRemote('https://github.com/Owner/App')).toBe('github.com/owner/app')
         expect(normalizeRemote('ssh://git@github.com:22/Owner/App.git')).toBe('github.com/owner/app')
+    })
+
+    it('keeps a real host name even where ~/.ssh/config sends it elsewhere, so machines agree', async () => {
+        expect(await canonicalRemote('git@github.com:Owner/App.git')).toBe('github.com/owner/app')
     })
 })
 

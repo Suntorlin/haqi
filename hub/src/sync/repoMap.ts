@@ -13,7 +13,7 @@ export type MachineProbe = {
 export type RepoIssue = {
     /** block: the machine cannot take the work as it is. warn: it can, with a fix first. info: worth knowing. */
     level: 'block' | 'warn' | 'info'
-    /** Stable, for code that acts on it: repo-unknown, base-missing, behind-base, deps-missing, lock-differs, changes, many-worktrees. */
+    /** Stable, for code that acts on it: repo-unknown, base-missing, behind-base, deps-missing, changes, many-worktrees. */
     code: string
     text: string
 }
@@ -140,25 +140,6 @@ function issues(at: RepoLocation | null, base: boolean): RepoIssue[] {
     return found
 }
 
-/** Machines whose picks want a different set of packages from the rest. */
-function lockIssues(machines: RepoOnMachine[]): void {
-    const hashes = new Map<string, Map<string, string[]>>()
-    for (const m of machines) {
-        for (const dep of m.pick?.deps ?? []) {
-            const byHash = hashes.get(dep.manager) ?? new Map<string, string[]>()
-            byHash.set(dep.lockHash, [...(byHash.get(dep.lockHash) ?? []), m.machineId])
-            hashes.set(dep.manager, byHash)
-        }
-    }
-    for (const [manager, byHash] of hashes) {
-        if (byHash.size < 2) continue
-        for (const m of machines) {
-            const dep = m.pick?.deps.find((d) => d.manager === manager)
-            if (dep) m.issues.push({ level: 'warn', code: 'lock-differs', text: `${dep.lockfile} 和其他机器不同：两边要装的依赖不一样` })
-        }
-    }
-}
-
 /**
  * Every repository found on any machine, with where work on it goes on each of the given machines.
  * A machine without the repository is listed too, so a caller sees it needs confirming. A base commit
@@ -175,7 +156,6 @@ export function buildRepoMap(probes: MachineProbe[], options: { base?: { repo: s
                 const chosen = pick(mine, byMachine.get(probe.machineId)!, [key, ...remotes], base)
                 return { machineId: probe.machineId, ...chosen, checkouts: mine.length, issues: issues(chosen.pick, base) }
             })
-            lockIssues(machines)
             return { key, name: key.split('/').pop() ?? key, remotes, machines }
         })
         .sort((a, b) => a.key.localeCompare(b.key))

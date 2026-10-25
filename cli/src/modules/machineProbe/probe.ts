@@ -48,6 +48,35 @@ export function normalizeRemote(url: string): string {
         .toLowerCase()
 }
 
+const sshHosts = new Map<string, Promise<string>>()
+
+/** The host an ssh alias stands for, from ~/.ssh/config; reads the local config only, no connection. */
+function sshHost(alias: string): Promise<string> {
+    let host = sshHosts.get(alias)
+    if (!host) {
+        host = new Promise((resolve) => {
+            execFile('ssh', ['-G', alias], { timeout: GIT_TIMEOUT_MS }, (error, stdout) => {
+                resolve((!error && /^hostname (\S+)$/m.exec(stdout)?.[1]) || alias)
+            })
+        })
+        sshHosts.set(alias, host)
+    }
+    return host
+}
+
+/**
+ * Like normalizeRemote, and an ssh alias (git@work-github:owner/app) becomes the host it stands for.
+ * Only a host without a dot counts as an alias: a real host name stays, even when ~/.ssh/config sends
+ * it elsewhere (github.com to ssh.github.com on port 443 is common), or two machines would disagree.
+ */
+export async function canonicalRemote(url: string): Promise<string> {
+    const normalized = normalizeRemote(url)
+    const sshForm = /^[^/:]+@[^/:]+:/.test(url.trim()) || url.trim().startsWith('ssh://')
+    const [alias, ...rest] = normalized.split('/')
+    if (!sshForm || !alias || alias.includes('.') || rest.length === 0) return normalized
+    return [(await sshHost(alias)).toLowerCase(), ...rest].join('/')
+}
+
 const gap = (counts: string | null) => {
     const [behind, ahead] = (counts ?? '').split(/\s+/).map(Number)
     return Number.isInteger(behind) && Number.isInteger(ahead) ? { behind, ahead } : null
@@ -92,15 +121,13 @@ export async function probeRepo(dir: string, base?: string): Promise<ProbedRepo 
         deps(root)
     ])
     const [sha = '', time = '0'] = (head ?? '').split(' ')
+    const fetchUrls = (remotes ?? '').split('\n').filter((line) => line.endsWith('(fetch)')).map((line) => line.split(/\s+/)[1] ?? '')
     const lines = status ? status.split('\n') : []
     const upstreamGap = gap(upstream)
     return {
         root,
         mainRoot,
-        remotes: [...new Set((remotes ?? '').split('\n')
-            .filter((line) => line.endsWith('(fetch)'))
-            .map((line) => normalizeRemote(line.split(/\s+/)[1] ?? ''))
-            .filter(Boolean))].sort(),
+        remotes: [...new Set((await Promise.all(fetchUrls.map(canonicalRemote))).filter(Boolean))].sort(),
         branch: branch || null,
         head: sha.slice(0, 12),
         headTime: Number(time),
