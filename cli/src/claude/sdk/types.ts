@@ -18,6 +18,9 @@ export interface SDKMessage {
 export interface SDKUserMessage extends SDKMessage {
     type: 'user'
     parent_tool_use_id?: string
+    // Set on messages Claude Code injects itself (e.g. a skill's body after
+    // the Skill tool runs). The on-disk transcript calls this isMeta.
+    isSynthetic?: boolean
     message: {
         role: 'user'
         content: string | Array<{

@@ -273,11 +273,32 @@ function normalizeUserOutput(
     }
 }
 
+const SKILL_BODY_PREFIX = 'Base directory for this skill:'
+
+// Claude Code injects a skill's body as a user message after the Skill tool
+// runs. Older CLI builds stored it without isMeta, so match the text as well.
+function isInjectedSkillBody(data: Record<string, unknown>): boolean {
+    if (data.type !== 'user' || !isObject(data.message)) return false
+    const content = data.message.content
+    const first = Array.isArray(content) ? content[0] : content
+    const text = typeof first === 'string'
+        ? first
+        : isObject(first) && first.type === 'text' ? first.text : null
+    return typeof text === 'string' && text.startsWith(SKILL_BODY_PREFIX)
+}
+
+function isHiddenAgentData(data: Record<string, unknown>): boolean {
+    return Boolean(data.isMeta)
+        || Boolean(data.isSynthetic)
+        || Boolean(data.isCompactSummary)
+        || isInjectedSkillBody(data)
+}
+
 export function isSkippableAgentContent(content: unknown): boolean {
     if (!isObject(content) || content.type !== 'output') return false
     const data = isObject(content.data) ? content.data : null
     if (!data) return false
-    return Boolean(data.isMeta) || Boolean(data.isCompactSummary)
+    return isHiddenAgentData(data)
 }
 
 export function isCodexContent(content: unknown): boolean {
@@ -301,9 +322,8 @@ export function normalizeAgentRecord(
         const data = isObject(content.data) ? content.data : null
         if (!data || typeof data.type !== 'string') return null
 
-        // Skip meta/compact-summary messages (parity with hapi-app)
-        if (data.isMeta) return null
-        if (data.isCompactSummary) return null
+        // Skip meta/compact-summary messages and skill bodies (parity with hapi-app)
+        if (isHiddenAgentData(data)) return null
 
         if (data.type === 'assistant') {
             return normalizeAssistantOutput(messageId, localId, createdAt, data, meta)

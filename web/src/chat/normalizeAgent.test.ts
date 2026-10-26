@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeAgentRecord } from './normalizeAgent'
+import { isSkippableAgentContent, normalizeAgentRecord } from './normalizeAgent'
 
 describe('normalizeAgentRecord codex token_count usage', () => {
     it('extracts usage from snake_case last_token_usage payload', () => {
@@ -196,5 +196,40 @@ describe('normalizeAgentRecord rate_limit_event', () => {
                 rateLimitType: 'five_hour'
             }
         })
+    })
+})
+
+describe('skill body messages', () => {
+    const skillBody = (extra: Record<string, unknown> = {}) => ({
+        type: 'output',
+        data: {
+            type: 'user',
+            message: {
+                role: 'user',
+                content: [{ type: 'text', text: 'Base directory for this skill: /x/skills/ping\n\n# Ping' }]
+            },
+            ...extra
+        }
+    })
+
+    it('hides a skill body stored without any flag', () => {
+        expect(isSkippableAgentContent(skillBody())).toBe(true)
+        expect(normalizeAgentRecord('m1', null, 1, skillBody())).toBeNull()
+    })
+
+    it('hides an isSynthetic user message', () => {
+        const content = {
+            type: 'output',
+            data: { type: 'user', isSynthetic: true, message: { role: 'user', content: [{ type: 'text', text: 'x' }] } }
+        }
+        expect(isSkippableAgentContent(content)).toBe(true)
+    })
+
+    it('keeps a normal user text message', () => {
+        const content = {
+            type: 'output',
+            data: { type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'hello' }] } }
+        }
+        expect(isSkippableAgentContent(content)).toBe(false)
     })
 })

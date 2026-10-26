@@ -52,6 +52,28 @@ describe('SDKToLogConverter', () => {
             expect(logMessage?.timestamp).toBeTruthy()
         })
 
+        it('marks a synthetic skill body as isMeta so the web hides it', () => {
+            const sdkMessage = {
+                type: 'user',
+                isSynthetic: true,
+                message: {
+                    role: 'user',
+                    content: [{ type: 'text', text: 'Base directory for this skill: /x\n\nbody' }]
+                }
+            } as SDKUserMessage
+
+            expect(converter.convert(sdkMessage)).toMatchObject({ type: 'user', isMeta: true })
+        })
+
+        it('does not mark a normal user message as isMeta', () => {
+            const logMessage = converter.convert({
+                type: 'user',
+                message: { role: 'user', content: 'Hello Claude' }
+            } as SDKUserMessage)
+
+            expect(logMessage).not.toHaveProperty('isMeta')
+        })
+
         it('should handle user message with complex content', () => {
             const sdkMessage: SDKUserMessage = {
                 type: 'user',

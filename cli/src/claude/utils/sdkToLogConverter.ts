@@ -170,7 +170,10 @@ export class SDKToLogConverter {
                 logMessage = {
                     ...baseFields,
                     type: 'user',
-                    message: userMsg.message
+                    message: userMsg.message,
+                    // stream-json marks injected messages (skill bodies) as
+                    // isSynthetic; the web hides them by the transcript's isMeta.
+                    ...(userMsg.isSynthetic ? { isMeta: true } : {})
                 }
 
                 // Check if this is a tool result and add mode if available
