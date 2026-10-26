@@ -8,14 +8,12 @@ import { getSessionLabelCandidates, getSessionTitle } from '@/lib/session-title'
 import { FitText } from '@/components/ui/FitText'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
-import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { SessionAvatar } from '@/components/mobile/SessionAvatar'
 import { ArchiveBoxIcon, ChevronDownIcon, MoonIcon, PinOffIcon, PlusIcon } from '@/components/mobile/icons'
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from '@/components/mobile/ContextMenu'
 import { SnoozeOptions } from '@/components/SessionActionMenu'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { Badge } from '@/components/ui/badge'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 /** Pinned sessions that need attention come first: waiting for approval, then running, then recent. */
 function sortPinned(sessions: SessionSummary[]): SessionSummary[] {
@@ -110,9 +108,6 @@ export function PinnedStoriesStrip(props: {
         setSnoozeExpanded(false)
     }, [])
     const [snoozeTarget, setSnoozeTarget] = useState<SessionSummary | null>(null)
-    const { skipArchiveConfirmation } = useArchiveConfirmation()
-    const [archiveTarget, setArchiveTarget] = useState<SessionSummary | null>(null)
-    const [archiving, setArchiving] = useState(false)
     const scrollerRef = useRef<HTMLDivElement>(null)
     const rowRef = useRef<HTMLDivElement>(null)
     useEdgeBounce(scrollerRef, rowRef, stories.length > 0)
@@ -120,10 +115,6 @@ export function PinnedStoriesStrip(props: {
     // Same rule as the session menu: archive (stop) only applies to a running session.
     const archive = (session: SessionSummary) => {
         if (!props.onArchive) return
-        if (!skipArchiveConfirmation) {
-            setArchiveTarget(session)
-            return
-        }
         void props.onArchive(session).catch((error) => {
             console.error('Failed to archive session', error)
         })
@@ -132,16 +123,6 @@ export function PinnedStoriesStrip(props: {
         void props.onSnooze?.(session, until).catch((error) => {
             console.error('Failed to snooze session', error)
         })
-    }
-
-    const confirmArchive = async () => {
-        if (!archiveTarget || !props.onArchive) return
-        setArchiving(true)
-        try {
-            await props.onArchive(archiveTarget)
-        } finally {
-            setArchiving(false)
-        }
     }
 
     if (stories.length === 0) return null
@@ -235,17 +216,6 @@ export function PinnedStoriesStrip(props: {
                 onSnooze={async (until) => {
                     if (snoozeTarget && props.onSnooze) await props.onSnooze(snoozeTarget, until)
                 }}
-            />
-            <ConfirmDialog
-                isOpen={archiveTarget !== null}
-                onClose={() => setArchiveTarget(null)}
-                title={t('dialog.archive.title')}
-                description={t('dialog.archive.descriptionPinned', { name: archiveTarget ? getSessionTitle(archiveTarget) : '' })}
-                confirmLabel={t('dialog.archive.confirm')}
-                confirmingLabel={t('dialog.archive.confirming')}
-                onConfirm={confirmArchive}
-                isPending={archiving}
-                destructive
             />
         </div>
     )

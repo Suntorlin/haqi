@@ -262,7 +262,6 @@ export default {
   'session.action.newSameConfig': '新建（同配置）',
   'session.action.duplicate': '复制（含历史）',
   'session.action.archive': '归档',
-  'session.action.confirmArchive': '确认',
   'session.action.delete': '删除',
   'session.action.copy': '复制',
 
@@ -283,11 +282,6 @@ export default {
   'dialog.tagManager.count': '{n} 个会话',
   'dialog.tagManager.show': '在标签栏显示 #{tag}',
 
-  'dialog.archive.title': '归档会话',
-  'dialog.archive.description': '确定要归档 "{name}" 吗？这将断开活动会话。',
-  'dialog.archive.descriptionPinned': '确定要归档 "{name}" 吗？这将断开活动会话，并取消置顶。',
-  'dialog.archive.confirm': '归档',
-  'dialog.archive.confirming': '归档中…',
 
   'dialog.delete.title': '删除会话',
   'dialog.delete.description': '确定要删除 "{name}" 吗？此操作无法撤销。',
@@ -747,8 +741,6 @@ export default {
   'settings.behavior.enterBehavior.description': '设置输入框中回车键的功能。',
   'settings.behavior.enterBehavior.send': 'Enter 发送，Shift+Enter 换行',
   'settings.behavior.enterBehavior.newline': 'Enter 换行，Shift+Enter 发送',
-  'settings.behavior.archiveConfirm': '归档确认',
-  'settings.behavior.archiveConfirm.description': '归档会话时跳过确认弹窗。',
   'settings.behavior.sessionQuickArchive': '会话快速归档',
   'settings.behavior.sessionQuickArchive.description': '在列表项悬浮时，把右侧时间替换为两步确认的归档按钮。',
   'settings.voice.title': '语音助手',

@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation, type Locale } from '@/lib/use-translation'
 import { getElevenLabsSupportedLanguages, getLanguageDisplayName, type Language } from '@/lib/languages'
 import { getFontScaleOptions, useFontScale, type FontScale } from '@/hooks/useFontScale'
-import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useEnterBehavior } from '@/hooks/useEnterBehavior'
 import { useQueueInlinePanel, type QueueInlinePanelMode } from '@/hooks/useQueueInlinePanel'
 import { useCodexSendModePreference } from '@/hooks/useCodexSendModePreference'
@@ -257,7 +256,6 @@ export default function SettingsPage() {
     const currentImageCompressionTargetSizeLabel = t(
         `settings.behavior.imageCompression.targetSize.${imageUploadCompressionTargetSize}`
     )
-    const { skipArchiveConfirmation, setSkipArchiveConfirmation } = useArchiveConfirmation()
     const { enterBehavior, setEnterBehavior } = useEnterBehavior()
     const { projectQuickCreateEnabled, setProjectQuickCreateEnabled } = useProjectQuickCreate()
     const { sessionQuickArchiveEnabled, setSessionQuickArchiveEnabled } = useSessionQuickArchive()
@@ -556,10 +554,6 @@ export default function SettingsPage() {
             )
         }
     })
-
-    const handleSkipArchiveConfirmToggle = (value: boolean) => {
-        setSkipArchiveConfirmation(value)
-    }
 
     const handleSessionQuickArchiveToggle = (value: boolean) => {
         setSessionQuickArchiveEnabled(value)
@@ -1042,13 +1036,6 @@ export default function SettingsPage() {
                                 label={t('settings.behavior.sessionQuickArchive')}
                                 checked={sessionQuickArchiveEnabled}
                                 onCheckedChange={handleSessionQuickArchiveToggle}
-                            />
-                            <SettingsSwitchRow
-                                title={t('settings.behavior.archiveConfirm')}
-                                subtitle={t('settings.behavior.archiveConfirm.description')}
-                                label={t('settings.behavior.archiveConfirm')}
-                                checked={skipArchiveConfirmation}
-                                onCheckedChange={handleSkipArchiveConfirmToggle}
                             />
                         </SettingsBlock>
 

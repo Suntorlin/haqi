@@ -47,7 +47,7 @@ describe('SessionList project quick-create action', () => {
         cleanup()
     })
 
-    it('shows quick archive action on hover and archives after second click', async () => {
+    it('shows quick archive action on hover and archives on the first click', async () => {
         const archiveSession = vi.fn(async () => {})
         const api = {
             archiveSession,
@@ -72,10 +72,6 @@ describe('SessionList project quick-create action', () => {
 
         const archiveButton = screen.getByRole('button', { name: 'Archive' })
         fireEvent.click(archiveButton)
-        expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
-        expect(archiveSession).not.toHaveBeenCalled()
-
-        fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
         await waitFor(() => {
             expect(archiveSession).toHaveBeenCalledWith('session-1')

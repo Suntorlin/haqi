@@ -44,7 +44,6 @@ import { formatSnoozeStatus, formatSnoozeWake, getSnoozePresets } from '@/lib/se
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { SessionTagsDialog } from '@/components/SessionTagsDialog'
-import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useTranslation } from '@/lib/use-translation'
@@ -132,7 +131,6 @@ export function SessionHeader(props: {
     const [accountSwitching, setAccountSwitching] = useState(false)
     const [accountSwitchError, setAccountSwitchError] = useState<string | null>(null)
     const [renameOpen, setRenameOpen] = useState(false)
-    const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
 
     const {
@@ -148,7 +146,6 @@ export function SessionHeader(props: {
         session.id,
         session.metadata?.flavor ?? null
     )
-    const { skipArchiveConfirmation } = useArchiveConfirmation()
     const pinSession = useSessionPin(api)
     const pinned = isSessionPinned(session)
     const snoozeSession = useSessionSnooze(api)
@@ -173,11 +170,6 @@ export function SessionHeader(props: {
     }
 
     const handleArchive = () => {
-        if (!skipArchiveConfirmation) {
-            setArchiveOpen(true)
-            return
-        }
-
         void archiveSession().catch((error) => {
             console.error('Failed to archive session', error)
         })
@@ -248,18 +240,6 @@ export function SessionHeader(props: {
                 currentName={title}
                 onRename={renameSession}
                 isPending={isPending}
-            />
-
-            <ConfirmDialog
-                isOpen={archiveOpen}
-                onClose={() => setArchiveOpen(false)}
-                title={t('dialog.archive.title')}
-                description={t(pinned ? 'dialog.archive.descriptionPinned' : 'dialog.archive.description', { name: title })}
-                confirmLabel={t('dialog.archive.confirm')}
-                confirmingLabel={t('dialog.archive.confirming')}
-                onConfirm={archiveSession}
-                isPending={isPending}
-                destructive
             />
 
             <ConfirmDialog

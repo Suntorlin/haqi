@@ -32,7 +32,6 @@ import { SessionTaskSheet } from '@/components/SessionTaskSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
 import { BulbIcon, DisclosureIcon, GripIcon, PlusIcon } from '@/components/mobile/icons'
-import { useArchiveConfirmation } from '@/hooks/useArchiveConfirmation'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
@@ -373,7 +372,6 @@ function SessionItem(props: {
     const [tagsOpen, setTagsOpen] = useState(false)
     const [tasksOpen, setTasksOpen] = useState(false)
     const [snoozeOpen, setSnoozeOpen] = useState(false)
-    const [archiveOpen, setArchiveOpen] = useState(false)
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [isQuickArchiveVisible, setIsQuickArchiveVisible] = useState(false)
     const itemRef = useRef<HTMLDivElement | null>(null)
@@ -399,7 +397,6 @@ function SessionItem(props: {
         s.id,
         s.metadata?.flavor ?? null
     )
-    const { skipArchiveConfirmation } = useArchiveConfirmation()
     const { sessionQuickArchiveEnabled } = useSessionQuickArchive()
     const pinSession = useSessionPin(api)
     const snoozeSession = useSessionSnooze(api)
@@ -447,11 +444,6 @@ function SessionItem(props: {
     }
 
     const handleArchive = () => {
-        if (!skipArchiveConfirmation) {
-            setArchiveOpen(true)
-            return
-        }
-
         void archiveSession().catch((error) => {
             console.error('Failed to archive session', error)
         })
@@ -693,18 +685,6 @@ function SessionItem(props: {
                 availableTags={availableTags}
                 onSave={saveUserTags}
                 isPending={isPending}
-            />
-
-            <ConfirmDialog
-                isOpen={archiveOpen}
-                onClose={() => setArchiveOpen(false)}
-                title={t('dialog.archive.title')}
-                description={t(pinned ? 'dialog.archive.descriptionPinned' : 'dialog.archive.description', { name: sessionName })}
-                confirmLabel={t('dialog.archive.confirm')}
-                confirmingLabel={t('dialog.archive.confirming')}
-                onConfirm={archiveSession}
-                isPending={isPending}
-                destructive
             />
 
             <ConfirmDialog
