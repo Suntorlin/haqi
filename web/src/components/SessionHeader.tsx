@@ -303,11 +303,16 @@ export function SessionHeader(props: {
     ].filter(Boolean).join(' · ')
     const showUsage = Boolean(props.usage && (typeof props.usage.contextSize === 'number' || props.usage.rateLimitSnapshot))
 
+    const guard = session.guard && session.guard.status !== 'ok' ? session.guard : null
+    const guardToneClass = guard?.status === 'alert' ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'
+    const guardLabel = guard ? t(guard.status === 'alert' ? 'session.guard.alert' : 'session.guard.warn') : null
+
     const statusLine = (
         <>
             <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
             <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
             <FitLine className="flex-1" text={<>
+                {guardLabel ? <span className={guardToneClass}>{`· ${guardLabel} `}</span> : null}
                 {/* A context about to run out comes first: the line is cut at its end. */}
                 {contextPercentLeft !== null && contextPercentLeft <= 20 ? (
                     <span className={contextPercentLeft <= 5 ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'}>
@@ -412,6 +417,16 @@ export function SessionHeader(props: {
                 ) : null}
                 <SheetRow label={t('mobile.chat.directory')} value={session.metadata?.path ?? '—'} />
                 {worktreeBranch ? <SheetRow label={t('mobile.chat.branch')} value={worktreeBranch} /> : null}
+                {session.guard ? (
+                    <SheetRow
+                        label={t('session.guard.label')}
+                        value={(
+                            <span className={guard ? guardToneClass : undefined}>
+                                {guard ? `${guardLabel}${guard.reason ? ` · ${guard.reason}` : ''}` : t('session.guard.ok')}
+                            </span>
+                        )}
+                    />
+                ) : null}
             </SheetSection>
             {accountSwitchError ? (
                 <div role="alert" className="px-7 pb-3 text-caption text-[var(--social-danger)]">{accountSwitchError}</div>

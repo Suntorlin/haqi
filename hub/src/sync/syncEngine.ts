@@ -46,6 +46,7 @@ import type { MachinesOffered } from '../tasks/plugins/context/machines'
 import { ACCOUNT_NOTE, SCHEDULE_TICK_MS, ScheduleService, type ScheduleAlert, type ScheduleSpawnInput, type ScheduleSpawnResult } from '../schedules/scheduleService'
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
+import { GuardService } from '../guard/guardService'
 import { sessionActivity } from '../tasks/sessionActivity'
 import { resolveJevApiKey } from '../memory/jev'
 import { configuration } from '../configuration'
@@ -497,6 +498,7 @@ export class SyncEngine {
     private readonly memoryService: MemoryService
     private readonly taskService: TaskService
     private readonly loadService: LoadService
+    private readonly guardService: GuardService
     private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
     private pushNotifier: ((namespace: string, notice: { title: string; body: string; url: string; tag: string }) => Promise<void>) | null = null
     private reportShareBase: string | null = null
@@ -568,6 +570,11 @@ export class SyncEngine {
                 return goals
             }
         })
+        this.guardService = new GuardService(store, {
+            jevKey: async () => resolveJevApiKey((await this.memoryService.getSettings()).jevApiKey),
+            onChange: (sessionId) => { this.sessionCache.refreshSession(sessionId) }
+        })
+        this.sessionCache.setThinkingEndListener((sessionId) => this.guardService.noteTurnEnd(sessionId))
         this.taskService = new TaskService(store, this.memoryService, {
             planner: {
                 spawnAndPrompt: async (input) => {
@@ -775,6 +782,7 @@ export class SyncEngine {
             clearInterval(this.scheduleTimer)
             this.scheduleTimer = null
         }
+        this.guardService.stop()
     }
 
     subscribe(listener: SyncEventListener): () => void {

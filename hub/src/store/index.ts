@@ -15,6 +15,7 @@ import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
 import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
+import { GUARD_SCHEMA_SQL, GuardStore } from './guardStore'
 import { MessageClassStore } from './messageClassStore'
 import { ScheduleStore } from './scheduleStore'
 import { TaskEventStore } from './taskEventStore'
@@ -45,6 +46,7 @@ export type {
     StoredReviewRound,
     StoredReviewRoundStatus,
     StoredSession,
+    StoredSessionGuard,
     StoredUser,
     VersionedUpdateResult
 } from './types'
@@ -60,8 +62,9 @@ export { GroupStore } from './groupStore'
 export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
 export { MemoryStore } from './memoryStore'
+export { GuardStore } from './guardStore'
 
-const SCHEMA_VERSION: number = 14
+const SCHEMA_VERSION: number = 15
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -92,7 +95,8 @@ const REQUIRED_TABLES = [
     'message_classes',
     'scheduled_tasks',
     'scheduled_task_runs',
-    'report_pages'
+    'report_pages',
+    'session_guards'
 ] as const
 
 export class Store {
@@ -114,6 +118,7 @@ export class Store {
     readonly taskEvents: TaskEventStore
     readonly messageClasses: MessageClassStore
     readonly schedules: ScheduleStore
+    readonly guards: GuardStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -165,6 +170,7 @@ export class Store {
         this.taskEvents = new TaskEventStore(this.db)
         this.messageClasses = new MessageClassStore(this.db)
         this.schedules = new ScheduleStore(this.db)
+        this.guards = new GuardStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -286,6 +292,13 @@ export class Store {
         if (currentVersion === 13 && SCHEMA_VERSION >= 14) {
             this.migrateFromV13ToV14()
             this.setUserVersion(14)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 14 && SCHEMA_VERSION >= 15) {
+            this.migrateFromV14ToV15()
+            this.setUserVersion(15)
             this.migrateSchema()
             return
         }
@@ -735,6 +748,7 @@ export class Store {
                 ON scheduled_task_runs(status);
         `)
         this.db.exec(MEMORY_SCHEMA_SQL)
+        this.db.exec(GUARD_SCHEMA_SQL)
     }
 
     private migrateLegacySchemaIfNeeded(): void {
@@ -1239,6 +1253,18 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v13->v14 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV14ToV15(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(GUARD_SCHEMA_SQL)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v14->v15 failed: ${message}`)
         }
     }
 

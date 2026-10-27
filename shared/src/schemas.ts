@@ -448,6 +448,15 @@ export const DecryptedMessageSchema = z.object({
 
 export type DecryptedMessage = z.infer<typeof DecryptedMessageSchema>
 
+/** Rule-compliance light of a session: how its latest turns behaved against the user's memories. */
+export const SessionGuardSchema = z.object({
+    status: z.enum(['ok', 'warn', 'alert']),
+    reason: z.string().nullable(),
+    updatedAt: z.number()
+})
+
+export type SessionGuard = z.infer<typeof SessionGuardSchema>
+
 export const SessionSchema = z.object({
     id: z.string(),
     namespace: z.string(),
@@ -466,7 +475,8 @@ export const SessionSchema = z.object({
     todos: TodosSchema.optional(),
     teamState: TeamStateSchema.optional(),
     permissionMode: PermissionModeSchema.optional(),
-    modelMode: ModelModeSchema.optional()
+    modelMode: ModelModeSchema.optional(),
+    guard: SessionGuardSchema.optional()
 })
 
 export type Session = z.infer<typeof SessionSchema>

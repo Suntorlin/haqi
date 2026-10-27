@@ -110,6 +110,23 @@ export type StoredTaskEvent = {
     createdAt: number
 }
 
+/** The compliance light of one session: ok / warn / alert, why, and one strike count per violated memory. */
+export type StoredSessionGuard = {
+    sessionId: string
+    namespace: string
+    status: 'ok' | 'warn' | 'alert'
+    reason: string | null
+    /** The memory behind `reason`, when a rule was violated. */
+    memoryId: string | null
+    strikes: Record<string, number>
+    cleanStreak: number
+    /** The newest message seq a check covered; turns at or below it are not checked again. */
+    checkedEndSeq: number
+    checkedTurns: number
+    costUsd: number
+    updatedAt: number
+}
+
 export type StoredMessageClass = {
     messageId: string
     namespace: string

@@ -307,6 +307,19 @@ function getLivePendingCount(session: SessionSummary): number {
     return session.active ? session.pendingRequestsCount : 0
 }
 
+/** The compliance light, shown only when it is not green: yellow for one violation, red for a repeated one. */
+function FeedGuardStatus(props: { session: SessionSummary }) {
+    const { t } = useTranslation()
+    const guard = props.session.guard
+    if (!guard || guard.status === 'ok') return null
+    const toneClass = guard.status === 'alert' ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'
+    return (
+        <span className={`shrink-0 font-semibold ${toneClass}`}>
+            {t(guard.status === 'alert' ? 'session.guard.alert' : 'session.guard.warn')} ·
+        </span>
+    )
+}
+
 /** The line under a session's title: who waits on it, then project · model · tags, then todo progress. */
 function FeedPreviewStatus(props: { session: SessionSummary; active: boolean; thinking: boolean }) {
     const { t } = useTranslation()
@@ -504,7 +517,12 @@ function SessionItem(props: {
                         title={sessionName}
                         titleClassName={effectiveActive ? 'font-semibold' : undefined}
                         aside={snoozeStatus ?? formatRelativeTime(s.updatedAt, t)}
-                        status={<FeedPreviewStatus session={s} active={effectiveActive} thinking={effectiveThinking} />}
+                        status={(
+                            <>
+                                <FeedGuardStatus session={s} />
+                                <FeedPreviewStatus session={s} active={effectiveActive} thinking={effectiveThinking} />
+                            </>
+                        )}
                         subtitle={feedPreviewText(s)}
                         end={<FeedProgress session={s} />}
                     />

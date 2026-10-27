@@ -9,11 +9,17 @@ export class SessionCache {
     private readonly sessions: Map<string, Session> = new Map()
     private readonly lastBroadcastAtBySessionId: Map<string, number> = new Map()
     private readonly todoBackfillAttemptedSessionIds: Set<string> = new Set()
+    private thinkingEndListener: ((sessionId: string) => void) | null = null
 
     constructor(
         private readonly store: Store,
         private readonly publisher: EventPublisher
     ) {
+    }
+
+    /** Called when a session stops thinking, which is the end of a turn. */
+    setThinkingEndListener(listener: (sessionId: string) => void): void {
+        this.thinkingEndListener = listener
     }
 
     getSessions(): Session[] {
@@ -114,6 +120,8 @@ export class SessionCache {
             return parsed.success ? parsed.data : undefined
         })()
 
+        const storedGuard = this.store.guards.get(sessionId)
+
         const session: Session = {
             id: stored.id,
             namespace: stored.namespace,
@@ -132,7 +140,8 @@ export class SessionCache {
             todos,
             teamState,
             permissionMode: existing?.permissionMode,
-            modelMode: existing?.modelMode
+            modelMode: existing?.modelMode,
+            guard: storedGuard ? { status: storedGuard.status, reason: storedGuard.reason, updatedAt: storedGuard.updatedAt } : undefined
         }
 
         this.sessions.set(sessionId, session)
@@ -203,6 +212,10 @@ export class SessionCache {
                 }
             })
         }
+
+        if (wasThinking && !session.thinking) {
+            this.thinkingEndListener?.(session.id)
+        }
     }
 
     handleSessionEnd(payload: { sid: string; time: number }): void {
@@ -215,11 +228,16 @@ export class SessionCache {
             return
         }
 
+        const wasThinking = session.thinking
         session.active = false
         session.thinking = false
         session.thinkingAt = t
 
         this.publisher.emit({ type: 'session-updated', sessionId: session.id, data: { active: false, thinking: false } })
+
+        if (wasThinking) {
+            this.thinkingEndListener?.(session.id)
+        }
     }
 
     expireInactive(now: number = Date.now()): void {
