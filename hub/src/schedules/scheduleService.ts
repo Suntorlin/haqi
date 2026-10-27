@@ -27,6 +27,10 @@ const LATE_MS = 5 * 60 * 1000
 const IDLE_REMIND_MS = 20 * 60 * 1000
 /** A session that never turned busy did not start working, such as one whose account login failed on its first turn. */
 const NEVER_BUSY_MS = 5 * 60 * 1000
+/** A reported session gets this long to finish its closing message before it is archived. */
+const ARCHIVE_DELAY_MS = 60 * 1000
+/** Still busy this long after its report, a session is in use (a follow-up question); it stays. */
+const ARCHIVE_GIVE_UP_MS = 10 * 60 * 1000
 export const SCHEDULE_TICK_MS = 30_000
 /** How the host's start note begins when the run had to move past an account. */
 export const ACCOUNT_NOTE = '换过账号'
@@ -97,12 +101,16 @@ function formatTime(at: number, timezone: string): string {
  * - A run never starts while the task's previous run is still open; that time is recorded as skipped.
  * - A run ends when its session calls scheduled_run_done. A session that stops without it, or runs past the task's
  *   limit, fails the run. Every failure raises an alert.
+ * - A run that reports success or skipped is archived once its session goes idle, so finished runs do not pile up
+ *   in the chat list. A failed run's session stays, for inspection.
  * - When a new run starts, the previous run's session is stopped if it is idle, so a task keeps one live session.
  */
 export class ScheduleService {
     private readonly firing = new Set<string>()
     /** Runs the user was already told may be stuck. */
     private readonly reminded = new Set<string>()
+    /** Sessions whose run reported, waiting to be archived once idle. Lost on a restart; retire() covers those. */
+    private readonly retiring = new Map<string, { namespace: string; at: number }>()
 
     constructor(private readonly store: Store, private readonly host: ScheduleHost) {}
 
@@ -209,6 +217,7 @@ export class ScheduleService {
             finishedAt: this.now()
         })
         const done = this.store.schedules.getRun(run.id) ?? run
+        if (!failed) this.retiring.set(input.sessionId, { namespace, at: this.now() })
         this.announce(done, corrected)
         return publicRun(done)
     }
@@ -336,6 +345,24 @@ export class ScheduleService {
         }
     }
 
+    /** Archives a reported session once it sits idle, having let it finish its closing message first. */
+    private async archiveReported(now: number): Promise<void> {
+        for (const [sessionId, entry] of this.retiring) {
+            if (now - entry.at < ARCHIVE_DELAY_MS) continue
+            const state = this.host.session(entry.namespace, sessionId)
+            if (!state?.active) {
+                this.retiring.delete(sessionId)
+                continue
+            }
+            if (state.thinking || state.pendingRequests > 0) {
+                if (now - entry.at > ARCHIVE_GIVE_UP_MS) this.retiring.delete(sessionId)
+                continue
+            }
+            this.retiring.delete(sessionId)
+            await this.host.archive(sessionId).catch(() => {})
+        }
+    }
+
     /** Stops the previous run's session when nobody is using it. */
     private async retire(namespace: string, previous: StoredScheduledRun | null): Promise<void> {
         if (!previous?.sessionId) return
@@ -349,6 +376,7 @@ export class ScheduleService {
      * is gone, has ended, or sits idle after working without having reported.
      */
     private async observe(now: number): Promise<void> {
+        await this.archiveReported(now)
         for (const run of this.store.schedules.openRuns()) {
             if (this.firing.has(run.scheduleId) || !run.sessionId) continue
             const schedule = this.store.schedules.get(run.namespace, run.scheduleId)

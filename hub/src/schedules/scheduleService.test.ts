@@ -202,6 +202,48 @@ describe('ScheduleService', () => {
         expect(h.alerts.at(-1)).toMatchObject({ everywhere: true })
     })
 
+    it('archives a reported session once it goes idle, but not while it still writes its closing message', async () => {
+        const h = harness(tokyo('2026-10-25T09:00:00'))
+        const task = h.service.create('default', { ...BASE, spec: { kind: 'manual' } })
+        await h.service.runNow('default', task.id)
+        h.service.reportDone('default', { sessionId: 's1', status: 'success', summary: 'sent' })
+
+        // Right after the report, and while still writing: it stays.
+        h.sessions.set('s1', { active: true, thinking: true, pendingRequests: 0 })
+        h.setNow(tokyo('2026-10-25T09:02:00'))
+        await h.service.tick()
+        expect(h.archived).not.toContain('s1')
+
+        // Idle now: archived.
+        h.sessions.set('s1', { active: true, thinking: false, pendingRequests: 0 })
+        h.setNow(tokyo('2026-10-25T09:02:30'))
+        await h.service.tick()
+        expect(h.archived).toContain('s1')
+    })
+
+    it('leaves a session alone when it stays busy long after its report, or when the run failed', async () => {
+        const h = harness(tokyo('2026-10-25T09:00:00'))
+        const task = h.service.create('default', { ...BASE, spec: { kind: 'manual' } })
+
+        // Busy past the give-up time (a follow-up question): auto-archive is off for good.
+        await h.service.runNow('default', task.id)
+        h.service.reportDone('default', { sessionId: 's1', status: 'success', summary: 'sent' })
+        h.sessions.set('s1', { active: true, thinking: true, pendingRequests: 0 })
+        h.setNow(tokyo('2026-10-25T09:11:00'))
+        await h.service.tick()
+        h.sessions.set('s1', { active: true, thinking: false, pendingRequests: 0 })
+        h.setNow(tokyo('2026-10-25T09:12:00'))
+        await h.service.tick()
+        expect(h.archived).not.toContain('s1')
+
+        // A failed run's session stays, for inspection.
+        await h.service.runNow('default', task.id)
+        h.service.reportDone('default', { sessionId: 's2', status: 'failed', summary: 'database down' })
+        h.setNow(tokyo('2026-10-25T09:20:00'))
+        await h.service.tick()
+        expect(h.archived).not.toContain('s2')
+    })
+
     it('fails a session that never starts working as no_start', async () => {
         const h = harness(tokyo('2026-10-25T09:00:00'))
         const task = h.service.create('default', { ...BASE, spec: { kind: 'manual' } })
