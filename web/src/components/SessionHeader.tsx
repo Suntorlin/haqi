@@ -28,6 +28,7 @@ import {
     FileIcon,
     GlobeIcon,
     MoreHorizontalIcon,
+    ShieldAlertIcon,
     PencilIcon,
     PlugIcon as PlugOutlineIcon,
     TerminalIcon,
@@ -311,8 +312,12 @@ export function SessionHeader(props: {
         <>
             <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
             <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
+            {guard ? (
+                <span role="img" aria-label={guardLabel ?? undefined} className={cn('shrink-0', guardToneClass)}>
+                    <ShieldAlertIcon className="h-[13px] w-[13px]" />
+                </span>
+            ) : null}
             <FitLine className="flex-1" text={<>
-                {guardLabel ? <span className={guardToneClass}>{`· ${guardLabel} `}</span> : null}
                 {/* A context about to run out comes first: the line is cut at its end. */}
                 {contextPercentLeft !== null && contextPercentLeft <= 20 ? (
                     <span className={contextPercentLeft <= 5 ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'}>

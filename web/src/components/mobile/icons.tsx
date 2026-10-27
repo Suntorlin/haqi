@@ -422,6 +422,17 @@ export function ShieldCheckIcon(props: IconProps) {
     )
 }
 
+/** The compliance light: a shield with an exclamation mark, tinted by status. */
+export function ShieldAlertIcon(props: IconProps) {
+    return (
+        <Svg {...props} strokeWidth={1.8}>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            <line x1="12" y1="8" x2="12" y2="12.5" />
+            <circle cx="12" cy="15.5" r=".6" fill="currentColor" />
+        </Svg>
+    )
+}
+
 /** Microphone; `muted` adds the slash used by mute toggles. */
 export function MicIcon(props: IconProps & { muted?: boolean }) {
     return (

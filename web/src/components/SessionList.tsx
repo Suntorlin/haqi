@@ -31,7 +31,7 @@ import { SessionTagsDialog } from '@/components/SessionTagsDialog'
 import { SessionTaskSheet } from '@/components/SessionTaskSheet'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { IconButton } from '@/components/ui/IconButton'
-import { BulbIcon, DisclosureIcon, GripIcon, PlusIcon } from '@/components/mobile/icons'
+import { BulbIcon, DisclosureIcon, GripIcon, PlusIcon, ShieldAlertIcon } from '@/components/mobile/icons'
 import { useProjectOfflineDirectories } from '@/hooks/useProjectOfflineDirectories'
 import { useProjectQuickCreate } from '@/hooks/useProjectQuickCreate'
 import { useSessionQuickArchive } from '@/hooks/useSessionQuickArchive'
@@ -307,15 +307,15 @@ function getLivePendingCount(session: SessionSummary): number {
     return session.active ? session.pendingRequestsCount : 0
 }
 
-/** The compliance light, shown only when it is not green: yellow for one violation, red for a repeated one. */
+/** The compliance light, shown only when it is not green: one tinted shield, no words (the reason sits in the session info sheet). */
 function FeedGuardStatus(props: { session: SessionSummary }) {
     const { t } = useTranslation()
     const guard = props.session.guard
     if (!guard || guard.status === 'ok') return null
     const toneClass = guard.status === 'alert' ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'
     return (
-        <span className={`shrink-0 font-semibold ${toneClass}`}>
-            {t(guard.status === 'alert' ? 'session.guard.alert' : 'session.guard.warn')} ·
+        <span role="img" aria-label={t(guard.status === 'alert' ? 'session.guard.alert' : 'session.guard.warn')} className={`shrink-0 ${toneClass}`}>
+            <ShieldAlertIcon className="h-[15px] w-[15px]" />
         </span>
     )
 }
