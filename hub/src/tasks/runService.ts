@@ -40,8 +40,8 @@ export type RunHost = {
     /** Starts a stopped session again with its history; returns its id now (a resume can change it), or null. */
     resume?: (namespace: string, sessionId: string) => Promise<string | null>
     session: (namespace: string, sessionId: string) => RunSession | null
-    /** When the session last wrote, and the shell commands it ran after `since`. */
-    activity: (sessionId: string, since: number) => { lastMessageAt: number; commands: string[]; lastStep?: string | null }
+    /** When the session last wrote, the shell commands it ran after `since`, and a quota refusal as its latest reply. */
+    activity: (sessionId: string, since: number) => { lastMessageAt: number; commands: string[]; lastStep?: string | null; quota?: { text: string; at: number } | null }
     stopSession: (namespace: string, sessionId: string) => Promise<void>
     /** Grants a permission request on the user's behalf (only read-only requests are). */
     approve: (sessionId: string, requestId: string) => Promise<void>
@@ -712,7 +712,8 @@ export class RunService {
                     thinking: session.thinking,
                     lastMessageAt: Math.max(activity.lastMessageAt, subtask.startedAt ?? 0),
                     pendingRequests: session.pendingRequests,
-                    newCommands: activity.commands
+                    newCommands: activity.commands,
+                    quota: activity.quota ?? null
                 })
                 const request = session.pendingRequests[0]
                 this.live.set(subtask.sessionId, {

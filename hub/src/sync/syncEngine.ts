@@ -620,14 +620,7 @@ export class SyncEngine {
         })
         this.taskService = new TaskService(store, this.memoryService, {
             planner: {
-                spawnAndPrompt: async (input) => {
-                    const task = this.taskSpawn(input.meta, input.machineId)
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, task.options({}), task.prompt(input))
-                    if (result.type === 'error') return { error: result.message }
-                    await this.renameSession(result.sessionId, input.name).catch(() => {})
-                    await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
-                    return { sessionId: result.sessionId }
-                },
+                spawnAndPrompt: (input) => this.spawnTaskSession(input, {}),
                 send: async (sessionId, text, meta) => {
                     if (!this.getSession(sessionId)?.active) return false
                     await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta })
@@ -650,24 +643,10 @@ export class SyncEngine {
             files: new TaskFiles(() => join(configuration.dataDir, 'task-files')),
             stopSession: async (_namespace, sessionId) => { await this.archiveSession(sessionId) },
             run: {
-                spawnWorker: async (input) => {
-                    const task = this.taskSpawn(input.meta, input.machineId)
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, task.options({
-                        yolo: true, sessionType: input.worktreeName ? 'worktree' : 'simple', worktreeName: input.worktreeName
-                    }), task.prompt(input))
-                    if (result.type === 'error') return { error: result.message }
-                    await this.renameSession(result.sessionId, input.name).catch(() => {})
-                    await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
-                    return { sessionId: result.sessionId }
-                },
-                spawnLead: async (input) => {
-                    const task = this.taskSpawn(input.meta, input.machineId)
-                    const result = await this.spawnAndPrompt(input.machineId, input.directory, task.options({}), task.prompt(input))
-                    if (result.type === 'error') return { error: result.message }
-                    await this.renameSession(result.sessionId, input.name).catch(() => {})
-                    await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
-                    return { sessionId: result.sessionId }
-                },
+                spawnWorker: (input) => this.spawnTaskSession(input, {
+                    yolo: true, sessionType: input.worktreeName ? 'worktree' : 'simple', worktreeName: input.worktreeName
+                }),
+                spawnLead: (input) => this.spawnTaskSession(input, {}),
                 send: async (sessionId, text, meta) => {
                     if (!this.getSession(sessionId)?.active) return false
                     await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta })
@@ -2825,6 +2804,22 @@ ${note.content}
      * What a session started for a task gets from the task: its files, and its default settings (model, thinking,
      * permission). Without settings the sessions start as before: medium thinking, the caller's own permission.
      */
+    /**
+     * Starts a task session (guide, lead, executor, merge, review, fix) on the machine's account pool, so a quota
+     * refusal moves it to the next account instead of leaving the subtask stuck on a spent one.
+     */
+    private async spawnTaskSession(
+        input: { machineId: string; directory: string; name: string; tags: string[]; text: string; meta: Record<string, unknown> },
+        base: { yolo?: boolean; sessionType?: 'simple' | 'worktree'; worktreeName?: string }
+    ): Promise<{ sessionId: string } | { error: string }> {
+        const task = this.taskSpawn(input.meta, input.machineId)
+        const result = await this.spawnOnAccountPool(input.machineId, input.directory, task.options(base), task.prompt(input), null)
+        if (result.type === 'error') return { error: result.message }
+        await this.renameSession(result.sessionId, input.name).catch(() => {})
+        await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
+        return { sessionId: result.sessionId }
+    }
+
     private taskSpawn(meta: Record<string, unknown>, machineId: string) {
         const owner = (meta.taskGuide ?? meta.taskWork) as { taskId?: unknown } | undefined
         const taskId = typeof owner?.taskId === 'string' ? owner.taskId : null
@@ -2844,27 +2839,47 @@ ${note.content}
         }
     }
 
-    /**
-     * Starts a scheduled run's session. For Claude on a machine with an account pool it tries the default account,
-     * then the other enabled accounts of the same trust group, and moves on when an account is logged out (checked
-     * before the start, or refused by the runner) or its session does not come up.
-     */
+    /** Starts a scheduled run's session on the machine's account pool (see `spawnOnAccountPool`). */
     private async spawnScheduledRun(input: ScheduleSpawnInput): Promise<ScheduleSpawnResult> {
         const yolo = input.permissionMode === 'bypassPermissions' || input.permissionMode === 'yolo'
-        const options = {
+        const result = await this.spawnOnAccountPool(input.machineId, input.directory, {
             agent: input.agent,
             ...(input.model ? { model: input.model } : {}),
             ...(input.thinkEffort ? { thinkEffort: input.thinkEffort as 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh' } : {}),
             yolo,
             sessionType: input.worktree ? 'worktree' as const : 'simple' as const,
             ...(input.worktree ? { worktreeName: `scheduled-${Date.now().toString(36)}` } : {})
-        }
-        const prompt = {
+        }, {
             text: input.text,
             meta: input.meta,
             ...(input.permissionMode ? { permissionMode: input.permissionMode as PermissionMode } : {})
+        }, input.accountId)
+        if (result.type === 'error') return { error: result.message, attempts: result.attempts }
+        await this.renameSession(result.sessionId, input.name).catch(() => {})
+        const tags = this.getSession(result.sessionId)?.metadata?.tags ?? []
+        if (!tags.includes('scheduled')) await this.setSessionTags(result.sessionId, [...tags, 'scheduled']).catch(() => {})
+        return {
+            sessionId: result.sessionId,
+            accountId: result.accountId,
+            attempts: result.attempts,
+            note: result.notes.length > 0 ? `${ACCOUNT_NOTE}：${result.notes.join('；')}` : null
         }
-        const pool = input.agent === 'claude' ? await this.scheduledAccountOrder(input.machineId, input.accountId) : null
+    }
+
+    /**
+     * Starts a session and sends its first prompt. For Claude on a machine with an account pool it tries the preferred
+     * account (or the pool's default), then the other enabled accounts of the same trust group, and moves on when an
+     * account is logged out (checked before the start, or refused by the runner) or its session does not come up.
+     * The session runs under the pool's auto-switch, so a quota refusal mid-run moves it to the next account.
+     */
+    private async spawnOnAccountPool(
+        machineId: string,
+        directory: string,
+        options: Omit<Parameters<SyncEngine['spawnAndPrompt']>[2], 'claudeAccount'>,
+        prompt: Parameters<SyncEngine['spawnAndPrompt']>[3],
+        preferred: string | null
+    ): Promise<{ type: 'success'; sessionId: string; accountId: string | null; attempts: number; notes: string[] } | { type: 'error'; message: string; attempts: number }> {
+        const pool = (options.agent ?? 'claude') === 'claude' ? await this.accountPoolOrder(machineId, preferred) : null
         const candidates: Array<{ id: string; automatic: boolean } | null> = pool && pool.ids.length > 0
             ? pool.ids.map((id) => ({ id, automatic: pool.autoSwitch }))
             : [null]
@@ -2872,7 +2887,7 @@ ${note.content}
         let attempts = 0
         for (const candidate of candidates) {
             if (candidate) {
-                const check = await this.claudeAccounts(input.machineId, 'check', { id: candidate.id }).catch((error: unknown) => ({ error: String(error) }))
+                const check = await this.claudeAccounts(machineId, 'check', { id: candidate.id }).catch((error: unknown) => ({ error: String(error) }))
                 const checkError = (check as { error?: unknown } | null)?.error
                 if (typeof checkError === 'string') {
                     notes.push(`${candidate.id}: ${checkError}`)
@@ -2880,33 +2895,25 @@ ${note.content}
                 }
             }
             attempts += 1
-            const result = await this.spawnAndPrompt(input.machineId, input.directory, {
+            const result = await this.spawnAndPrompt(machineId, directory, {
                 ...options,
                 ...(candidate ? { claudeAccount: { accountId: candidate.id, automatic: candidate.automatic } } : {})
             }, prompt)
             if (result.type === 'success') {
-                await this.renameSession(result.sessionId, input.name).catch(() => {})
-                const tags = this.getSession(result.sessionId)?.metadata?.tags ?? []
-                if (!tags.includes('scheduled')) await this.setSessionTags(result.sessionId, [...tags, 'scheduled']).catch(() => {})
                 const accountId = this.getSession(result.sessionId)?.metadata?.claudeAccount?.id ?? candidate?.id ?? null
-                return {
-                    sessionId: result.sessionId,
-                    accountId,
-                    attempts,
-                    note: notes.length > 0 ? `${ACCOUNT_NOTE}：${notes.join('；')}` : null
-                }
+                return { type: 'success', sessionId: result.sessionId, accountId, attempts, notes }
             }
             notes.push(`${candidate?.id ?? '默认账号'}: ${result.message}`)
             if (!candidate || !isAccountStartFailure(result.message)) break
         }
-        return { error: notes.join('；') || '没有可用的账号', attempts }
+        return { type: 'error', message: notes.join('；') || '没有可用的账号', attempts }
     }
 
     /**
      * The account pool's start order: the task's own account (or the pool's default), then the other enabled accounts
      * of its trust group. Null without a pool.
      */
-    private async scheduledAccountOrder(machineId: string, preferred: string | null): Promise<{ ids: string[]; autoSwitch: boolean } | null> {
+    private async accountPoolOrder(machineId: string, preferred: string | null): Promise<{ ids: string[]; autoSwitch: boolean } | null> {
         const reply = await this.claudeAccounts(machineId, 'get').catch(() => null) as { pool?: unknown } | null
         const parsed = ClaudeAccountPoolSchema.safeParse(reply?.pool)
         if (!parsed.success || parsed.data.profiles.length === 0) return null

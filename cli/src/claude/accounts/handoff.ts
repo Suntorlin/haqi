@@ -1,3 +1,4 @@
+import { claudeQuotaRefusal } from '@hapi/protocol';
 import type { SDKMessage } from '../sdk';
 import type { AccountProfile, AccountsConfig } from './profiles';
 
@@ -22,10 +23,12 @@ export class AccountHandoff {
     }
 
     observe(message: SDKMessage): void {
-        const event = message as unknown as { type: string; rate_limit_info?: { status?: string; rateLimitType?: string; isUsingOverage?: boolean } };
+        const event = message as unknown as { type: string; message?: unknown; rate_limit_info?: { status?: string; rateLimitType?: string; isUsingOverage?: boolean } };
         const info = event.rate_limit_info;
-        if (event.type === 'rate_limit_event' && info?.status === 'rejected' && !info.isUsingOverage &&
-            ['five_hour', 'seven_day', 'seven_day_opus', 'seven_day_sonnet'].includes(info.rateLimitType ?? '')) {
+        const rejected = event.type === 'rate_limit_event' && info?.status === 'rejected' && !info.isUsingOverage &&
+            ['five_hour', 'seven_day', 'seven_day_opus', 'seven_day_sonnet'].includes(info.rateLimitType ?? '');
+        // The refused turn's synthetic reply also comes when no rejected rate_limit_event does.
+        if (rejected || (event.type === 'assistant' && claudeQuotaRefusal(event.message))) {
             this.quotaRejected = true;
             this.exhausted.add(this.current.id);
         }

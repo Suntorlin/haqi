@@ -32,6 +32,17 @@ describe('Claude 账号自动切换', () => {
         expect(handoff.automaticTarget()?.id).toBe('b');
     });
 
+    it('没有限额事件时，额度拒绝的合成回复也触发切换', () => {
+        const handoff = new AccountHandoff(config);
+        const reply = (text: string, model = '<synthetic>') => ({ type: 'assistant', message: { model, role: 'assistant', content: [{ type: 'text', text }] } } as unknown as SDKMessage);
+        handoff.observe(reply('Approaching usage limit · resets at 4pm'));
+        handoff.observe(reply("You've hit your weekly limit · resets Oct 31 at 4pm", 'claude-opus-5-5'));
+        expect(handoff.waitingForQuota).toBe(false);
+        handoff.observe(reply("You've hit your weekly limit · resets Oct 31 at 4pm (Asia/Tokyo)"));
+        expect(handoff.waitingForQuota).toBe(true);
+        expect(handoff.automaticTarget()?.id).toBe('b');
+    });
+
     it('付费兜底中的限额事件不触发切换', () => {
         const handoff = new AccountHandoff(config);
         handoff.observe({ type: 'rate_limit_event', rate_limit_info: { status: 'rejected', rateLimitType: 'five_hour', isUsingOverage: true } } as unknown as SDKMessage);
