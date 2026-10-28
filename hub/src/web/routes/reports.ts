@@ -307,6 +307,15 @@ export function createReportsRoutes(options: {
         return c.json(await service.candidates(c.get('namespace'), sessionId))
     })
 
+    app.post('/handoff/:reportId/export', async (c) => {
+        const service = options.getHandoffService?.()
+        if (!service) return c.json({ error: 'Handoff export is not available' }, 503)
+        const report = options.store.reports.getReportByNamespace(c.req.param('reportId'), c.get('namespace'))
+        if (!report) return c.json({ error: 'Report not found' }, 404)
+        await service.process(report.id, Date.now(), { force: true })
+        return c.json({ handoff: await service.check(report), export: options.store.handoffs.get(report.id) })
+    })
+
     app.get('/reports', (c) => {
         const namespace = c.get('namespace')
         const parsed = listReportsQuerySchema.safeParse(c.req.query())

@@ -132,11 +132,12 @@ export class HandoffService {
         return { enabled: true, ...folder, candidates, summaryMissing: !meta.summary }
     }
 
-    async process(reportId: string, now = Date.now()): Promise<void> {
+    /** `force` copies now: no waiting for the session to go quiet, no asking it to update first. */
+    async process(reportId: string, now = Date.now(), options: { force?: boolean } = {}): Promise<void> {
         if (this.running.has(reportId)) return
         this.running.add(reportId)
         try {
-            await this.processReport(reportId, now)
+            await this.processReport(reportId, now, options.force ?? false)
         } finally {
             this.running.delete(reportId)
         }
@@ -182,7 +183,7 @@ export class HandoffService {
         return [...seen]
     }
 
-    private async processReport(reportId: string, now: number): Promise<void> {
+    private async processReport(reportId: string, now: number, force: boolean): Promise<void> {
         const report = this.store.reports.getReport(reportId)
         const meta = report ? readHandoffMeta(report.metadata) : null
         if (!report || !meta) return
@@ -190,7 +191,7 @@ export class HandoffService {
         if (!config) return
 
         const session = report.sessionId ? this.host.session(report.sessionId) : null
-        if (session?.active && session.thinking) return
+        if (session?.active && session.thinking && !force) return
         const project = this.projectOf(report.sessionId)
         const previous = this.store.handoffs.get(reportId)
         const row: StoredHandoffExport = previous ?? {
@@ -221,7 +222,7 @@ export class HandoffService {
         const folder = chosen.folder ?? kept ?? history
         const inbox = !folder
 
-        if (session?.active && row.nudgedVersion !== report.updatedAt) {
+        if (session?.active && !force && row.nudgedVersion !== report.updatedAt) {
             const candidates = inbox ? await this.listCandidates(config, report.namespace, project) : []
             // Folder and summary are asked for once; being out of date is asked again for each new version.
             const firstAsk = row.nudgedVersion === null
