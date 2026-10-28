@@ -27,6 +27,8 @@ import {
     memorySearchInputSchema,
     reportAddAssetInputSchema,
     reportCreateInputSchema,
+    handoffFoldersInputSchema,
+    HANDOFF_FOLDERS_DESCRIPTION,
     reportCreateShareInputSchema,
     reportGetInputSchema,
     reportListInputSchema,
@@ -142,6 +144,23 @@ export async function startHappyServer(client: ApiSessionClient) {
         isError: false
     });
 
+    /** What happens to a handoff report, in words the agent acts on. */
+    const handoffLine = (payload: JsonObject): string => {
+        const handoff = payload.handoff as JsonObject | null | undefined;
+        if (!handoff) return '';
+        if (handoff.enabled === false) return '\nHandoff: the notes export is off on this hub. Nothing is copied.';
+        if (typeof handoff.problem === 'string' && handoff.problem) {
+            const choices = Array.isArray(handoff.candidates) ? handoff.candidates.map(String).slice(0, 12).join('; ') : '';
+            return `\nHandoff: ${handoff.problem} Set handoff.folder with report_update.${choices ? ` Choices: ${choices}` : ''}`;
+        }
+        const summary = handoff.summaryMissing ? ' Add handoff.summary (the one-line index entry).' : '';
+        return `\nHandoff: after the session ends, HAQI copies this report to "${String(handoff.folder)}" and lists it in the notes index.${summary}`;
+    };
+
+    const toHandoffBody = (handoff: { folder?: string; summary?: string; short_title?: string } | undefined) => handoff
+        ? { folder: handoff.folder, summary: handoff.summary, shortTitle: handoff.short_title }
+        : undefined;
+
     const buildToolError = (label: string, error: unknown) => ({
         content: [
             {
@@ -248,6 +267,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         markdown?: string
         html_path?: string
         metadata?: unknown
+        handoff?: { folder?: string; summary?: string; short_title?: string }
         share_expires_in_hours?: number
     }) => {
         try {
@@ -261,15 +281,16 @@ export async function startHappyServer(client: ApiSessionClient) {
                     markdown: args.markdown,
                     html: await readHtmlPage(args.html_path),
                     metadata: args.metadata,
+                    handoff: toHandoffBody(args.handoff),
                     createShare: true,
                     shareExpiresInHours: args.share_expires_in_hours
                 })
             });
             const report = payload.report as JsonObject | undefined;
             const shareUrl = typeof report?.publicShareUrl === 'string' ? report.publicShareUrl : null;
-            const summary = shareUrl
+            const summary = (shareUrl
                 ? `Report created. Public share: ${shareUrl}`
-                : 'Report created.';
+                : 'Report created.') + handoffLine(payload);
             return buildToolResult(payload, summary);
         } catch (error) {
             return buildToolError('Failed to create report', error);
@@ -323,6 +344,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         markdown?: string
         html_path?: string
         metadata?: unknown
+        handoff?: { folder?: string; summary?: string; short_title?: string }
     }) => {
         try {
             const payload = await requestHubJson(`/api/reports/${encodeURIComponent(args.report_id)}`, {
@@ -333,12 +355,33 @@ export async function startHappyServer(client: ApiSessionClient) {
                     status: args.status,
                     markdown: args.markdown,
                     html: args.html_path === '' ? '' : await readHtmlPage(args.html_path),
-                    metadata: args.metadata
+                    metadata: args.metadata,
+                    handoff: toHandoffBody(args.handoff)
                 })
             });
-            return buildToolResult(payload, `Report updated: ${args.report_id}`);
+            return buildToolResult(payload, `Report updated: ${args.report_id}${handoffLine(payload)}`);
         } catch (error) {
             return buildToolError(`Failed to update report ${args.report_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('handoff_folders', {
+        description: HANDOFF_FOLDERS_DESCRIPTION,
+        title: 'Handoff Folders',
+        inputSchema: handoffFoldersInputSchema
+    }, async () => {
+        try {
+            const payload = await requestHubJson(`/api/handoff/folders?sessionId=${encodeURIComponent(client.sessionId)}`);
+            if (payload.enabled === false) {
+                return { content: [{ type: 'text' as const, text: 'The notes export is off on this hub. Nothing is copied.' }], isError: false };
+            }
+            const folders = Array.isArray(payload.candidates) ? payload.candidates.map(String) : [];
+            const text = folders.length > 0
+                ? `Folders (relative to the notes root), most used first:\n${folders.map((folder) => `- ${folder}`).join('\n')}`
+                : 'No folder found yet. Ask the user where handoffs of this project go.';
+            return { content: [{ type: 'text' as const, text }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to list handoff folders', error);
         }
     });
 
@@ -728,6 +771,7 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_list',
             'report_add_asset',
             'report_create_share',
+            'handoff_folders',
             'task_draft_submit',
             'task_plan_submit',
             'subtask_done',

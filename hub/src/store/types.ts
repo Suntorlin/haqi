@@ -127,6 +127,32 @@ export type StoredSessionGuard = {
     updatedAt: number
 }
 
+/** The notes copy of one handoff report: where it was written, what was written, and the retry state. */
+export type StoredHandoffExport = {
+    reportId: string
+    namespace: string
+    sessionId: string | null
+    project: string | null
+    /** Folder under the notes root, relative, with `/` separators. */
+    folder: string | null
+    /** File under the notes root, relative, with the `.md` ending. */
+    filePath: string | null
+    /** Hash of the last rendered copy; equal means nothing new to write. */
+    renderedHash: string | null
+    /** Hash of the file as last written; a different file on disk means the user edited it. */
+    writtenHash: string | null
+    /** own: the file is rewritten; append: the user edited it, so updates go to its end. */
+    mode: 'own' | 'append'
+    status: 'pending' | 'ok' | 'failed' | 'empty'
+    attempts: number
+    nextAt: number | null
+    lastError: string | null
+    /** The report version (updatedAt) the session was last asked to bring up to date. */
+    nudgedVersion: number | null
+    exportedAt: number | null
+    updatedAt: number
+}
+
 export type StoredMessageClass = {
     messageId: string
     namespace: string

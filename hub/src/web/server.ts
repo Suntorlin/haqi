@@ -157,7 +157,8 @@ function createWebApp(options: {
             reportPublicBaseUrlState.value = settings
         },
         dataDir: options.dataDir,
-        fallbackPublicUrl: options.fallbackPublicUrl
+        fallbackPublicUrl: options.fallbackPublicUrl,
+        getHandoffService: () => options.getSyncEngine()?.getHandoffService() ?? null
     }))
 
     app.route('/', createPublicReportsRoutes({

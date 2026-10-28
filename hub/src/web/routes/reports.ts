@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
 import type { Store, StoredReport, StoredReportAsset, StoredReportShare } from '../../store'
+import type { HandoffService } from '../../handoff/handoffService'
 import type { WebAppEnv } from '../middleware/auth'
 import {
     saveReportPublicBaseUrlSetting,
@@ -21,6 +22,13 @@ const listReportsQuerySchema = z.object({
     sessionId: z.string().min(1).max(255).optional()
 })
 
+/** Marks a report as a handoff: the hub copies it into the user's notes folder after the session ends. */
+const handoffSchema = z.object({
+    folder: z.string().trim().min(1).max(500).optional(),
+    summary: z.string().trim().min(1).max(600).optional(),
+    shortTitle: z.string().trim().min(1).max(60).optional()
+})
+
 const createReportSchema = z.object({
     sessionId: z.string().min(1).max(255).optional().nullable(),
     taskId: z.string().min(1).max(120).optional().nullable(),
@@ -29,6 +37,7 @@ const createReportSchema = z.object({
     markdown: z.string().max(MAX_MARKDOWN_CHARS).optional(),
     html: z.string().max(MAX_PAGE_CHARS).optional(),
     metadata: z.unknown().optional(),
+    handoff: handoffSchema.optional(),
     createShare: z.boolean().optional(),
     shareExpiresInHours: z.number().positive().max(24 * 365).optional()
 })
@@ -39,7 +48,8 @@ const updateReportSchema = z.object({
     status: z.string().trim().min(1).max(40).optional(),
     markdown: z.string().max(MAX_MARKDOWN_CHARS).optional(),
     html: z.string().max(MAX_PAGE_CHARS).optional(),
-    metadata: z.unknown().optional()
+    metadata: z.unknown().optional(),
+    handoff: handoffSchema.optional()
 })
 
 const createAssetSchema = z.object({
@@ -73,6 +83,14 @@ const createShareSchema = z.object({
 const updateReportDomainSchema = z.object({
     domain: z.string().trim().min(1).max(2048).nullable()
 })
+
+/** The metadata with the handoff fields laid over its existing `handoff` part. */
+function withHandoff(metadata: unknown, handoff: z.infer<typeof handoffSchema> | undefined): unknown {
+    if (!handoff) return metadata
+    const base = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata as Record<string, unknown> : {}
+    const current = base.handoff && typeof base.handoff === 'object' ? base.handoff as Record<string, unknown> : {}
+    return { ...base, handoff: { ...current, ...handoff } }
+}
 
 function estimateBase64Bytes(base64: string): number {
     const trimmed = base64.trim()
@@ -242,6 +260,7 @@ export function createReportsRoutes(options: {
     setReportPublicBaseUrl: (settings: ReportPublicBaseUrlSettings) => void
     dataDir: string
     fallbackPublicUrl: string
+    getHandoffService?: () => HandoffService | null
 }): Hono<WebAppEnv> {
     const app = new Hono<WebAppEnv>()
 
@@ -279,6 +298,13 @@ export function createReportsRoutes(options: {
             const message = error instanceof Error ? error.message : 'Failed to update report domain'
             return c.json({ error: message }, 400)
         }
+    })
+
+    app.get('/handoff/folders', async (c) => {
+        const service = options.getHandoffService?.()
+        if (!service) return c.json({ enabled: false, candidates: [] })
+        const sessionId = c.req.query('sessionId')?.trim() || null
+        return c.json(await service.candidates(c.get('namespace'), sessionId))
     })
 
     app.get('/reports', (c) => {
@@ -325,7 +351,7 @@ export function createReportsRoutes(options: {
             title: parsed.data.title ?? null,
             status: parsed.data.status ?? null,
             markdown: parsed.data.markdown ?? '',
-            metadata: parsed.data.metadata
+            metadata: withHandoff(parsed.data.metadata, parsed.data.handoff)
         })
         if (parsed.data.html) options.store.reports.setPage(report.id, namespace, parsed.data.html)
 
@@ -340,7 +366,8 @@ export function createReportsRoutes(options: {
 
         const assets = options.store.reports.listAssetsByNamespace(report.id, namespace)
         const shares = options.store.reports.listSharesByNamespace(report.id, namespace, { includeRevoked: true })
-        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)) }, 201)
+        const handoff = await options.getHandoffService?.()?.check(report) ?? null
+        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)), handoff }, 201)
     })
 
     app.get('/reports/:id', (c) => {
@@ -367,6 +394,7 @@ export function createReportsRoutes(options: {
             return c.json({ error: 'Invalid body' }, 400)
         }
 
+        const existing = parsed.data.handoff ? options.store.reports.getReportByNamespace(reportId, namespace) : null
         const report = options.store.reports.updateReport({
             id: reportId,
             namespace,
@@ -374,7 +402,9 @@ export function createReportsRoutes(options: {
             title: parsed.data.title,
             status: parsed.data.status,
             markdown: parsed.data.markdown,
-            metadata: parsed.data.metadata
+            metadata: parsed.data.handoff
+                ? withHandoff(parsed.data.metadata !== undefined ? parsed.data.metadata : existing?.metadata, parsed.data.handoff)
+                : parsed.data.metadata
         })
 
         if (!report) {
@@ -385,7 +415,8 @@ export function createReportsRoutes(options: {
 
         const assets = options.store.reports.listAssetsByNamespace(report.id, namespace)
         const shares = options.store.reports.listSharesByNamespace(report.id, namespace, { includeRevoked: true })
-        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)) })
+        const handoff = await options.getHandoffService?.()?.check(report) ?? null
+        return c.json({ report: toApiReport(report, assets, shares, c.req.url, resolvePublicBaseUrl(), options.store.reports.hasPage(report.id)), handoff })
     })
 
     app.post('/reports/:id/assets', async (c) => {

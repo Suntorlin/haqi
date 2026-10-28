@@ -47,6 +47,9 @@ import { ACCOUNT_NOTE, SCHEDULE_TICK_MS, ScheduleService, type ScheduleAlert, ty
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
 import { GuardService } from '../guard/guardService'
+import { HandoffService } from '../handoff/handoffService'
+import { loadNotesConfig } from '../handoff/notesConfig'
+import { projectNameFor } from '../memory/harvest'
 import { sessionActivity } from '../tasks/sessionActivity'
 import { resolveJevApiKey } from '../memory/jev'
 import { configuration } from '../configuration'
@@ -499,6 +502,7 @@ export class SyncEngine {
     private readonly taskService: TaskService
     private readonly loadService: LoadService
     private readonly guardService: GuardService
+    private readonly handoffService: HandoffService
     private memoryNotifier: ((namespace: string, notice: MemoryNotice) => Promise<void>) | null = null
     private pushNotifier: ((namespace: string, notice: { title: string; body: string; url: string; tag: string }) => Promise<void>) | null = null
     private reportShareBase: string | null = null
@@ -574,7 +578,46 @@ export class SyncEngine {
             jevKey: async () => resolveJevApiKey((await this.memoryService.getSettings()).jevApiKey),
             onChange: (sessionId) => { this.sessionCache.refreshSession(sessionId) }
         })
-        this.sessionCache.setThinkingEndListener((sessionId) => this.guardService.noteTurnEnd(sessionId))
+        this.handoffService = new HandoffService(store, {
+            config: () => loadNotesConfig(configuration.settingsFile),
+            session: (sessionId) => {
+                const session = this.getSession(sessionId)
+                if (!session) return null
+                const path = (session.metadata as { path?: unknown } | null)?.path
+                return { namespace: session.namespace, active: session.active, thinking: session.thinking, path: typeof path === 'string' ? path : null }
+            },
+            lastActivity: (sessionId) => {
+                const last = sessionActivity(this.store.messages.getMessages(sessionId, 20), 0).lastMessageAt
+                return last > 0 ? last : null
+            },
+            send: async (sessionId, text) => {
+                if (!this.getSession(sessionId)?.active) return false
+                await this.sendMessage(sessionId, { text, sentFrom: 'webapp' })
+                return true
+            },
+            shareUrl: (reportId) => {
+                const report = this.store.reports.getReport(reportId)
+                if (!report || !this.reportShareBase) return null
+                const now = Date.now()
+                const share = this.store.reports.listSharesByNamespace(reportId, report.namespace)
+                    .filter((entry) => entry.revokedAt === null && (entry.expiresAt === null || entry.expiresAt > now))
+                    .sort((a, b) => b.createdAt - a.createdAt)[0]
+                return share ? `${this.reportShareBase}/share/r/${encodeURIComponent(share.token)}` : null
+            },
+            project: (path) => projectNameFor(path),
+            alert: async (namespace, alert) => {
+                const url = alert.sessionId ? `/sessions/${alert.sessionId}` : '/'
+                if (this.alertNotifier) {
+                    await this.alertNotifier(namespace, { runId: alert.reportId, title: alert.title, body: alert.body, url, everywhere: true })
+                } else {
+                    await this.pushNotifier?.(namespace, { title: alert.title, body: alert.body, url, tag: `handoff:${alert.reportId}` })
+                }
+            }
+        })
+        this.sessionCache.setThinkingEndListener((sessionId) => {
+            this.guardService.noteTurnEnd(sessionId)
+            this.handoffService.noteTurnEnd(sessionId)
+        })
         this.taskService = new TaskService(store, this.memoryService, {
             planner: {
                 spawnAndPrompt: async (input) => {
@@ -699,6 +742,7 @@ export class SyncEngine {
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
             this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
             this.taskObserverTimer = setInterval(() => this.observeTasks(), TASK_OBSERVER_INTERVAL_MS)
+            this.handoffService.start()
         }
     }
 
@@ -712,6 +756,10 @@ export class SyncEngine {
 
     getScheduleService(): ScheduleService {
         return this.scheduleService
+    }
+
+    getHandoffService(): HandoffService {
+        return this.handoffService
     }
 
     getLoadService(): LoadService {
@@ -783,6 +831,7 @@ export class SyncEngine {
             this.scheduleTimer = null
         }
         this.guardService.stop()
+        this.handoffService.stop()
     }
 
     subscribe(listener: SyncEventListener): () => void {
@@ -1129,6 +1178,7 @@ export class SyncEngine {
 
     handleSessionEnd(payload: { sid: string; time: number }): void {
         this.sessionCache.handleSessionEnd(payload)
+        this.handoffService.noteSessionEnd(payload.sid)
         const activeRoute = this.activeGroupRoutesBySession.get(payload.sid)
         if (activeRoute) {
             this.clearPendingNoteRefreshDraft(activeRoute)

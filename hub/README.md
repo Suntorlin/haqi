@@ -148,6 +148,9 @@ See `src/web/routes/` for all endpoints.
 - `DELETE /api/reports/:id/shares/:shareId` - Revoke share.
 - `GET /share/r/:token` - Public report page (no auth).
 - `GET /share/r/:token/assets/:assetId` - Public shared asset (no auth).
+- `GET /api/handoff/folders?sessionId=` - Folder choices for a handoff report of the session.
+
+**Handoff export** (`src/handoff/`): a report whose `handoff` field (`folder`, `summary`, `shortTitle`; on create/update, merged into `metadata.handoff`) is set is copied word for word into a notes folder after its session ends (ten quiet minutes after a turn, archive, or the hourly sweep), and gets one line in the notes index. The hub writes the file; no model runs. A report the live session kept working on for 30 minutes past its last update goes back to the session once to be updated; a copy the user edited by hand only gets sections added at its end; failed writes retry after 1, 5 and 30 minutes, then alert. Off until `settings.json` has `handoffNotes.root` (with `index`, `inbox`, `timeZone`, `zoneLabel`).
 
 ### Tasks (`src/web/routes/tasks.ts`)
 

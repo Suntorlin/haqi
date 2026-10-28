@@ -16,6 +16,7 @@ import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
 import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
 import { GUARD_SCHEMA_SQL, GuardStore } from './guardStore'
+import { HANDOFF_SCHEMA_SQL, HandoffExportStore } from './handoffExportStore'
 import { MessageClassStore } from './messageClassStore'
 import { ScheduleStore } from './scheduleStore'
 import { TaskEventStore } from './taskEventStore'
@@ -47,6 +48,7 @@ export type {
     StoredReviewRoundStatus,
     StoredSession,
     StoredSessionGuard,
+    StoredHandoffExport,
     StoredUser,
     VersionedUpdateResult
 } from './types'
@@ -63,8 +65,9 @@ export { ReportStore } from './reportStore'
 export { ReviewLoopStore } from './reviewLoopStore'
 export { MemoryStore } from './memoryStore'
 export { GuardStore } from './guardStore'
+export { HandoffExportStore } from './handoffExportStore'
 
-const SCHEMA_VERSION: number = 15
+const SCHEMA_VERSION: number = 16
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -96,7 +99,8 @@ const REQUIRED_TABLES = [
     'scheduled_tasks',
     'scheduled_task_runs',
     'report_pages',
-    'session_guards'
+    'session_guards',
+    'handoff_exports'
 ] as const
 
 export class Store {
@@ -119,6 +123,7 @@ export class Store {
     readonly messageClasses: MessageClassStore
     readonly schedules: ScheduleStore
     readonly guards: GuardStore
+    readonly handoffs: HandoffExportStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -171,6 +176,7 @@ export class Store {
         this.messageClasses = new MessageClassStore(this.db)
         this.schedules = new ScheduleStore(this.db)
         this.guards = new GuardStore(this.db)
+        this.handoffs = new HandoffExportStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -299,6 +305,13 @@ export class Store {
         if (currentVersion === 14 && SCHEMA_VERSION >= 15) {
             this.migrateFromV14ToV15()
             this.setUserVersion(15)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 15 && SCHEMA_VERSION >= 16) {
+            this.migrateFromV15ToV16()
+            this.setUserVersion(16)
             this.migrateSchema()
             return
         }
@@ -749,6 +762,7 @@ export class Store {
         `)
         this.db.exec(MEMORY_SCHEMA_SQL)
         this.db.exec(GUARD_SCHEMA_SQL)
+        this.db.exec(HANDOFF_SCHEMA_SQL)
     }
 
     private migrateLegacySchemaIfNeeded(): void {
@@ -1265,6 +1279,18 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v14->v15 failed: ${message}`)
+        }
+    }
+
+    private migrateFromV15ToV16(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(HANDOFF_SCHEMA_SQL)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v15->v16 failed: ${message}`)
         }
     }
 

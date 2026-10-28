@@ -14,6 +14,18 @@ export const changeTitleInputSchema: z.ZodTypeAny = z.object({
     short_title: z.string().optional().describe('The same title in a few words (at most 6 Chinese characters or 3 English words), for narrow places such as avatar captions')
 })
 
+export const HANDOFF_DESCRIPTION = "Mark the report as a handoff. After the session ends, HAQI copies the report markdown word for word into the user's notes folder (Obsidian) and adds one line to the notes index. Do not write the notes folder yourself. Keep the markdown complete: a report with only an HTML page is not copied. Fields merge with the handoff fields already on the report."
+
+export const reportHandoffSchema: z.ZodTypeAny = z.object({
+    folder: z.string().min(1).max(500).optional().describe('Folder in the notes folder, relative to its root, that already exists. Get choices from handoff_folders.'),
+    summary: z.string().min(1).max(600).optional().describe('The one-line index entry: the result and key numbers, risks, and what the user must decide.'),
+    short_title: z.string().min(1).max(60).optional().describe('Short link text for the index line. The report title is used when not set.')
+}).describe(HANDOFF_DESCRIPTION)
+
+export const handoffFoldersInputSchema: z.ZodTypeAny = z.object({})
+
+export const HANDOFF_FOLDERS_DESCRIPTION = "List the folders of the user's notes folder that a handoff report of this session can go to: the folders this project used before, then the folders the notes index links to. Use one of them as handoff.folder in report_create or report_update."
+
 export const reportCreateInputSchema: z.ZodTypeAny = z.object({
     session_id: z.string().min(1).max(255).optional(),
     task_id: z.string().min(1).max(120).optional(),
@@ -22,6 +34,7 @@ export const reportCreateInputSchema: z.ZodTypeAny = z.object({
     markdown: z.string().max(400_000).optional(),
     html_path: z.string().min(1).max(1000).optional().describe(HTML_PATH_DESCRIPTION),
     metadata: z.unknown().optional(),
+    handoff: reportHandoffSchema.optional(),
     share_expires_in_hours: z.number().positive().max(24 * 365).optional().describe('Hours until the public link expires. At most 72 (3 days), which is also the default.')
 })
 
@@ -47,7 +60,8 @@ export const reportUpdateInputSchema: z.ZodTypeAny = z.object({
     status: z.string().min(1).max(40).optional(),
     markdown: z.string().max(400_000).optional(),
     html_path: z.string().max(1000).optional().describe(`${HTML_PATH_DESCRIPTION} An empty string removes the page.`),
-    metadata: z.unknown().optional()
+    metadata: z.unknown().optional(),
+    handoff: reportHandoffSchema.optional()
 })
 
 export const reportGetInputSchema: z.ZodTypeAny = z.object({
@@ -299,6 +313,12 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         title: 'Add Report Asset',
         description: 'Attach image/file asset to a report using base64/data-url/source-path',
         inputSchema: reportAddAssetInputSchema
+    },
+    {
+        name: 'handoff_folders',
+        title: 'Handoff Folders',
+        description: HANDOFF_FOLDERS_DESCRIPTION,
+        inputSchema: handoffFoldersInputSchema
     },
     {
         name: 'report_create_share',

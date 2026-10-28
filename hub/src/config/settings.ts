@@ -43,6 +43,19 @@ export interface Settings {
         keychainService?: string
         secret?: string
     }
+    /**
+     * Handoff reports are copied into this notes folder (an Obsidian vault or any folder of markdown files) after
+     * their session ends. `index` and `inbox` are relative to `root`. Off when `root` is unset.
+     */
+    handoffNotes?: {
+        root?: string
+        index?: string
+        inbox?: string
+        /** IANA time zone for dates in the index and file names; the machine's zone when unset. */
+        timeZone?: string
+        /** Shown after the time in the index, such as JST. */
+        zoneLabel?: string
+    }
     corsOrigins?: string[]
     // Legacy field names (for migration, read-only)
     webappHost?: string
