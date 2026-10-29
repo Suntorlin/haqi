@@ -184,7 +184,7 @@ export default function EmployeesListPage(props: {
                     )}
                 </div>
             </div>
-            {panel ? null : <MobileTabBar active="settings" />}
+            {panel ? null : <MobileTabBar active="employees" />}
             <CreateEmployeeDialog
                 open={createOpen}
                 isPending={create.isPending}

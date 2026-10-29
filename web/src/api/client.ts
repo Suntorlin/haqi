@@ -468,6 +468,29 @@ export class ApiClient {
         return await this.request<{ changed: boolean }>(`/api/employees/${encodeURIComponent(id)}/maintain`, { method: 'POST', body: JSON.stringify({}) })
     }
 
+    async getEmployeeMemory(id: string): Promise<import('../types/api').EmployeeMemoryResponse> {
+        return await this.request<import('../types/api').EmployeeMemoryResponse>(`/api/employees/${encodeURIComponent(id)}/memory`)
+    }
+
+    async getEmployeeMetrics(id: string): Promise<{ metrics: import('../types/api').EmployeeMetrics }> {
+        return await this.request<{ metrics: import('../types/api').EmployeeMetrics }>(`/api/employees/${encodeURIComponent(id)}/metrics`)
+    }
+
+    async getEmployeeReviews(id: string): Promise<{ reviews: import('../types/api').EmployeeReview[] }> {
+        return await this.request<{ reviews: import('../types/api').EmployeeReview[] }>(`/api/employees/${encodeURIComponent(id)}/reviews`)
+    }
+
+    async generateEmployeeReview(id: string): Promise<{ review: import('../types/api').EmployeeReview }> {
+        return await this.request<{ review: import('../types/api').EmployeeReview }>(`/api/employees/${encodeURIComponent(id)}/reviews`, { method: 'POST', body: JSON.stringify({}) })
+    }
+
+    async scoreEmployeeReview(id: string, reviewId: string, input: { score: number; comment?: string }): Promise<{ review: import('../types/api').EmployeeReview }> {
+        return await this.request<{ review: import('../types/api').EmployeeReview }>(
+            `/api/employees/${encodeURIComponent(id)}/reviews/${encodeURIComponent(reviewId)}/score`,
+            { method: 'POST', body: JSON.stringify(input) }
+        )
+    }
+
     async confirmMemoryItem(id: string): Promise<{ memory: MemoryItem }> {
         return await this.request<{ memory: MemoryItem }>(`/api/memories/${encodeURIComponent(id)}/confirm`, { method: 'POST', body: JSON.stringify({}) })
     }

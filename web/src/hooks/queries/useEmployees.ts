@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ApiClient } from '@/api/client'
-import type { Employee, EmployeeIssue } from '@/types/api'
+import type { Employee, EmployeeIssue, EmployeeMemoryResponse, EmployeeMetrics, EmployeeReview } from '@/types/api'
 import { queryKeys } from '@/lib/query-keys'
 
 function errorText(error: unknown, fallback: string): string | null {
@@ -44,5 +44,57 @@ export function useEmployee(api: ApiClient | null, employeeId: string | null) {
         isLoading,
         error: errorText(error, 'Failed to load employee'),
         refetch,
+    }
+}
+
+/** The employee's MEMORY.md snapshot and its own memory rows; employee-updated events keep it fresh. */
+export function useEmployeeMemory(api: ApiClient | null, employeeId: string | null, enabled = true) {
+    const { data, isLoading, error } = useQuery({
+        queryKey: queryKeys.employeeMemory(employeeId ?? ''),
+        queryFn: async () => {
+            if (!api || !employeeId) throw new Error('No API client or employee ID')
+            return await api.getEmployeeMemory(employeeId)
+        },
+        enabled: Boolean(api && employeeId && enabled),
+    })
+    return {
+        view: (data?.view ?? null) as EmployeeMemoryResponse['view'],
+        memories: (data?.memories ?? []) as EmployeeMemoryResponse['memories'],
+        isLoading,
+        error: errorText(error, 'Failed to load employee memory'),
+    }
+}
+
+/** The automatic numbers of the last 7 days. */
+export function useEmployeeMetrics(api: ApiClient | null, employeeId: string | null, enabled = true) {
+    const { data, isLoading, error } = useQuery({
+        queryKey: queryKeys.employeeMetrics(employeeId ?? ''),
+        queryFn: async () => {
+            if (!api || !employeeId) throw new Error('No API client or employee ID')
+            return await api.getEmployeeMetrics(employeeId)
+        },
+        enabled: Boolean(api && employeeId && enabled),
+    })
+    return {
+        metrics: (data?.metrics ?? null) as EmployeeMetrics | null,
+        isLoading,
+        error: errorText(error, 'Failed to load employee metrics'),
+    }
+}
+
+/** The weekly reviews, newest first. */
+export function useEmployeeReviews(api: ApiClient | null, employeeId: string | null, enabled = true) {
+    const { data, isLoading, error } = useQuery({
+        queryKey: queryKeys.employeeReviews(employeeId ?? ''),
+        queryFn: async () => {
+            if (!api || !employeeId) throw new Error('No API client or employee ID')
+            return await api.getEmployeeReviews(employeeId)
+        },
+        enabled: Boolean(api && employeeId && enabled),
+    })
+    return {
+        reviews: (data?.reviews ?? []) as EmployeeReview[],
+        isLoading,
+        error: errorText(error, 'Failed to load employee reviews'),
     }
 }

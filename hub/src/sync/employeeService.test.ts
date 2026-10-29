@@ -174,6 +174,26 @@ describe('EmployeeService', () => {
         expect(regenerated.content).not.toContain('会被删掉的事实')
     })
 
+    it('memorySnapshot returns the MEMORY.md baseline and only this employee\'s memories', async () => {
+        const h = harness()
+        const employee = await makeEmployee(h)
+        const own = h.store.memories.insert({
+            namespace: 'default', text: '员工自己的事实', level: 'fact', scope: '', status: 'active', reason: null,
+            source: 'propose', sourceLabel: null, sessionId: null, said: true, support: 1,
+            jev: null, overridden: null, replaces: null, employeeId: employee.id
+        })
+        h.store.memories.insert({
+            namespace: 'default', text: '共享池的事实', level: 'fact', scope: '', status: 'active', reason: null,
+            source: 'propose', sourceLabel: null, sessionId: null, said: true, support: 1,
+            jev: null, overridden: null, replaces: null, employeeId: null
+        })
+        await h.service.generateMemoryView('default', employee.id, 'test')
+        const snapshot = h.service.memorySnapshot('default', employee.id)
+        expect(snapshot.view?.content).toContain(own.text)
+        expect(snapshot.memories.map((m) => m.text)).toEqual([own.text])
+        expect(() => h.service.memorySnapshot('default', 'nope')).toThrow('没有这个员工')
+    })
+
     it('counts compactions and starts a fresh main session on the wake after the fourth', async () => {
         const h = harness()
         const employee = await makeEmployee(h)

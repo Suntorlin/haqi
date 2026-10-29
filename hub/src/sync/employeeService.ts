@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import type { EmployeeInput, EmployeeLogKind, EmployeePatch } from '@hapi/protocol/schemas'
 import type { Store, StoredEmployee, StoredEmployeeIssue } from '../store'
-import type { StoredEmployeeReview } from '../store/types'
+import type { StoredEmployeeReview, StoredMemory } from '../store/types'
 import { changedLines, dayInZone, diffMemoryView, hourInZone, renderMemoryView, timeInZone, weekdayInZone } from './employeeMemoryView'
 
 /** Open this long without a fix, the user hears about it once; then again after every reminder gap. */
@@ -191,6 +191,17 @@ export class EmployeeService {
     issues(namespace: string, id: string, status?: 'open' | 'closed'): StoredEmployeeIssue[] {
         this.get(namespace, id)
         return this.store.employees.issues(namespace, id, status)
+    }
+
+    /** What the web's memory tab shows: the MEMORY.md snapshot (the diff baseline) and the employee's own memories. */
+    memorySnapshot(namespace: string, id: string): {
+        view: { content: string; generatedAt: number } | null
+        memories: StoredMemory[]
+    } {
+        this.get(namespace, id)
+        const view = this.store.employees.memoryView(id, namespace)
+        const memories = this.store.memories.list(namespace).filter((memory) => memory.employeeId === id)
+        return { view: view ? { content: view.content, generatedAt: view.generatedAt } : null, memories }
     }
 
     // ─── Wake ────────────────────────────────────────────────────────────────────

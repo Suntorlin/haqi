@@ -53,5 +53,16 @@ export function useEmployeeActions(api: ApiClient | null) {
         onSettled: invalidate,
     })
 
-    return { create, update, remove, wake, generateMemory, syncMemory, maintain }
+    const generateReview = useMutation({
+        mutationFn: async (id: string) => (await requireApi(api).generateEmployeeReview(id)).review,
+        onSettled: invalidate,
+    })
+
+    const scoreReview = useMutation({
+        mutationFn: async (args: { id: string; reviewId: string; score: number; comment?: string }) =>
+            (await requireApi(api).scoreEmployeeReview(args.id, args.reviewId, { score: args.score, comment: args.comment })).review,
+        onSettled: invalidate,
+    })
+
+    return { create, update, remove, wake, generateMemory, syncMemory, maintain, generateReview, scoreReview }
 }

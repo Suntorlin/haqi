@@ -205,6 +205,13 @@ export function createEmployeeRoutes(getSyncEngine: () => SyncEngine | null): Ho
         }))
     })
 
+    /** The memory tab: the MEMORY.md snapshot and the employee's own memory rows. */
+    app.get('/employees/:id/memory', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        return run(c, () => ctx.employees.memorySnapshot(c.get('namespace'), c.req.param('id')))
+    })
+
     /** Rebuild MEMORY.md from the database now (also saves the diff snapshot). */
     app.post('/employees/:id/memory/generate', (c) => {
         const ctx = withEmployees(c)
