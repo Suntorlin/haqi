@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { SCHEDULE_AGENTS } from '@hapi/protocol/schedules'
 import type { Employee, EmployeeInput } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
 import { PlusCircleIcon } from '@/components/mobile/icons'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { shortenHomePath } from '@/components/NewSession/DirectorySection'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,9 +14,11 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ChoiceChips, FormField } from '@/components/ui/FormControls'
 import { FeedRow } from '@/components/ui/FeedRow'
 import { IconButton } from '@/components/ui/IconButton'
+import { InputHistory } from '@/components/ui/InputHistory'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { TextField } from '@/components/ui/TextField'
 import { useEmployeeActions } from '@/hooks/mutations/useEmployeeActions'
+import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { useEmployees } from '@/hooks/queries/useEmployees'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useAppContext } from '@/lib/app-context'
@@ -48,6 +51,20 @@ function CreateEmployeeDialog(props: {
     const [directory, setDirectory] = useState('')
     const [agent, setAgent] = useState<EmployeeInput['agent']>('claude')
     const [error, setError] = useState<string | null>(null)
+    const { getRecentPaths, getLastUsedMachineId } = useRecentPaths()
+    const recentPaths = useMemo(() => getRecentPaths(machineId || null), [getRecentPaths, machineId])
+
+    // Inherit from sessions: preselect the machine used last, prefill its most recent session folder.
+    useEffect(() => {
+        if (!props.open || machines.length === 0) return
+        if (machineId && machines.find((machine) => machine.id === machineId)) return
+        const lastUsed = getLastUsedMachineId()
+        const found = (lastUsed ? machines.find((machine) => machine.id === lastUsed) : null) ?? machines[0]
+        if (!found) return
+        setMachineId(found.id)
+        const paths = getRecentPaths(found.id)
+        if (paths[0]) setDirectory((current) => current.trim() ? current : paths[0])
+    }, [props.open, machines, machineId, getLastUsedMachineId, getRecentPaths])
 
     const submit = async () => {
         if (!name.trim() || !directory.trim() || !machineId) {
@@ -85,10 +102,27 @@ function CreateEmployeeDialog(props: {
                         label={t('employees.form.machine')}
                         value={machineId as never}
                         options={machines.map((machine) => ({ value: machine.id, label: getMachineTitle(machine) }))}
-                        onChange={(value) => setMachineId(value)}
+                        onChange={(value) => {
+                            setMachineId(value)
+                            setDirectory(getRecentPaths(value)[0] ?? '')
+                        }}
                     />
                     <FormField label={t('employees.form.directory')} htmlFor="employee-directory" hint={t('employees.form.directoryHint')}>
-                        <TextField id="employee-directory" value={directory} onChange={(event) => setDirectory(event.target.value)} />
+                        <InputHistory
+                            items={recentPaths}
+                            label={t('newSession.recent')}
+                            format={shortenHomePath}
+                            onPick={(path) => setDirectory(path)}
+                        >
+                            {({ trailing }) => (
+                                <TextField
+                                    id="employee-directory"
+                                    value={directory}
+                                    onChange={(event) => setDirectory(event.target.value)}
+                                    trailing={trailing}
+                                />
+                            )}
+                        </InputHistory>
                     </FormField>
                     <ChoiceChips
                         label={t('employees.form.agent')}
