@@ -3,8 +3,8 @@ import type { JevQuestion } from '../memory/jev'
 /**
  * The compliance light of a session: after each turn, Jev checks the reply against the user's active
  * principles, and the light moves between ok, warn and alert. Warn means the newest turn broke a rule or the
- * user corrected the agent; alert means one rule was broken GUARD.alertStrikes times within the last
- * GUARD.window checked turns, and it clears by itself once the window no longer holds that many.
+ * user corrected the agent; alert means one rule was broken in GUARD.alertStrikes turns within the last
+ * GUARD.window conversation turns, and it clears by itself once the window no longer holds that many.
  */
 export const GUARD = {
     /** Jev's yes on "did the reply break the rule" at or above this, with `applies`, counts as a violation. */
@@ -15,7 +15,7 @@ export const GUARD = {
     rules: 12,
     /** Strikes on one rule within the window that turn the light red. */
     alertStrikes: 3,
-    /** How many checked turns back a strike still counts. */
+    /** How many conversation turns back a strike still counts. */
     window: 5,
     replyChars: 2000,
     messageChars: 1200,
@@ -39,7 +39,7 @@ export type GuardState = {
     status: GuardStatus
     reason: string | null
     memoryId: string | null
-    /** Per rule, the checked-turn numbers (1-based) whose reply broke it, only those still inside the window. */
+    /** Per rule, the conversation turn indexes whose reply broke it, only those still inside the window. */
     strikes: Record<string, number[]>
     cleanStreak: number
 }
@@ -97,8 +97,9 @@ function cut(text: string, max: number): string {
 }
 
 /**
- * The light after checked turn number `turn` (1-based), from the previous state and what the check found.
- * Strikes older than the window drop out, so an old run of misses does not keep a session red for good.
+ * The light after the check of conversation turn `turn`, from the previous state and what the check found.
+ * Strikes older than the window drop out, so an old run of misses does not keep a session red for good; the
+ * same turn checked twice (the agent wrote more after its first end) strikes a rule once.
  */
 export function nextGuard(prev: GuardState | null, check: GuardCheck, turn: number): GuardState {
     const strikes: Record<string, number[]> = {}
@@ -107,7 +108,8 @@ export function nextGuard(prev: GuardState | null, check: GuardCheck, turn: numb
         if (kept.length > 0) strikes[memoryId] = kept
     }
     for (const violation of check.violations) {
-        strikes[violation.memoryId] = [...(strikes[violation.memoryId] ?? []), turn]
+        const turns = strikes[violation.memoryId] ?? []
+        strikes[violation.memoryId] = turns.includes(turn) ? turns : [...turns, turn]
     }
     const cleanStreak = check.violations.length === 0 && !check.corrected ? (prev?.cleanStreak ?? 0) + 1 : 0
 
