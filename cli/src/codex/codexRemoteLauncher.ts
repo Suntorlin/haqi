@@ -130,6 +130,9 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
 
     private noteEmployeeCompacted(): void {
         if (!this.employeeEnv) return;
+        // The contextcompaction item and thread/compacted can both announce one compaction:
+        // no compaction in flight and no usage since the last one means a duplicate signal.
+        if (!this.employeeCompacting && this.employeeUsedTokens === 0) return;
         this.employeeCompacting = false;
         this.employeeUsedTokens = 0;
         this.reportEmployeeCompaction('post');

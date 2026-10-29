@@ -925,6 +925,9 @@ export class AppServerEventConverter {
 
                 if (method === 'item/completed') {
                     this.completeGenericToolCall(events, itemId, 'ContextCompaction', {});
+                    // Newer app servers signal a compaction only through this item, never thread/compacted:
+                    // without this event the employee pilot waits forever and the hub misses the post report.
+                    events.push({ type: 'context_compacted' });
                 }
 
                 return events;
