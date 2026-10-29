@@ -129,7 +129,7 @@ self.addEventListener('push', (event) => {
     const title = payload.title || 'HAPI'
     const body = payload.body ?? ''
     const icon = payload.icon ?? '/pwa-192x192.png'
-    const badge = payload.badge ?? '/badge-96x96.png?v=4'
+    const badge = payload.badge ?? '/badge-96x96.png?v=3'
     const data = payload.data
     const tag = payload.tag
 

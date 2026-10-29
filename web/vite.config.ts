@@ -60,12 +60,12 @@ export default defineConfig({
             filename: 'sw.ts',
             manifest: {
                 id: base,
-                name: 'Mate Mind',
-                short_name: 'Mate Mind',
+                name: 'Matemind',
+                short_name: 'Matemind',
                 description: 'AI-powered development assistant',
                 categories: ['developer tools', 'productivity'],
                 shortcuts: [
-                    { name: 'New chat', short_name: 'New', url: `${base}sessions/new`, icons: [{ src: 'pwa-192x192.png?v=4', sizes: '192x192', type: 'image/png' }] }
+                    { name: 'New chat', short_name: 'New', url: `${base}sessions/new`, icons: [{ src: 'pwa-192x192.png?v=3', sizes: '192x192', type: 'image/png' }] }
                 ],
                 theme_color: '#ffffff',
                 background_color: '#ffffff',
@@ -74,22 +74,22 @@ export default defineConfig({
                 start_url: base,
                 icons: [
                     {
-                        src: 'pwa-64x64.png?v=4',
+                        src: 'pwa-64x64.png?v=3',
                         sizes: '64x64',
                         type: 'image/png'
                     },
                     {
-                        src: 'pwa-192x192.png?v=4',
+                        src: 'pwa-192x192.png?v=3',
                         sizes: '192x192',
                         type: 'image/png'
                     },
                     {
-                        src: 'pwa-512x512.png?v=4',
+                        src: 'pwa-512x512.png?v=3',
                         sizes: '512x512',
                         type: 'image/png'
                     },
                     {
-                        src: 'maskable-icon-512x512.png?v=4',
+                        src: 'maskable-icon-512x512.png?v=3',
                         sizes: '512x512',
                         type: 'image/png',
                         purpose: 'maskable'
