@@ -403,3 +403,26 @@ describe('SessionFeed snoozed section', () => {
         expect(screen.getByText('Later Session')).toBeInTheDocument()
     })
 })
+
+describe('SessionFeed compliance light', () => {
+    afterEach(() => {
+        cleanup()
+    })
+
+    it('shows the shield only for a red light; yellow stays in the info sheet', () => {
+        renderWithProviders(
+            <SessionFeed
+                sessions={[
+                    createSession({ id: 'red', active: true, metadata: { path: '/w/a', name: 'Red Session', machineId: 'm' }, guard: { status: 'alert', reason: 'x', updatedAt: 1 } }),
+                    createSession({ id: 'yellow', active: true, metadata: { path: '/w/a', name: 'Yellow Session', machineId: 'm' }, guard: { status: 'warn', reason: 'y', updatedAt: 1 } })
+                ]}
+                snoozedSessions={[]}
+                onSelect={vi.fn()}
+                api={null}
+            />
+        )
+
+        expect(screen.getAllByRole('img', { name: 'Repeat violation' })).toHaveLength(1)
+        expect(screen.queryByRole('img', { name: 'Rule broken' })).toBeNull()
+    })
+})

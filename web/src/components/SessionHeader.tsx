@@ -312,7 +312,8 @@ export function SessionHeader(props: {
         <>
             <span className={cn('h-[7px] w-[7px] shrink-0 rounded-full', status.dotClass, status.pulse ? 'animate-pulse' : '')} />
             <span className={cn('shrink-0', status.textClass)}>{status.text}</span>
-            {guard ? (
+            {/* Only red shows here; yellow waits in the info sheet. */}
+            {guard?.status === 'alert' ? (
                 <span role="img" aria-label={guardLabel ?? undefined} className={cn('shrink-0', guardToneClass)}>
                     <ShieldAlertIcon className="h-[13px] w-[13px]" />
                 </span>
