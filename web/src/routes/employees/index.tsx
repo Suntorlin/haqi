@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { SCHEDULE_AGENTS } from '@hapi/protocol/schedules'
 import type { Employee, EmployeeInput } from '@/types/api'
@@ -18,6 +18,8 @@ import { InputHistory } from '@/components/ui/InputHistory'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { TextField } from '@/components/ui/TextField'
 import { useEmployeeActions } from '@/hooks/mutations/useEmployeeActions'
+import { useSessions } from '@/hooks/queries/useSessions'
+import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
 import { useEmployees } from '@/hooks/queries/useEmployees'
 import { useMachines } from '@/hooks/queries/useMachines'
@@ -52,19 +54,33 @@ function CreateEmployeeDialog(props: {
     const [agent, setAgent] = useState<EmployeeInput['agent']>('claude')
     const [error, setError] = useState<string | null>(null)
     const { getRecentPaths, getLastUsedMachineId } = useRecentPaths()
+    const { sessions } = useSessions(props.open ? api : null)
     const recentPaths = useMemo(() => getRecentPaths(machineId || null), [getRecentPaths, machineId])
+    const pathOptions = useDirectorySuggestions(machineId || null, sessions, recentPaths)
+    const latestSessionPath = useMemo(
+        () => sessions.find((session) => session.metadata?.machineId === machineId && session.metadata?.path)?.metadata?.path ?? null,
+        [sessions, machineId]
+    )
 
-    // Inherit from sessions: preselect the machine used last, prefill its most recent session folder.
+    // Inherit from sessions: preselect the machine used last.
     useEffect(() => {
         if (!props.open || machines.length === 0) return
         if (machineId && machines.find((machine) => machine.id === machineId)) return
         const lastUsed = getLastUsedMachineId()
         const found = (lastUsed ? machines.find((machine) => machine.id === lastUsed) : null) ?? machines[0]
-        if (!found) return
-        setMachineId(found.id)
-        const paths = getRecentPaths(found.id)
-        if (paths[0]) setDirectory((current) => current.trim() ? current : paths[0])
-    }, [props.open, machines, machineId, getLastUsedMachineId, getRecentPaths])
+        if (found) setMachineId(found.id)
+    }, [props.open, machines, machineId, getLastUsedMachineId])
+
+    // Prefill the folder once per opening: this browser's last path, else the machine's latest session folder.
+    const prefilled = useRef(false)
+    useEffect(() => {
+        if (!props.open) { prefilled.current = false; return }
+        if (prefilled.current || !machineId) return
+        const candidate = recentPaths[0] ?? latestSessionPath
+        if (!candidate) return
+        prefilled.current = true
+        setDirectory((current) => current.trim() ? current : candidate)
+    }, [props.open, machineId, recentPaths, latestSessionPath])
 
     const submit = async () => {
         if (!name.trim() || !directory.trim() || !machineId) {
@@ -104,12 +120,13 @@ function CreateEmployeeDialog(props: {
                         options={machines.map((machine) => ({ value: machine.id, label: getMachineTitle(machine) }))}
                         onChange={(value) => {
                             setMachineId(value)
-                            setDirectory(getRecentPaths(value)[0] ?? '')
+                            const fromSessions = sessions.find((session) => session.metadata?.machineId === value && session.metadata?.path)?.metadata?.path
+                            setDirectory(getRecentPaths(value)[0] ?? fromSessions ?? '')
                         }}
                     />
                     <FormField label={t('employees.form.directory')} htmlFor="employee-directory" hint={t('employees.form.directoryHint')}>
                         <InputHistory
-                            items={recentPaths}
+                            items={pathOptions}
                             label={t('newSession.recent')}
                             format={shortenHomePath}
                             onPick={(path) => setDirectory(path)}
