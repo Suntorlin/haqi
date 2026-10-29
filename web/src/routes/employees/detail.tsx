@@ -104,28 +104,29 @@ function OverviewSection(props: {
 }
 
 /** 记忆: the MEMORY.md snapshot, the employee's own memory rows, and the file actions. */
-/** One identity file: the saved text, a draft box and a save button. */
+/** One identity file: the title row carries the save button, the hint lives in its hover tooltip. */
 function IdentityEditor(props: { label: string; hint: string; value: string; busy: boolean; onSave: (content: string) => void }) {
     const { t } = useTranslation()
     const [draft, setDraft] = useState(props.value)
     const dirty = draft !== props.value
     return (
-        <ListGroup title={props.label}>
-            <div className="flex flex-col gap-2 px-4 py-3">
-                <p className="text-caption text-[var(--social-fg-muted)]">{props.hint}</p>
-                <AutoTextarea
-                    minRows={6}
-                    maxRows={18}
-                    className="w-full resize-none rounded-xl bg-[var(--social-muted)] p-3 text-footnote leading-relaxed text-[var(--social-fg)] outline-none"
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                />
-                <div>
-                    <Button variant="secondary" disabled={props.busy || !dirty} onClick={() => props.onSave(draft)}>
+        <ListGroup
+            title={(
+                <span className="flex w-full items-center justify-between">
+                    <span title={props.hint} className="cursor-help">{props.label}</span>
+                    <Button size="xs" variant="secondary" disabled={props.busy || !dirty} onClick={() => props.onSave(draft)}>
                         {t('employees.detail.identitySave')}
                     </Button>
-                </div>
-            </div>
+                </span>
+            )}
+        >
+            <AutoTextarea
+                minRows={4}
+                maxRows={18}
+                className="w-full resize-none bg-transparent px-4 py-3 text-footnote leading-relaxed text-[var(--social-fg)] outline-none"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+            />
         </ListGroup>
     )
 }
