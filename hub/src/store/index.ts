@@ -15,6 +15,8 @@ import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
 import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
+import { EmployeeStore } from './employeeStore'
+import { EMPLOYEE_SCHEMA_SQL } from './employees'
 import { GUARD_SCHEMA_SQL, GuardStore } from './guardStore'
 import { HANDOFF_SCHEMA_SQL, HandoffExportStore } from './handoffExportStore'
 import { MessageClassStore } from './messageClassStore'
@@ -46,6 +48,9 @@ export type {
     StoredReviewLoopUserPreference,
     StoredReviewRound,
     StoredReviewRoundStatus,
+    StoredEmployee,
+    StoredEmployeeIssue,
+    StoredEmployeeMemoryView,
     StoredSession,
     StoredSessionGuard,
     StoredHandoffExport,
@@ -66,8 +71,9 @@ export { ReviewLoopStore } from './reviewLoopStore'
 export { MemoryStore } from './memoryStore'
 export { GuardStore } from './guardStore'
 export { HandoffExportStore } from './handoffExportStore'
+export { EmployeeStore } from './employeeStore'
 
-const SCHEMA_VERSION: number = 16
+const SCHEMA_VERSION: number = 19
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -100,7 +106,11 @@ const REQUIRED_TABLES = [
     'scheduled_task_runs',
     'report_pages',
     'session_guards',
-    'handoff_exports'
+    'handoff_exports',
+    'employees',
+    'employee_issues',
+    'employee_memory_views',
+    'employee_reviews'
 ] as const
 
 export class Store {
@@ -124,6 +134,7 @@ export class Store {
     readonly schedules: ScheduleStore
     readonly guards: GuardStore
     readonly handoffs: HandoffExportStore
+    readonly employees: EmployeeStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -177,6 +188,7 @@ export class Store {
         this.schedules = new ScheduleStore(this.db)
         this.guards = new GuardStore(this.db)
         this.handoffs = new HandoffExportStore(this.db)
+        this.employees = new EmployeeStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -312,6 +324,27 @@ export class Store {
         if (currentVersion === 15 && SCHEMA_VERSION >= 16) {
             this.migrateFromV15ToV16()
             this.setUserVersion(16)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 16 && SCHEMA_VERSION >= 17) {
+            this.migrateFromV16ToV17()
+            this.setUserVersion(17)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 17 && SCHEMA_VERSION >= 18) {
+            this.migrateFromV17ToV18()
+            this.setUserVersion(18)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 18 && SCHEMA_VERSION >= 19) {
+            this.migrateFromV18ToV19()
+            this.setUserVersion(19)
             this.migrateSchema()
             return
         }
@@ -641,6 +674,7 @@ export class Store {
                 user_preference TEXT NOT NULL DEFAULT 'auto',
                 current_round INTEGER NOT NULL DEFAULT 0,
                 max_rounds INTEGER NOT NULL DEFAULT 10,
+                employee_id TEXT,
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY (worker_session_id) REFERENCES sessions(id) ON DELETE CASCADE,
@@ -721,6 +755,8 @@ export class Store {
                 account_id TEXT,
                 worktree INTEGER NOT NULL DEFAULT 0,
                 max_minutes INTEGER NOT NULL DEFAULT 90,
+                employee_id TEXT,
+                session_target TEXT NOT NULL DEFAULT 'isolated',
                 spec TEXT NOT NULL,
                 timezone TEXT NOT NULL,
                 enabled INTEGER NOT NULL DEFAULT 1,
@@ -763,6 +799,7 @@ export class Store {
         this.db.exec(MEMORY_SCHEMA_SQL)
         this.db.exec(GUARD_SCHEMA_SQL)
         this.db.exec(HANDOFF_SCHEMA_SQL)
+        this.db.exec(EMPLOYEE_SCHEMA_SQL)
     }
 
     private migrateLegacySchemaIfNeeded(): void {
@@ -1294,6 +1331,48 @@ export class Store {
         }
     }
 
+    /** Employee tables; the new memories columns come from ensureMemoryColumnsPresent, which runs on every startup. */
+    private migrateFromV16ToV17(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(EMPLOYEE_SCHEMA_SQL)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v16->v17 failed: ${message}`)
+        }
+    }
+
+    /** Scheduled tasks can belong to an employee and pick where their runs go. */
+    private migrateFromV17ToV18(): void {
+        try {
+            this.db.exec('BEGIN')
+            const columns = new Set((this.db.prepare('PRAGMA table_info(scheduled_tasks)').all() as Array<{ name: string }>).map((row) => row.name))
+            if (!columns.has('employee_id')) this.db.exec('ALTER TABLE scheduled_tasks ADD COLUMN employee_id TEXT')
+            if (!columns.has('session_target')) this.db.exec("ALTER TABLE scheduled_tasks ADD COLUMN session_target TEXT NOT NULL DEFAULT 'isolated'")
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v17->v18 failed: ${message}`)
+        }
+    }
+
+    /** Review loops remember the employee whose work they review; the weekly review table arrives via REQUIRED_TABLES. */
+    private migrateFromV18ToV19(): void {
+        try {
+            this.db.exec('BEGIN')
+            const columns = new Set((this.db.prepare('PRAGMA table_info(review_loops)').all() as Array<{ name: string }>).map((row) => row.name))
+            if (!columns.has('employee_id')) this.db.exec('ALTER TABLE review_loops ADD COLUMN employee_id TEXT')
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v18->v19 failed: ${message}`)
+        }
+    }
+
     private getSessionColumnNames(): Set<string> {
         const rows = this.db.prepare('PRAGMA table_info(sessions)').all() as Array<{ name: string }>
         return new Set(rows.map((row) => row.name))
@@ -1381,6 +1460,7 @@ export class Store {
             ['repo_path', 'TEXT'],
             ['machine_id', 'TEXT'],
             ['lead_session_id', 'TEXT'],
+            ['employee_id', 'TEXT'],
             ['completed_at', 'INTEGER'],
             ['archived_at', 'INTEGER']
         ]

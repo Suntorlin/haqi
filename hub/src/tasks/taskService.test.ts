@@ -239,6 +239,23 @@ describe('TaskService guide step', () => {
         expect(ready.draft?.questions[0]?.options[0]).toEqual({ id: 'a', label: 'Linear 工单', good: '有截图', cost: '多一步' })
     })
 
+    it('an employee escalation lets the planner pick the repository and remembers the employee', async () => {
+        const t = setup(dir)
+        t.addSession({ id: 'emp-main', path: '/repo/员工-小鱼', employeeId: 'emp1', updatedAt: 2 })
+        t.addSession({ id: 'other', path: '/repo/haqi', updatedAt: 1 })
+        const task = await t.service.create('default', { text: '跨 cli 和 hub 两个仓库修日志格式', fromSessionId: 'emp-main' })
+        await t.settle()
+        // The employee's own folder is not the task's repository: the planner picks one (an escalation may span repos).
+        expect([task.repoPath, task.machineId]).toEqual([null, 'm1'])
+        expect(t.spawned[0]!.directory).toBe('/repo')
+        expect(t.spawned[0]!.text).toContain('可选的仓库')
+        expect(t.store.groups.getGroupByNamespace(task.id, 'default')!.employeeId).toBe('emp1')
+        // An ordinary session's task still starts in that session's repository.
+        const plain = await t.service.create('default', { text: '普通会话的任务', fromSessionId: 'other' })
+        expect(plain.repoPath).toBe('/repo/haqi')
+        expect(t.store.groups.getGroupByNamespace(plain.id, 'default')!.employeeId).toBeNull()
+    })
+
     it('lets the planner pick the idler machine, and starts the lead there after the confirmation', async () => {
         const t = setup(dir, {
             machines: [

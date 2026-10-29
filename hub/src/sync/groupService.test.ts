@@ -813,3 +813,54 @@ describe('GroupService createGroup', () => {
         expect(removed?.namespace).toBe('default')
     })
 })
+
+describe('GroupService employee mentions', () => {
+    it('keeps an offline employee session mentionable, so the dispatcher can wake it', async () => {
+        const store = new Store(':memory:')
+        const employee = store.employees.insert({
+            namespace: 'default', name: '小鱼', emoji: null, status: 'active', homePath: 'HAQI/员工/小鱼',
+            machineId: 'm1', directory: '/repo', agent: 'claude', model: null, permissionMode: null,
+            accountGroup: null, timezone: 'UTC', dailyResetHour: 4, compactThreshold: 0.75, webhookSlug: null
+        })
+        const main = store.sessions.getOrCreateSession(
+            'session-employee-main',
+            { path: '/repo', name: '小鱼', employeeId: employee.id },
+            null,
+            'default'
+        )
+        const dispatched: Array<{ targetSessionId: string; command: string }> = []
+        const service = createService(store, {
+            dispatchTask: async (payload) => { dispatched.push({ targetSessionId: payload.targetSessionId, command: payload.command }) },
+            // The session is offline: the routing state says inactive.
+            resolveSessionRoutingState: () => ({ active: false })
+        })
+        const created = service.createGroup({ namespace: 'default', name: '哈气群', sessionMemberIds: [main.id] })
+
+        const result = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'user:web',
+            actorSessionId: 'user',
+            payload: { text: '@小鱼 日报发了吗' }
+        })
+
+        // The mention resolved to the offline employee session; waking it is the dispatcher's job.
+        expect(result.createdTasks.map((task) => task.targetSessionId)).toEqual([main.id])
+        expect(dispatched).toHaveLength(1)
+        expect(dispatched[0]?.targetSessionId).toBe(main.id)
+
+        // A plain offline session (no employee) stays unreachable.
+        const plain = store.sessions.getOrCreateSession('session-plain', { path: '/repo', name: '路人' }, null, 'default')
+        store.groups.addGroupMember({ groupId: created.group.id, namespace: 'default', sessionId: plain.id, role: 'member' })
+        const miss = await service.addTimelineMessage({
+            groupId: created.group.id,
+            namespace: 'default',
+            type: 'chat',
+            source: 'user:web',
+            actorSessionId: 'user',
+            payload: { text: '@路人 在吗' }
+        })
+        expect(miss.createdTasks).toHaveLength(0)
+    })
+})

@@ -50,6 +50,8 @@ export type RunHost = {
     push: (namespace: string, notice: { title: string; body: string; url: string }) => Promise<void>
     createReport: (namespace: string, input: { title: string; markdown: string }) => { shareUrl: string | null }
     load: (namespace: string, sessionIds: string[], since: number) => import('@hapi/protocol/types').TaskLoad | null
+    /** Delivers a line to the employee's main session (waking it when needed); for tasks an employee escalated. */
+    wakeEmployee?: (namespace: string, employeeId: string, text: string) => Promise<unknown>
 }
 
 const ACTIVE_PHASES = new Set(['running', 'integrating', 'reviewing', 'fixing', 'delivering'])
@@ -414,6 +416,13 @@ export class RunService {
         this.phase(namespace, task.id, 'reporting')
         this.host.timeline(namespace, task.id, `做完了，等你验收：${conclusion}`, { report: { markdown } })
         void this.host.push(namespace, { title: `等你验收：${task.name}`, body: conclusion, url: `/groups/${task.id}` }).catch(() => {})
+        this.deliverToEmployee(namespace, task, `任务「${task.name}」（${task.id}）交付了，等用户验收。结论：${conclusion}${shareUrl ? `\n报告：${shareUrl}` : ''}`)
+    }
+
+    /** The delivery summary goes back to the escalating employee's main session, so it can pick up the thread. */
+    private deliverToEmployee(namespace: string, task: StoredGroup, text: string): void {
+        if (!task.employeeId || !this.host.wakeEmployee) return
+        void this.host.wakeEmployee(namespace, task.employeeId, `[HAQI 任务交付] ${text}`).catch(() => {})
     }
 
     /** The user accepts the result, or asks for a change (which goes to a fixer, then review and a new report). */
@@ -427,6 +436,7 @@ export class RunService {
             this.kernel.move(namespace, taskId, 'done')
             await this.stopAll(namespace, taskId)
             this.host.timeline(namespace, taskId, '你接收了结果，任务完成。')
+            this.deliverToEmployee(namespace, task, `任务「${task.name}」（${taskId}）用户已验收通过。`)
             return
         }
         const text = body.text?.trim()

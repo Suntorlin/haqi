@@ -9,6 +9,7 @@ import {
     getReviewLoopsByNamespace,
     getReviewRoundByNamespace,
     getReviewRoundsByLoop,
+    listReviewLoopsForEmployee,
     updateReviewLoop,
     updateReviewRound
 } from './reviewLoops'
@@ -35,12 +36,23 @@ export class ReviewLoopStore {
         acceptanceCriteria: string
         maxRounds?: number
         userPreference?: StoredReviewLoopUserPreference
+        employeeId?: string | null
     }): StoredReviewLoop {
         return createReviewLoop(this.db, options)
     }
 
     getReviewLoopsByNamespace(namespace: string): StoredReviewLoop[] {
         return getReviewLoopsByNamespace(this.db, namespace)
+    }
+
+    listForEmployee(namespace: string, employeeId: string, since: number): StoredReviewLoop[] {
+        return listReviewLoopsForEmployee(this.db, namespace, employeeId, since)
+    }
+
+    /** A deleted employee's review loops stay as history, but shed the dead employee_id. */
+    clearEmployee(namespace: string, employeeId: string): number {
+        return this.db.prepare('UPDATE review_loops SET employee_id = NULL WHERE namespace = ? AND employee_id = ?')
+            .run(namespace, employeeId).changes
     }
 
     getReviewLoopByNamespace(loopId: string, namespace: string): StoredReviewLoop | null {

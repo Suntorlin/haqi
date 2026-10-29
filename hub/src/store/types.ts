@@ -94,6 +94,8 @@ export type StoredGroup = {
     repoPath: string | null
     machineId: string | null
     leadSessionId: string | null
+    /** The digital employee that escalated this task; its delivery goes back to the employee's main session. */
+    employeeId: string | null
     completedAt: number | null
     /** Set when the user archived it: it leaves the main list, its sessions stop, its history stays. */
     archivedAt: number | null
@@ -327,6 +329,8 @@ export type StoredReviewLoop = {
     userPreference: StoredReviewLoopUserPreference
     currentRound: number
     maxRounds: number
+    /** The employee whose work this loop reviews; null for ordinary loops. */
+    employeeId: string | null
     createdAt: number
     updatedAt: number
 }
@@ -363,6 +367,10 @@ export type StoredMemory = {
     level: 'fact' | 'experience' | 'principle'
     /** '' = applies everywhere; otherwise a repository name. */
     scope: string
+    /** Owning employee; null = shared memory, visible to everyone. */
+    employeeId: string | null
+    /** Pinned memories are never merged, retired or rewritten by maintenance. */
+    pinned: boolean
     /** pending = waits for the user (principles only); candidate = on trial, promoted by mentions or let go with time. */
     status: 'active' | 'pending' | 'candidate' | 'archived'
     reason: string | null
@@ -407,4 +415,80 @@ export type StoredMemoryEvent = {
     createdAt: number
     /** What a merge changed, kept so it can be undone. */
     detail: unknown | null
+}
+
+/** A digital employee: a persistent identity over one-off sessions. */
+export type StoredEmployee = {
+    id: string
+    namespace: string
+    name: string
+    emoji: string | null
+    status: 'active' | 'paused' | 'retired'
+    /** Employee home, relative to the vault root. */
+    homePath: string
+    /** Default machine; also the only machine that reads and writes the employee's shared files. */
+    machineId: string
+    /** Default working directory (a project folder on the machine). */
+    directory: string
+    agent: string
+    model: string | null
+    permissionMode: string | null
+    accountGroup: string | null
+    timezone: string
+    mainSessionId: string | null
+    mainSessionStartedAt: number | null
+    mainSessionCompactions: number
+    /** Hour of day (employee timezone) when the main session is reset. */
+    dailyResetHour: number
+    /** Context share at which HAQI compacts the main session itself. */
+    compactThreshold: number
+    webhookSlug: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+/** An open loose end; one row per distinct problem, repeats only bump seenCount. */
+export type StoredEmployeeIssue = {
+    id: string
+    namespace: string
+    employeeId: string
+    text: string
+    status: 'open' | 'closed'
+    firstSeen: number
+    lastSeen: number
+    seenCount: number
+    /** When the user was last reminded about this overdue issue. */
+    escalatedAt: number | null
+    closedAt: number | null
+    closeNote: string | null
+}
+
+/** The MEMORY.md text as last generated; the baseline a file edit is diffed against. */
+export type StoredEmployeeMemoryView = {
+    employeeId: string
+    namespace: string
+    content: string
+    generatedAt: number
+}
+
+/** One week of an employee's work: the metrics snapshot, and the user's score once given. */
+export type StoredEmployeeReview = {
+    id: string
+    namespace: string
+    employeeId: string
+    periodStart: number
+    periodEnd: number
+    /** The weekly report file, relative to the employee home. */
+    reportPath: string | null
+    /** The metrics snapshot, as JSON. */
+    metrics: string
+    /** 1 to 5; null until the user reviews. */
+    score: number | null
+    comment: string | null
+    /** The distilled lesson of a low score; the next wake's state package repeats it. */
+    lesson: string | null
+    /** The proposed skill file of a high score, relative to the employee home. */
+    skillPath: string | null
+    createdAt: number
+    reviewedAt: number | null
 }

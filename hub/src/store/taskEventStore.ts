@@ -64,6 +64,19 @@ export class TaskEventStore {
         return row ? toTaskEvent(row) : null
     }
 
+    /** Events of the given types across every task an employee escalated, inside a period; for its metrics. */
+    listForEmployee(namespace: string, employeeId: string, types: string[], since: number): StoredTaskEvent[] {
+        if (types.length === 0) return []
+        const marks = types.map(() => '?').join(', ')
+        const rows = this.db.prepare(`
+            SELECT e.* FROM task_events e
+            JOIN groups g ON g.id = e.group_id AND g.namespace = e.namespace
+            WHERE e.namespace = ? AND g.employee_id = ? AND e.type IN (${marks}) AND e.created_at >= ?
+            ORDER BY e.created_at ASC, e.rowid ASC
+        `).all(namespace, employeeId, ...types, since) as TaskEventRow[]
+        return rows.map(toTaskEvent)
+    }
+
     count(namespace: string, groupId: string, type: string): number {
         const row = this.db.prepare(
             'SELECT COUNT(*) AS n FROM task_events WHERE namespace = ? AND group_id = ? AND type = ?'

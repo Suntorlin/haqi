@@ -812,6 +812,17 @@ export function ScheduledIcon(props: TabIconProps) {
     )
 }
 
+export function EmployeesIcon(props: TabIconProps) {
+    return (
+        <svg viewBox="0 0 24 24" className={props.className ?? 'h-[25px] w-[25px]'} fill="none" stroke="currentColor" strokeWidth={props.filled ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16.5" rx="3" />
+            <circle cx="12" cy="10.2" r="2.4" fill={props.filled ? 'currentColor' : 'none'} />
+            <path d="M7.8 17.3c.5-2 2.2-3.2 4.2-3.2s3.7 1.2 4.2 3.2" />
+            <path d="M9.5 4V2.3M14.5 4V2.3" />
+        </svg>
+    )
+}
+
 export function MeIcon(props: TabIconProps) {
     return (
         <svg viewBox="0 0 24 24" className={props.className ?? 'h-[25px] w-[25px]'} fill={props.filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={props.filled ? 0 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

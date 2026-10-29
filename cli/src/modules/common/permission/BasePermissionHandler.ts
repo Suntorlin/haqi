@@ -27,14 +27,17 @@ const AUTO_APPROVE_TOOL_NAME_HINTS = [
     'save_memory',
     'memory_propose',
     'memory_search',
+    'employee_whoami',
+    'employee_log',
     'task_draft_submit',
+    'task_escalate',
     'task_plan_submit',
     'subtask_done',
     'task_decision_ask',
     'task_integrated',
     'task_review_submit'
 ];
-const AUTO_APPROVE_TOOL_ID_HINTS = ['change_title', 'save_memory', 'memory_propose', 'memory_search', 'task_draft_submit', 'task_plan_submit', 'subtask_done', 'task_decision_ask', 'task_integrated', 'task_review_submit'];
+const AUTO_APPROVE_TOOL_ID_HINTS = ['change_title', 'save_memory', 'memory_propose', 'memory_search', 'employee_whoami', 'employee_log', 'task_draft_submit', 'task_escalate', 'task_plan_submit', 'subtask_done', 'task_decision_ask', 'task_integrated', 'task_review_submit'];
 const AUTO_APPROVE_WRITE_TOOL_HINTS = ['write', 'edit', 'create', 'delete', 'patch', 'fs-edit'];
 
 export type PermissionHandlerClient = {

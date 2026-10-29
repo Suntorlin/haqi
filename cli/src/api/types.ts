@@ -139,6 +139,8 @@ export type MessageRouteContext = z.infer<typeof MessageRouteContextSchema>
 
 export const MessageMetaSchema = z.object({
     sentFrom: z.string().optional(),
+    /** The message carries inbound (external, untrusted) content; the session stays tainted from then on. */
+    inbound: z.boolean().optional(),
     fallbackModel: z.string().nullable().optional(),
     customSystemPrompt: z.string().nullable().optional(),
     appendSystemPrompt: z.string().nullable().optional(),

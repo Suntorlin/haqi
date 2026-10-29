@@ -73,7 +73,8 @@ export function buildSessionMetadata(options: {
         lifecycleState: 'running',
         lifecycleStateSince: now,
         flavor: options.flavor,
-        worktree: worktreeInfo ?? undefined
+        worktree: worktreeInfo ?? undefined,
+        employeeId: process.env.HAPI_EMPLOYEE_ID || undefined
     }
 }
 

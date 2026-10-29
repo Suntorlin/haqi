@@ -21,8 +21,9 @@ import { cleanupRunnerState, getInstalledCliMtimeMs, isRunnerRunningCurrentlyIns
 import { normalizeClaudeModelValue } from '@hapi/protocol';
 import { startRunnerControlServer } from './controlServer';
 import { createWorktree, removeWorktree, type WorktreeInfo } from './worktree';
-import { join } from 'path';
+import { join, resolve as resolvePath } from 'path';
 import { homedir } from 'os';
+import { resolveVaultRoot } from '@/modules/employees/employeeFsHandlers';
 import { buildMachineMetadata } from '@/agent/sessionFactory';
 import { configuration } from '@/configuration';
 import { getProjectPath } from '@/claude/utils/path';
@@ -393,6 +394,24 @@ export async function startRunner(): Promise<void> {
           extraEnv = {
             ...extraEnv,
             CLAUDE_CODE_EFFORT_LEVEL: thinkEffort
+          };
+        }
+
+        if (options.employee) {
+          // The child acts as this digital employee: it reads SOUL/AGENTS/MEMORY from the home folder under the
+          // vault and tags its session metadata with the employee id.
+          const vaultRoot = await resolveVaultRoot();
+          if (!vaultRoot) {
+            return { type: 'error', errorMessage: 'vaultRoot is not configured on this machine; employee sessions need it' };
+          }
+          extraEnv = {
+            ...extraEnv,
+            HAPI_EMPLOYEE_ID: options.employee.id,
+            HAPI_EMPLOYEE_NAME: options.employee.name,
+            HAPI_EMPLOYEE_DIR: resolvePath(vaultRoot, options.employee.home),
+            ...(typeof options.employee.compactThreshold === 'number'
+              ? { HAPI_EMPLOYEE_COMPACT_THRESHOLD: String(options.employee.compactThreshold) }
+              : {})
           };
         }
 

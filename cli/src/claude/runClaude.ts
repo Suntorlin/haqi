@@ -23,6 +23,8 @@ import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import { findClaudeThinkEffortFromArgs, type ClaudeThinkEffort, resolveClaudeModelSelection } from './modelMode';
 import { normalizeClaudeModelValue } from '@hapi/protocol';
 import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
+import { CompactPilot, employeeFromEnv } from '@/claude/utils/compactPilot';
+import { requestHubJson } from '@/api/hubHttp';
 
 export interface StartOptions {
     model?: string
@@ -89,6 +91,11 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     // Forward messages to the queue
     let currentPermissionMode: PermissionMode = options.permissionMode ?? 'default';
+    /**
+     * Sticky: set by the first message that carries inbound content, never cleared (the content stays in
+     * context). Recovered from the hub session metadata, so a restarted process stays tainted.
+     */
+    let inboundTainted = sessionInfo.metadata?.inboundTainted === true;
     let currentModelMode: SessionModelMode = initialModelSelection.mode;
     let currentModel: string | undefined = initialModelSelection.model;
     let currentThinkEffort: ClaudeThinkEffort | undefined = options.thinkEffort ?? findClaudeThinkEffortFromArgs(options.claudeArgs);
@@ -181,7 +188,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     // Start Hook server for receiving Claude session notifications
     const hookServer = await startHookServer({
-        onClaudeHook: async (sessionId, data): Promise<HookResponse | undefined> => {
+        onClaudeHook: async (sessionId, data): Promise<HookResponse | void | undefined> => {
             logger.debug(`[START] Session hook received: ${sessionId}`, data);
 
             if (data.hook_event_name === 'Stop') {
@@ -190,11 +197,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 if (held) return held;
             }
 
-            const currentSession = currentSessionRef.current;
-            if (currentSession) {
-                currentSession.applyClaudeHookEvent(data);
-            }
-            return undefined;
+            return currentSessionRef.current?.applyClaudeHookEvent(data);
         }
     });
     logger.debug(`[START] Hook server started on port ${hookServer.port}`);
@@ -232,6 +235,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     // Import MessageQueue2 and create message queue
     const messageQueue = new MessageQueue2<EnhancedMode>(mode => hashObject({
         isPlan: mode.permissionMode === 'plan',
+        // A taint flips the mode hash once, so the next launch runs with --permission-mode default.
+        inboundTainted: mode.inboundTainted === true,
         model: mode.model,
         thinkEffort: mode.thinkEffort,
         fallbackModel: mode.fallbackModel,
@@ -449,7 +454,15 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (sessionPermissionMode && isPermissionModeAllowedForFlavor(sessionPermissionMode, 'claude')) {
             currentPermissionMode = sessionPermissionMode as PermissionMode;
         }
-        const messagePermissionMode = currentPermissionMode;
+        // Inbound (untrusted) content taints the session for good: the content stays in context, so every later
+        // turn runs without bypass and the permission layer asks a human (design: 入站不可信、外发必须确认).
+        if (message.meta?.inbound && !inboundTainted) {
+            inboundTainted = true;
+            logger.debug('[loop] Inbound content received: the session is tainted, permissions fall back to default');
+            // Persisted in the hub, so the taint survives a process restart.
+            session.updateMetadata((currentMetadata) => ({ ...currentMetadata, inboundTainted: true }));
+        }
+        const messagePermissionMode = inboundTainted && currentPermissionMode !== 'plan' ? 'default' : currentPermissionMode;
         const messageModel = currentModel;
         const pureContextMode = isPureContextModeEnabled();
         logger.debug(`[loop] User message received with permission mode: ${currentPermissionMode}, modelMode: ${currentModelMode}, model: ${currentModel ?? 'default'}`);
@@ -527,7 +540,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
                 disallowedTools: messageDisallowedTools,
-                routeContext: message.meta?.routeContext
+                routeContext: message.meta?.routeContext,
+                inboundTainted
             };
             // Use raw text only, ignore attachments for special commands
             const commandText = specialCommand.originalMessage || message.content.text;
@@ -547,7 +561,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
                 disallowedTools: messageDisallowedTools,
-                routeContext: message.meta?.routeContext
+                routeContext: message.meta?.routeContext,
+                inboundTainted
             };
             // Use raw text only, ignore attachments for special commands
             const commandText = specialCommand.originalMessage || message.content.text;
@@ -566,7 +581,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             appendSystemPrompt: messageAppendSystemPrompt,
             allowedTools: messageAllowedTools,
             disallowedTools: messageDisallowedTools,
-            routeContext: message.meta?.routeContext
+            routeContext: message.meta?.routeContext,
+            inboundTainted
         };
         messageQueue.push(formattedText, enhancedMode, {
             isolate: Boolean(message.meta?.routeContext)
@@ -875,6 +891,60 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         }
     });
 
+    // The employee compaction pilot: watches usage, flushes the run log and compacts at the threshold (design §8.2).
+    const employeeEnv = employeeFromEnv();
+    const compactPilot = employeeEnv
+        ? new CompactPilot(employeeEnv, {
+            pushMessage: (text) => {
+                const enhancedMode: EnhancedMode = {
+                    permissionMode: currentPermissionMode ?? 'default',
+                    model: currentModel,
+                    thinkEffort: currentThinkEffort,
+                    fallbackModel: currentFallbackModel,
+                    customSystemPrompt: currentCustomSystemPrompt,
+                    appendSystemPrompt: currentAppendSystemPrompt,
+                    allowedTools: currentAllowedTools,
+                    disallowedTools: currentDisallowedTools
+                };
+                // deferUserMessageUntilDequeue keeps the injected message visible in the hub chat for auditing.
+                messageQueue.push(text, enhancedMode, { isolate: true, deferUserMessageUntilDequeue: true });
+            },
+            fetchStatePackage: async () => {
+                const payload = await requestHubJson(`/api/employees/whoami?sessionId=${encodeURIComponent(sessionInfo.id)}`);
+                return typeof payload.statePackage === 'string' ? payload.statePackage : null;
+            },
+            reportCompaction: async (input) => {
+                await requestHubJson('/api/employees/compaction', {
+                    method: 'POST',
+                    body: JSON.stringify({ sessionId: sessionInfo.id, ...input })
+                });
+            }
+        })
+        : null;
+    compactPilot?.start();
+
+    const attachCompactPilot = (sessionInstance: Session): void => {
+        if (!compactPilot) return;
+        sessionInstance.setSessionStartContext((source) => compactPilot.sessionStartContext(source));
+        sessionInstance.setCompactionListener((event) => {
+            if (event.phase === 'pre') compactPilot.notePreCompact(event.trigger);
+            else compactPilot.notePostCompact(event.trigger, event.summary);
+        });
+        sessionInstance.setSdkMessageListener((raw) => {
+            const message = raw as { type?: string; parent_tool_use_id?: string; message?: { usage?: unknown }; modelUsage?: Record<string, { contextWindow?: unknown }> };
+            if (message?.type === 'assistant' && !message.parent_tool_use_id) {
+                compactPilot.noteAssistantUsage(message.message?.usage);
+            }
+            if (message?.type === 'result') {
+                const windows = Object.values(message.modelUsage ?? {})
+                    .map((entry) => entry?.contextWindow)
+                    .filter((value): value is number => typeof value === 'number' && value > 0);
+                if (windows.length > 0) compactPilot.noteContextWindow(Math.max(...windows));
+                compactPilot.noteTurnEnd();
+            }
+        });
+    };
+
     const allowedTools = Array.from(new Set(
         happyServer.toolNames.flatMap((toolName) => [
             `mcp__haqi__${toolName}`,
@@ -897,6 +967,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             onSessionReady: (sessionInstance) => {
                 currentSessionRef.current = sessionInstance;
                 syncSessionModes();
+                attachCompactPilot(sessionInstance);
             },
             mcpServers: {
                 'haqi': {

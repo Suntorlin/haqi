@@ -23,6 +23,11 @@ export interface EnhancedMode {
     allowedTools?: string[];
     disallowedTools?: string[];
     routeContext?: MessageRouteContext;
+    /**
+     * The session saw inbound (untrusted) content. Sticky: once set it stays for every later turn, because the
+     * content stays in context. The permission layer then asks a human for every tool call, whatever was granted.
+     */
+    inboundTainted?: boolean;
 }
 
 interface LoopOptions {

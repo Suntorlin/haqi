@@ -10,7 +10,7 @@ import { MemoryDetail } from './MemoryDetail'
 const memory: MemoryItem = {
     id: 'm1', text: 'Keep answers short.', level: 'principle', scope: '', status: 'pending', reason: null,
     source: 'user_message', sourceLabel: null, sessionId: null, said: true, support: 1, jev: null,
-    overridden: null, replaces: null, tags: [], version: 1, createdAt: 0, updatedAt: 0
+    overridden: null, replaces: null, employeeId: null, pinned: false, tags: [], version: 1, createdAt: 0, updatedAt: 0
 }
 
 function detail(props: { hotkeys: boolean; onConfirm?: () => void; onDismiss?: () => void }) {

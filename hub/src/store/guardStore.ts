@@ -71,6 +71,14 @@ export class GuardStore {
         return row ? toGuard(row) : null
     }
 
+    /** The guard state of a set of sessions (an employee's), for its metrics. */
+    listForSessions(sessionIds: string[]): StoredSessionGuard[] {
+        if (sessionIds.length === 0) return []
+        const marks = sessionIds.map(() => '?').join(', ')
+        const rows = this.db.prepare(`SELECT * FROM session_guards WHERE session_id IN (${marks})`).all(...sessionIds) as GuardRow[]
+        return rows.map(toGuard)
+    }
+
     upsert(guard: StoredSessionGuard): void {
         this.db.prepare(`
             INSERT INTO session_guards (session_id, namespace, status, reason, memory_id, strikes, clean_streak, checked_end_seq, checked_turns, cost_usd, updated_at)

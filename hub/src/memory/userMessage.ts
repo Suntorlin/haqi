@@ -8,6 +8,9 @@ import { userText } from './extract'
 /** Meta keys HAQI sets on the messages it sends on its own. */
 const INJECTED_META = ['routeContext', 'teamControl', 'taskGuide', 'taskWork'] as const
 
+/** `meta.source` values of messages HAQI sends into employee sessions (wakes, scheduled prompts, deliveries, inbound). */
+const INJECTED_SOURCES = new Set(['employee-wake', 'scheduled-task', 'task-deliver', 'inbound'])
+
 /**
  * Claude echoes a queued message back without its meta, so the injected ones are also known by their text.
  * Each pattern matches what one HAQI sender writes.
@@ -18,7 +21,12 @@ const INJECTED_TEXT = [
     /^📝 \*\*Group Note Broadcast\*\*/,
     /^You are coordinating the Claude agent team /,
     /^\[HAQI_TASK_GUIDE\]/,
-    /^\[HAQI_TASK_WORK\]/
+    /^\[HAQI_TASK_WORK\]/,
+    /^\[HAQI 状态包\]/,
+    /^\[HAQI 任务交付\]/,
+    /^\[HAQI 入站消息/,
+    // The compaction flush prompt the CLI injects before /compact (compactPilot's FLUSH_MESSAGE).
+    /^上下文快满了。用 employee_log 工具/
 ]
 
 /** A message that is only a slash command ("/compact", "/note refresh") runs a command; the user did not say anything. */
@@ -46,6 +54,7 @@ export function realUserText(content: string | StoredMessage): string | null {
     if (message?.role !== 'user' || message.content?.type !== 'text' || typeof message.content.text !== 'string') return null
     const meta = message.meta && typeof message.meta === 'object' ? message.meta : {}
     if (INJECTED_META.some((key) => meta[key] !== undefined && meta[key] !== null)) return null
+    if (typeof meta.source === 'string' && INJECTED_SOURCES.has(meta.source)) return null
     const raw = message.content.text
     if (INJECTED_TEXT.some((pattern) => pattern.test(raw))) return null
     if (SLASH_COMMAND.test(raw.trim())) return null

@@ -13,6 +13,8 @@ export type SessionSummaryMetadata = {
     summary?: { text: string; short?: string }
     flavor?: string | null
     worktree?: WorktreeMetadata
+    /** The digital employee this session belongs to; the web filters a session list per employee with it. */
+    employeeId?: string
 }
 
 export type SessionSummary = {
@@ -45,7 +47,8 @@ export function toSessionSummary(session: Session): SessionSummary {
             ? { text: session.metadata.summary.text, ...(session.metadata.summary.short ? { short: session.metadata.summary.short } : {}) }
             : undefined,
         flavor: session.metadata.flavor ?? null,
-        worktree: session.metadata.worktree
+        worktree: session.metadata.worktree,
+        employeeId: session.metadata.employeeId
     } : null
 
     const todoProgress = session.todos?.length ? {

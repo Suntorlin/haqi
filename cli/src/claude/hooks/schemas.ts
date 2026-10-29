@@ -59,6 +59,8 @@ export const KnownClaudeNotificationTypeSchema = z.enum([
 ]);
 export type KnownClaudeNotificationType = z.infer<typeof KnownClaudeNotificationTypeSchema>;
 
+const SessionStartSourceSchema = z.enum(['startup', 'resume', 'clear', 'compact']);
+
 export const CLAUDE_HOOK_EVENTS = [
     'PreToolUse',
     'PostToolUse',
@@ -125,7 +127,7 @@ export const ClaudeHookEventSchema = z.discriminatedUnion('hook_event_name', [
     }),
     BaseHookFields.extend({
         hook_event_name: z.literal('SessionStart'),
-        source: z.enum(['startup', 'resume', 'clear', 'compact']).optional(),
+        source: SessionStartSourceSchema.optional(),
         agent_type: z.string().optional(),
         model: z.string().optional()
     }),
@@ -269,3 +271,13 @@ export const HookResponseSchema = z.object({
     stdout: z.string().optional(),
     stderr: z.string().optional()
 });
+
+export type SessionStartSource = z.infer<typeof SessionStartSourceSchema>;
+
+/** Claude Code adds `additionalContext` to the conversation when the hook prints this JSON on stdout. */
+export function hookAdditionalContext(hookEventName: 'SessionStart' | 'UserPromptSubmit', additionalContext: string): HookResponse {
+    return {
+        exit_code: 0,
+        stdout: JSON.stringify({ hookSpecificOutput: { hookEventName, additionalContext } })
+    };
+}

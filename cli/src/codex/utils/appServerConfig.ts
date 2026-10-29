@@ -3,6 +3,7 @@ import type { CodexCliOverrides } from './codexCliOverrides';
 import type { McpServersConfig } from './buildHapiMcpBridge';
 import { getCodexSystemPrompt } from './systemPrompt';
 import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
+import { employeeFromEnv, readCompactKeep } from '@/agent/utils/employeeEnv';
 import type {
     ApprovalPolicy,
     SandboxMode,
@@ -105,9 +106,12 @@ export function buildThreadStartParams(args: {
 
 ${args.developerInstructions}`
         : baseInstructions;
+    // An employee session tells Codex what every compaction must keep (Codex takes no per-compaction requirement).
+    const employee = employeeFromEnv();
     const configWithInstructions = {
         ...config,
-        ...(resolvedDeveloperInstructions.trim() ? { developer_instructions: resolvedDeveloperInstructions } : {})
+        ...(resolvedDeveloperInstructions.trim() ? { developer_instructions: resolvedDeveloperInstructions } : {}),
+        ...(employee ? { compact_prompt: `压缩后的摘要必须完整保留：${readCompactKeep(employee.dir)}` } : {})
     };
 
     const params: ThreadStartParams = {

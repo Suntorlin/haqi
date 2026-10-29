@@ -53,6 +53,18 @@ export const MEMORY_SEARCH_DESCRIPTION = "Search the user's long-term memory by 
 
 export const MEMORY_PROPOSE_DESCRIPTION = "Offer one sentence for the user's long-term memory: a standing preference or rule the user stated, or a durable lesson or fact about this project. HAQI decides whether it is a fact, experience or principle, global or for this project, and may hold it for the user's review. Not for task progress, temporary details, secrets, or anything the code or git history already shows."
 
+export const employeeWhoamiInputSchema: z.ZodTypeAny = z.object({})
+
+export const EMPLOYEE_WHOAMI_DESCRIPTION = 'Who you are as a digital employee: name, home folder, main session, open issues and the current state package. Only works in a session that belongs to an employee.'
+
+export const employeeLogInputSchema: z.ZodTypeAny = z.object({
+    kind: z.enum(['goal', 'done', 'decision', 'todo', 'issue_open', 'issue_close', 'note']).describe('What the line records; issue_open / issue_close also keep the issue list'),
+    text: z.string().min(1).max(2000).describe('One short line: the goal, decision, todo or issue'),
+    ref: z.string().min(1).max(500).optional().describe('Optional reference: a file, link or close note')
+})
+
+export const EMPLOYEE_LOG_DESCRIPTION = 'Write one line into your run log as a digital employee: goal, done, decision, todo, note, or issue_open / issue_close for loose ends. The same open issue logged again only raises its count; it is never duplicated or re-alerted.'
+
 export const reportUpdateInputSchema: z.ZodTypeAny = z.object({
     report_id: z.string().min(1).max(255),
     task_id: z.string().min(1).max(120).optional(),
@@ -184,6 +196,13 @@ export const taskDecisionAskInputSchema: z.ZodTypeAny = z.object({
     recommended: z.string().max(80).optional().describe('The label you recommend')
 })
 
+export const taskEscalateInputSchema: z.ZodTypeAny = z.object({
+    text: z.string().trim().min(1).max(4000).describe('What the task must achieve, with the background the planner needs; name the repositories when you know them'),
+    files: z.array(z.string().min(1).max(1000)).max(5).optional().describe('Absolute paths of reference files on this machine; each is copied into the task')
+})
+
+export const TASK_ESCALATE_DESCRIPTION = 'Escalate work into a HAQI task: for work that spans repositories, splits into parallel parts, or needs hours. HAQI drafts the goal and acceptance criteria, the user confirms, executor sessions do the work, and the delivery summary comes back to this session. Stay available here; do not do the task yourself.'
+
 export const taskIntegratedInputSchema: z.ZodTypeAny = z.object({
     task_id: z.string().min(1).max(40),
     branch: z.string().min(1).max(200),
@@ -291,6 +310,18 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         inputSchema: memorySearchInputSchema
     },
     {
+        name: 'employee_whoami',
+        title: 'Employee Identity',
+        description: EMPLOYEE_WHOAMI_DESCRIPTION,
+        inputSchema: employeeWhoamiInputSchema
+    },
+    {
+        name: 'employee_log',
+        title: 'Employee Run Log',
+        description: EMPLOYEE_LOG_DESCRIPTION,
+        inputSchema: employeeLogInputSchema
+    },
+    {
         name: 'report_update',
         title: 'Update Report',
         description: 'Update report title/status/markdown/metadata, or its full HTML page (html_path). The share link stays the same.',
@@ -332,6 +363,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         description: TASK_DRAFT_SUBMIT_DESCRIPTION,
         inputSchema: taskDraftSubmitInputSchema
     },
+    { name: 'task_escalate', title: 'Escalate Into a Task', description: TASK_ESCALATE_DESCRIPTION, inputSchema: taskEscalateInputSchema },
     { name: 'task_plan_submit', title: 'Submit Task Plan', description: TASK_RUN_TOOL_DESCRIPTIONS.task_plan_submit, inputSchema: taskPlanSubmitInputSchema },
     { name: 'subtask_done', title: 'Subtask Done', description: TASK_RUN_TOOL_DESCRIPTIONS.subtask_done, inputSchema: subtaskDoneInputSchema },
     { name: 'task_decision_ask', title: 'Ask the User to Decide', description: TASK_RUN_TOOL_DESCRIPTIONS.task_decision_ask, inputSchema: taskDecisionAskInputSchema },

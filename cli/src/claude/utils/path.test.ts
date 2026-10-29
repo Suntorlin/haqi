@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getProjectPath } from './path';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 
 vi.mock('node:os', () => ({
@@ -55,6 +56,35 @@ describe('getProjectPath', () => {
         const workingDir = '';
         const result = getProjectPath(workingDir);
         expect(result).toContain(join('/home/user', '.claude', 'projects'));
+    });
+
+    describe('symlinked working directories', () => {
+        // node:os is mocked above, so the temp root comes from the environment.
+        const tempRoot = process.env.TMPDIR || '/tmp';
+        let base: string;
+
+        beforeEach(() => {
+            base = mkdtempSync(join(tempRoot, 'hapi-path-'));
+        });
+
+        afterEach(() => {
+            rmSync(base, { recursive: true, force: true });
+        });
+
+        it('maps a symlinked directory to the same project as its real path', () => {
+            const real = join(base, 'real');
+            const link = join(base, 'link');
+            mkdirSync(real);
+            symlinkSync(real, link);
+            expect(getProjectPath(link)).toBe(getProjectPath(real));
+            expect(getProjectPath(link)).toBe(getProjectPath(realpathSync(real)));
+        });
+
+        it('falls back to the plain resolved path when the directory does not exist', () => {
+            const missing = join(base, 'not-there');
+            const projectId = missing.replace(/[^a-zA-Z0-9]/g, '-');
+            expect(getProjectPath(missing)).toBe(join('/home/user', '.claude', 'projects', projectId));
+        });
     });
 
     describe('CLAUDE_CONFIG_DIR support', () => {

@@ -22,11 +22,11 @@ export class TaskKernel {
         private readonly changed: (namespace: string, taskId: string) => void
     ) {}
 
-    create(namespace: string, input: { name: string; tag: string; repoPath: string | null; machineId: string | null; members?: string[] }): StoredGroup {
+    create(namespace: string, input: { name: string; tag: string; repoPath: string | null; machineId: string | null; employeeId?: string | null; members?: string[] }): StoredGroup {
         const task = this.store.groups.createGroup({
             namespace,
             name: input.name,
-            task: { id: newTaskId(), tag: input.tag, status: 'guiding', repoPath: input.repoPath, machineId: input.machineId },
+            task: { id: newTaskId(), tag: input.tag, status: 'guiding', repoPath: input.repoPath, machineId: input.machineId, employeeId: input.employeeId ?? null },
             members: (input.members ?? []).map((sessionId) => ({ memberType: 'session' as const, sessionId }))
         })
         this.changed(namespace, task.id)

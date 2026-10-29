@@ -24,9 +24,12 @@ export const MEMORY_SCHEMA_SQL = `
         replaces TEXT,
         version INTEGER NOT NULL DEFAULT 1,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        employee_id TEXT,
+        pinned INTEGER NOT NULL DEFAULT 0
     );
     CREATE INDEX IF NOT EXISTS idx_memories_namespace_status ON memories(namespace, status);
+    CREATE INDEX IF NOT EXISTS idx_memories_employee ON memories(namespace, employee_id);
 
     CREATE TABLE IF NOT EXISTS memory_links (
         namespace TEXT NOT NULL DEFAULT 'default',
@@ -87,7 +90,9 @@ export const MEMORY_SCHEMA_SQL = `
 /** Columns added after the memory tables first shipped; added in place, so older hubs can still open the database. */
 export const MEMORY_ADDED_COLUMNS: Array<{ table: string; column: string; type: string }> = [
     { table: 'memory_events', column: 'detail', type: 'TEXT' },
-    { table: 'memory_vectors', column: 'checked', type: 'TEXT' }
+    { table: 'memory_vectors', column: 'checked', type: 'TEXT' },
+    { table: 'memories', column: 'employee_id', type: 'TEXT' },
+    { table: 'memories', column: 'pinned', type: 'INTEGER NOT NULL DEFAULT 0' }
 ]
 
 type DbMemoryRow = {
@@ -109,6 +114,8 @@ type DbMemoryRow = {
     version: number
     created_at: number
     updated_at: number
+    employee_id: string | null
+    pinned: number
 }
 
 type DbEventRow = {
@@ -147,6 +154,8 @@ function toStoredMemory(row: DbMemoryRow, tags: string[] = []): StoredMemory {
         jev: row.jev ? safeJsonParse(row.jev) : null,
         overridden: row.overridden ? safeJsonParse(row.overridden) as StoredMemory['overridden'] : null,
         replaces: row.replaces,
+        employeeId: row.employee_id,
+        pinned: row.pinned === 1,
         tags,
         version: row.version,
         createdAt: row.created_at,
@@ -175,14 +184,14 @@ function toStoredEvent(row: DbEventRow): StoredMemoryEvent {
     }
 }
 
-export type NewMemory = Omit<StoredMemory, 'id' | 'tags' | 'version' | 'createdAt' | 'updatedAt'> & { tags?: string[] }
+export type NewMemory = Omit<StoredMemory, 'id' | 'tags' | 'version' | 'createdAt' | 'updatedAt' | 'employeeId' | 'pinned'> & { tags?: string[]; employeeId?: string | null; pinned?: boolean }
 
 export function insertMemory(db: Database, input: NewMemory): StoredMemory {
     const now = Date.now()
     const id = randomUUID()
     db.prepare(`
-        INSERT INTO memories (id, namespace, text, level, scope, status, reason, source, source_label, session_id, said, support, jev, overridden, replaces, version, created_at, updated_at)
-        VALUES (@id, @namespace, @text, @level, @scope, @status, @reason, @source, @source_label, @session_id, @said, @support, @jev, @overridden, @replaces, 1, @now, @now)
+        INSERT INTO memories (id, namespace, text, level, scope, status, reason, source, source_label, session_id, said, support, jev, overridden, replaces, version, created_at, updated_at, employee_id, pinned)
+        VALUES (@id, @namespace, @text, @level, @scope, @status, @reason, @source, @source_label, @session_id, @said, @support, @jev, @overridden, @replaces, 1, @now, @now, @employee_id, @pinned)
     `).run({
         id,
         namespace: input.namespace,
@@ -199,7 +208,9 @@ export function insertMemory(db: Database, input: NewMemory): StoredMemory {
         jev: input.jev === null ? null : JSON.stringify(input.jev),
         overridden: input.overridden === null ? null : JSON.stringify(input.overridden),
         replaces: input.replaces,
-        now
+        now,
+        employee_id: input.employeeId ?? null,
+        pinned: input.pinned ? 1 : 0
     })
     if (input.tags?.length) addMemoryTags(db, input.namespace, id, input.tags)
     const stored = getMemory(db, id, input.namespace)
@@ -233,7 +244,7 @@ function memoryTagsByMemory(db: Database, namespace: string): Map<string, string
     return byMemory
 }
 
-export type MemoryPatch = Partial<Pick<StoredMemory, 'text' | 'level' | 'scope' | 'status' | 'reason' | 'support' | 'said' | 'overridden' | 'replaces'>> & { bumpVersion?: boolean }
+export type MemoryPatch = Partial<Pick<StoredMemory, 'text' | 'level' | 'scope' | 'status' | 'reason' | 'support' | 'said' | 'overridden' | 'replaces' | 'employeeId' | 'pinned'>> & { bumpVersion?: boolean }
 
 export function updateMemory(db: Database, id: string, namespace: string, patch: MemoryPatch): StoredMemory | null {
     const current = getMemory(db, id, namespace)
@@ -241,7 +252,8 @@ export function updateMemory(db: Database, id: string, namespace: string, patch:
     const next = { ...current, ...patch }
     db.prepare(`
         UPDATE memories SET text = @text, level = @level, scope = @scope, status = @status, reason = @reason,
-            support = @support, said = @said, overridden = @overridden, replaces = @replaces, version = @version, updated_at = @now
+            support = @support, said = @said, overridden = @overridden, replaces = @replaces, version = @version, updated_at = @now,
+            employee_id = @employee_id, pinned = @pinned
         WHERE id = @id AND namespace = @namespace
     `).run({
         id,
@@ -256,13 +268,23 @@ export function updateMemory(db: Database, id: string, namespace: string, patch:
         overridden: next.overridden === null ? null : JSON.stringify(next.overridden),
         replaces: next.replaces,
         version: current.version + (patch.bumpVersion ? 1 : 0),
-        now: Date.now()
+        now: Date.now(),
+        employee_id: next.employeeId,
+        pinned: next.pinned ? 1 : 0
     })
     return getMemory(db, id, namespace)
 }
 
 export function deleteMemory(db: Database, id: string, namespace: string): boolean {
     return db.prepare('DELETE FROM memories WHERE id = ? AND namespace = ?').run(id, namespace).changes > 0
+}
+
+/** A deleted employee's memories archive and shed the dead employee_id; the vault file keeps the text. */
+export function detachEmployeeMemories(db: Database, namespace: string, employeeId: string, reason: string): number {
+    return db.prepare(`
+        UPDATE memories SET status = 'archived', employee_id = NULL, pinned = 0, reason = ?, updated_at = ?
+        WHERE namespace = ? AND employee_id = ?
+    `).run(reason, Date.now(), namespace, employeeId).changes
 }
 
 export function addMemoryLink(db: Database, namespace: string, fromId: string, toId: string): void {

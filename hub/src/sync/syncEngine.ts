@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView, MachineLoad } from '@hapi/protocol/schemas'
+import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView, EmployeeSpawnRef, MachineLoad } from '@hapi/protocol/schemas'
 import { ClaudeAccountPoolSchema } from '@hapi/protocol/schemas'
 /**
  * Sync Engine for HAPI Telegram Bot (Direct Connect)
@@ -44,6 +44,7 @@ import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession, type TaskSessionSettings } from '../tasks/taskService'
 import type { MachinesOffered } from '../tasks/plugins/context/machines'
 import { ACCOUNT_NOTE, SCHEDULE_TICK_MS, ScheduleService, type ScheduleAlert, type ScheduleSpawnInput, type ScheduleSpawnResult } from '../schedules/scheduleService'
+import { EMPLOYEE_SWEEP_INTERVAL_MS, EmployeeService } from './employeeService'
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
 import { GuardService } from '../guard/guardService'
@@ -510,6 +511,8 @@ export class SyncEngine {
     private taskObserverTimer: NodeJS.Timeout | null = null
     private readonly scheduleService: ScheduleService
     private scheduleTimer: NodeJS.Timeout | null = null
+    private readonly employeeService: EmployeeService
+    private employeeSweepTimer: NodeJS.Timeout | null = null
 
     constructor(
         store: Store,
@@ -680,7 +683,8 @@ export class SyncEngine {
                     const report = this.store.reports.createReport({ namespace, title: input.title, markdown: input.markdown, status: 'final' })
                     const share = this.store.reports.createShare({ reportId: report.id, namespace, createdBy: 'system:task' })
                     return { shareUrl: this.reportShareBase ? `${this.reportShareBase}/share/r/${encodeURIComponent(share.token)}` : null }
-                }
+                },
+                wakeEmployee: async (namespace, employeeId, text) => await this.employeeService.wake(namespace, employeeId, { source: 'task-deliver', text })
             },
             timeline: (namespace, taskId, text, extra) => {
                 void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text, ...extra } })
@@ -690,6 +694,31 @@ export class SyncEngine {
         })
         this.scheduleService = new ScheduleService(store, {
             spawn: (input) => this.spawnScheduledRun(input),
+            wakeEmployee: async (namespace, employeeId, text) => {
+                try {
+                    const woken = await this.employeeService.wake(namespace, employeeId, { source: 'schedule', text })
+                    return { sessionId: woken.sessionId }
+                } catch (error) {
+                    return { error: error instanceof Error ? error.message : String(error) }
+                }
+            },
+            sendText: async (namespace, sessionId, text) => {
+                if (!this.getSessionByNamespace(sessionId, namespace)?.active) return false
+                await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta: { source: 'scheduled-task' } })
+                return true
+            },
+            findSessionByTag: (namespace, tag) => {
+                const live = this.getSessionsByNamespace(namespace)
+                    .filter((session) => session.active && (session.metadata?.tags ?? []).includes(tag))
+                    .sort((a, b) => b.createdAt - a.createdAt)
+                return live[0]?.id ?? null
+            },
+            employeeRunStarted: async (namespace, employeeId, sessionId, text) => {
+                await this.employeeService.noteRunStart(namespace, employeeId, sessionId, text)
+            },
+            employeeRunFinished: async (namespace, sessionId, status, summary) => {
+                await this.employeeService.noteRunResult(namespace, sessionId, status, summary)
+            },
             session: (namespace, sessionId) => {
                 const session = this.getSessionByNamespace(sessionId, namespace)
                 if (!session) return null
@@ -714,10 +743,61 @@ export class SyncEngine {
                 }
             }
         })
+        this.employeeService = new EmployeeService(store, {
+            machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
+            spawn: async ({ employee, text, meta }) => {
+                const result = await this.spawnAndPrompt(employee.machineId, employee.directory, {
+                    agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
+                    model: employee.model ?? undefined,
+                    employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold }
+                }, {
+                    text,
+                    meta: { source: 'employee-wake', employeeId: employee.id, ...(meta ?? {}) },
+                    permissionMode: (employee.permissionMode ?? undefined) as PermissionMode | undefined
+                })
+                return result.type === 'success' ? { sessionId: result.sessionId } : { error: result.message }
+            },
+            resume: async (namespace, sessionId) => {
+                const result = await this.resumeSession(sessionId, namespace)
+                return result.type === 'success' ? result.sessionId : null
+            },
+            send: async (sessionId, text, meta) => {
+                if (!this.getSession(sessionId)?.active) return false
+                await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta: { source: 'employee-wake', ...(meta ?? {}) } })
+                return true
+            },
+            session: (namespace, sessionId) => {
+                const session = this.getSessionByNamespace(sessionId, namespace)
+                if (!session) return null
+                return {
+                    active: session.active,
+                    busy: session.thinking || Object.keys(session.agentState?.requests ?? {}).length > 0,
+                    summaryText: session.metadata?.summary?.text ?? null
+                }
+            },
+            sessionEmployeeId: (namespace, sessionId) => this.getSessionByNamespace(sessionId, namespace)?.metadata?.employeeId ?? null,
+            archive: async (sessionId) => { await this.archiveSession(sessionId) },
+            rename: async (sessionId, name) => { await this.renameSession(sessionId, name) },
+            tag: async (sessionId, tags) => { await this.setSessionTags(sessionId, tags) },
+            fs: {
+                init: async (machineId, params) => { await this.rpcGateway.employeeDirInit(machineId, params) },
+                read: (machineId, params) => this.rpcGateway.employeeFsRead(machineId, params),
+                write: (machineId, params) => this.rpcGateway.employeeFsWrite(machineId, params),
+                stat: (machineId, params) => this.rpcGateway.employeeFsStat(machineId, params),
+                list: async (machineId, params) => (await this.rpcGateway.employeeFsList(machineId, params)).entries
+            },
+            maintain: (namespace) => this.memoryService.maintain(namespace),
+            changed: (namespace, employeeId) => this.eventPublisher.emit({ type: 'employee-updated', namespace, employeeId }),
+            alert: async (namespace, alert) => { await this.pushNotifier?.(namespace, { ...alert, tag: `employee:${alert.url}` }) },
+            timezone: () => Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
         if (store.getDatabasePath() !== ':memory:') {
             this.scheduleTimer = setInterval(() => {
                 void this.scheduleService.tick().catch((error: unknown) => console.warn('[Schedules] tick failed', error))
             }, SCHEDULE_TICK_MS)
+            this.employeeSweepTimer = setInterval(() => {
+                void this.employeeService.sweep().catch((error: unknown) => console.warn('[Employees] sweep failed', error))
+            }, EMPLOYEE_SWEEP_INTERVAL_MS)
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
             this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
             this.taskObserverTimer = setInterval(() => this.observeTasks(), TASK_OBSERVER_INTERVAL_MS)
@@ -735,6 +815,10 @@ export class SyncEngine {
 
     getScheduleService(): ScheduleService {
         return this.scheduleService
+    }
+
+    getEmployeeService(): EmployeeService {
+        return this.employeeService
     }
 
     getHandoffService(): HandoffService {
@@ -808,6 +892,10 @@ export class SyncEngine {
         if (this.scheduleTimer) {
             clearInterval(this.scheduleTimer)
             this.scheduleTimer = null
+        }
+        if (this.employeeSweepTimer) {
+            clearInterval(this.employeeSweepTimer)
+            this.employeeSweepTimer = null
         }
         this.guardService.stop()
         this.handoffService.stop()
@@ -1299,6 +1387,20 @@ export class SyncEngine {
             meta?: Record<string, unknown>
         }
     ): Promise<void> {
+        // The inbound taint lives in the hub, not only in the CLI process: the first inbound message writes it
+        // into the session metadata, and every later message to that session carries it again, so a restarted
+        // CLI re-taints before its first turn (design: 入站不可信、外发必须确认).
+        const session = this.getSession(sessionId) ?? this.sessionCache.refreshSession(sessionId)
+        if (payload.meta?.inbound === true) {
+            if (session && session.metadata?.inboundTainted !== true) {
+                await this.sessionCache.updateSessionMetadata(sessionId, (metadata) => ({
+                    ...(metadata ?? { path: '', host: '' }),
+                    inboundTainted: true
+                })).catch((error) => console.warn('[Sessions] failed to persist the inbound taint', error))
+            }
+        } else if (session?.metadata?.inboundTainted === true) {
+            payload = { ...payload, meta: { ...payload.meta, inbound: true } }
+        }
         await this.messageService.sendMessage(sessionId, payload)
     }
 
@@ -1981,15 +2083,25 @@ export class SyncEngine {
         targetSessionId: string
         command: string
     }): Promise<void> {
-        const session = this.getSession(payload.targetSessionId)
-        if (!session) {
-            throw new Error('Target session not found')
-        }
-        if (session.namespace !== payload.namespace) {
+        let targetSessionId = payload.targetSessionId
+        let session = this.getSession(targetSessionId)
+        if (session && session.namespace !== payload.namespace) {
             throw new Error('Target session access denied')
         }
-        if (!session.active) {
-            throw new Error('Target session is inactive')
+        if (!session?.active) {
+            // An @ at an offline employee session wakes the employee instead of failing: the main session
+            // resumes, or a fresh one starts with the state package, and the command goes there.
+            const employeeId = session?.metadata?.employeeId ?? null
+            const employee = employeeId ? this.store.employees.get(employeeId, payload.namespace) : null
+            if (!employee) {
+                throw new Error(session ? 'Target session is inactive' : 'Target session not found')
+            }
+            const woken = await this.employeeService.wake(payload.namespace, employee.id, { source: 'group-mention' })
+            targetSessionId = woken.sessionId
+            session = this.getSession(targetSessionId)
+            if (!session?.active) {
+                throw new Error('员工唤醒了，但会话没有上线')
+            }
         }
 
         const flavor = session.metadata?.flavor
@@ -1998,21 +2110,21 @@ export class SyncEngine {
             taskId: payload.taskId,
             traceId: payload.traceId,
             source: payload.source,
-            targetSessionIds: [payload.targetSessionId]
+            targetSessionIds: [targetSessionId]
         }
 
         if (flavor === 'claude') {
             // Pre-register route in both maps. queuePendingRoutes prevents the
             // user-message echo (which lacks routeContext) from clearing the route.
-            this.activeGroupRoutesBySession.set(payload.targetSessionId, routeContext)
-            this.queuePendingRoutes.set(payload.targetSessionId, routeContext)
-            const result = await this.enqueueClaudeMessage(payload.targetSessionId, {
+            this.activeGroupRoutesBySession.set(targetSessionId, routeContext)
+            this.queuePendingRoutes.set(targetSessionId, routeContext)
+            const result = await this.enqueueClaudeMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
             })
             if (!result.success) {
-                this.activeGroupRoutesBySession.delete(payload.targetSessionId)
-                this.queuePendingRoutes.delete(payload.targetSessionId)
+                this.activeGroupRoutesBySession.delete(targetSessionId)
+                this.queuePendingRoutes.delete(targetSessionId)
                 throw new Error(result.error ?? 'Failed to enqueue Claude task')
             }
             return
@@ -2020,15 +2132,15 @@ export class SyncEngine {
 
         if (flavor === 'gemini') {
             // Same treatment as claude
-            this.activeGroupRoutesBySession.set(payload.targetSessionId, routeContext)
-            this.queuePendingRoutes.set(payload.targetSessionId, routeContext)
-            const result = await this.enqueueCodexMessage(payload.targetSessionId, {
+            this.activeGroupRoutesBySession.set(targetSessionId, routeContext)
+            this.queuePendingRoutes.set(targetSessionId, routeContext)
+            const result = await this.enqueueCodexMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
             })
             if (!result.success) {
-                this.activeGroupRoutesBySession.delete(payload.targetSessionId)
-                this.queuePendingRoutes.delete(payload.targetSessionId)
+                this.activeGroupRoutesBySession.delete(targetSessionId)
+                this.queuePendingRoutes.delete(targetSessionId)
                 throw new Error(result.error ?? 'Failed to enqueue Gemini task')
             }
             return
@@ -2036,7 +2148,7 @@ export class SyncEngine {
 
         if (flavor === 'codex') {
             // Codex echoes routeContext in its messages, so no pre-registration needed
-            const result = await this.enqueueCodexMessage(payload.targetSessionId, {
+            const result = await this.enqueueCodexMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
             })
@@ -2047,7 +2159,7 @@ export class SyncEngine {
         }
 
         // opencode and unknown flavors: fall back to direct send
-        await this.sendMessage(payload.targetSessionId, {
+        await this.sendMessage(targetSessionId, {
             text: payload.command,
             sentFrom: 'webapp',
             meta: { routeContext }
@@ -2200,7 +2312,8 @@ ${note.content}
         resumeSessionId?: string,
         previewUrl?: string | null,
         claudeAccount?: ClaudeAccountSelection,
-        sourceClaudeAccountId?: string
+        sourceClaudeAccountId?: string,
+        employee?: EmployeeSpawnRef
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
         // The system switch overrides each caller: the task lead, a resume, the new-session form.
@@ -2217,7 +2330,8 @@ ${note.content}
             worktreeName,
             resumeSessionId,
             claudeAccount,
-            sourceClaudeAccountId
+            sourceClaudeAccountId,
+            employee
         )
 
         // The agent reports its permission mode only once it is running; remember the requested one now so a
@@ -2655,6 +2769,11 @@ ${note.content}
         // Both attempts keep it: if the runner lacks the account, the wake fails with the reason instead of
         // silently starting on the default login without the transcript.
         const pinnedAccount = flavor === 'claude' ? metadata.claudeAccount : undefined
+        // An employee session wakes as that employee: the new process needs the identity env again.
+        const ownerEmployee = metadata.employeeId ? this.store.employees.get(metadata.employeeId, namespace) : null
+        const employeeRef = ownerEmployee
+            ? { id: ownerEmployee.id, name: ownerEmployee.name, home: ownerEmployee.homePath, compactThreshold: ownerEmployee.compactThreshold }
+            : undefined
 
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
@@ -2668,7 +2787,8 @@ ${note.content}
             undefined,
             resumeSessionId,
             pinnedAccount ? { accountId: pinnedAccount.id, automatic: pinnedAccount.automatic } : undefined,
-            resumeSessionId ? pinnedAccount?.id : undefined
+            resumeSessionId ? pinnedAccount?.id : undefined,
+            employeeRef
         )
 
         // Sessions that never produced a native transcript have no resume token, and
@@ -2744,6 +2864,7 @@ ${note.content}
             claudeAccount?: ClaudeAccountSelection
             sessionType?: 'simple' | 'worktree'
             worktreeName?: string
+            employee?: EmployeeSpawnRef
         },
         prompt: { text: string; meta?: Record<string, unknown>; files?: TaskFileContent[]; permissionMode?: PermissionMode }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
@@ -2759,7 +2880,9 @@ ${note.content}
             options.worktreeName,
             undefined,
             undefined,
-            options.claudeAccount
+            options.claudeAccount,
+            undefined,
+            options.employee
         )
         if (spawned.type === 'error') return spawned
         if (!await this.waitForSessionActive(spawned.sessionId)) {
@@ -2848,7 +2971,8 @@ ${note.content}
             ...(input.thinkEffort ? { thinkEffort: input.thinkEffort as 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh' } : {}),
             yolo,
             sessionType: input.worktree ? 'worktree' as const : 'simple' as const,
-            ...(input.worktree ? { worktreeName: `scheduled-${Date.now().toString(36)}` } : {})
+            ...(input.worktree ? { worktreeName: `scheduled-${Date.now().toString(36)}` } : {}),
+            ...(input.employee ? { employee: input.employee } : {})
         }, {
             text: input.text,
             meta: input.meta,
@@ -2857,7 +2981,8 @@ ${note.content}
         if (result.type === 'error') return { error: result.message, attempts: result.attempts }
         await this.renameSession(result.sessionId, input.name).catch(() => {})
         const tags = this.getSession(result.sessionId)?.metadata?.tags ?? []
-        if (!tags.includes('scheduled')) await this.setSessionTags(result.sessionId, [...tags, 'scheduled']).catch(() => {})
+        const wanted = ['scheduled', ...(input.tags ?? [])].filter((tag) => !tags.includes(tag))
+        if (wanted.length > 0) await this.setSessionTags(result.sessionId, [...tags, ...wanted]).catch(() => {})
         return {
             sessionId: result.sessionId,
             accountId: result.accountId,
@@ -3394,7 +3519,7 @@ ${note.content}
             })
         } catch {
             // Fallback: send as regular message
-            await this.messageService.sendMessage(payload.workerSessionId, { text })
+            await this.sendMessage(payload.workerSessionId, { text })
         }
     }
 
@@ -3482,7 +3607,7 @@ Remember: Call review_loop_reviewer_submit when you have formed your assessment.
                 }
             })
         } catch {
-            await this.messageService.sendMessage(payload.reviewerSessionId, { text })
+            await this.sendMessage(payload.reviewerSessionId, { text })
         }
     }
 
@@ -3524,6 +3649,7 @@ function toTaskSession(session: Session): TaskSession {
         path: metadata?.path ?? null,
         name: metadata?.name ?? metadata?.summary?.text ?? null,
         tags: metadata?.tags ?? [],
+        employeeId: metadata?.employeeId ?? null,
         updatedAt: session.updatedAt
     }
 }

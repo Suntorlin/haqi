@@ -87,7 +87,9 @@ export class ReviewLoopService {
         maxRounds?: number
         userPreference?: StoredReviewLoopUserPreference
     }): ReviewLoopWithRounds {
-        const loop = this.store.reviewLoops.createReviewLoop(options)
+        // A loop over an employee's session counts toward that employee's metrics.
+        const workerEmployeeId = (this.store.sessions.getSession(options.workerSessionId)?.metadata as { employeeId?: string } | null)?.employeeId ?? null
+        const loop = this.store.reviewLoops.createReviewLoop({ ...options, employeeId: workerEmployeeId })
 
         this.eventPublisher.emit({
             type: 'review-loop-added',

@@ -23,6 +23,8 @@ export type TaskSession = {
     path: string | null
     name: string | null
     tags: string[]
+    /** The digital employee the session acts as, from its metadata; null for ordinary sessions. */
+    employeeId?: string | null
     updatedAt: number
 }
 
@@ -111,15 +113,18 @@ export class TaskService {
         const from = input.fromSessionId ? this.host.session(namespace, input.fromSessionId) : null
         if (input.fromSessionId && !from) throw new TaskError('Session not found', 404)
         const tag = input.tag ?? ''
+        // An employee escalation may span repositories: the planner picks the repository, not the employee's cwd.
+        const employeeId = from?.employeeId ?? null
         const known = input.machineId && input.directory
             ? { machineId: input.machineId, directory: input.directory }
-            : from?.machineId && from.path && this.host.machineOnline(namespace, from.machineId) ? { machineId: from.machineId, directory: from.path } : null
+            : !employeeId && from?.machineId && from.path && this.host.machineOnline(namespace, from.machineId) ? { machineId: from.machineId, directory: from.path } : null
         const workspace = known ? null : this.workspaceFor(namespace)
         const task = this.kernel.create(namespace, {
             name: firstLine(input.text, NAME_CHARS),
             tag,
             repoPath: known?.directory ?? null,
             machineId: known?.machineId ?? workspace?.machineId ?? null,
+            employeeId,
             members: from ? [from.id] : []
         })
         if (input.files?.length) this.host.files?.save(task.id, input.files)

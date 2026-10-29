@@ -336,6 +336,14 @@ export function getSessionsByNamespace(db: Database, namespace: string): StoredS
     return rows.map(toStoredSession)
 }
 
+/** The ids of every session spawned for one employee (metadata.employeeId), for its metrics. */
+export function getSessionIdsForEmployee(db: Database, namespace: string, employeeId: string): string[] {
+    const rows = db.prepare(
+        "SELECT id FROM sessions WHERE namespace = ? AND json_extract(metadata, '$.employeeId') = ?"
+    ).all(namespace, employeeId) as Array<{ id: string }>
+    return rows.map((row) => row.id)
+}
+
 export function deleteSession(db: Database, id: string, namespace: string): boolean {
     const result = db.prepare(
         'DELETE FROM sessions WHERE id = ? AND namespace = ?'

@@ -26,6 +26,7 @@ import {
     type SpecError
 } from '@/lib/schedules'
 import { useAppContext } from '@/lib/app-context'
+import { useEmployees } from '@/hooks/queries/useEmployees'
 import { useClaudeAccountPool } from '@/hooks/queries/useSchedules'
 import { useTranslation } from '@/lib/use-translation'
 
@@ -43,6 +44,9 @@ type FormState = {
     permissionMode: string
     /** '' = the pool's default account. */
     accountId: string
+    /** '' = a plain task with no employee. */
+    employeeId: string
+    sessionTarget: string
     worktree: boolean
     maxMinutes: string
     timezone: string
@@ -61,6 +65,8 @@ function initialState(schedule: ScheduledTask | null): FormState {
         model: schedule?.model ?? '',
         permissionMode: schedule?.permissionMode ?? 'default',
         accountId: schedule?.accountId ?? '',
+        employeeId: schedule?.employeeId ?? '',
+        sessionTarget: schedule?.sessionTarget ?? 'isolated',
         worktree: schedule?.worktree ?? false,
         maxMinutes: String(schedule?.maxMinutes ?? DEFAULT_MAX_MINUTES),
         timezone,
@@ -110,6 +116,7 @@ export function ScheduleFormDialog(props: {
 
     const permissionModes = getPermissionModesForFlavor(state.agent)
     const isClaude = state.agent === 'claude'
+    const { employees } = useEmployees(props.open ? api : null)
     const pool = useClaudeAccountPool(api, state.machineId || null, props.open && isClaude)
     const accounts = pool?.profiles.filter((profile) => profile.enabled || profile.id === state.accountId) ?? []
     const defaultEmail = pool?.profiles.find((profile) => profile.id === pool.initialAccount)?.email
@@ -149,6 +156,8 @@ export function ScheduleFormDialog(props: {
                 model: state.model.trim() || null,
                 permissionMode: state.permissionMode === 'default' ? null : state.permissionMode,
                 accountId: isClaude && state.accountId ? state.accountId : null,
+                employeeId: state.employeeId || null,
+                sessionTarget: state.employeeId ? state.sessionTarget : 'isolated',
                 worktree: state.worktree,
                 maxMinutes,
                 spec: check.spec,
@@ -163,6 +172,14 @@ export function ScheduleFormDialog(props: {
     const kindOptions = SCHEDULE_KINDS.map((kind) => ({ value: kind, label: t(`scheduled.kind.${kind}`) }))
     const agentOptions = SCHEDULE_AGENTS.map((agent) => ({ value: agent, label: agent }))
     const weekdayOptions = WEEKDAY_ORDER.map((day) => ({ value: String(day), label: t(`scheduled.weekday.${day}`) }))
+    // isolated and main are the form's choices; an API-made named:<key> target survives an edit untouched.
+    const sessionTargetOptions = [
+        { value: 'isolated', label: t('scheduled.form.sessionTargetIsolated') },
+        { value: 'main', label: t('scheduled.form.sessionTargetMain') },
+        ...(state.sessionTarget.startsWith('named:')
+            ? [{ value: state.sessionTarget, label: t('scheduled.form.sessionTargetNamed', { key: state.sessionTarget.slice('named:'.length) }) }]
+            : [])
+    ]
 
     return (
         <Dialog open={props.open} onOpenChange={(open) => { if (!open) props.onClose() }}>
@@ -238,6 +255,31 @@ export function ScheduleFormDialog(props: {
                                     <option key={profile.id} value={profile.id}>{profile.email}</option>
                                 ))}
                             </SelectInput>
+                        </FormField>
+                    ) : null}
+                    {employees.length > 0 || state.employeeId ? (
+                        <FormField label={t('scheduled.form.employee')} htmlFor={`${ids}-employee`} optional hint={t('scheduled.form.employeeHint')}>
+                            <SelectInput id={`${ids}-employee`} value={state.employeeId} onChange={(e) => set('employeeId', e.target.value)}>
+                                <option value="">{t('scheduled.form.employeeNone')}</option>
+                                {state.employeeId && !employees.some((employee) => employee.id === state.employeeId) ? (
+                                    <option value={state.employeeId}>{t('scheduled.form.employeeMissing', { id: state.employeeId.slice(0, 8) })}</option>
+                                ) : null}
+                                {employees.map((employee) => (
+                                    <option key={employee.id} value={employee.id}>
+                                        {employee.emoji ? `${employee.emoji} ` : ''}{employee.name}
+                                    </option>
+                                ))}
+                            </SelectInput>
+                        </FormField>
+                    ) : null}
+                    {state.employeeId ? (
+                        <FormField label={t('scheduled.form.sessionTarget')} hint={t('scheduled.form.sessionTargetHint')}>
+                            <ChoiceChips
+                                label={t('scheduled.form.sessionTarget')}
+                                value={state.sessionTarget}
+                                options={sessionTargetOptions}
+                                onChange={(value) => set('sessionTarget', value)}
+                            />
                         </FormField>
                     ) : null}
                     <div className="flex min-h-11 items-center gap-3 px-1">

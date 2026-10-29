@@ -56,6 +56,10 @@ export type ScheduleSpawnInput = {
     text: string
     name: string
     meta: Record<string, unknown>
+    /** Present on an employee's task: the session runs under this identity (HAPI_EMPLOYEE_* env). */
+    employee?: { id: string; name: string; home: string; compactThreshold: number }
+    /** Extra session tags, such as employee:<id>. */
+    tags?: string[]
 }
 
 export type ScheduleSpawnResult =
@@ -77,6 +81,16 @@ export type ScheduleHost = {
     changed: (namespace: string, scheduleId: string) => void
     /** A failure goes out on every channel; a success only as a push. */
     alert: (namespace: string, alert: ScheduleAlert) => Promise<void>
+    /** session_target=main: the run goes through the employee wake pipeline (resume or fresh with the state package). */
+    wakeEmployee: (namespace: string, employeeId: string, text: string) => Promise<{ sessionId: string } | { error: string }>
+    /** Into a live named session; false when it is gone. */
+    sendText: (namespace: string, sessionId: string, text: string) => Promise<boolean>
+    /** The newest active session carrying this tag; for named targets. */
+    findSessionByTag: (namespace: string, tag: string) => string | null
+    /** Opens the employee run log for a bound run's session. */
+    employeeRunStarted: (namespace: string, employeeId: string, sessionId: string, text: string) => Promise<void>
+    /** A bound run's result: run log only, never the main session (design: isolated results stay out of it). */
+    employeeRunFinished: (namespace: string, sessionId: string, status: string, summary: string) => Promise<void>
     now?: () => number
 }
 
@@ -129,6 +143,7 @@ export class ScheduleService {
 
     create(namespace: string, input: ScheduledTaskInput): ScheduledTask {
         this.check(input.spec, input.timezone)
+        const employeeId = this.checkEmployee(namespace, input.employeeId ?? null)
         const enabled = input.enabled ?? true
         const created = this.store.schedules.create(namespace, {
             name: input.name,
@@ -143,6 +158,8 @@ export class ScheduleService {
             accountId: input.accountId ?? null,
             worktree: input.worktree ?? false,
             maxMinutes: input.maxMinutes ?? DEFAULT_MAX_MINUTES,
+            employeeId,
+            sessionTarget: input.sessionTarget ?? 'isolated',
             spec: input.spec,
             timezone: input.timezone,
             enabled,
@@ -169,12 +186,15 @@ export class ScheduleService {
             accountId: pick('accountId'),
             worktree: pick('worktree'),
             maxMinutes: pick('maxMinutes'),
+            employeeId: pick('employeeId'),
+            sessionTarget: pick('sessionTarget') ?? 'isolated',
             spec: pick('spec'),
             timezone: pick('timezone'),
             enabled: pick('enabled')
         }
         if (!next.prompt && !next.promptFile) throw new ScheduleError('Give a prompt or a prompt file')
         this.check(next.spec, next.timezone)
+        this.checkEmployee(namespace, next.employeeId)
         // A new clock or a resume counts from now: a paused task does not catch up on the time it was paused.
         const clockChanged = patch.spec !== undefined || patch.timezone !== undefined || (next.enabled && !current.enabled)
         const nextRunAt = !next.enabled ? null : clockChanged ? nextRunTime(next.spec, next.timezone, this.now()) : current.nextRunAt
@@ -217,7 +237,14 @@ export class ScheduleService {
             finishedAt: this.now()
         })
         const done = this.store.schedules.getRun(run.id) ?? run
-        if (!failed) this.retiring.set(input.sessionId, { namespace, at: this.now() })
+        const schedule = this.store.schedules.get(namespace, run.scheduleId)
+        // A bound run's result goes into the employee run log only; the main session never hears about it.
+        if (schedule?.employeeId) {
+            void this.host.employeeRunFinished(namespace, input.sessionId, input.status, input.summary).catch(() => {})
+        }
+        // Main and named sessions outlive their runs; only one-off sessions retire after reporting.
+        const oneOff = !schedule?.employeeId || schedule.sessionTarget === 'isolated'
+        if (!failed && oneOff) this.retiring.set(input.sessionId, { namespace, at: this.now() })
         this.announce(done, corrected)
         return publicRun(done)
     }
@@ -280,11 +307,14 @@ export class ScheduleService {
         return latest
     }
 
-    private composePrompt(schedule: StoredSchedule, trigger: ScheduledRunTrigger, scheduledFor: number | null): string {
+    private composePrompt(schedule: StoredSchedule, trigger: ScheduledRunTrigger, scheduledFor: number | null, employee: { name: string } | null): string {
         const now = this.now()
         const parts: string[] = []
         if (trigger === 'catchup' && scheduledFor !== null) {
             parts.push(`（补跑：原定 ${formatTime(scheduledFor, schedule.timezone)}，现在 ${formatTime(now, schedule.timezone)}）`)
+        }
+        if (employee) {
+            parts.push(`这次运行以数字员工「${employee.name}」的身份进行。重要进展、决策和结论用 employee_log 工具写进运行日志（这是这次运行的交付渠道），不要往员工的主会话发消息。`)
         }
         if (schedule.promptFile) {
             parts.push(`读取并执行这个文件里的任务说明（每次运行都重新读，不要凭记忆）：${schedule.promptFile}`)
@@ -311,6 +341,37 @@ export class ScheduleService {
             })
             if (!run) return null
             this.host.changed(schedule.namespace, schedule.id)
+            const employee = schedule.employeeId ? this.store.employees.get(schedule.employeeId, schedule.namespace) : null
+            if (schedule.employeeId && !employee) {
+                this.fail(run, 'no_start', '绑定的员工不存在', 0)
+                return this.store.schedules.getRun(run.id)
+            }
+            const text = this.composePrompt(schedule, trigger, scheduledFor, employee)
+
+            // session_target=main rides the one employee wake pipeline: resume, or a fresh session with the state package.
+            if (employee && schedule.sessionTarget === 'main') {
+                const woken = await this.host.wakeEmployee(schedule.namespace, employee.id, text)
+                if ('error' in woken) {
+                    this.fail(run, 'no_start', woken.error, 0)
+                } else {
+                    this.store.schedules.updateRun(run.id, { sessionId: woken.sessionId })
+                    this.host.changed(schedule.namespace, schedule.id)
+                }
+                return this.store.schedules.getRun(run.id)
+            }
+
+            // A named session is reused while it lives; a dead one falls through to a fresh spawn under its tag.
+            const namedKey = employee && schedule.sessionTarget.startsWith('named:') ? schedule.sessionTarget.slice('named:'.length) : null
+            if (employee && namedKey) {
+                const tag = `employee:${employee.id}:${namedKey}`
+                const liveId = this.host.findSessionByTag(schedule.namespace, tag)
+                if (liveId && await this.host.sendText(schedule.namespace, liveId, text)) {
+                    this.store.schedules.updateRun(run.id, { sessionId: liveId })
+                    this.host.changed(schedule.namespace, schedule.id)
+                    return this.store.schedules.getRun(run.id)
+                }
+            }
+
             if (!this.host.machineOnline(schedule.namespace, schedule.machineId)) {
                 this.fail(run, 'no_start', '机器不在线', 0)
                 return this.store.schedules.getRun(run.id)
@@ -325,9 +386,13 @@ export class ScheduleService {
                 permissionMode: schedule.permissionMode,
                 accountId: schedule.accountId,
                 worktree: schedule.worktree,
-                text: this.composePrompt(schedule, trigger, scheduledFor),
+                text,
                 name: `⏰ ${schedule.name} · ${formatTime(this.now(), schedule.timezone)}`,
-                meta: { scheduledTask: { scheduleId: schedule.id, runId: run.id } }
+                meta: { scheduledTask: { scheduleId: schedule.id, runId: run.id } },
+                ...(employee ? {
+                    employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold },
+                    tags: [`employee:${employee.id}`, ...(namedKey ? [`employee:${employee.id}:${namedKey}`] : [])]
+                } : {})
             })
             if ('error' in result) {
                 this.fail(run, 'no_start', result.error, result.attempts)
@@ -337,7 +402,11 @@ export class ScheduleService {
                     ...(result.note ? { summary: result.note } : {})
                 })
                 this.host.changed(schedule.namespace, schedule.id)
-                await this.retire(schedule.namespace, previous)
+                if (employee) {
+                    await this.host.employeeRunStarted(schedule.namespace, employee.id, result.sessionId, `定时任务「${schedule.name}」开始运行`).catch(() => {})
+                }
+                // Main and named sessions persist; only one-off isolated (and plain) runs retire their predecessor.
+                if (!employee || schedule.sessionTarget === 'isolated') await this.retire(schedule.namespace, previous)
             }
             return this.store.schedules.getRun(run.id)
         } finally {
@@ -452,6 +521,13 @@ export class ScheduleService {
         if (last.status === 'running' || last.status === 'waiting') return last
         const state = last.sessionId ? this.host.session(last.namespace, last.sessionId) : null
         return state?.active && (state.thinking || state.pendingRequests > 0) ? last : null
+    }
+
+    /** The bound employee must exist; returns the normalized id (null when unbound). */
+    private checkEmployee(namespace: string, employeeId: string | null | undefined): string | null {
+        if (!employeeId) return null
+        if (!this.store.employees.get(employeeId, namespace)) throw new ScheduleError('没有这个员工', 404)
+        return employeeId
     }
 
     private check(spec: ScheduledTaskInput['spec'], timezone: string): void {

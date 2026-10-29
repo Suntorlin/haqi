@@ -4,6 +4,7 @@ import {
     addGroupMember,
     addGroupMessage,
     addGroupTask,
+    clearGroupEmployee,
     createGroup,
     deleteGroup,
     getAllGroups,
@@ -64,13 +65,17 @@ export class GroupStore {
             userId?: number | null
             role?: string
         }>
-        task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null }
+        task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null; employeeId?: string | null }
     }): StoredGroup {
         return createGroup(this.db, options)
     }
 
     updateTaskFields(options: { groupId: string; namespace: string; patch: TaskFieldsPatch }): StoredGroup | null {
         return updateTaskFields(this.db, options)
+    }
+
+    clearEmployee(namespace: string, employeeId: string): number {
+        return clearGroupEmployee(this.db, namespace, employeeId)
     }
 
     deleteGroup(options: {

@@ -12,6 +12,7 @@ import { ChoiceChips, FieldHint, SegmentedControl } from '@/components/ui/FormCo
 import { IconButton } from '@/components/ui/IconButton'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
+import { useEmployees } from '@/hooks/queries/useEmployees'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
@@ -106,7 +107,13 @@ export function MemoryPage() {
     })
 
     const data = query.data
-    const memories = data?.memories ?? []
+    const { employees } = useEmployees(api)
+    /** 'all' = everything; 'shared' = the shared pool; otherwise one employee's own memories. */
+    const [employeeFilter, setEmployeeFilter] = useState('all')
+    const allMemories = data?.memories ?? []
+    const memories = employeeFilter === 'all'
+        ? allMemories
+        : allMemories.filter((m) => employeeFilter === 'shared' ? m.employeeId === null : m.employeeId === employeeFilter)
     const links = data?.links ?? []
     const open = openId ? memories.find((m) => m.id === openId) : undefined
     const pending = memories.filter((m) => m.status === 'pending')
@@ -260,7 +267,7 @@ export function MemoryPage() {
                                     key={m.id}
                                     wrap
                                     title={<Clamp text={m.text} />}
-                                    subtitle={[backing ? t('memoryPage.list.backing', { count: backing }) : null, m.support > 1 ? t('memoryPage.mentioned', { count: m.support }) : null, sourceLabel(m, t), m.tags.map((tag) => `#${tag}`).join(' ')].filter(Boolean).join(' · ')}
+                                    subtitle={[m.pinned ? t('memoryPage.pinnedShort') : null, backing ? t('memoryPage.list.backing', { count: backing }) : null, m.support > 1 ? t('memoryPage.mentioned', { count: m.support }) : null, sourceLabel(m, t), m.tags.map((tag) => `#${tag}`).join(' ')].filter(Boolean).join(' · ')}
                                     trailing={m.status === 'pending' ? <Badge variant="warning">{t('memoryPage.status.pending')}</Badge> : m.status === 'candidate' ? <Badge>{t('memoryPage.status.candidate')}</Badge> : undefined}
                                     {...pick(m)}
                                 />
@@ -298,15 +305,30 @@ export function MemoryPage() {
         </div>
     )
     const chips = (sticky: boolean) => (
-        <ChoiceChips
-            label={t('memoryPage.viewLabel')}
-            value={tab}
-            options={tabs}
-            onChange={setTab}
-            className={sticky
-                ? 'sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]'
-                : '-mx-4 flex-nowrap overflow-x-auto px-4 py-2 [scrollbar-width:none]'}
-        />
+        <>
+            <ChoiceChips
+                label={t('memoryPage.viewLabel')}
+                value={tab}
+                options={tabs}
+                onChange={setTab}
+                className={sticky
+                    ? 'sticky top-0 z-10 -mx-4 flex-nowrap overflow-x-auto bg-[var(--social-surface)] px-4 py-2 [scrollbar-width:none]'
+                    : '-mx-4 flex-nowrap overflow-x-auto px-4 py-2 [scrollbar-width:none]'}
+            />
+            {employees.length > 0 ? (
+                <ChoiceChips
+                    label={t('memoryPage.employeeFilter')}
+                    value={employeeFilter}
+                    options={[
+                        { value: 'all', label: t('memoryPage.employeeAll') },
+                        { value: 'shared', label: t('memoryPage.employeeShared') },
+                        ...employees.map((employee) => ({ value: employee.id, label: `${employee.emoji ? `${employee.emoji} ` : ''}${employee.name}` }))
+                    ]}
+                    onChange={setEmployeeFilter}
+                    className="-mx-4 flex-nowrap overflow-x-auto px-4 pb-2 [scrollbar-width:none]"
+                />
+            ) : null}
+        </>
     )
 
     const searchResults = () => {

@@ -13,7 +13,7 @@ import { ApiSessionClient } from "@/api/apiSession";
 import { randomUUID } from "node:crypto";
 import { isLowSignalTitle, normalizeTitleCandidate } from "@/utils/titlePolicy";
 import { configuration } from "@/configuration";
-import { getAuthToken } from "@/api/auth";
+import { requestHubJson } from "@/api/hubHttp";
 import {
     changeTitleInputSchema,
     scheduledRunDoneInputSchema,
@@ -25,6 +25,10 @@ import {
     MEMORY_SEARCH_DESCRIPTION,
     memoryProposeInputSchema,
     memorySearchInputSchema,
+    EMPLOYEE_WHOAMI_DESCRIPTION,
+    EMPLOYEE_LOG_DESCRIPTION,
+    employeeWhoamiInputSchema,
+    employeeLogInputSchema,
     reportAddAssetInputSchema,
     reportCreateInputSchema,
     handoffFoldersInputSchema,
@@ -35,6 +39,8 @@ import {
     reportUpdateInputSchema,
     reviewLoopWorkerSubmitInputSchema,
     taskDraftSubmitInputSchema,
+    taskEscalateInputSchema,
+    TASK_ESCALATE_DESCRIPTION,
     taskPlanSubmitInputSchema,
     subtaskDoneInputSchema,
     taskDecisionAskInputSchema,
@@ -52,81 +58,7 @@ function summarizeJson(payload: unknown): string {
 }
 
 export async function startHappyServer(client: ApiSessionClient) {
-    let cachedWebToken: { token: string; expiresAt: number } | null = null;
 
-    const resolveHubUrl = (path: string): string => {
-        const normalizedBase = configuration.apiUrl.endsWith("/")
-            ? configuration.apiUrl
-            : `${configuration.apiUrl}/`;
-        return new URL(path, normalizedBase).toString();
-    };
-
-    const getWebToken = async (): Promise<string> => {
-        if (cachedWebToken && cachedWebToken.expiresAt > Date.now()) {
-            return cachedWebToken.token;
-        }
-
-        const response = await fetch(resolveHubUrl("/api/auth"), {
-            method: "POST",
-            headers: {
-                ...configuration.hubAccessHeaders,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ accessToken: getAuthToken() })
-        });
-
-        const payload = await response.json().catch(() => null) as JsonObject | null;
-        if (!response.ok) {
-            const message = typeof payload?.error === "string"
-                ? payload.error
-                : `Auth failed (${response.status})`;
-            throw new Error(message);
-        }
-
-        const token = typeof payload?.token === "string" ? payload.token : "";
-        if (!token) {
-            throw new Error("Auth succeeded but token is missing");
-        }
-
-        cachedWebToken = {
-            token,
-            expiresAt: Date.now() + 13 * 60 * 1000
-        };
-        return token;
-    };
-
-    const requestHubJson = async (path: string, init?: RequestInit): Promise<JsonObject> => {
-        const doRequest = async (token: string): Promise<Response> => {
-            const headers = new Headers(init?.headers);
-            for (const [name, value] of Object.entries(configuration.hubAccessHeaders)) {
-                headers.set(name, value);
-            }
-            headers.set("Authorization", `Bearer ${token}`);
-            if (init?.body !== undefined && !headers.has("Content-Type")) {
-                headers.set("Content-Type", "application/json");
-            }
-            return await fetch(resolveHubUrl(path), {
-                ...init,
-                headers
-            });
-        };
-
-        let response = await doRequest(await getWebToken());
-        if (response.status === 401) {
-            cachedWebToken = null;
-            response = await doRequest(await getWebToken());
-        }
-
-        const payload = await response.json().catch(() => null) as JsonObject | null;
-        if (!response.ok) {
-            const message = typeof payload?.error === "string"
-                ? payload.error
-                : `Request failed (${response.status})`;
-            throw new Error(message);
-        }
-
-        return payload ?? {};
-    };
 
     /** The page is read here, on the session's machine, so the hub never reads local paths. */
     const readHtmlPage = async (path: string | undefined): Promise<string | undefined> => {
@@ -321,7 +253,8 @@ export async function startHappyServer(client: ApiSessionClient) {
         inputSchema: memorySearchInputSchema
     }, async (args: { query: string; limit?: number; tag?: string }) => {
         try {
-            const query = new URLSearchParams({ q: args.query, limit: String(args.limit ?? 8) });
+            // The session id scopes the search: an employee session sees the shared pool plus its own memories only.
+            const query = new URLSearchParams({ q: args.query, limit: String(args.limit ?? 8), sessionId: client.sessionId });
             if (args.tag) query.set('tag', args.tag);
             const payload = await requestHubJson(`/api/memories/search?${query.toString()}`);
             const hits = Array.isArray(payload.hits) ? payload.hits as JsonObject[] : [];
@@ -329,6 +262,36 @@ export async function startHappyServer(client: ApiSessionClient) {
             return { content: [{ type: 'text' as const, text: lines.length > 0 ? lines.join('\n') : 'No matching memory.' }], isError: false };
         } catch (error) {
             return buildToolError('Failed to search memory', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('employee_whoami', {
+        description: EMPLOYEE_WHOAMI_DESCRIPTION,
+        title: 'Employee Identity',
+        inputSchema: employeeWhoamiInputSchema
+    }, async () => {
+        try {
+            const payload = await requestHubJson(`/api/employees/whoami?sessionId=${encodeURIComponent(client.sessionId)}`);
+            return { content: [{ type: 'text' as const, text: summarizeJson(payload) }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to resolve employee identity', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('employee_log', {
+        description: EMPLOYEE_LOG_DESCRIPTION,
+        title: 'Employee Run Log',
+        inputSchema: employeeLogInputSchema
+    }, async (args: { kind: string; text: string; ref?: string }) => {
+        try {
+            const payload = await requestHubJson('/api/employees/log', {
+                method: 'POST',
+                body: JSON.stringify({ sessionId: client.sessionId, kind: args.kind, text: args.text, ref: args.ref })
+            });
+            const message = typeof payload.message === 'string' ? payload.message : 'Logged.';
+            return { content: [{ type: 'text' as const, text: message }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to write employee log', error);
         }
     });
 
@@ -471,6 +434,30 @@ export async function startHappyServer(client: ApiSessionClient) {
             return buildToolResult(payload, summary);
         } catch (error) {
             return buildToolError(`Failed to create share for report ${args.report_id}`, error);
+        }
+    });
+
+    mcp.registerTool<any, any>('task_escalate', {
+        description: TASK_ESCALATE_DESCRIPTION,
+        title: 'Escalate Into a Task',
+        inputSchema: taskEscalateInputSchema
+    }, async (args: { text: string; files?: string[] }) => {
+        try {
+            // The files are read here, on the session's machine, like report_create's html_path.
+            const files = await Promise.all((args.files ?? []).map(async (path) => ({
+                filename: path.split('/').pop() || 'file',
+                mimeType: 'application/octet-stream',
+                content: Buffer.from(await readFile(path)).toString('base64')
+            })))
+            const payload = await requestHubJson('/api/tasks', {
+                method: 'POST',
+                body: JSON.stringify({ text: args.text, fromSessionId: client.sessionId, ...(files.length > 0 ? { files } : {}) })
+            })
+            const task = payload.task as JsonObject | undefined
+            const summary = `Task created: ${String(task?.id ?? '?')}. HAQI drafts the acceptance criteria now; the user confirms them before work starts. The delivery summary will arrive in this session — go on with your other work.`
+            return buildToolResult({ task: { id: task?.id, name: task?.name, status: task?.status } }, summary)
+        } catch (error) {
+            return buildToolError('Failed to escalate into a task', error)
         }
     });
 
@@ -765,6 +752,8 @@ export async function startHappyServer(client: ApiSessionClient) {
             'change_title',
             'memory_propose',
             'memory_search',
+            'employee_whoami',
+            'employee_log',
             'report_create',
             'report_update',
             'report_get',
@@ -773,6 +762,7 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_create_share',
             'handoff_folders',
             'task_draft_submit',
+            'task_escalate',
             'task_plan_submit',
             'subtask_done',
             'task_decision_ask',

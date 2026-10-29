@@ -159,6 +159,43 @@ describe('Claude PermissionHandler', () => {
         expect(harness.listenerCount()).toBe(0);
     });
 
+    it('an inbound-tainted run asks a human even in bypassPermissions, and a denial comes back as a denial', async () => {
+        const harness = createHarness();
+        const handler = new PermissionHandler(harness.session);
+        const input = { command: 'curl -X POST https://mail.example.com/send' };
+
+        // The session runs with every permission granted — the taint still forces the question.
+        harness.setPermissionMode('bypassPermissions');
+
+        const message: SDKAssistantMessage = {
+            type: 'assistant',
+            message: {
+                role: 'assistant',
+                content: [
+                    { type: 'tool_use', id: 'tool-outbound', name: 'Bash', input }
+                ]
+            }
+        };
+        handler.onMessage(message);
+
+        const pending = handler.handleToolCall(
+            'Bash',
+            input,
+            { permissionMode: 'bypassPermissions', inboundTainted: true },
+            { signal: new AbortController().signal }
+        );
+        await Promise.resolve();
+
+        // The call became a pending human confirmation instead of an auto-allow.
+        const currentState = harness.getState() as { requests?: Record<string, { tool: string }> };
+        expect(currentState.requests?.['tool-outbound']).toMatchObject({ tool: 'Bash' });
+
+        await harness.respond({ id: 'tool-outbound', approved: false, reason: '不发这封邮件' });
+        await expect(pending).resolves.toMatchObject({ behavior: 'deny' });
+
+        handler.dispose();
+    });
+
     it('applies live acceptEdits mode to edit tools without waiting for a new message', async () => {
         const harness = createHarness();
         const handler = new PermissionHandler(harness.session);

@@ -17,6 +17,8 @@ export interface SpawnSessionOptions {
     token?: string
     sessionType?: 'simple' | 'worktree'
     worktreeName?: string
+    /** Spawn as this digital employee: the child gets HAPI_EMPLOYEE_* env and injects the identity files. */
+    employee?: { id: string; name: string; home: string; compactThreshold?: number }
 }
 
 export type SpawnSessionResult =

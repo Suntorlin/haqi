@@ -406,6 +406,63 @@ export type ScheduleDetailResponse = {
     runs: import('@hapi/protocol/schedules').ScheduledRun[]
 }
 
+// ---- Digital employee types ----
+
+export type {
+    Employee,
+    EmployeeInput,
+    EmployeePatch,
+    EmployeeIssue
+} from '@hapi/protocol/schemas'
+
+export type EmployeesResponse = { employees: import('@hapi/protocol/schemas').Employee[] }
+
+export type EmployeeDetailResponse = {
+    employee: import('@hapi/protocol/schemas').Employee
+    openIssues: import('@hapi/protocol/schemas').EmployeeIssue[]
+}
+
+export type EmployeeWakeResponse = {
+    sessionId: string
+    /** sent = into the live session; resumed = woke it; created = a fresh main session with the state package. */
+    outcome: 'sent' | 'resumed' | 'created'
+}
+
+/** The memory tab of one employee: the MEMORY.md snapshot and the employee's own memory rows. */
+export type EmployeeMemoryResponse = {
+    view: { content: string; generatedAt: number } | null
+    memories: MemoryItem[]
+}
+
+/** The automatic numbers of one employee over one period; mirrors the hub's EmployeeMetrics. */
+export type EmployeeMetrics = {
+    periodStart: number
+    periodEnd: number
+    scheduledRuns: { total: number; succeeded: number; failed: number; completionRate: number | null; failures: Record<string, number> }
+    reviews: { loops: number; accepted: number; closed: number; passRate: number | null; avgRounds: number | null }
+    decisions: { answered: number; byPrecedent: number; byUser: number; autonomyRate: number | null }
+    guard: { sessions: number; warnings: number; alerts: number }
+    issues: { opened: number; closed: number; open: number; avgResolutionDays: number | null }
+    corrections: { count: number }
+}
+
+/** One weekly review row; score stays null until the user reviews it. */
+export type EmployeeReview = {
+    id: string
+    employeeId: string
+    periodStart: number
+    periodEnd: number
+    reportPath: string | null
+    /** The metrics snapshot, as JSON. */
+    metrics: string
+    score: number | null
+    comment: string | null
+    lesson: string | null
+    skillPath: string | null
+    createdAt: number
+    reviewedAt: number | null
+}
+
 // ---- ReviewLoop types ----
 
 export type ReviewLoopStatus = 'executing' | 'reviewing' | 'waiting_user' | 'paused' | 'accepted' | 'aborted' | 'canceled'
@@ -530,6 +587,10 @@ export type MemoryItem = {
     jev: MemoryJevVerdict | null
     overridden: { level?: MemoryLevel; scope?: string } | null
     replaces: string | null
+    /** Owning employee; null = shared memory, visible to everyone. */
+    employeeId: string | null
+    /** Pinned memories are never merged, retired or rewritten by maintenance. */
+    pinned: boolean
     /** Tags of the session or task the memory came from. */
     tags: string[]
     version: number

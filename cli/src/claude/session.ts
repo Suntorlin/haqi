@@ -6,7 +6,7 @@ import type { AgentStateRunningAgent, SessionModelMode, TeamMember, TeamState, T
 import type { EnhancedMode } from './loop';
 import type { PermissionMode } from './loop';
 import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
-import type { ClaudeHookEvent as SessionHookData } from './hooks';
+import { hookAdditionalContext, type ClaudeHookEvent as SessionHookData, type HookResponse, type SessionStartSource } from './hooks';
 import { readClaudeTeamSnapshotForSession } from './utils/claudeTeamSnapshot';
 import { applyRateLimitEvent, type SdkRateLimitInfo } from './utils/rateLimitSnapshot';
 import type { ClaudeUsageLimit } from '@hapi/protocol/schemas';
@@ -17,6 +17,10 @@ type LocalLaunchFailure = {
     message: string;
     exitReason: LocalLaunchExitReason;
 };
+
+export type CompactionEvent =
+    | { phase: 'pre'; trigger: 'manual' | 'auto' }
+    | { phase: 'post'; trigger: 'manual' | 'auto'; summary: string };
 
 export class Session extends AgentSessionBase<EnhancedMode> {
     readonly claudeEnvVars?: Record<string, string>;
@@ -33,6 +37,9 @@ export class Session extends AgentSessionBase<EnhancedMode> {
     private teamSnapshotActivityKeys = new Set<string>();
     private teamSnapshotPoller: NodeJS.Timeout | null = null;
     private permissionModeChangeListeners = new Set<(mode: PermissionMode) => void>();
+    private sessionStartContext: ((source: SessionStartSource | undefined) => string | null) | null = null;
+    private compactionListener: ((event: CompactionEvent) => void) | null = null;
+    private sdkMessageListener: ((message: unknown) => void) | null = null;
 
     constructor(opts: {
         api: ApiClient;
@@ -228,7 +235,30 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         return entries.length === 0 ? undefined : entries[entries.length - 1];
     };
 
-    applyClaudeHookEvent = (data: SessionHookData): void => {
+    /** Text Claude gets as extra context when a conversation starts, resumes or comes back from compaction. */
+    setSessionStartContext = (provider: ((source: SessionStartSource | undefined) => string | null) | null): void => {
+        this.sessionStartContext = provider;
+    }
+
+    /** Hears PreCompact / PostCompact (with the summary); the employee compaction pilot listens here. */
+    setCompactionListener = (listener: ((event: CompactionEvent) => void) | null): void => {
+        this.compactionListener = listener;
+    }
+
+    /** Every SDK message of the remote loop, for usage tracking; sidechains included, the listener filters. */
+    setSdkMessageListener = (listener: ((message: unknown) => void) | null): void => {
+        this.sdkMessageListener = listener;
+    }
+
+    notifySdkMessage = (message: unknown): void => {
+        try {
+            this.sdkMessageListener?.(message);
+        } catch (error) {
+            logger.debug('[Session] sdk message listener failed', error);
+        }
+    }
+
+    applyClaudeHookEvent = (data: SessionHookData): HookResponse | void => {
         if (data.hook_event_name === 'SessionStart') {
             const sessionId = data.session_id;
             if (sessionId && this.sessionId !== sessionId) {
@@ -236,7 +266,8 @@ export class Session extends AgentSessionBase<EnhancedMode> {
             }
             this.refreshClaudeTeamSnapshot();
             this.ensureClaudeTeamSnapshotPolling();
-            return;
+            const context = this.sessionStartContext?.(data.source);
+            return context ? hookAdditionalContext('SessionStart', context) : undefined;
         }
 
         if (data.hook_event_name === 'Notification') {
@@ -277,11 +308,13 @@ export class Session extends AgentSessionBase<EnhancedMode> {
 
         if (data.hook_event_name === 'PreCompact') {
             this.setAuxiliaryActivity('claude-compact', true);
+            this.compactionListener?.({ phase: 'pre', trigger: data.trigger });
             return;
         }
 
         if (data.hook_event_name === 'PostCompact') {
             this.setAuxiliaryActivity('claude-compact', false);
+            this.compactionListener?.({ phase: 'post', trigger: data.trigger, summary: data.compact_summary });
             this.client.sendSessionEvent({ type: 'ready' });
             return;
         }
