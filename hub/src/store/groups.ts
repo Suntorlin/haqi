@@ -378,6 +378,12 @@ export function updateTaskFields(db: Database, options: { groupId: string; names
     return getGroupByNamespace(db, options.groupId, options.namespace)
 }
 
+/** A deleted employee's groups and tasks stay, but shed the dead employee_id. Returns how many rows changed. */
+export function clearGroupEmployee(db: Database, namespace: string, employeeId: string): number {
+    return db.prepare('UPDATE groups SET employee_id = NULL, updated_at = ? WHERE namespace = ? AND employee_id = ?')
+        .run(Date.now(), namespace, employeeId).changes
+}
+
 export function getAllGroups(db: Database): StoredGroup[] {
     const rows = db.prepare(
         'SELECT * FROM groups ORDER BY updated_at DESC'

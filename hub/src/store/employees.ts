@@ -258,15 +258,60 @@ export function deleteEmployee(db: Database, id: string, namespace: string): boo
     return db.prepare('DELETE FROM employees WHERE id = ? AND namespace = ?').run(id, namespace).changes > 0
 }
 
+/** Lowercased, NFKC, no whitespace and no punctuation: the matching key behind the issue dedupe. */
+function issueKey(text: string): string {
+    return text.normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, '')
+}
+
+/** Character-bigram Dice coefficient of the issue keys: 1 is identical, 0 shares nothing. */
+function issueSimilarity(a: string, b: string): number {
+    if (a === b) return 1
+    if (a.length < 2 || b.length < 2) return 0
+    const bigrams = (s: string) => {
+        const grams = new Map<string, number>()
+        for (let i = 0; i < s.length - 1; i += 1) {
+            const gram = s.slice(i, i + 2)
+            grams.set(gram, (grams.get(gram) ?? 0) + 1)
+        }
+        return grams
+    }
+    const aGrams = bigrams(a)
+    const bGrams = bigrams(b)
+    let shared = 0
+    for (const [gram, count] of aGrams) shared += Math.min(count, bGrams.get(gram) ?? 0)
+    return (2 * shared) / (a.length - 1 + b.length - 1)
+}
+
+/** Reworded repeats still dedupe when the keys nearly coincide; distinct problems stay below this. */
+const ISSUE_DEDUPE_SIMILARITY = 0.75
+
+/** The digit runs, in order: two issues telling different numbers (a date, a count) are different problems. */
+function issueDigits(key: string): string {
+    return (key.match(/\d+/gu) ?? []).join(',')
+}
+
+/** The open issue the text means: the same key first, then — numbers matching — a near-identical key. */
+function findOpenIssue(db: Database, namespace: string, employeeId: string, text: string): DbIssueRow | null {
+    const key = issueKey(text)
+    const open = db.prepare(
+        "SELECT * FROM employee_issues WHERE namespace = ? AND employee_id = ? AND status = 'open' ORDER BY last_seen DESC"
+    ).all(namespace, employeeId) as DbIssueRow[]
+    const exact = open.find((row) => issueKey(row.text) === key)
+    if (exact) return exact
+    return open.find((row) => {
+        const rowKey = issueKey(row.text)
+        return issueDigits(rowKey) === issueDigits(key) && issueSimilarity(rowKey, key) >= ISSUE_DEDUPE_SIMILARITY
+    }) ?? null
+}
+
 /**
- * Opens an issue, or bumps the existing open row with the same text: lastSeen moves, seenCount grows,
- * no second row and no second alert for the same problem.
+ * Opens an issue, or bumps the existing open row that means the same problem: lastSeen moves, seenCount grows,
+ * no second row and no second alert. Matching is normalized (case, spacing, punctuation) plus a bigram
+ * similarity, so a slightly reworded repeat still lands on the same row.
  */
 export function openEmployeeIssue(db: Database, namespace: string, employeeId: string, text: string): StoredEmployeeIssue {
     const normalized = text.trim()
-    const existing = db.prepare(
-        "SELECT * FROM employee_issues WHERE namespace = ? AND employee_id = ? AND status = 'open' AND text = ? LIMIT 1"
-    ).get(namespace, employeeId, normalized) as DbIssueRow | null
+    const existing = findOpenIssue(db, namespace, employeeId, normalized)
     const now = Date.now()
     if (existing) {
         db.prepare('UPDATE employee_issues SET last_seen = ?, seen_count = seen_count + 1 WHERE id = ?').run(now, existing.id)
@@ -281,12 +326,10 @@ export function openEmployeeIssue(db: Database, namespace: string, employeeId: s
     return toStoredIssue(row)
 }
 
-/** Closes the open issue whose text matches (exact first, then substring); returns null when nothing matches. */
+/** Closes the open issue whose text matches (normalized/similar first, then substring); null when nothing matches. */
 export function closeEmployeeIssue(db: Database, namespace: string, employeeId: string, text: string, note?: string): StoredEmployeeIssue | null {
     const normalized = text.trim()
-    let row = db.prepare(
-        "SELECT * FROM employee_issues WHERE namespace = ? AND employee_id = ? AND status = 'open' AND text = ? LIMIT 1"
-    ).get(namespace, employeeId, normalized) as DbIssueRow | null
+    let row = findOpenIssue(db, namespace, employeeId, normalized)
     if (!row) {
         row = db.prepare(
             "SELECT * FROM employee_issues WHERE namespace = ? AND employee_id = ? AND status = 'open' AND instr(text, ?) > 0 ORDER BY last_seen DESC LIMIT 1"

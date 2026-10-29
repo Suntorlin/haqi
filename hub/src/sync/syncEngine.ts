@@ -1408,6 +1408,20 @@ export class SyncEngine {
             meta?: Record<string, unknown>
         }
     ): Promise<void> {
+        // The inbound taint lives in the hub, not only in the CLI process: the first inbound message writes it
+        // into the session metadata, and every later message to that session carries it again, so a restarted
+        // CLI re-taints before its first turn (design: 入站不可信、外发必须确认).
+        const session = this.getSession(sessionId) ?? this.sessionCache.refreshSession(sessionId)
+        if (payload.meta?.inbound === true) {
+            if (session && session.metadata?.inboundTainted !== true) {
+                await this.sessionCache.updateSessionMetadata(sessionId, (metadata) => ({
+                    ...(metadata ?? { path: '', host: '' }),
+                    inboundTainted: true
+                })).catch((error) => console.warn('[Sessions] failed to persist the inbound taint', error))
+            }
+        } else if (session?.metadata?.inboundTainted === true) {
+            payload = { ...payload, meta: { ...payload.meta, inbound: true } }
+        }
         await this.messageService.sendMessage(sessionId, payload)
     }
 
@@ -3498,7 +3512,7 @@ ${note.content}
             })
         } catch {
             // Fallback: send as regular message
-            await this.messageService.sendMessage(payload.workerSessionId, { text })
+            await this.sendMessage(payload.workerSessionId, { text })
         }
     }
 
@@ -3586,7 +3600,7 @@ Remember: Call review_loop_reviewer_submit when you have formed your assessment.
                 }
             })
         } catch {
-            await this.messageService.sendMessage(payload.reviewerSessionId, { text })
+            await this.sendMessage(payload.reviewerSessionId, { text })
         }
     }
 

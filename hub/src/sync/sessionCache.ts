@@ -556,6 +556,12 @@ if (!newMetadata || typeof newMetadata !== 'object') {
         changed = true
     }
 
+    // The inbound taint follows the context: a resumed successor still holds the untrusted content.
+    if (oldObj.inboundTainted === true && newObj.inboundTainted !== true) {
+        merged.inboundTainted = true
+        changed = true
+    }
+
     if (typeof oldObj.path === 'string' && typeof newObj.path !== 'string') {
         merged.path = oldObj.path
         changed = true

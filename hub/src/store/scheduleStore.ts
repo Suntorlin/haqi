@@ -187,6 +187,13 @@ export class ScheduleStore {
         return this.db.prepare('DELETE FROM scheduled_tasks WHERE namespace = ? AND id = ?').run(namespace, id).changes > 0
     }
 
+    /** A deleted employee's schedules must not run as nobody: they disable and shed the dead employee_id. */
+    detachEmployee(namespace: string, employeeId: string): number {
+        return this.db.prepare(
+            'UPDATE scheduled_tasks SET employee_id = NULL, enabled = 0, updated_at = ? WHERE namespace = ? AND employee_id = ?'
+        ).run(Date.now(), namespace, employeeId).changes
+    }
+
     /** Null when the task already has a run for this planned time. */
     addRun(input: {
         namespace: string

@@ -7,6 +7,7 @@ import {
     memoryIdsBackedByUser,
     addMemoryLink,
     deleteMemory,
+    detachEmployeeMemories,
     getMemory,
     getMemoryEvent,
     hasMemoryEventWithHash,
@@ -41,6 +42,7 @@ export class MemoryStore {
     list(namespace: string): StoredMemory[] { return listMemories(this.db, namespace) }
     update(id: string, namespace: string, patch: MemoryPatch): StoredMemory | null { return updateMemory(this.db, id, namespace, patch) }
     delete(id: string, namespace: string): boolean { return deleteMemory(this.db, id, namespace) }
+    detachEmployee(namespace: string, employeeId: string, reason: string): number { return detachEmployeeMemories(this.db, namespace, employeeId, reason) }
     link(namespace: string, fromId: string, toId: string): void { addMemoryLink(this.db, namespace, fromId, toId) }
     unlink(namespace: string, fromId: string, toId: string): void { removeMemoryLink(this.db, namespace, fromId, toId) }
     links(namespace: string): StoredMemoryLink[] { return listMemoryLinks(this.db, namespace) }

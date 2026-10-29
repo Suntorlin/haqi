@@ -214,7 +214,9 @@ export const MetadataSchema = z.object({
     claudeAccount: ClaudeAccountRuntimeSchema.optional(),
     rateLimitSnapshot: ClaudeRateLimitSnapshotSchema.optional(),
     /** The digital employee this session belongs to; set when the session is spawned for one. */
-    employeeId: z.string().optional()
+    employeeId: z.string().optional(),
+    /** The session saw inbound (untrusted) content. Persisted in the hub so a restarted CLI re-taints. */
+    inboundTainted: z.boolean().optional()
 })
 
 export type Metadata = z.infer<typeof MetadataSchema>

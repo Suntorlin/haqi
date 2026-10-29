@@ -279,6 +279,14 @@ export function deleteMemory(db: Database, id: string, namespace: string): boole
     return db.prepare('DELETE FROM memories WHERE id = ? AND namespace = ?').run(id, namespace).changes > 0
 }
 
+/** A deleted employee's memories archive and shed the dead employee_id; the vault file keeps the text. */
+export function detachEmployeeMemories(db: Database, namespace: string, employeeId: string, reason: string): number {
+    return db.prepare(`
+        UPDATE memories SET status = 'archived', employee_id = NULL, pinned = 0, reason = ?, updated_at = ?
+        WHERE namespace = ? AND employee_id = ?
+    `).run(reason, Date.now(), namespace, employeeId).changes
+}
+
 export function addMemoryLink(db: Database, namespace: string, fromId: string, toId: string): void {
     db.prepare('INSERT OR IGNORE INTO memory_links (namespace, from_id, to_id, created_at) VALUES (?, ?, ?, ?)').run(namespace, fromId, toId, Date.now())
 }

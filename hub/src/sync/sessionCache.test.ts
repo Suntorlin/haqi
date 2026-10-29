@@ -30,4 +30,13 @@ describe('mergeSessionMetadata', () => {
         const incoming = { path: '/tmp/project', host: 'mac' }
         expect(mergeSessionMetadata({ summary: { text: 'x' } }, incoming)).toBe(incoming)
     })
+
+    it('carries the inbound taint onto the respawned successor', () => {
+        const result = mergeSessionMetadata(
+            { path: '/tmp/project', host: 'mac', inboundTainted: true },
+            { path: '/tmp/project', host: 'mac', claudeSessionId: 'new-id' }
+        ) as Record<string, unknown>
+
+        expect(result.inboundTainted).toBe(true)
+    })
 })

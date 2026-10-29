@@ -88,8 +88,11 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     // Forward messages to the queue
     let currentPermissionMode: PermissionMode = options.permissionMode ?? 'default';
-    /** Sticky: set by the first message that carries inbound content, never cleared (the content stays in context). */
-    let inboundTainted = false;
+    /**
+     * Sticky: set by the first message that carries inbound content, never cleared (the content stays in
+     * context). Recovered from the hub session metadata, so a restarted process stays tainted.
+     */
+    let inboundTainted = sessionInfo.metadata?.inboundTainted === true;
     let currentModelMode: SessionModelMode = initialModelSelection.mode;
     let currentModel: string | undefined = initialModelSelection.model;
     let currentThinkEffort: ClaudeThinkEffort | undefined = options.thinkEffort ?? findClaudeThinkEffortFromArgs(options.claudeArgs);
@@ -444,9 +447,11 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         }
         // Inbound (untrusted) content taints the session for good: the content stays in context, so every later
         // turn runs without bypass and the permission layer asks a human (design: 入站不可信、外发必须确认).
-        if (message.meta?.inbound) {
+        if (message.meta?.inbound && !inboundTainted) {
             inboundTainted = true;
             logger.debug('[loop] Inbound content received: the session is tainted, permissions fall back to default');
+            // Persisted in the hub, so the taint survives a process restart.
+            session.updateMetadata((currentMetadata) => ({ ...currentMetadata, inboundTainted: true }));
         }
         const messagePermissionMode = inboundTainted && currentPermissionMode !== 'plan' ? 'default' : currentPermissionMode;
         const messageModel = currentModel;
