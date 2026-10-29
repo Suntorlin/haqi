@@ -4,6 +4,7 @@ import { DIALOG_INPUT_CLASS } from '@/components/RenameSessionDialog'
 import { Button } from '@/components/ui/button'
 import { FormField, SegmentedControl } from '@/components/ui/FormControls'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { Switch } from '@/components/ui/Switch'
 import { useAppContext } from '@/lib/app-context'
 import { queryKeys } from '@/lib/query-keys'
 import { useTranslation } from '@/lib/use-translation'
@@ -41,7 +42,7 @@ export function ownsKey(target: EventTarget | null, root: HTMLElement | null): b
     return Boolean(root?.contains(target) && target.closest('button, a'))
 }
 
-export type MemoryEdit = { text?: string; level?: Level; scope?: string }
+export type MemoryEdit = { text?: string; level?: Level; scope?: string; pinned?: boolean }
 
 /** One memory: edit the sentence, its level and scope; see what Jev said and what it is linked to. */
 export function MemoryDetail(props: {
@@ -81,6 +82,7 @@ export function MemoryDetail(props: {
     const [text, setText] = useState(memory.text)
     const [level, setLevel] = useState<Level>(memory.level)
     const [scope, setScope] = useState(memory.scope)
+    const [pinned, setPinned] = useState(memory.pinned)
     const supports = supportsOf(memory.id, props.links).map((id) => byId.get(id)).filter((m): m is MemoryItem => Boolean(m))
     const evidence = evidenceOf(memory.id, props.links).map((id) => byId.get(id)).filter((m): m is MemoryItem => Boolean(m))
     const replaced = memory.replaces ? byId.get(memory.replaces) : undefined
@@ -91,7 +93,8 @@ export function MemoryDetail(props: {
     const patch: MemoryEdit = {
         ...(text.trim() !== memory.text ? { text: text.trim() } : {}),
         ...(level !== memory.level ? { level } : {}),
-        ...(scope !== memory.scope ? { scope } : {})
+        ...(scope !== memory.scope ? { scope } : {}),
+        ...(pinned !== memory.pinned ? { pinned } : {})
     }
     const root = useRef<HTMLDivElement>(null)
     // The listener stays put; it reads the edits and handlers of the latest render.
@@ -152,6 +155,13 @@ export function MemoryDetail(props: {
                     onChange={setScope}
                 />
             </FormField>
+            <ListGroup>
+                <ListRow
+                    title={t('memoryPage.detail.pinned')}
+                    subtitle={t('memoryPage.detail.pinnedHint')}
+                    trailing={<Switch checked={pinned} onCheckedChange={setPinned} ariaLabel={t('memoryPage.detail.pinned')} />}
+                />
+            </ListGroup>
 
             {jev ? (
                 <p className="px-1 text-footnote text-[var(--social-fg-muted)]">

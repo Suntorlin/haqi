@@ -362,6 +362,10 @@ export type StoredMemory = {
     level: 'fact' | 'experience' | 'principle'
     /** '' = applies everywhere; otherwise a repository name. */
     scope: string
+    /** Owning employee; null = shared memory, visible to everyone. */
+    employeeId: string | null
+    /** Pinned memories are never merged, retired or rewritten by maintenance. */
+    pinned: boolean
     /** pending = waits for the user (principles only); candidate = on trial, promoted by mentions or let go with time. */
     status: 'active' | 'pending' | 'candidate' | 'archived'
     reason: string | null
@@ -406,4 +410,58 @@ export type StoredMemoryEvent = {
     createdAt: number
     /** What a merge changed, kept so it can be undone. */
     detail: unknown | null
+}
+
+/** A digital employee: a persistent identity over one-off sessions. */
+export type StoredEmployee = {
+    id: string
+    namespace: string
+    name: string
+    emoji: string | null
+    status: 'active' | 'paused' | 'retired'
+    /** Employee home, relative to the vault root. */
+    homePath: string
+    /** Default machine; also the only machine that reads and writes the employee's shared files. */
+    machineId: string
+    /** Default working directory (a project folder on the machine). */
+    directory: string
+    agent: string
+    model: string | null
+    permissionMode: string | null
+    accountGroup: string | null
+    timezone: string
+    mainSessionId: string | null
+    mainSessionStartedAt: number | null
+    mainSessionCompactions: number
+    /** Hour of day (employee timezone) when the main session is reset. */
+    dailyResetHour: number
+    /** Context share at which HAQI compacts the main session itself. */
+    compactThreshold: number
+    webhookSlug: string | null
+    createdAt: number
+    updatedAt: number
+}
+
+/** An open loose end; one row per distinct problem, repeats only bump seenCount. */
+export type StoredEmployeeIssue = {
+    id: string
+    namespace: string
+    employeeId: string
+    text: string
+    status: 'open' | 'closed'
+    firstSeen: number
+    lastSeen: number
+    seenCount: number
+    /** When the user was last reminded about this overdue issue. */
+    escalatedAt: number | null
+    closedAt: number | null
+    closeNote: string | null
+}
+
+/** The MEMORY.md text as last generated; the baseline a file edit is diffed against. */
+export type StoredEmployeeMemoryView = {
+    employeeId: string
+    namespace: string
+    content: string
+    generatedAt: number
 }

@@ -15,6 +15,8 @@ import { ReportStore } from './reportStore'
 import { ReviewLoopStore } from './reviewLoopStore'
 import { MemoryStore } from './memoryStore'
 import { MEMORY_ADDED_COLUMNS, MEMORY_SCHEMA_SQL } from './memories'
+import { EmployeeStore } from './employeeStore'
+import { EMPLOYEE_SCHEMA_SQL } from './employees'
 import { GUARD_SCHEMA_SQL, GuardStore } from './guardStore'
 import { HANDOFF_SCHEMA_SQL, HandoffExportStore } from './handoffExportStore'
 import { MessageClassStore } from './messageClassStore'
@@ -46,6 +48,9 @@ export type {
     StoredReviewLoopUserPreference,
     StoredReviewRound,
     StoredReviewRoundStatus,
+    StoredEmployee,
+    StoredEmployeeIssue,
+    StoredEmployeeMemoryView,
     StoredSession,
     StoredSessionGuard,
     StoredHandoffExport,
@@ -66,8 +71,9 @@ export { ReviewLoopStore } from './reviewLoopStore'
 export { MemoryStore } from './memoryStore'
 export { GuardStore } from './guardStore'
 export { HandoffExportStore } from './handoffExportStore'
+export { EmployeeStore } from './employeeStore'
 
-const SCHEMA_VERSION: number = 16
+const SCHEMA_VERSION: number = 17
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -100,7 +106,10 @@ const REQUIRED_TABLES = [
     'scheduled_task_runs',
     'report_pages',
     'session_guards',
-    'handoff_exports'
+    'handoff_exports',
+    'employees',
+    'employee_issues',
+    'employee_memory_views'
 ] as const
 
 export class Store {
@@ -124,6 +133,7 @@ export class Store {
     readonly schedules: ScheduleStore
     readonly guards: GuardStore
     readonly handoffs: HandoffExportStore
+    readonly employees: EmployeeStore
 
     constructor(dbPath: string) {
         this.dbPath = dbPath
@@ -177,6 +187,7 @@ export class Store {
         this.schedules = new ScheduleStore(this.db)
         this.guards = new GuardStore(this.db)
         this.handoffs = new HandoffExportStore(this.db)
+        this.employees = new EmployeeStore(this.db)
     }
 
     getDatabasePath(): string {
@@ -312,6 +323,13 @@ export class Store {
         if (currentVersion === 15 && SCHEMA_VERSION >= 16) {
             this.migrateFromV15ToV16()
             this.setUserVersion(16)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 16 && SCHEMA_VERSION >= 17) {
+            this.migrateFromV16ToV17()
+            this.setUserVersion(17)
             this.migrateSchema()
             return
         }
@@ -763,6 +781,7 @@ export class Store {
         this.db.exec(MEMORY_SCHEMA_SQL)
         this.db.exec(GUARD_SCHEMA_SQL)
         this.db.exec(HANDOFF_SCHEMA_SQL)
+        this.db.exec(EMPLOYEE_SCHEMA_SQL)
     }
 
     private migrateLegacySchemaIfNeeded(): void {
@@ -1291,6 +1310,19 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v15->v16 failed: ${message}`)
+        }
+    }
+
+    /** Employee tables; the new memories columns come from ensureMemoryColumnsPresent, which runs on every startup. */
+    private migrateFromV16ToV17(): void {
+        try {
+            this.db.exec('BEGIN')
+            this.db.exec(EMPLOYEE_SCHEMA_SQL)
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v16->v17 failed: ${message}`)
         }
     }
 

@@ -104,6 +104,8 @@ import ReviewLoopsIndexPage from '@/routes/review-loops/index'
 import ReviewLoopDetailPage from '@/routes/review-loops/detail'
 import ScheduledListPage from '@/routes/scheduled/index'
 import ScheduledDetailPage from '@/routes/scheduled/detail'
+import EmployeesListPage from '@/routes/employees/index'
+import EmployeeDetailPage from '@/routes/employees/detail'
 import { useGroups } from '@/hooks/queries/useGroups'
 import { useReviewLoops } from '@/hooks/queries/useReviewLoops'
 import type { ReviewLoop } from '@/types/api'
@@ -1522,6 +1524,33 @@ function ScheduledLayout() {
     )
 }
 
+/** Digital employees. Phone: the list page, or one employee's page. Desktop: the list column beside the selection. */
+function EmployeesLayout() {
+    const { t } = useTranslation()
+    const matchRoute = useMatchRoute()
+    const isMobileLayout = useIsMobileLayout()
+    const detailMatch = matchRoute({ to: '/employees/$employeeId', fuzzy: true })
+    const selectedId = detailMatch ? detailMatch.employeeId : null
+
+    if (isMobileLayout) {
+        return selectedId ? <Outlet /> : <EmployeesListPage />
+    }
+
+    return (
+        <DesktopSplitView
+            listVisible
+            list={<EmployeesListPage variant="panel" selectedId={selectedId} />}
+        >
+            {selectedId ? <Outlet /> : (
+                <DesktopEmptyState
+                    title={t('employees.desktop.pick')}
+                    subtitle={t('employees.desktop.pickHint')}
+                />
+            )}
+        </DesktopSplitView>
+    )
+}
+
 function ReviewLoopsLayout() {
     const { api } = useAppContext()
     const navigate = useNavigate()
@@ -1856,6 +1885,24 @@ const scheduledDetailRoute = createRoute({
     component: ScheduledDetailPage,
 })
 
+const employeesRoute = createRoute({
+    getParentRoute: () => rootRoute,
+    path: '/employees',
+    component: EmployeesLayout,
+})
+
+const employeesIndexRoute = createRoute({
+    getParentRoute: () => employeesRoute,
+    path: '/',
+    component: () => null,
+})
+
+const employeeDetailRoute = createRoute({
+    getParentRoute: () => employeesRoute,
+    path: '$employeeId',
+    component: EmployeeDetailPage,
+})
+
 const debugDiffRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/debug/diff',
@@ -1923,6 +1970,10 @@ export const routeTree = rootRoute.addChildren([
     scheduledRoute.addChildren([
         scheduledIndexRoute,
         scheduledDetailRoute,
+    ]),
+    employeesRoute.addChildren([
+        employeesIndexRoute,
+        employeeDetailRoute,
     ]),
     settingsRoute,
 ])

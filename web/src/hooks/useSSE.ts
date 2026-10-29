@@ -614,6 +614,12 @@ export function useSSE(options: {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.schedules })
             }
 
+            // Employee changes often move memories too (write-back, the nightly pass).
+            if (event.type === 'employee-updated') {
+                void queryClient.invalidateQueries({ queryKey: queryKeys.employees })
+                void queryClient.invalidateQueries({ queryKey: queryKeys.memories })
+            }
+
             if (event.type === 'review-loop-round-updated') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.reviewLoop(event.loopId) })
             }

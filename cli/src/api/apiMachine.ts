@@ -28,6 +28,7 @@ import { applyVersionedAck } from './versionedUpdate'
 import { maybeAutoStartServer } from '@/utils/autoStartServer'
 import { readMachineLoad } from './machineLoad'
 import { probeMachine } from '@/modules/machineProbe/probe'
+import { registerEmployeeFsHandlers } from '@/modules/employees/employeeFsHandlers'
 
 const LOCAL_HUB_RECOVERY_MIN_INTERVAL_MS = 10_000
 
@@ -96,6 +97,7 @@ export class ApiMachineClient {
         })
 
         registerCommonHandlers(this.rpcHandlerManager, process.cwd())
+        registerEmployeeFsHandlers(this.rpcHandlerManager)
         this.rpcHandlerManager.registerHandler('claude-accounts-get', () => readPool(configuration.happyHomeDir))
         this.rpcHandlerManager.registerHandler('claude-accounts-save', (input: unknown) => savePool(configuration.happyHomeDir, input))
         this.rpcHandlerManager.registerHandler('claude-accounts-check', (input: unknown) => checkPoolAccount(configuration.happyHomeDir, input))
@@ -175,7 +177,8 @@ export class ApiMachineClient {
                 yolo,
                 token,
                 sessionType,
-                worktreeName
+                worktreeName,
+                employee
             } = params || {}
 
             if (!directory) {
@@ -198,7 +201,8 @@ export class ApiMachineClient {
                 yolo,
                 token,
                 sessionType,
-                worktreeName
+                worktreeName,
+                employee
             })
 
             switch (result.type) {

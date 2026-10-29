@@ -36,6 +36,9 @@ export const queryKeys = {
     schedules: ['schedules'] as const,
     /** Under `schedules`, so a schedule-updated event refreshes it with the list. */
     schedule: (scheduleId: string) => ['schedules', scheduleId] as const,
+    employees: ['employees'] as const,
+    /** Under `employees`, so an employee-updated event refreshes it with the list. */
+    employee: (employeeId: string) => ['employees', employeeId] as const,
     reviewLoops: ['review-loops'] as const,
     reviewLoop: (loopId: string) => ['review-loop', loopId] as const,
 }

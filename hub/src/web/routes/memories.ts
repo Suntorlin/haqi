@@ -17,8 +17,9 @@ const proposeSchema = z.object({
 const editSchema = z.object({
     text: z.string().trim().min(1).max(2000).optional(),
     level: LevelSchema.optional(),
-    scope: z.string().trim().max(255).optional()
-}).refine((value) => value.text !== undefined || value.level !== undefined || value.scope !== undefined, 'Nothing to change')
+    scope: z.string().trim().max(255).optional(),
+    pinned: z.boolean().optional()
+}).refine((value) => value.text !== undefined || value.level !== undefined || value.scope !== undefined || value.pinned !== undefined, 'Nothing to change')
 
 const csv = <T extends string>(values: readonly [T, ...T[]]) => z.string().optional()
     .transform((raw) => raw ? raw.split(',').map((part) => part.trim()).filter(Boolean) : undefined)
@@ -30,7 +31,11 @@ const searchSchema = z.object({
     level: csv(['fact', 'experience', 'principle'] as const),
     status: csv(['active', 'pending', 'candidate', 'archived'] as const),
     project: z.string().trim().min(1).max(200).optional(),
-    tag: z.string().trim().toLowerCase().min(1).max(40).optional()
+    tag: z.string().trim().toLowerCase().min(1).max(40).optional(),
+    /** The calling session: an employee session searches the shared pool plus its own memories only. */
+    sessionId: z.string().trim().min(1).max(255).optional(),
+    /** The web page's explicit filter: an employee id, or 'shared' for the shared pool only. */
+    employee: z.string().trim().min(1).max(64).optional()
 })
 
 const idsSchema = z.object({ ids: z.array(z.string().trim().min(1).max(64)).min(1).max(50) })
@@ -61,14 +66,17 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const namespace = c.get('namespace')
         let project = parsed.data.project ?? null
         let sessionLabel: string | null = null
+        let employeeId: string | null = null
         if (parsed.data.sessionId) {
             const session = engine.getSessionByNamespace(parsed.data.sessionId, namespace)
-            const metadata = (session?.metadata ?? null) as { path?: unknown; name?: unknown; summary?: { text?: unknown } } | null
+            const metadata = (session?.metadata ?? null) as { path?: unknown; name?: unknown; summary?: { text?: unknown }; employeeId?: unknown } | null
             if (!project && typeof metadata?.path === 'string') project = projectNameFor(metadata.path)
             const title = typeof metadata?.name === 'string' && metadata.name.trim()
                 ? metadata.name.trim()
                 : typeof metadata?.summary?.text === 'string' ? metadata.summary.text.trim() : ''
             sessionLabel = title ? `会话 · ${title}` : '会话'
+            // An employee session's memories go into that employee's own pool.
+            if (typeof metadata?.employeeId === 'string' && metadata.employeeId) employeeId = metadata.employeeId
         }
         const result = await engine.getMemoryService().propose({
             namespace,
@@ -77,7 +85,8 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             source: 'propose',
             sourceLabel: sessionLabel,
             sessionId: parsed.data.sessionId ?? null,
-            project
+            project,
+            employeeId
         })
         return c.json({ result })
     })
@@ -127,11 +136,22 @@ export function createMemoriesRoutes(getSyncEngine: () => SyncEngine | null): Ho
             level: c.req.query('level'),
             status: c.req.query('status'),
             project: c.req.query('project'),
-            tag: c.req.query('tag')
+            tag: c.req.query('tag'),
+            sessionId: c.req.query('sessionId'),
+            employee: c.req.query('employee')
         })
         if (!parsed.success) return c.json({ error: 'Invalid query' }, 400)
-        const { q, limit, level, status, project, tag } = parsed.data
-        const hits = await engine.getMemoryService().search(c.get('namespace'), q, limit, { levels: level, statuses: status, project, tag })
+        const { q, limit, level, status, project, tag, sessionId, employee } = parsed.data
+        const namespace = c.get('namespace')
+        // Employee scoping: a session sees shared plus its own employee's memories; a session of no employee sees
+        // shared only. Without a sessionId (the web page) there is no fence unless the employee filter asks for one.
+        let employeeId: string | null | undefined
+        if (employee) employeeId = employee === 'shared' ? null : employee
+        else if (sessionId) {
+            const metadata = engine.getSessionByNamespace(sessionId, namespace)?.metadata as { employeeId?: unknown } | null | undefined
+            employeeId = typeof metadata?.employeeId === 'string' && metadata.employeeId ? metadata.employeeId : null
+        }
+        const hits = await engine.getMemoryService().search(namespace, q, limit, { levels: level, statuses: status, project, tag, employeeId })
         return c.json({ hits: hits.map((hit) => ({ ...hit.memory, score: hit.score })) })
     })
 

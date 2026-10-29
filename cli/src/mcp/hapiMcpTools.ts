@@ -53,6 +53,18 @@ export const MEMORY_SEARCH_DESCRIPTION = "Search the user's long-term memory by 
 
 export const MEMORY_PROPOSE_DESCRIPTION = "Offer one sentence for the user's long-term memory: a standing preference or rule the user stated, or a durable lesson or fact about this project. HAQI decides whether it is a fact, experience or principle, global or for this project, and may hold it for the user's review. Not for task progress, temporary details, secrets, or anything the code or git history already shows."
 
+export const employeeWhoamiInputSchema: z.ZodTypeAny = z.object({})
+
+export const EMPLOYEE_WHOAMI_DESCRIPTION = 'Who you are as a digital employee: name, home folder, main session, open issues and the current state package. Only works in a session that belongs to an employee.'
+
+export const employeeLogInputSchema: z.ZodTypeAny = z.object({
+    kind: z.enum(['goal', 'done', 'decision', 'todo', 'issue_open', 'issue_close', 'note']).describe('What the line records; issue_open / issue_close also keep the issue list'),
+    text: z.string().min(1).max(2000).describe('One short line: the goal, decision, todo or issue'),
+    ref: z.string().min(1).max(500).optional().describe('Optional reference: a file, link or close note')
+})
+
+export const EMPLOYEE_LOG_DESCRIPTION = 'Write one line into your run log as a digital employee: goal, done, decision, todo, note, or issue_open / issue_close for loose ends. The same open issue logged again only raises its count; it is never duplicated or re-alerted.'
+
 export const reportUpdateInputSchema: z.ZodTypeAny = z.object({
     report_id: z.string().min(1).max(255),
     task_id: z.string().min(1).max(120).optional(),
@@ -289,6 +301,18 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         title: 'Search Memory',
         description: MEMORY_SEARCH_DESCRIPTION,
         inputSchema: memorySearchInputSchema
+    },
+    {
+        name: 'employee_whoami',
+        title: 'Employee Identity',
+        description: EMPLOYEE_WHOAMI_DESCRIPTION,
+        inputSchema: employeeWhoamiInputSchema
+    },
+    {
+        name: 'employee_log',
+        title: 'Employee Run Log',
+        description: EMPLOYEE_LOG_DESCRIPTION,
+        inputSchema: employeeLogInputSchema
     },
     {
         name: 'report_update',

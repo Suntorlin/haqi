@@ -1,4 +1,4 @@
-import type { ClaudeAccountSelection, ClaudeAccountPoolView, MachineProbeRequest, MachineProbeResponse } from '@hapi/protocol/schemas'
+import type { ClaudeAccountSelection, ClaudeAccountPoolView, EmployeeSpawnRef, MachineProbeRequest, MachineProbeResponse } from '@hapi/protocol/schemas'
 import { MachineProbeResponseSchema } from '@hapi/protocol/schemas'
 import type {
     CodexCredentialExportResponse,
@@ -8,6 +8,14 @@ import type {
 } from '@hapi/protocol/types'
 import type { Server } from 'socket.io'
 import type { RpcRegistry } from '../socket/rpcRegistry'
+
+/** Employee file RPCs answer `{ error }` on failure; turn that into a thrown error so callers see one shape. */
+function expectEmployeeFsResult(result: unknown): Record<string, unknown> {
+    if (!result || typeof result !== 'object') throw new Error('Employee file RPC returned no result')
+    const record = result as Record<string, unknown>
+    if (typeof record.error === 'string' && record.error) throw new Error(record.error)
+    return record
+}
 
 export type RpcCommandResponse = {
     success: boolean
@@ -187,6 +195,27 @@ export class RpcGateway {
         return this.machineRpc(machineId, `claude-accounts-${operation}`, payload)
     }
 
+    /** Creates an employee's home folder from the template on that machine's vault. */
+    async employeeDirInit(machineId: string, params: { home: string; name: string; emoji?: string | null }): Promise<{ root: string }> {
+        return expectEmployeeFsResult(await this.machineRpc(machineId, 'employee-dir-init', params)) as { root: string }
+    }
+
+    async employeeFsRead(machineId: string, params: { home: string; path: string }): Promise<{ exists: boolean; content: string; mtimeMs: number }> {
+        return expectEmployeeFsResult(await this.machineRpc(machineId, 'employee-fs-read', params)) as { exists: boolean; content: string; mtimeMs: number }
+    }
+
+    async employeeFsWrite(machineId: string, params: { home: string; path: string; content: string; append?: boolean }): Promise<{ mtimeMs: number }> {
+        return expectEmployeeFsResult(await this.machineRpc(machineId, 'employee-fs-write', params)) as { mtimeMs: number }
+    }
+
+    async employeeFsStat(machineId: string, params: { home: string; path: string }): Promise<{ exists: boolean; mtimeMs: number }> {
+        return expectEmployeeFsResult(await this.machineRpc(machineId, 'employee-fs-stat', params)) as { exists: boolean; mtimeMs: number }
+    }
+
+    async employeeFsList(machineId: string, params: { home: string; path: string }): Promise<{ entries: Array<{ name: string; dir: boolean }> }> {
+        return expectEmployeeFsResult(await this.machineRpc(machineId, 'employee-fs-list', params)) as { entries: Array<{ name: string; dir: boolean }> }
+    }
+
     async spawnSession(
         machineId: string,
         directory: string,
@@ -199,13 +228,14 @@ export class RpcGateway {
         worktreeName?: string,
         resumeSessionId?: string,
         claudeAccount?: ClaudeAccountSelection,
-        sourceClaudeAccountId?: string
+        sourceClaudeAccountId?: string,
+        employee?: EmployeeSpawnRef
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         try {
             const result = await this.machineRpc(
                 machineId,
                 'spawn-happy-session',
-                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, resumeSessionId, claudeAccount, sourceClaudeAccountId }
+                { type: 'spawn-in-directory', directory, agent, model, thinkEffort, serviceTier, yolo, sessionType, worktreeName, resumeSessionId, claudeAccount, sourceClaudeAccountId, employee }
             )
             if (result && typeof result === 'object') {
                 const obj = result as Record<string, unknown>

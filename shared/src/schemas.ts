@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { MODEL_MODES, PERMISSION_MODES } from './modes'
+import { SCHEDULE_AGENTS } from './schedules'
 
 export const PermissionModeSchema = z.enum(PERMISSION_MODES)
 export const ModelModeSchema = z.enum(MODEL_MODES)
@@ -211,7 +212,9 @@ export const MetadataSchema = z.object({
     flavor: z.string().nullish(),
     worktree: WorktreeMetadataSchema.optional(),
     claudeAccount: ClaudeAccountRuntimeSchema.optional(),
-    rateLimitSnapshot: ClaudeRateLimitSnapshotSchema.optional()
+    rateLimitSnapshot: ClaudeRateLimitSnapshotSchema.optional(),
+    /** The digital employee this session belongs to; set when the session is spawned for one. */
+    employeeId: z.string().optional()
 })
 
 export type Metadata = z.infer<typeof MetadataSchema>
@@ -642,6 +645,97 @@ const ReviewLoopChangedSchema = SessionEventBaseSchema.extend({
     loopId: z.string()
 })
 
+// ─── Digital employees ───────────────────────────────────────────────────────────
+
+export const EMPLOYEE_STATUSES = ['active', 'paused', 'retired'] as const
+export const EmployeeStatusSchema = z.enum(EMPLOYEE_STATUSES)
+export type EmployeeStatus = z.infer<typeof EmployeeStatusSchema>
+
+/** Sections of an employee run log; issue_open / issue_close also update the employee_issues table. */
+export const EMPLOYEE_LOG_KINDS = ['goal', 'done', 'decision', 'todo', 'issue_open', 'issue_close', 'note'] as const
+export const EmployeeLogKindSchema = z.enum(EMPLOYEE_LOG_KINDS)
+export type EmployeeLogKind = z.infer<typeof EmployeeLogKindSchema>
+
+/** A digital employee: a persistent identity over one-off sessions. */
+export const EmployeeSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    name: z.string(),
+    emoji: z.string().nullable(),
+    status: EmployeeStatusSchema,
+    /** Employee home, relative to the vault root. */
+    homePath: z.string(),
+    /** Default machine; also the only machine that reads and writes the employee's shared files. */
+    machineId: z.string(),
+    /** Default working directory (a project folder on the machine). */
+    directory: z.string(),
+    agent: z.enum(SCHEDULE_AGENTS),
+    model: z.string().nullable(),
+    permissionMode: z.string().nullable(),
+    accountGroup: z.string().nullable(),
+    timezone: z.string(),
+    mainSessionId: z.string().nullable(),
+    mainSessionStartedAt: z.number().nullable(),
+    mainSessionCompactions: z.number(),
+    /** Hour of day (employee timezone) when the main session is reset. */
+    dailyResetHour: z.number(),
+    /** Context share at which HAQI compacts the main session itself. */
+    compactThreshold: z.number(),
+    webhookSlug: z.string().nullable(),
+    createdAt: z.number(),
+    updatedAt: z.number()
+})
+export type Employee = z.infer<typeof EmployeeSchema>
+
+const employeeFields = {
+    name: z.string().trim().min(1).max(80),
+    emoji: z.string().trim().min(1).max(16).nullable().optional(),
+    status: EmployeeStatusSchema.optional(),
+    homePath: z.string().trim().min(1).max(500).optional(),
+    machineId: z.string().min(1),
+    directory: z.string().trim().min(1),
+    agent: z.enum(SCHEDULE_AGENTS),
+    model: z.string().trim().min(1).max(100).nullable().optional(),
+    permissionMode: z.string().trim().min(1).max(40).nullable().optional(),
+    accountGroup: z.string().trim().min(1).max(80).nullable().optional(),
+    timezone: z.string().trim().min(1).max(80).optional(),
+    dailyResetHour: z.number().int().min(0).max(23).optional(),
+    compactThreshold: z.number().min(0.1).max(0.95).optional()
+}
+
+/** What a spawned session needs to act as an employee: identity plus the home folder, relative to the vault root. */
+export const EmployeeSpawnRefSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    home: z.string()
+})
+export type EmployeeSpawnRef = z.infer<typeof EmployeeSpawnRefSchema>
+
+export const EmployeeInputSchema = z.object({
+    ...employeeFields,
+    agent: employeeFields.agent.default('claude')
+})
+export type EmployeeInput = z.infer<typeof EmployeeInputSchema>
+
+export const EmployeePatchSchema = z.object(employeeFields).partial()
+export type EmployeePatch = z.infer<typeof EmployeePatchSchema>
+
+/** An open loose end; one row per distinct problem, repeats only bump seenCount. */
+export const EmployeeIssueSchema = z.object({
+    id: z.string(),
+    namespace: z.string(),
+    employeeId: z.string(),
+    text: z.string(),
+    status: z.enum(['open', 'closed']),
+    firstSeen: z.number(),
+    lastSeen: z.number(),
+    seenCount: z.number(),
+    escalatedAt: z.number().nullable(),
+    closedAt: z.number().nullable(),
+    closeNote: z.string().nullable()
+})
+export type EmployeeIssue = z.infer<typeof EmployeeIssueSchema>
+
 export const SyncEventSchema = z.discriminatedUnion('type', [
     SessionChangedSchema.extend({
         type: z.literal('session-added'),
@@ -736,6 +830,11 @@ export const SyncEventSchema = z.discriminatedUnion('type', [
         /** A scheduled task or one of its runs changed. */
         type: z.literal('schedule-updated'),
         scheduleId: z.string()
+    }),
+    SessionEventBaseSchema.extend({
+        /** An employee, its main session or its issues changed. */
+        type: z.literal('employee-updated'),
+        employeeId: z.string()
     })
 ])
 
