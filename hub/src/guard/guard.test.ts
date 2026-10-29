@@ -21,6 +21,13 @@ describe('nextGuard', () => {
         expect(state.memoryId).toBe('m1')
     })
 
+    it('the same turn checked again strikes a rule once', () => {
+        let state = nextGuard(null, broke('m1'), 7)
+        for (let i = 0; i < GUARD.alertStrikes; i++) state = nextGuard(state, broke('m1'), 7)
+        expect(state.strikes.m1).toEqual([7])
+        expect(state.status).toBe('warn')
+    })
+
     it('different rules broken once each stay yellow', () => {
         let state = nextGuard(null, broke('m1'), 1)
         state = nextGuard(state, broke('m2'), 2)

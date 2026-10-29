@@ -100,7 +100,8 @@ export class GuardService {
             : null
         const checkedTurns = (prev?.checkedTurns ?? 0) + 1
         const ruleTexts = Object.fromEntries(rules.map((rule) => [rule.id, rule.text]))
-        const next = nextGuard(prevState, { violations, corrected, ruleTexts }, checkedTurns)
+        // Strikes are keyed by the conversation turn: a turn checked again after the agent wrote more counts once.
+        const next = nextGuard(prevState, { violations, corrected, ruleTexts }, turn.turnIndex)
         const guard: StoredSessionGuard = {
             sessionId,
             namespace: session.namespace,
