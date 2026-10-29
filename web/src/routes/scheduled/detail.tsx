@@ -7,6 +7,7 @@ import { getMachineTitle } from '@/components/NewSession/MachineSelector'
 import { ChevronRightIcon, ExternalLinkIcon } from '@/components/mobile/icons'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { RunStatusBadge, RunTriggerBadge } from '@/components/scheduled/RunBadges'
 import { ScheduleFormDialog } from '@/components/scheduled/ScheduleFormDialog'
@@ -185,7 +186,7 @@ export default function ScheduledDetailPage() {
             {isMobile ? (
                 <SubPageHeader title={schedule.name} subtitle={label} onBack={goBack} />
             ) : (
-                <DesktopPaneHeader title={schedule.name} subtitle={label} />
+                <DesktopPaneHeader avatar={<Orb seed={schedule.id} size={36} muted={!schedule.enabled} />} title={schedule.name} subtitle={label} />
             )}
             <div className="min-h-0 flex-1 overflow-y-auto">
                 {/* Wide desktop panes put the run history beside the settings, so it shows without scrolling. */}

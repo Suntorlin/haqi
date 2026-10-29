@@ -109,6 +109,23 @@ Weights: **400** and **600** only (`font-semibold`). System font stack (SF / Pin
 - Heights: touch min `--touch-min` 44; button 44 (sm 36, lg 48); chip 32 (hit area 44); badge 24; count badge 18; list row >= 52.
 - Motion: `--motion-fast` 150ms, `--motion-base` 200ms, `--motion-ease` `cubic-bezier(.2,0,0,1)`. Press feedback `active:scale-[.98]` on buttons. No decorative animation; `animate-pulse` only for live state. Exception: surfaces that travel across the screen take longer — bottom sheet `animate-sheet-up` 280ms, side panel `animate-panel-in` 260ms. Menus and popovers use `animate-menu-pop` (180ms).
 
+### 2.6 Desktop page layout
+
+Every top-level page is the same three columns. Do not give one page its own header or gutter.
+
+| Column | Width | Header | Content |
+|---|---|---|---|
+| Nav rail | fixed | – | icons |
+| List column | `useSessionSidebarWidth` (380 / 400 at xl), resizable; memory 44% (400-600) | `MobilePageHeader`: 72px, title `text-title` + summary `text-caption` (`PAGE_TITLE_CLASS`, `PAGE_SUBTITLE_CLASS`), icon actions right | 20px gutter (`px-5`): search, filter chips, captions. Rows are `FeedRow` with a 44px avatar (an `Orb` when the thing has no picture; `muted` when off / paused). |
+| Content pane | rest | `DesktopPaneHeader` (or `SubPageHeader`): 72px, 36px avatar, title `text-body` + status `text-caption`, hairline under it | `max-w-content` centred; nothing picked = `EmptyState variant="page"` centred with an `Orb` |
+
+Rules:
+
+1. Both headers are 72px, so the list title and the pane title sit on one line.
+2. One left edge per column: header title, search field and chips all start at 20px; a row's text starts after its avatar.
+3. Filter chips and tags are one row that scrolls sideways (`flex-nowrap overflow-x-auto`), never a wrapped block above the list.
+4. Type ladder in a list column: page title 20 semibold → row title 15 → row meta 13 muted → section caption 12 uppercase. No other sizes.
+
 ## 3. Components
 
 All in `web/src/components/ui/` unless noted. Business pages compose these; do not hand-write `<button className="rounded-... border ...">`.

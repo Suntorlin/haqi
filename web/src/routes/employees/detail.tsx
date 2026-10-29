@@ -4,6 +4,7 @@ import { LoadingState } from '@/components/LoadingState'
 import { formatRelativeTime } from '@/components/SessionList'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
 import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -443,7 +444,7 @@ export default function EmployeeDetailPage() {
             {isMobile ? (
                 <SubPageHeader title={name} subtitle={employee.directory} onBack={goBack} />
             ) : (
-                <DesktopPaneHeader title={name} subtitle={employee.directory} />
+                <DesktopPaneHeader avatar={<Orb seed={employee.id} size={36} muted={employee.status !== 'active'} />} title={name} subtitle={employee.directory} />
             )}
             <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="mx-auto w-full max-w-content px-4 pb-10 pt-4">

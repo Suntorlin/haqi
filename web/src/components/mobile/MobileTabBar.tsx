@@ -141,7 +141,14 @@ export function DesktopNavRail() {
     )
 }
 
-/** Compact large-title page header of the top-level pages (phone pages, desktop list columns). */
+/** Title and summary line of a top-level page. Shared with the memory page, which scrolls its title with the list. */
+export const PAGE_TITLE_CLASS = 'text-title font-semibold leading-tight tracking-[-0.035em] text-[var(--social-fg)]'
+export const PAGE_SUBTITLE_CLASS = 'mt-0.5 text-caption leading-tight text-[var(--social-fg-muted)] lg:mt-1'
+
+/**
+ * Large-title page header of the top-level pages (phone pages, desktop list columns).
+ * Desktop: 72px tall, title 20px from the top, so it lines up with `DesktopPaneHeader` beside it.
+ */
 export function MobilePageHeader(props: {
     title: ReactNode
     subtitle?: ReactNode
@@ -151,11 +158,11 @@ export function MobilePageHeader(props: {
 }) {
     return (
         <header className="social-bar relative z-20 shrink-0 pt-[env(safe-area-inset-top)]">
-            <div className={cn('mx-auto flex h-[54px] items-center gap-2 pr-3 lg:h-[68px]', props.contentWidth ? 'max-w-content pl-3' : 'max-w-xl pl-5')}>
+            <div className={cn('mx-auto flex h-[54px] items-center gap-2 pr-3 lg:h-[72px]', props.contentWidth ? 'max-w-content pl-3 lg:pl-4' : 'max-w-xl pl-5')}>
                 <div className="min-w-0 flex-1">
-                    <FitLine text={props.title} className="text-title font-semibold leading-tight tracking-[-0.035em] text-[var(--social-fg)]" />
+                    <FitLine text={props.title} className={PAGE_TITLE_CLASS} />
                     {props.subtitle ? (
-                        <FitLine text={props.subtitle} className="mt-0.5 text-caption leading-tight text-[var(--social-fg-muted)]" />
+                        <FitLine text={props.subtitle} className={PAGE_SUBTITLE_CLASS} />
                     ) : null}
                 </div>
                 {props.actions ? (

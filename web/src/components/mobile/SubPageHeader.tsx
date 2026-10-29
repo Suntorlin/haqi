@@ -43,7 +43,7 @@ export function SubPageHeader(props: {
     )
     return (
         <header className="social-bar relative z-20 shrink-0 border-b border-[var(--social-border)] pt-[env(safe-area-inset-top)]">
-            <div className="flex h-[54px] items-center gap-1 pl-1 pr-3 lg:h-[60px] lg:pl-2 lg:pr-4">
+            <div className="flex h-[54px] items-center gap-1 pl-1 pr-3 lg:h-[72px] lg:pl-2 lg:pr-4">
                 {props.onBack ? (
                     <IconButton label={t('button.back')} onClick={props.onBack} className="text-[var(--social-fg)]">
                         <ChevronLeftIcon className="h-6 w-6" />

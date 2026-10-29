@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { CheckIcon, MoreHorizontalIcon } from '@/components/mobile/icons'
 import { MobileSearchField } from '@/components/mobile/MobileSearchField'
-import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { MobilePageHeader, MobileTabBar, PAGE_SUBTITLE_CLASS, PAGE_TITLE_CLASS } from '@/components/mobile/MobileTabBar'
+import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -296,10 +298,10 @@ export function MemoryPage() {
         </IconButton>
     )
     const desktopTitle = isMobile ? null : (
-        <div className="flex items-center gap-2 pb-2 pt-6">
+        <div className="-mr-2 flex h-[72px] items-center gap-2">
             <div className="min-w-0 flex-1">
-                <h1 className="text-title font-semibold leading-none tracking-[-0.035em] text-[var(--social-fg)]">{t('memoryPage.title')}</h1>
-                <p className="mt-2 text-caption leading-none text-[var(--social-fg-muted)]">{subtitle}</p>
+                <h1 className={PAGE_TITLE_CLASS}>{t('memoryPage.title')}</h1>
+                <p className={PAGE_SUBTITLE_CLASS}>{subtitle}</p>
             </div>
             {settingsButton}
         </div>
@@ -443,9 +445,9 @@ export function MemoryPage() {
                             ? 'min-h-0 w-[44%] min-w-[400px] max-w-[600px] shrink-0 overflow-y-auto border-r border-[var(--social-border)]'
                             : 'min-h-0 flex-1 overflow-y-auto'}
                     >
-                        <div className={paneDetail ? 'px-4 pb-8' : 'mx-auto max-w-content px-4 pb-8'}>
+                        <div className={paneDetail ? 'px-5 pb-8' : 'mx-auto max-w-content px-4 pb-8'}>
                             {desktopTitle}
-                            <div className="pt-2">
+                            <div className="pt-1">
                                 <MobileSearchField value={search} onChange={setSearch} placeholder={t('memoryPage.search.placeholder')} />
                             </div>
                             {search.trim() ? null : chips(true)}
@@ -468,7 +470,7 @@ export function MemoryPage() {
                             ) : null}
                             <div className="pt-3">{body}</div>
                             {selected && selected.size > 0 ? (
-                                <div className="sticky bottom-0 z-10 -mx-4 mt-4 flex gap-2 border-t border-[var(--social-border)] bg-[var(--social-surface)] px-4 py-3">
+                                <div className={`sticky bottom-0 z-10 mt-4 flex gap-2 border-t border-[var(--social-border)] bg-[var(--social-surface)] py-3 ${paneDetail ? '-mx-5 px-5' : '-mx-4 px-4'}`}>
                                     <Button variant="secondary" className="flex-1" disabled={action.isPending} onClick={() => setArchiveOpen(true)}>{t('memoryPage.select.archive', { count: selected.size })}</Button>
                                     <Button className="flex-1" disabled={action.isPending || selected.size < 2} onClick={() => {
                                         action.reset()
@@ -479,14 +481,22 @@ export function MemoryPage() {
                         </div>
                     </div>
                     {paneDetail ? (
-                        <div className="min-h-0 flex-1 overflow-y-auto">
+                        <div className="flex min-h-0 flex-1 flex-col">
                             {open ? (
-                                <div className="mx-auto max-w-[640px] pt-6">
-                                    <h2 className="px-4 pb-4 text-body font-semibold text-[var(--social-fg)]">{detailTitle}</h2>
-                                    {detail}
-                                </div>
+                                <>
+                                    <DesktopPaneHeader title={detailTitle} />
+                                    <div className="min-h-0 flex-1 overflow-y-auto">
+                                        <div className="mx-auto max-w-[640px] pt-4">{detail}</div>
+                                    </div>
+                                </>
                             ) : (
-                                <EmptyState variant="page" title={t('memoryPage.pane.emptyTitle')} subtitle={t('memoryPage.pane.emptyHint')} />
+                                <EmptyState
+                                    variant="page"
+                                    className="h-full py-0"
+                                    illustration={<Orb seed="haqi" size={76} />}
+                                    title={t('memoryPage.pane.emptyTitle')}
+                                    subtitle={t('memoryPage.pane.emptyHint')}
+                                />
                             )}
                         </div>
                     ) : null}

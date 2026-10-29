@@ -5,6 +5,7 @@ import type { ScheduledTask, ScheduledTaskInput } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
 import { PlusCircleIcon } from '@/components/mobile/icons'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { PausedBadge, RunStatusBadge } from '@/components/scheduled/RunBadges'
 import { ScheduleFormDialog } from '@/components/scheduled/ScheduleFormDialog'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -65,6 +66,7 @@ function ScheduleFeedRow(props: { schedule: ScheduledTask; now: number; selected
         <FeedRow
             onClick={props.onOpen}
             aria-current={props.selected ? 'page' : undefined}
+            avatar={<Orb seed={schedule.id} size={44} muted={!schedule.enabled} />}
             title={schedule.name}
             aside={<ScheduleBadges schedule={schedule} />}
             subtitle={[label, next].filter(Boolean).join(' · ')}

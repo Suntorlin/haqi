@@ -6,7 +6,8 @@ import { useTranslation } from '@/lib/use-translation'
 
 /**
  * One-line header of a desktop content pane (chat, group, loop): list toggle, avatar,
- * title with a status line, then icon actions on the right.
+ * title with a status line, then icon actions on the right. 72px, the height of the list
+ * column's `MobilePageHeader`, so the two headers form one band.
  */
 export function DesktopPaneHeader(props: {
     avatar?: ReactNode
@@ -26,7 +27,7 @@ export function DesktopPaneHeader(props: {
         <PaneTitle avatar={props.avatar} title={props.title} titleCandidates={props.titleCandidates} subtitle={props.subtitle} />
     )
     return (
-        <header className="relative z-20 flex h-[60px] shrink-0 items-center gap-1.5 border-b border-[var(--social-border)] bg-[var(--social-surface)] pl-3 pr-4">
+        <header className="relative z-20 flex h-[72px] shrink-0 items-center gap-1.5 border-b border-[var(--social-border)] bg-[var(--social-surface)] pl-3 pr-4">
             {props.onToggleList ? (
                 <IconButton size="sm" label={toggleLabel} onClick={props.onToggleList}>
                     <SidebarIcon className="h-[19px] w-[19px]" />

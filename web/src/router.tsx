@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DndContext, KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { SortableContext, horizontalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -562,7 +562,8 @@ function SessionsPage() {
                 />
             )}
             {sessionTags.length ? (
-                <div className="flex flex-wrap gap-2 px-5 pb-1 pt-0.5">
+                // One scrolling row, like the memory filters: a wrapped block of tags pushed the chats down.
+                <div className="flex flex-nowrap gap-2 overflow-x-auto px-5 py-1.5">
                     <button
                         type="button"
                         {...allTagsPressHandlers}
@@ -586,7 +587,7 @@ function SessionsPage() {
                     )) : (
                         // Desktop keeps drag-to-reorder for tag filters.
                         <DndContext sensors={tagSensors} onDragEnd={handleTagDragEnd}>
-                            <SortableContext items={visibleSessionTags} strategy={rectSortingStrategy}>
+                            <SortableContext items={visibleSessionTags} strategy={horizontalListSortingStrategy}>
                                 {visibleSessionTags.map((tag) => (
                                     <SortableSessionTag
                                         key={tag}

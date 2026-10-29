@@ -5,6 +5,7 @@ import type { Employee, EmployeeInput } from '@/types/api'
 import { LoadingState } from '@/components/LoadingState'
 import { PlusCircleIcon } from '@/components/mobile/icons'
 import { MobilePageHeader, MobileTabBar } from '@/components/mobile/MobileTabBar'
+import { Orb } from '@/components/mobile/SessionAvatar'
 import { shortenHomePath } from '@/components/NewSession/DirectorySection'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
 import { Badge } from '@/components/ui/badge'
@@ -218,6 +219,7 @@ export default function EmployeesListPage(props: {
                                 key={employee.id}
                                 onClick={() => open(employee.id)}
                                 aria-current={props.selectedId === employee.id ? 'page' : undefined}
+                                avatar={<Orb seed={employee.id} size={44} muted={employee.status !== 'active'} />}
                                 title={title(employee)}
                                 aside={<StatusBadge status={employee.status} />}
                                 subtitle={employee.directory}
