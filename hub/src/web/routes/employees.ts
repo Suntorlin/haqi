@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto'
+
 import { Hono, type Context } from 'hono'
 import { z } from 'zod'
 
@@ -18,6 +20,11 @@ const logSchema = z.object({
     kind: EmployeeLogKindSchema,
     text: z.string().trim().min(1).max(2000),
     ref: z.string().trim().min(1).max(500).optional()
+})
+
+const scoreSchema = z.object({
+    score: z.number().int().min(1).max(5),
+    comment: z.string().trim().max(2000).optional()
 })
 
 const compactionSchema = z.object({
@@ -143,6 +150,58 @@ export function createEmployeeRoutes(getSyncEngine: () => SyncEngine | null): Ho
         const status = c.req.query('status')
         return run(c, () => ({
             issues: ctx.employees.issues(c.get('namespace'), c.req.param('id'), status === 'open' || status === 'closed' ? status : undefined)
+        }))
+    })
+
+    /** Mints (or rotates) the employee's inbound webhook token; the old link stops working at once. */
+    app.post('/employees/:id/webhook', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        return run(c, () => {
+            const slug = randomBytes(18).toString('base64url')
+            const employee = ctx.employees.setWebhookSlug(c.get('namespace'), c.req.param('id'), slug)
+            return { employee, hookPath: `/hooks/inbound/webhook/${slug}` }
+        })
+    })
+
+    /** Revokes the webhook: the employee can no longer be woken from outside. */
+    app.delete('/employees/:id/webhook', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        return run(c, () => ({ employee: ctx.employees.setWebhookSlug(c.get('namespace'), c.req.param('id'), null) }))
+    })
+
+    /** The automatic numbers over a period (default: the last 7 days). */
+    app.get('/employees/:id/metrics', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const since = Number(c.req.query('since'))
+        return run(c, () => ({
+            metrics: ctx.employees.metrics(c.get('namespace'), c.req.param('id'), Number.isFinite(since) && since > 0 ? since : Date.now() - 7 * 24 * 60 * 60 * 1000)
+        }))
+    })
+
+    app.get('/employees/:id/reviews', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        return run(c, () => ({ reviews: ctx.employees.reviews(c.get('namespace'), c.req.param('id')) }))
+    })
+
+    /** Generate this week's review now (the sweep does it every Friday evening by itself). */
+    app.post('/employees/:id/reviews', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        return run(c, async () => ({ review: await ctx.employees.generateWeeklyReview(c.get('namespace'), c.req.param('id')) }))
+    })
+
+    /** The user's 1-5 score; 2 and below writes the comment back as a pinned lesson, 4 and up drafts a skill. */
+    app.post('/employees/:id/reviews/:reviewId/score', async (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const parsed = scoreSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400)
+        return run(c, async () => ({
+            review: await ctx.employees.scoreReview(c.get('namespace'), c.req.param('id'), c.req.param('reviewId'), parsed.data)
         }))
     })
 

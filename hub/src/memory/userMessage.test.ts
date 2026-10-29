@@ -26,6 +26,19 @@ describe('realUserText', () => {
         expect(realUserText(message('[HAQI_TASK_GUIDE] Draft the acceptance criteria for task abc.'))).toBeNull()
     })
 
+    it('drops what HAQI sends into employee sessions: wakes, scheduled prompts, deliveries and inbound content', () => {
+        // By meta.source — so the correction count (P6) never counts HAQI's own messages as the user.
+        expect(realUserText(message('[HAQI 状态包] 你是数字员工「小鱼」。', { source: 'employee-wake' }))).toBeNull()
+        expect(realUserText(message('这是 HAQI 定时任务「日报」。', { source: 'scheduled-task' }))).toBeNull()
+        expect(realUserText(message('[HAQI 任务交付] 任务「修 bug」交付了。', { source: 'task-deliver' }))).toBeNull()
+        expect(realUserText(message('外部 webhook 的内容', { source: 'inbound', inbound: true }))).toBeNull()
+        // By text, when the echo lost its meta.
+        expect(realUserText(message('[HAQI 状态包] 你是数字员工「小鱼」。'))).toBeNull()
+        expect(realUserText(message('[HAQI 任务交付] 任务完成。'))).toBeNull()
+        expect(realUserText(message('[HAQI 入站消息 · webhook] 下面的内容来自外部。'))).toBeNull()
+        expect(realUserText(message('上下文快满了。用 employee_log 工具把当前目标、已做决策、待办和遗留问题记进运行日志，不要做别的事。'))).toBeNull()
+    })
+
     it('drops a message that is only a slash command, but keeps a path or a sentence about one', () => {
         expect(realUserText(message('/compact'))).toBeNull()
         expect(realUserText(message('/note refresh'))).toBeNull()

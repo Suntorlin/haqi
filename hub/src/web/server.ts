@@ -32,6 +32,7 @@ import { createSessionTaskRoutes } from './routes/sessionTasks'
 import { createTaskRoutes } from './routes/tasks'
 import { createScheduleRoutes } from './routes/schedules'
 import { createEmployeeRoutes } from './routes/employees'
+import { createInboundRoutes } from './routes/inbound'
 import { createInsightsRoutes } from './routes/insights'
 import { createSettingsRoutes } from './routes/settings'
 import type { SSEManager } from '../sse/sseManager'
@@ -167,6 +168,9 @@ function createWebApp(options: {
         store: options.store,
         reportsStorageDir: options.reportsStorageDir
     }))
+
+    // The inbound hooks live outside the JWT wall: the random slug in the path is the secret.
+    app.route('/', createInboundRoutes({ store: options.store, getSyncEngine: options.getSyncEngine }))
 
     // Skip static serving in relay mode, show helpful message on root
     if (options.relayMode) {

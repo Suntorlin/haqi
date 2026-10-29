@@ -88,6 +88,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     // Forward messages to the queue
     let currentPermissionMode: PermissionMode = options.permissionMode ?? 'default';
+    /** Sticky: set by the first message that carries inbound content, never cleared (the content stays in context). */
+    let inboundTainted = false;
     let currentModelMode: SessionModelMode = initialModelSelection.mode;
     let currentModel: string | undefined = initialModelSelection.model;
     let currentThinkEffort: ClaudeThinkEffort | undefined = options.thinkEffort ?? findClaudeThinkEffortFromArgs(options.claudeArgs);
@@ -221,6 +223,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     // Import MessageQueue2 and create message queue
     const messageQueue = new MessageQueue2<EnhancedMode>(mode => hashObject({
         isPlan: mode.permissionMode === 'plan',
+        // A taint flips the mode hash once, so the next launch runs with --permission-mode default.
+        inboundTainted: mode.inboundTainted === true,
         model: mode.model,
         thinkEffort: mode.thinkEffort,
         fallbackModel: mode.fallbackModel,
@@ -438,7 +442,13 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (sessionPermissionMode && isPermissionModeAllowedForFlavor(sessionPermissionMode, 'claude')) {
             currentPermissionMode = sessionPermissionMode as PermissionMode;
         }
-        const messagePermissionMode = currentPermissionMode;
+        // Inbound (untrusted) content taints the session for good: the content stays in context, so every later
+        // turn runs without bypass and the permission layer asks a human (design: 入站不可信、外发必须确认).
+        if (message.meta?.inbound) {
+            inboundTainted = true;
+            logger.debug('[loop] Inbound content received: the session is tainted, permissions fall back to default');
+        }
+        const messagePermissionMode = inboundTainted && currentPermissionMode !== 'plan' ? 'default' : currentPermissionMode;
         const messageModel = currentModel;
         const pureContextMode = isPureContextModeEnabled();
         logger.debug(`[loop] User message received with permission mode: ${currentPermissionMode}, modelMode: ${currentModelMode}, model: ${currentModel ?? 'default'}`);
@@ -516,7 +526,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
                 disallowedTools: messageDisallowedTools,
-                routeContext: message.meta?.routeContext
+                routeContext: message.meta?.routeContext,
+                inboundTainted
             };
             // Use raw text only, ignore attachments for special commands
             const commandText = specialCommand.originalMessage || message.content.text;
@@ -536,7 +547,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
                 appendSystemPrompt: messageAppendSystemPrompt,
                 allowedTools: messageAllowedTools,
                 disallowedTools: messageDisallowedTools,
-                routeContext: message.meta?.routeContext
+                routeContext: message.meta?.routeContext,
+                inboundTainted
             };
             // Use raw text only, ignore attachments for special commands
             const commandText = specialCommand.originalMessage || message.content.text;
@@ -555,7 +567,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             appendSystemPrompt: messageAppendSystemPrompt,
             allowedTools: messageAllowedTools,
             disallowedTools: messageDisallowedTools,
-            routeContext: message.meta?.routeContext
+            routeContext: message.meta?.routeContext,
+            inboundTainted
         };
         messageQueue.push(formattedText, enhancedMode, {
             isolate: Boolean(message.meta?.routeContext)

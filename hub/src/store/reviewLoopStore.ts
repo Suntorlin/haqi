@@ -9,6 +9,7 @@ import {
     getReviewLoopsByNamespace,
     getReviewRoundByNamespace,
     getReviewRoundsByLoop,
+    listReviewLoopsForEmployee,
     updateReviewLoop,
     updateReviewRound
 } from './reviewLoops'
@@ -35,12 +36,17 @@ export class ReviewLoopStore {
         acceptanceCriteria: string
         maxRounds?: number
         userPreference?: StoredReviewLoopUserPreference
+        employeeId?: string | null
     }): StoredReviewLoop {
         return createReviewLoop(this.db, options)
     }
 
     getReviewLoopsByNamespace(namespace: string): StoredReviewLoop[] {
         return getReviewLoopsByNamespace(this.db, namespace)
+    }
+
+    listForEmployee(namespace: string, employeeId: string, since: number): StoredReviewLoop[] {
+        return listReviewLoopsForEmployee(this.db, namespace, employeeId, since)
     }
 
     getReviewLoopByNamespace(loopId: string, namespace: string): StoredReviewLoop | null {

@@ -39,6 +39,8 @@ import {
     reportUpdateInputSchema,
     reviewLoopWorkerSubmitInputSchema,
     taskDraftSubmitInputSchema,
+    taskEscalateInputSchema,
+    TASK_ESCALATE_DESCRIPTION,
     taskPlanSubmitInputSchema,
     subtaskDoneInputSchema,
     taskDecisionAskInputSchema,
@@ -435,6 +437,30 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool<any, any>('task_escalate', {
+        description: TASK_ESCALATE_DESCRIPTION,
+        title: 'Escalate Into a Task',
+        inputSchema: taskEscalateInputSchema
+    }, async (args: { text: string; files?: string[] }) => {
+        try {
+            // The files are read here, on the session's machine, like report_create's html_path.
+            const files = await Promise.all((args.files ?? []).map(async (path) => ({
+                filename: path.split('/').pop() || 'file',
+                mimeType: 'application/octet-stream',
+                content: Buffer.from(await readFile(path)).toString('base64')
+            })))
+            const payload = await requestHubJson('/api/tasks', {
+                method: 'POST',
+                body: JSON.stringify({ text: args.text, fromSessionId: client.sessionId, ...(files.length > 0 ? { files } : {}) })
+            })
+            const task = payload.task as JsonObject | undefined
+            const summary = `Task created: ${String(task?.id ?? '?')}. HAQI drafts the acceptance criteria now; the user confirms them before work starts. The delivery summary will arrive in this session — go on with your other work.`
+            return buildToolResult({ task: { id: task?.id, name: task?.name, status: task?.status } }, summary)
+        } catch (error) {
+            return buildToolError('Failed to escalate into a task', error)
+        }
+    });
+
     const taskRunTool = (name: keyof typeof TASK_RUN_TOOL_DESCRIPTIONS, title: string, inputSchema: unknown, path: (args: any) => string, body: (args: any) => unknown) => {
         mcp.registerTool<any, any>(name, { description: TASK_RUN_TOOL_DESCRIPTIONS[name], title, inputSchema: inputSchema as any }, async (args: any) => {
             try {
@@ -736,6 +762,7 @@ export async function startHappyServer(client: ApiSessionClient) {
             'report_create_share',
             'handoff_folders',
             'task_draft_submit',
+            'task_escalate',
             'task_plan_submit',
             'subtask_done',
             'task_decision_ask',

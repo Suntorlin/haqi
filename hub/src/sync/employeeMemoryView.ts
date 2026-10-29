@@ -144,6 +144,18 @@ export function timeInZone(timestamp: number, timezone: string): string {
     }
 }
 
+/** Day of week (0 = Sunday … 6 = Saturday) in the zone; the weekly review check. */
+export function weekdayInZone(timestamp: number, timezone: string): number {
+    const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    try {
+        const name = new Intl.DateTimeFormat('en-US', { timeZone: timezone, weekday: 'short' }).format(timestamp)
+        const index = names.indexOf(name)
+        return index >= 0 ? index : new Date(timestamp).getUTCDay()
+    } catch {
+        return new Date(timestamp).getUTCDay()
+    }
+}
+
 /** Hour of day (0-23) in the zone; the nightly window check. */
 export function hourInZone(timestamp: number, timezone: string): number {
     try {

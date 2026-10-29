@@ -5,21 +5,28 @@ import {
     deleteEmployee,
     getEmployee,
     getEmployeeByName,
+    getEmployeeBySlug,
     getEmployeeIssue,
     getEmployeeMemoryView,
+    getEmployeeReview,
+    getEmployeeReviewForPeriod,
     insertEmployee,
+    insertEmployeeReview,
     listAllEmployees,
     listEmployeeIssues,
+    listEmployeeLessons,
+    listEmployeeReviews,
     listEmployees,
     listOverdueEmployeeIssues,
     markEmployeeIssueEscalated,
     openEmployeeIssue,
     saveEmployeeMemoryView,
+    scoreEmployeeReview,
     updateEmployee,
     type EmployeeDbPatch,
     type NewEmployee
 } from './employees'
-import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView } from './types'
+import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView, StoredEmployeeReview } from './types'
 
 export class EmployeeStore {
     constructor(private readonly db: Database) {}
@@ -39,4 +46,11 @@ export class EmployeeStore {
     markIssueEscalated(id: string, namespace: string, now?: number): void { markEmployeeIssueEscalated(this.db, id, namespace, now) }
     memoryView(employeeId: string, namespace: string): StoredEmployeeMemoryView | null { return getEmployeeMemoryView(this.db, employeeId, namespace) }
     saveMemoryView(namespace: string, employeeId: string, content: string, now?: number): void { saveEmployeeMemoryView(this.db, namespace, employeeId, content, now) }
+    getBySlug(slug: string): StoredEmployee | null { return getEmployeeBySlug(this.db, slug) }
+    insertReview(input: { namespace: string; employeeId: string; periodStart: number; periodEnd: number; reportPath: string | null; metrics: string }): StoredEmployeeReview { return insertEmployeeReview(this.db, input) }
+    review(id: string, namespace: string): StoredEmployeeReview | null { return getEmployeeReview(this.db, id, namespace) }
+    reviewForPeriod(namespace: string, employeeId: string, periodStart: number): StoredEmployeeReview | null { return getEmployeeReviewForPeriod(this.db, namespace, employeeId, periodStart) }
+    reviews(namespace: string, employeeId: string, limit?: number): StoredEmployeeReview[] { return listEmployeeReviews(this.db, namespace, employeeId, limit) }
+    scoreReview(id: string, namespace: string, input: { score: number; comment: string | null; lesson: string | null; skillPath: string | null }): StoredEmployeeReview | null { return scoreEmployeeReview(this.db, id, namespace, input) }
+    lessons(namespace: string, employeeId: string, limit?: number): StoredEmployeeReview[] { return listEmployeeLessons(this.db, namespace, employeeId, limit) }
 }

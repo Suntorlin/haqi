@@ -276,6 +276,17 @@ export class ScheduleStore {
         return row ? toRun(row) : null
     }
 
+    /** The runs of an employee's scheduled tasks inside a period, for its metrics. */
+    runsForEmployee(namespace: string, employeeId: string, since: number): StoredScheduledRun[] {
+        const rows = this.db.prepare(`
+            SELECT r.* FROM scheduled_task_runs r
+            JOIN scheduled_tasks t ON t.id = r.schedule_id
+            WHERE r.namespace = ? AND t.employee_id = ? AND r.started_at >= ?
+            ORDER BY r.started_at
+        `).all(namespace, employeeId, since) as RunRow[]
+        return rows.map(toRun)
+    }
+
     /** Runs whose session is still working or waiting for the user. */
     openRuns(): StoredScheduledRun[] {
         const rows = this.db.prepare(

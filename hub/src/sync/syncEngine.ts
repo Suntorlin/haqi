@@ -704,7 +704,8 @@ export class SyncEngine {
                     const report = this.store.reports.createReport({ namespace, title: input.title, markdown: input.markdown, status: 'final' })
                     const share = this.store.reports.createShare({ reportId: report.id, namespace, createdBy: 'system:task' })
                     return { shareUrl: this.reportShareBase ? `${this.reportShareBase}/share/r/${encodeURIComponent(share.token)}` : null }
-                }
+                },
+                wakeEmployee: async (namespace, employeeId, text) => await this.employeeService.wake(namespace, employeeId, { source: 'task-deliver', text })
             },
             timeline: (namespace, taskId, text, extra) => {
                 void this.groupService.addTimelineMessage({ groupId: taskId, namespace, type: 'system', source: 'system:task', payload: { text, ...extra } })
@@ -765,14 +766,14 @@ export class SyncEngine {
         })
         this.employeeService = new EmployeeService(store, {
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
-            spawn: async ({ employee, text }) => {
+            spawn: async ({ employee, text, meta }) => {
                 const result = await this.spawnAndPrompt(employee.machineId, employee.directory, {
                     agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
                     model: employee.model ?? undefined,
                     employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold }
                 }, {
                     text,
-                    meta: { source: 'employee-wake', employeeId: employee.id },
+                    meta: { source: 'employee-wake', employeeId: employee.id, ...(meta ?? {}) },
                     permissionMode: (employee.permissionMode ?? undefined) as PermissionMode | undefined
                 })
                 return result.type === 'success' ? { sessionId: result.sessionId } : { error: result.message }
@@ -781,9 +782,9 @@ export class SyncEngine {
                 const result = await this.resumeSession(sessionId, namespace)
                 return result.type === 'success' ? result.sessionId : null
             },
-            send: async (sessionId, text) => {
+            send: async (sessionId, text, meta) => {
                 if (!this.getSession(sessionId)?.active) return false
-                await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta: { source: 'employee-wake' } })
+                await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta: { source: 'employee-wake', ...(meta ?? {}) } })
                 return true
             },
             session: (namespace, sessionId) => {
@@ -3627,6 +3628,7 @@ function toTaskSession(session: Session): TaskSession {
         path: metadata?.path ?? null,
         name: metadata?.name ?? metadata?.summary?.text ?? null,
         tags: metadata?.tags ?? [],
+        employeeId: metadata?.employeeId ?? null,
         updatedAt: session.updatedAt
     }
 }

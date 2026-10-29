@@ -7,6 +7,7 @@ import {
     getOrCreateSession,
     getSession,
     getSessionByNamespace,
+    getSessionIdsForEmployee,
     getSessions,
     getSessionsByNamespace,
     setSessionPreviewUrl,
@@ -76,6 +77,10 @@ export class SessionStore {
 
     getSessionsByNamespace(namespace: string): StoredSession[] {
         return getSessionsByNamespace(this.db, namespace)
+    }
+
+    idsForEmployee(namespace: string, employeeId: string): string[] {
+        return getSessionIdsForEmployee(this.db, namespace, employeeId)
     }
 
     deleteSession(id: string, namespace: string): boolean {

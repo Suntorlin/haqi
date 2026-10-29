@@ -94,6 +94,8 @@ export type StoredGroup = {
     repoPath: string | null
     machineId: string | null
     leadSessionId: string | null
+    /** The digital employee that escalated this task; its delivery goes back to the employee's main session. */
+    employeeId: string | null
     completedAt: number | null
     /** Set when the user archived it: it leaves the main list, its sessions stop, its history stays. */
     archivedAt: number | null
@@ -327,6 +329,8 @@ export type StoredReviewLoop = {
     userPreference: StoredReviewLoopUserPreference
     currentRound: number
     maxRounds: number
+    /** The employee whose work this loop reviews; null for ordinary loops. */
+    employeeId: string | null
     createdAt: number
     updatedAt: number
 }
@@ -465,4 +469,26 @@ export type StoredEmployeeMemoryView = {
     namespace: string
     content: string
     generatedAt: number
+}
+
+/** One week of an employee's work: the metrics snapshot, and the user's score once given. */
+export type StoredEmployeeReview = {
+    id: string
+    namespace: string
+    employeeId: string
+    periodStart: number
+    periodEnd: number
+    /** The weekly report file, relative to the employee home. */
+    reportPath: string | null
+    /** The metrics snapshot, as JSON. */
+    metrics: string
+    /** 1 to 5; null until the user reviews. */
+    score: number | null
+    comment: string | null
+    /** The distilled lesson of a low score; the next wake's state package repeats it. */
+    lesson: string | null
+    /** The proposed skill file of a high score, relative to the employee home. */
+    skillPath: string | null
+    createdAt: number
+    reviewedAt: number | null
 }

@@ -87,7 +87,7 @@ describe('Store schema repair', () => {
         const migrated = new Store(dbPath)
         const migratedDb = (migrated as unknown as { db: Database }).db
         const versionRow = migratedDb.prepare('PRAGMA user_version').get() as { user_version: number } | undefined
-        expect(versionRow?.user_version).toBe(18)
+        expect(versionRow?.user_version).toBe(19)
 
         const placeholders = REPORT_TABLES.map(() => '?').join(', ')
         const rows = migratedDb.prepare(

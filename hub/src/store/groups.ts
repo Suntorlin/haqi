@@ -30,6 +30,7 @@ type DbGroupRow = {
     repo_path: string | null
     machine_id: string | null
     lead_session_id: string | null
+    employee_id?: string | null
     completed_at: number | null
     archived_at?: number | null
     created_at: number
@@ -119,6 +120,7 @@ function toStoredGroup(row: DbGroupRow): StoredGroup {
         repoPath: row.repo_path,
         machineId: row.machine_id,
         leadSessionId: row.lead_session_id,
+        employeeId: row.employee_id ?? null,
         completedAt: row.completed_at,
         archivedAt: row.archived_at ?? null,
         createdAt: row.created_at,
@@ -213,7 +215,7 @@ export function createGroup(
             role?: string
         }>
         /** A task: 12 characters, so `task:<id>` style references stay short. */
-        task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null }
+        task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null; employeeId?: string | null }
     }
 ): StoredGroup {
     const now = Date.now()
@@ -223,9 +225,9 @@ export function createGroup(
         db.exec('BEGIN')
         db.prepare(`
             INSERT INTO groups (
-                id, namespace, name, description, note_session_id, kind, tag, status, repo_path, machine_id, created_at, updated_at
+                id, namespace, name, description, note_session_id, kind, tag, status, repo_path, machine_id, employee_id, created_at, updated_at
             ) VALUES (
-                @id, @namespace, @name, @description, @note_session_id, @kind, @tag, @status, @repo_path, @machine_id, @created_at, @updated_at
+                @id, @namespace, @name, @description, @note_session_id, @kind, @tag, @status, @repo_path, @machine_id, @employee_id, @created_at, @updated_at
             )
         `).run({
             id,
@@ -238,6 +240,7 @@ export function createGroup(
             status: options.task?.status ?? null,
             repo_path: options.task?.repoPath ?? null,
             machine_id: options.task?.machineId ?? null,
+            employee_id: options.task?.employeeId ?? null,
             created_at: now,
             updated_at: now
         })

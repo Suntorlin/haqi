@@ -196,6 +196,13 @@ export const taskDecisionAskInputSchema: z.ZodTypeAny = z.object({
     recommended: z.string().max(80).optional().describe('The label you recommend')
 })
 
+export const taskEscalateInputSchema: z.ZodTypeAny = z.object({
+    text: z.string().trim().min(1).max(4000).describe('What the task must achieve, with the background the planner needs; name the repositories when you know them'),
+    files: z.array(z.string().min(1).max(1000)).max(5).optional().describe('Absolute paths of reference files on this machine; each is copied into the task')
+})
+
+export const TASK_ESCALATE_DESCRIPTION = 'Escalate work into a HAQI task: for work that spans repositories, splits into parallel parts, or needs hours. HAQI drafts the goal and acceptance criteria, the user confirms, executor sessions do the work, and the delivery summary comes back to this session. Stay available here; do not do the task yourself.'
+
 export const taskIntegratedInputSchema: z.ZodTypeAny = z.object({
     task_id: z.string().min(1).max(40),
     branch: z.string().min(1).max(200),
@@ -356,6 +363,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         description: TASK_DRAFT_SUBMIT_DESCRIPTION,
         inputSchema: taskDraftSubmitInputSchema
     },
+    { name: 'task_escalate', title: 'Escalate Into a Task', description: TASK_ESCALATE_DESCRIPTION, inputSchema: taskEscalateInputSchema },
     { name: 'task_plan_submit', title: 'Submit Task Plan', description: TASK_RUN_TOOL_DESCRIPTIONS.task_plan_submit, inputSchema: taskPlanSubmitInputSchema },
     { name: 'subtask_done', title: 'Subtask Done', description: TASK_RUN_TOOL_DESCRIPTIONS.subtask_done, inputSchema: subtaskDoneInputSchema },
     { name: 'task_decision_ask', title: 'Ask the User to Decide', description: TASK_RUN_TOOL_DESCRIPTIONS.task_decision_ask, inputSchema: taskDecisionAskInputSchema },

@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite'
 import { randomUUID } from 'node:crypto'
 
-import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView } from './types'
+import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView, StoredEmployeeReview } from './types'
 
 /**
  * Digital employees, their open loose ends (issues live apart from memories: an issue opens, repeats and closes,
@@ -57,6 +57,25 @@ export const EMPLOYEE_SCHEMA_SQL = `
         generated_at INTEGER NOT NULL,
         FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS employee_reviews (
+        id TEXT PRIMARY KEY,
+        namespace TEXT NOT NULL DEFAULT 'default',
+        employee_id TEXT NOT NULL,
+        period_start INTEGER NOT NULL,
+        period_end INTEGER NOT NULL,
+        report_path TEXT,
+        metrics TEXT NOT NULL,
+        score INTEGER,
+        comment TEXT,
+        lesson TEXT,
+        skill_path TEXT,
+        created_at INTEGER NOT NULL,
+        reviewed_at INTEGER,
+        FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_reviews_period
+        ON employee_reviews(employee_id, period_start);
 `
 
 type DbEmployeeRow = {
@@ -175,6 +194,12 @@ export function insertEmployee(db: Database, input: NewEmployee): StoredEmployee
 
 export function getEmployee(db: Database, id: string, namespace: string): StoredEmployee | null {
     const row = db.prepare('SELECT * FROM employees WHERE id = ? AND namespace = ?').get(id, namespace) as DbEmployeeRow | null
+    return row ? toStoredEmployee(row) : null
+}
+
+/** The employee behind an inbound webhook token; the slug is the secret, so it looks across namespaces. */
+export function getEmployeeBySlug(db: Database, slug: string): StoredEmployee | null {
+    const row = db.prepare('SELECT * FROM employees WHERE webhook_slug = ? LIMIT 1').get(slug) as DbEmployeeRow | null
     return row ? toStoredEmployee(row) : null
 }
 
@@ -298,6 +323,85 @@ export function listOverdueEmployeeIssues(db: Database, namespace: string, older
 
 export function markEmployeeIssueEscalated(db: Database, id: string, namespace: string, now = Date.now()): void {
     db.prepare('UPDATE employee_issues SET escalated_at = ? WHERE id = ? AND namespace = ?').run(now, id, namespace)
+}
+
+// ─── Weekly reviews ──────────────────────────────────────────────────────────────
+
+type DbReviewRow = {
+    id: string
+    namespace: string
+    employee_id: string
+    period_start: number
+    period_end: number
+    report_path: string | null
+    metrics: string
+    score: number | null
+    comment: string | null
+    lesson: string | null
+    skill_path: string | null
+    created_at: number
+    reviewed_at: number | null
+}
+
+function toStoredReview(row: DbReviewRow): StoredEmployeeReview {
+    return {
+        id: row.id,
+        namespace: row.namespace,
+        employeeId: row.employee_id,
+        periodStart: row.period_start,
+        periodEnd: row.period_end,
+        reportPath: row.report_path,
+        metrics: row.metrics,
+        score: row.score,
+        comment: row.comment,
+        lesson: row.lesson,
+        skillPath: row.skill_path,
+        createdAt: row.created_at,
+        reviewedAt: row.reviewed_at
+    }
+}
+
+export function insertEmployeeReview(db: Database, input: { namespace: string; employeeId: string; periodStart: number; periodEnd: number; reportPath: string | null; metrics: string }): StoredEmployeeReview {
+    const id = randomUUID().slice(0, 8)
+    db.prepare(`
+        INSERT INTO employee_reviews (id, namespace, employee_id, period_start, period_end, report_path, metrics, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, input.namespace, input.employeeId, input.periodStart, input.periodEnd, input.reportPath, input.metrics, Date.now())
+    return getEmployeeReview(db, id, input.namespace)!
+}
+
+export function getEmployeeReview(db: Database, id: string, namespace: string): StoredEmployeeReview | null {
+    const row = db.prepare('SELECT * FROM employee_reviews WHERE id = ? AND namespace = ?').get(id, namespace) as DbReviewRow | null
+    return row ? toStoredReview(row) : null
+}
+
+export function getEmployeeReviewForPeriod(db: Database, namespace: string, employeeId: string, periodStart: number): StoredEmployeeReview | null {
+    const row = db.prepare('SELECT * FROM employee_reviews WHERE namespace = ? AND employee_id = ? AND period_start = ?')
+        .get(namespace, employeeId, periodStart) as DbReviewRow | null
+    return row ? toStoredReview(row) : null
+}
+
+export function listEmployeeReviews(db: Database, namespace: string, employeeId: string, limit = 20): StoredEmployeeReview[] {
+    const rows = db.prepare('SELECT * FROM employee_reviews WHERE namespace = ? AND employee_id = ? ORDER BY period_start DESC LIMIT ?')
+        .all(namespace, employeeId, limit) as DbReviewRow[]
+    return rows.map(toStoredReview)
+}
+
+/** The user's verdict on one week; the lesson and the skill path are written by the service, not the user. */
+export function scoreEmployeeReview(db: Database, id: string, namespace: string, input: { score: number; comment: string | null; lesson: string | null; skillPath: string | null }): StoredEmployeeReview | null {
+    db.prepare('UPDATE employee_reviews SET score = ?, comment = ?, lesson = ?, skill_path = ?, reviewed_at = ? WHERE id = ? AND namespace = ?')
+        .run(input.score, input.comment, input.lesson, input.skillPath, Date.now(), id, namespace)
+    return getEmployeeReview(db, id, namespace)
+}
+
+/** The low-score lessons a fresh main session must hear again, newest first. */
+export function listEmployeeLessons(db: Database, namespace: string, employeeId: string, limit = 3): StoredEmployeeReview[] {
+    const rows = db.prepare(`
+        SELECT * FROM employee_reviews
+        WHERE namespace = ? AND employee_id = ? AND score IS NOT NULL AND score <= 2 AND lesson IS NOT NULL
+        ORDER BY reviewed_at DESC LIMIT ?
+    `).all(namespace, employeeId, limit) as DbReviewRow[]
+    return rows.map(toStoredReview)
 }
 
 export function getEmployeeMemoryView(db: Database, employeeId: string, namespace: string): StoredEmployeeMemoryView | null {

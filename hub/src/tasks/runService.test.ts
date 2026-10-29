@@ -39,6 +39,7 @@ function setup(dir: string) {
     const reports: string[] = []
     const stopped: string[] = []
     const approved: string[] = []
+    const wakes: Array<{ employeeId: string; text: string }> = []
     const lines: Array<{ text: string; report?: string }> = []
     let next = 1
     // Off by default: a stopped session stays stopped unless a test turns this on.
@@ -90,7 +91,8 @@ function setup(dir: string) {
             activity: () => ({ lastMessageAt: Date.now(), commands: [], lastStep: '运行 npm test' }),
             push: async (_ns, notice) => { pushes.push(notice.title) },
             createReport: (_ns, input) => { reports.push(input.markdown); return { shareUrl: 'https://example.test/share/r/x' } },
-            approve: async (sessionId, requestId) => { approved.push(`${sessionId}:${requestId}`); sessions.get(sessionId)!.requests = sessions.get(sessionId)!.requests.filter((r) => r.id !== requestId) }
+            approve: async (sessionId, requestId) => { approved.push(`${sessionId}:${requestId}`); sessions.get(sessionId)!.requests = sessions.get(sessionId)!.requests.filter((r) => r.id !== requestId) },
+            wakeEmployee: async (_ns, employeeId, text) => { wakes.push({ employeeId, text }) }
         }
     })
     addSession('work', '/repo')
@@ -99,7 +101,7 @@ function setup(dir: string) {
         for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0))
     }
     return {
-        store, service, runs: service.runs!, sessions, addSession, spawned, sent, pushes, reports, stopped, approved, lines, settle,
+        store, service, runs: service.runs!, sessions, addSession, spawned, sent, pushes, reports, stopped, approved, wakes, lines, settle,
         setResumable: (on: boolean) => { resumable = on },
         setPlainFolder: (on: boolean) => { plainFolder = on },
         failSpawn: (message: string | null) => { spawnError = message }
@@ -254,6 +256,42 @@ describe('task run after the guide step', () => {
         await t.runs.verdict('default', task.id, { approved: false, text: '还有一处没改' })
         await t.settle()
         expect(t.service.get('default', task.id)!.run!.phase).toBe('fixing')
+    })
+
+    it('a task an employee escalated sends its delivery back to the employee, at the report and at the acceptance', async () => {
+        const t = setup(dir)
+        t.addSession('emp-main', '/repo/员工-小鱼')
+        t.sessions.get('emp-main')!.employeeId = 'emp1'
+        const task = await t.service.create('default', { text: '跨仓库修日志格式', fromSessionId: 'emp-main' })
+        await t.settle()
+        t.service.submitDraft('default', task.id, { ...DRAFT, repoPath: '/repo' })
+        await t.service.confirm('default', task.id, { criteria: DRAFT.criteria.map((_c, i) => ({ id: `c${i + 1}`, kept: true })), answers: {} })
+        await t.settle()
+        await t.runs.submitPlan('default', task.id, { subtasks: [{ id: 'all', title: '全部', brief: '做完', criteria: ['c1', 'c2', 'c3'] }] })
+        await t.settle()
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'all', summary: '做完了' })
+        await t.settle()
+        await t.runs.integrated('default', task.id, { branch: `task/${task.id}`, worktreePath: `/repo-worktrees/task-${task.id}`, summary: '无冲突' })
+        await t.settle()
+        await t.runs.reviewSubmitted('default', task.id, { results: [
+            { criterionId: 'c1', status: 'met', evidence: 'ok' },
+            { criterionId: 'c2', status: 'met', evidence: 'ok' },
+            { criterionId: 'c3', status: 'met', evidence: 'ok' }
+        ] })
+        await t.settle()
+        expect(t.wakes).toEqual([])
+        await t.runs.subtaskDone('default', task.id, { subtaskId: 'deliver-1', summary: '跨仓库的修复做完了。' })
+        await t.settle()
+        // The delivery summary goes to the employee's main session, marked as HAQI's own message.
+        expect(t.wakes).toHaveLength(1)
+        expect(t.wakes[0]!.employeeId).toBe('emp1')
+        expect(t.wakes[0]!.text).toContain('[HAQI 任务交付]')
+        expect(t.wakes[0]!.text).toContain('跨仓库的修复做完了。')
+        expect(t.wakes[0]!.text).toContain('https://example.test/share/r/x')
+        await t.runs.verdict('default', task.id, { approved: true })
+        await t.settle()
+        expect(t.wakes).toHaveLength(2)
+        expect(t.wakes[1]!.text).toContain('验收通过')
     })
 
     it('asks the user mid-way, writes the answer as an experience, and answers the same question by precedent next time', async () => {

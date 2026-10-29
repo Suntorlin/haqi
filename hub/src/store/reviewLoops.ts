@@ -21,6 +21,7 @@ type DbReviewLoopRow = {
     user_preference: StoredReviewLoopUserPreference
     current_round: number
     max_rounds: number
+    employee_id?: string | null
     created_at: number
     updated_at: number
 }
@@ -50,6 +51,7 @@ function toStoredReviewLoop(row: DbReviewLoopRow): StoredReviewLoop {
         userPreference: row.user_preference,
         currentRound: row.current_round,
         maxRounds: row.max_rounds,
+        employeeId: row.employee_id ?? null,
         createdAt: row.created_at,
         updatedAt: row.updated_at
     }
@@ -82,6 +84,8 @@ export function createReviewLoop(
         acceptanceCriteria: string
         maxRounds?: number
         userPreference?: StoredReviewLoopUserPreference
+        /** The employee whose work this loop reviews; its metrics count the loop. */
+        employeeId?: string | null
     }
 ): StoredReviewLoop {
     const now = Date.now()
@@ -91,11 +95,11 @@ export function createReviewLoop(
         INSERT INTO review_loops (
             id, namespace, worker_session_id, reviewer_session_id,
             requirement, acceptance_criteria, status, user_preference,
-            current_round, max_rounds, created_at, updated_at
+            current_round, max_rounds, employee_id, created_at, updated_at
         ) VALUES (
             @id, @namespace, @worker_session_id, @reviewer_session_id,
             @requirement, @acceptance_criteria, @status, @user_preference,
-            @current_round, @max_rounds, @created_at, @updated_at
+            @current_round, @max_rounds, @employee_id, @created_at, @updated_at
         )
     `).run({
         id,
@@ -108,6 +112,7 @@ export function createReviewLoop(
         user_preference: options.userPreference ?? 'auto',
         current_round: 0,
         max_rounds: options.maxRounds ?? 10,
+        employee_id: options.employeeId ?? null,
         created_at: now,
         updated_at: now
     })
@@ -117,6 +122,14 @@ export function createReviewLoop(
         throw new Error('Failed to create review loop')
     }
     return toStoredReviewLoop(row)
+}
+
+/** The loops that count toward one employee's metrics, inside a period. */
+export function listReviewLoopsForEmployee(db: Database, namespace: string, employeeId: string, since: number): StoredReviewLoop[] {
+    const rows = db.prepare(
+        'SELECT * FROM review_loops WHERE namespace = ? AND employee_id = ? AND created_at >= ? ORDER BY created_at'
+    ).all(namespace, employeeId, since) as DbReviewLoopRow[]
+    return rows.map(toStoredReviewLoop)
 }
 
 export function getReviewLoopsByNamespace(db: Database, namespace: string): StoredReviewLoop[] {

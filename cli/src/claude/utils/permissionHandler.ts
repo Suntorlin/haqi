@@ -283,8 +283,12 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
             ? extractPermissionQuestionTarget(input)
             : null;
 
+        // A tainted session saw inbound (untrusted) content: nothing granted before still auto-allows — not the
+        // user's earlier "always allow", not bypassPermissions, not acceptEdits. Every call asks a human.
+        const tainted = mode.inboundTainted === true;
+
         // Check if tool is explicitly allowed
-        if (!isQuestionTool && toolName === 'Bash') {
+        if (!isQuestionTool && !tainted && toolName === 'Bash') {
             const inputObj = input as { command?: string };
             if (inputObj?.command) {
                 // Check literal matches
@@ -298,7 +302,7 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
                     }
                 }
             }
-        } else if (!isQuestionTool && this.allowedTools.has(toolName)) {
+        } else if (!isQuestionTool && !tainted && this.allowedTools.has(toolName)) {
             return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
         }
 
@@ -309,11 +313,11 @@ export class PermissionHandler extends BasePermissionHandler<PermissionResponse,
         // Handle special cases
         //
 
-        if (!isQuestionTool && this.permissionMode === 'bypassPermissions') {
+        if (!isQuestionTool && !tainted && this.permissionMode === 'bypassPermissions') {
             return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
         }
 
-        if (!isQuestionTool && this.permissionMode === 'acceptEdits' && descriptor.edit) {
+        if (!isQuestionTool && !tainted && this.permissionMode === 'acceptEdits' && descriptor.edit) {
             return { behavior: 'allow', updatedInput: input as Record<string, unknown> };
         }
 
