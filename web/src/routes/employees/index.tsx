@@ -67,7 +67,10 @@ function CreateEmployeeDialog(props: {
         if (!props.open || machines.length === 0) return
         if (machineId && machines.find((machine) => machine.id === machineId)) return
         const lastUsed = getLastUsedMachineId()
-        const found = (lastUsed ? machines.find((machine) => machine.id === lastUsed) : null) ?? machines[0]
+        // No last choice: an always-on machine first, so the employee does not live on a laptop that may leave.
+        const found = (lastUsed ? machines.find((machine) => machine.id === lastUsed) : null)
+            ?? machines.find((machine) => machine.metadata?.role !== 'portable')
+            ?? machines[0]
         if (found) setMachineId(found.id)
     }, [props.open, machines, machineId, getLastUsedMachineId])
 
