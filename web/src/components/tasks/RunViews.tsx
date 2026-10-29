@@ -4,6 +4,12 @@ import type { AcceptanceCriterion, TaskDecision, TaskRun, TaskSubtask, TaskView 
 import { useTranslation } from '@/lib/use-translation'
 import {
     CheckRing,
+    AgentTimeline,
+    AtDetail,
+    DetailSwitch,
+    ReportDetailProvider,
+    StoryCards,
+    StatTiles,
     Checklist,
     DecisionCard,
     DecisionConfirmation,
@@ -16,7 +22,9 @@ import {
     type CheckItem,
     type ProgressItem,
     type ReportStat,
-    type ReportTone
+    type ReportTone,
+    type TimelineAgent,
+    type TimelineSpan
 } from '@/components/report'
 import { BottomSheet } from '@/components/mobile/BottomSheet'
 import { ChevronLeftIcon } from '@/components/mobile/icons'
@@ -24,7 +32,7 @@ import { Button } from '@/components/ui/button'
 import { FitText } from '@/components/ui/FitText'
 import { InfoTip } from '@/components/ui/InfoTip'
 import { BriefFullMarkdownContent } from '@/components/AssistantChat/BriefFullMarkdownContent'
-import { ReportFold, ReportSheet, reportMarkdownForApp } from './ReportSheet'
+import { ReportSheet, reportMarkdownForApp } from './ReportSheet'
 
 type Translate = ReturnType<typeof useTranslation>['t']
 
@@ -306,6 +314,28 @@ function SubtaskDetail(props: { task: TaskView; run: TaskRun; subtask: TaskSubta
     )
 }
 
+/** Every subtask that started, as a row on the task's shared time axis (minutes before now). */
+function timelineAgents(run: TaskRun, now: number, t: Translate): { agents: TimelineAgent[]; window: number } {
+    const started = workers(run).filter((s) => s.startedAt)
+    const earliest = started.reduce((min, s) => Math.min(min, s.startedAt!), now)
+    const span = Math.max(10, Math.ceil((now - earliest) / 60_000 / 10) * 10)
+    const agents = started.map((s): TimelineAgent => {
+        const status = subtaskStatus(run, s, now, t)
+        const waiting = Boolean(openDecisionOf(run, s) || s.live?.waiting)
+        const state: TimelineSpan['state'] = s.state === 'done' ? 'done' : s.state === 'stuck' || s.state === 'stopped' ? 'stuck' : waiting ? 'wait' : 'live'
+        const progress = criteriaDone(run, s)
+        return {
+            id: s.id,
+            seed: s.sessionId ?? s.id,
+            name: s.title,
+            tone: status.tone,
+            progress: progress.total > 0 ? progress.done / progress.total : 0,
+            spans: [{ from: (s.startedAt! - now) / 60_000, to: s.doneAt ? (s.doneAt - now) / 60_000 : 0, state, label: s.state === 'done' && s.doneAt ? duration(s.doneAt - s.startedAt!, t) : status.text }]
+        }
+    })
+    return { agents, window: span }
+}
+
 function runHeadline(task: TaskView, run: TaskRun, t: Translate): string {
     const open = run.decisions.filter((d) => !d.answer).length
     const list = workers(run).filter((s) => !s.fix)
@@ -349,6 +379,7 @@ export function RunReport(props: {
     const [subtaskId, setSubtaskId] = useState<string | null>(null)
     const [checkId, setCheckId] = useState<string | null>(null)
     const [reportOpen, setReportOpen] = useState(false)
+    const [storiesOpen, setStoriesOpen] = useState(false)
     // One stable callback: an inline one runs on every re-render (data refresh) and pulls the page back to the top.
     const scrollToTop = useCallback((el: HTMLSpanElement | null) => el?.scrollIntoView({ block: 'start' }), [])
     const now = Date.now()
@@ -422,6 +453,16 @@ export function RunReport(props: {
         if (item.id === 'lead' && task.leadSessionId) void navigate({ to: '/sessions/$sessionId', params: { sessionId: task.leadSessionId } })
         else setSubtaskId(item.id)
     }
+    const timeline = finished ? null : timelineAgents(run, now, t)
+    const toDecisions = () => document.getElementById('task-decisions')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    // The same report as a few cards, one idea each, for a quick look on a phone.
+    const stories = [
+        { id: 'result', label: t('taskRun.story.result'), content: <div className="flex flex-col gap-4"><p className="m-0 text-title font-semibold leading-snug text-[var(--social-fg)]">{runHeadline(task, run, t)}</p><StatTiles stats={stats} /></div> },
+        ...(open.length > 0 ? [{ id: 'waiting', label: t('taskReport.waiting'), content: <Decisions run={run} decisions={open} onAnswer={props.onAnswer} onAsk={props.onAsk} now={now} t={t} /> }] : []),
+        ...(timeline && timeline.agents.length > 0 ? [{ id: 'progress', label: t('taskRun.progress'), content: <AgentTimeline agents={timeline.agents} window={timeline.window} /> }] : items.length > 0 ? [{ id: 'progress', label: t('taskRun.progress'), content: <ProgressList items={items} onOpen={() => {}} /> }] : []),
+        ...(risks.length > 0 ? [{ id: 'risks', label: t('taskRun.risks'), content: <RiskNotice risks={risks} /> }] : []),
+        { id: 'checks', label: t('taskGuide.criteria'), content: <Checklist items={task.acceptance.map((c) => checkOf(run, c, t))} /> }
+    ]
 
     return (
         <>
@@ -437,14 +478,33 @@ export function RunReport(props: {
                     ) : null}
                 </p>
             ) : null}
+            <div className="mx-4 mt-3 sm:hidden">
+                <Button variant="secondary" size="sm" className="w-full" onClick={() => setStoriesOpen(true)}>{t('taskRun.story.open')}</Button>
+            </div>
+            {storiesOpen ? (
+                <div className="fixed inset-0 z-50 bg-[var(--social-surface)] pt-[env(safe-area-inset-top)]">
+                    <StoryCards title={task.name} seed={task.leadSessionId ?? task.id} stories={stories} onClose={() => setStoriesOpen(false)} />
+                </div>
+            ) : null}
 
             {delivery && delivery.body ? (
                 <>
                     <SectionCaption>{t('taskRun.delivery')}</SectionCaption>
-                    <div className="mx-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
-                        <BriefFullMarkdownContent content={reportMarkdownForApp(delivery.body)} className="text-body [&>*:first-child]:!mt-0" />
-                        {delivery.details ? <ReportFold title={t('taskRun.deliveryDetails')} text={reportMarkdownForApp(delivery.details)} /> : null}
-                    </div>
+                    {delivery.details ? (
+                        // One line / key points / everything: the lead's conclusion, its body, and the folded details.
+                        <ReportDetailProvider initial="points">
+                            <div className="mx-4 flex flex-col gap-3 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
+                                <DetailSwitch />
+                                <p className="m-0 text-body font-semibold text-[var(--social-fg)]">{delivery.conclusion}</p>
+                                <AtDetail from="points"><BriefFullMarkdownContent content={reportMarkdownForApp(delivery.body)} className="text-body [&>*:first-child]:!mt-0" /></AtDetail>
+                                <AtDetail from="full"><BriefFullMarkdownContent content={reportMarkdownForApp(delivery.details)} className="border-t border-[var(--social-divider)] pt-3 text-body [&>*:first-child]:!mt-0" /></AtDetail>
+                            </div>
+                        </ReportDetailProvider>
+                    ) : (
+                        <div className="mx-4 rounded-2xl border border-[var(--social-border)] bg-[var(--social-surface)] p-4">
+                            <BriefFullMarkdownContent content={reportMarkdownForApp(delivery.body)} className="text-body [&>*:first-child]:!mt-0" />
+                        </div>
+                    )}
                 </>
             ) : revision ? (
                 <>
@@ -460,6 +520,7 @@ export function RunReport(props: {
 
             {open.length > 0 ? (
                 <>
+                    <span id="task-decisions" className="block scroll-mt-16" aria-hidden="true" />
                     <SectionCaption>{t('taskReport.waiting')}</SectionCaption>
                     <Decisions run={run} decisions={open} onAnswer={props.onAnswer} onAsk={props.onAsk} now={now} t={t} />
                 </>
@@ -468,6 +529,11 @@ export function RunReport(props: {
             {finished ? null : items.length > 0 ? (
                 <>
                     <SectionCaption>{t('taskRun.progress')}</SectionCaption>
+                    {timeline && timeline.agents.length > 0 ? (
+                        <div className="mx-4 mb-3">
+                            <AgentTimeline agents={timeline.agents} window={timeline.window} onDecide={toDecisions} onOpen={(agent) => setSubtaskId(agent.id)} />
+                        </div>
+                    ) : null}
                     <div className="mx-4"><ProgressList items={items} onOpen={openProgress} /></div>
                 </>
             ) : null}

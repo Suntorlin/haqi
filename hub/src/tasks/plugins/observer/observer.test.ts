@@ -51,4 +51,21 @@ describe('observer', () => {
             { type: 'clear', key: 'reminded:api' }
         ])
     })
+
+    it('does not remind a session its quota refuses; tells the user once the account switch had its time', () => {
+        const refused = { ...base, lastMessageAt: now - OBSERVER_LIMITS.silentRemindMs - 1, quota: { text: "You've hit your weekly limit · resets Oct 31 at 4pm", at: now - 60_000 } }
+        // Within the grace: the session may still be moving to the next account.
+        expect(observe([refused], [], now)).toEqual([])
+        const late = { ...refused, quota: { ...refused.quota, at: now - OBSERVER_LIMITS.quotaGraceMs } }
+        expect(observe([late], [], now)).toMatchObject([
+            { type: 'state', subtaskId: 'api', state: 'stuck' },
+            { type: 'signal', notify: true, signal: { key: 'quota:api', kind: 'stuck' } }
+        ])
+        expect(observe([{ ...late, subtask: { ...subtask, state: 'stuck' } }], [signal('quota:api', 'stuck')], now)).toEqual([])
+        // Another account took over and it works again.
+        expect(observe([{ ...base, subtask: { ...subtask, state: 'stuck' } }], [signal('quota:api', 'stuck')], now)).toEqual([
+            { type: 'clear', key: 'quota:api' },
+            { type: 'state', subtaskId: 'api', state: 'running' }
+        ])
+    })
 })

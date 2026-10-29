@@ -1,23 +1,37 @@
 /**
- * What the observer reads from a session's stored messages: when it last wrote, the shell commands it ran, and its
- * latest step in a few words for the task page.
+ * What the observer reads from a session's stored messages: when it last wrote, the shell commands it ran, its
+ * latest step in a few words for the task page, and whether its latest reply was Claude refusing for quota.
  */
-import { isObject } from '@hapi/protocol'
+import { claudeQuotaRefusal, isObject } from '@hapi/protocol'
 import { unwrapRoleWrappedRecordEnvelope } from '@hapi/protocol/messages'
 import type { StoredMessage } from '../store/types'
 import { extractToolBlocks } from '../sync/teams'
 
 const SHELL_TOOLS = new Set(['Bash', 'CodexBash', 'shell', 'exec_command'])
 
-export function sessionActivity(messages: StoredMessage[], since: number): { lastMessageAt: number; commands: string[]; lastStep: string | null } {
+export type SessionActivity = {
+    lastMessageAt: number
+    commands: string[]
+    lastStep: string | null
+    /** The latest reply is the account's quota refusal ("You've hit your weekly limit · resets …"), and when. */
+    quota: { text: string; at: number } | null
+}
+
+export function sessionActivity(messages: StoredMessage[], since: number): SessionActivity {
     let lastMessageAt = 0
     let lastStep: { at: number; text: string } | null = null
+    let quota: SessionActivity['quota'] = null
     const commands: string[] = []
     for (const message of messages) {
         lastMessageAt = Math.max(lastMessageAt, message.createdAt)
         const envelope = unwrapRoleWrappedRecordEnvelope(parse(message.content))
         const content = envelope && isObject(envelope.content) ? envelope.content as Record<string, unknown> : null
         if (!content) continue
+        const data = content.type === 'output' && isObject(content.data) ? content.data as Record<string, unknown> : null
+        if (data?.type === 'assistant') {
+            const refusal = claudeQuotaRefusal(data.message)
+            quota = refusal ? { text: refusal, at: message.createdAt } : null
+        }
         for (const block of extractToolBlocks(content)) {
             const step = describeStep(block.name, block.input)
             if (step && (!lastStep || message.createdAt >= lastStep.at)) lastStep = { at: message.createdAt, text: step }
@@ -26,7 +40,7 @@ export function sessionActivity(messages: StoredMessage[], since: number): { las
             if (command) commands.push(command)
         }
     }
-    return { lastMessageAt, commands, lastStep: lastStep?.text ?? null }
+    return { lastMessageAt, commands, lastStep: lastStep?.text ?? null, quota }
 }
 
 function shellCommand(input: Record<string, unknown>): string | null {

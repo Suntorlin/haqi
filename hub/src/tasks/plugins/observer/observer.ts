@@ -1,7 +1,8 @@
 /**
  * The observer: looks at each working session of a running task and decides whether the user has to step in.
  * Rules only, no model: an approval that waits, a session that stopped, a session silent for too long (reminded
- * first, the user told only if it stays silent), a risky command. Everything else stays in the log.
+ * first, the user told only if it stays silent), a session its account's quota refuses, a risky command. Everything
+ * else stays in the log.
  */
 import type { TaskSignal, TaskSubtask } from '@hapi/protocol/types'
 
@@ -14,6 +15,8 @@ export type WatchedSession = {
     pendingRequests: Array<{ id: string; tool: string; detail: string }>
     /** Shell commands it ran since the last look. */
     newCommands: string[]
+    /** Its latest reply is the account's quota refusal, and when it came. */
+    quota?: { text: string; at: number } | null
 }
 
 export type ObserverAction =
@@ -22,7 +25,12 @@ export type ObserverAction =
     | { type: 'remind'; subtask: TaskSubtask }
     | { type: 'state'; subtaskId: string; state: 'running' | 'stuck' | 'stopped' }
 
-export const OBSERVER_LIMITS = { silentRemindMs: 20 * 60_000, silentStuckMs: 35 * 60_000 } as const
+export const OBSERVER_LIMITS = {
+    silentRemindMs: 20 * 60_000,
+    silentStuckMs: 35 * 60_000,
+    /** The session moves itself to the next account in this time; a refusal still there after it is the user's. */
+    quotaGraceMs: 2 * 60_000
+} as const
 
 /** Commands that act outside the worktree: the user's hard limits. */
 const DANGER = [
@@ -71,6 +79,21 @@ export function observe(sessions: WatchedSession[], open: TaskSignal[], now: num
             continue
         }
         if (openKeys.has(stoppedKey)) actions.push({ type: 'clear', key: stoppedKey })
+
+        // Quota: a reminder only gets the same refusal back, and that reply counts as activity, so the silence
+        // rules never fire. Tell the user once the session had time to move to another account itself.
+        const quotaKey = `quota:${subtask.id}`
+        if (watched.quota) {
+            if (now - watched.quota.at >= OBSERVER_LIMITS.quotaGraceMs && !openKeys.has(quotaKey)) {
+                if (subtask.state !== 'stuck') actions.push({ type: 'state', subtaskId: subtask.id, state: 'stuck' })
+                actions.push({ type: 'signal', notify: true, signal: {
+                    key: quotaKey, kind: 'stuck', sessionId: sid,
+                    text: `「${subtask.title}」用的账号额度用完了（${watched.quota.text}），没有能接手的账号。去会话里换个账号，或等额度恢复后点“继续”。`.slice(0, 300)
+                } })
+            }
+            continue
+        }
+        if (openKeys.has(quotaKey)) actions.push({ type: 'clear', key: quotaKey })
 
         const silent = now - watched.lastMessageAt
         const remindKey = `reminded:${subtask.id}`

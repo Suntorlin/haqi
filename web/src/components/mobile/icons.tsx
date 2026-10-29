@@ -777,13 +777,14 @@ export function ChatsIcon(props: TabIconProps) {
     )
 }
 
+/** The tasks tab (groups are tasks): a clipboard with a check. */
 export function GroupsIcon(props: TabIconProps) {
+    const cut = props.filled ? 'var(--social-surface)' : 'currentColor'
     return (
-        <svg viewBox="0 0 24 24" className={props.className ?? 'h-[25px] w-[25px]'} fill={props.filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={props.filled ? 0 : 1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="9" cy="8.5" r="3.5" />
-            <path d="M2.5 19.5c.6-3.4 3.3-5.5 6.5-5.5s5.9 2.1 6.5 5.5z" />
-            <circle cx="16.8" cy="9.2" r="2.7" />
-            <path d="M16.6 13.6c2.6.1 4.4 1.9 4.9 4.9h-4.1" />
+        <svg viewBox="0 0 24 24" className={props.className ?? 'h-[25px] w-[25px]'} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4.5" y="4.5" width="15" height="17" rx="2.5" fill={props.filled ? 'currentColor' : 'none'} />
+            <rect x="8.5" y="2.5" width="7" height="4" rx="1.3" fill={props.filled ? 'currentColor' : 'var(--social-surface)'} stroke={props.filled ? 'var(--social-surface)' : 'currentColor'} strokeWidth={1.5} />
+            <path d="M8.5 13.5l2.4 2.4 4.6-4.9" stroke={cut} strokeWidth={props.filled ? 2 : 1.7} />
         </svg>
     )
 }
