@@ -118,7 +118,8 @@ export type StoredSessionGuard = {
     reason: string | null
     /** The memory behind `reason`, when a rule was violated. */
     memoryId: string | null
-    strikes: Record<string, number>
+    /** Per memory, the checked-turn numbers whose reply broke it, within the guard's window. */
+    strikes: Record<string, number[]>
     cleanStreak: number
     /** The newest message seq a check covered; turns at or below it are not checked again. */
     checkedEndSeq: number
