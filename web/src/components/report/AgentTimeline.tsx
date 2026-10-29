@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { FitText } from '@/components/ui/FitText'
 import { SegmentedControl } from '@/components/ui/FormControls'
 import { useTranslation } from '@/lib/use-translation'
 import { cn } from '@/lib/utils'
@@ -22,6 +23,30 @@ function place(from: number, to: number, window: number) {
 /** Quarter gridlines, drawn as a background so they cost no extra nodes. */
 const GRID = 'bg-[repeating-linear-gradient(90deg,var(--social-divider)_0_1px,transparent_1px_25%)]'
 
+/**
+ * A bar's words, shown whole or not at all: a short stretch has no room, and half a word ("3…") says nothing.
+ * The full label stays in the bar's hover title.
+ */
+function SpanLabel(props: { text: string }) {
+    const ref = useRef<HTMLSpanElement>(null)
+    const [fits, setFits] = useState(true)
+    useLayoutEffect(() => {
+        const el = ref.current
+        if (!el) return
+        const check = () => setFits(el.scrollWidth <= el.clientWidth + 1)
+        check()
+        if (typeof ResizeObserver === 'undefined') return
+        const observer = new ResizeObserver(check)
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [props.text])
+    return (
+        <span ref={ref} className={cn('min-w-0 flex-1 overflow-hidden whitespace-nowrap', !fits && 'invisible')}>
+            {props.text}
+        </span>
+    )
+}
+
 function Span(props: { span: TimelineSpan; window: number; thin?: boolean; onDecide?: () => void }) {
     const { span } = props
     const { t } = useTranslation()
@@ -34,7 +59,7 @@ function Span(props: { span: TimelineSpan; window: number; thin?: boolean; onDec
     const body = (
         <>
             {span.state === 'live' ? <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[var(--social-badge)]" /> : null}
-            <span className="min-w-0 flex-1 truncate">{span.label}</span>
+            <SpanLabel text={span.label} />
         </>
     )
     if (span.state === 'wait' && props.onDecide) {
@@ -57,12 +82,17 @@ function Span(props: { span: TimelineSpan; window: number; thin?: boolean; onDec
  * Who works on what, on one shared time axis (now at the right edge). One row per agent with its orb;
  * the "steps" view adds a thin row per step under each agent — the report's semantic zoom.
  */
-export function AgentTimeline(props: { agents: TimelineAgent[]; window?: number; onDecide?: (agent: TimelineAgent) => void }) {
+export function AgentTimeline(props: { agents: TimelineAgent[]; window?: number; onDecide?: (agent: TimelineAgent) => void; onOpen?: (agent: TimelineAgent) => void }) {
     const { t } = useTranslation()
-    const window = props.window ?? 40
+    // Round the window up to whole ticks, at most four of them: minutes for short runs, hours for long ones.
+    const raw = props.window ?? 40
+    const step = [5, 10, 15, 20, 30, 60, 90, 120, 180, 240, 360, 480, 720, 1440].find((s) => raw / s <= 4) ?? 1440
+    const window = Math.ceil(raw / step) * step
+    const tickLabel = (minutes: number) => (step >= 60 ? t('report.timeline.hours', { n: minutes / 60 }) : t('report.timeline.minutes', { n: minutes }))
+    const hasPlan = props.agents.some((a) => a.plan)
     const [mode, setMode] = useState<'summary' | 'steps'>('summary')
     const waiting = props.agents.filter((a) => a.spans.some((s) => s.state === 'wait')).length
-    const ticks = [0, 0.25, 0.5, 0.75]
+    const ticks = Array.from({ length: window / step }, (_, i) => (i * step) / window)
     return (
         <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -85,7 +115,7 @@ export function AgentTimeline(props: { agents: TimelineAgent[]; window?: number;
                     <span className="relative h-4 flex-1">
                         {ticks.map((f) => (
                             <span key={f} className="absolute -translate-x-1/2 first:translate-x-0" style={{ left: `${f * 100}%` }}>
-                                −{Math.round(window * (1 - f))}
+                                −{tickLabel(Math.round(window * (1 - f)))}
                             </span>
                         ))}
                         <span className="absolute right-0 font-semibold text-[var(--social-fg)]">{t('report.timeline.now')}</span>
@@ -95,15 +125,21 @@ export function AgentTimeline(props: { agents: TimelineAgent[]; window?: number;
                     {props.agents.map((agent) => (
                         <div key={agent.id}>
                             <div className="flex min-h-[52px] items-center gap-3 px-4">
-                                <span className="flex w-[84px] shrink-0 items-center gap-2 sm:w-28 sm:gap-3">
+                                <span
+                                    className={cn('flex w-[84px] shrink-0 items-center gap-2 text-left sm:w-28 sm:gap-3', props.onOpen && 'cursor-pointer transition-opacity active:opacity-70')}
+                                    role={props.onOpen ? 'button' : undefined}
+                                    tabIndex={props.onOpen ? 0 : undefined}
+                                    onClick={props.onOpen ? () => props.onOpen?.(agent) : undefined}
+                                    onKeyDown={props.onOpen ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); props.onOpen?.(agent) } } : undefined}
+                                >
                                     {agent.tone === 'done' ? (
                                         <CheckRing state="done" />
                                     ) : (
                                         <ProgressOrb seed={agent.seed ?? agent.id} size={24} progress={agent.progress} tone={agent.tone} />
                                     )}
-                                    <span className="min-w-0 leading-tight">
-                                        <span className="block truncate text-body text-[var(--social-fg)]">{agent.name}</span>
-                                        {agent.model ? <span className="block truncate text-caption text-[var(--social-fg-subtle)] max-sm:hidden">{agent.model}</span> : null}
+                                    <span className="min-w-0 flex-1 leading-tight">
+                                        <FitText kind="title" lines={1} text={agent.name} className="text-body text-[var(--social-fg)]" />
+                                        {agent.model ? <FitText kind="id" text={agent.model} className="text-caption text-[var(--social-fg-subtle)] max-sm:hidden" /> : null}
                                     </span>
                                 </span>
                                 <span className={cn('relative h-11 flex-1', GRID)}>
@@ -118,11 +154,11 @@ export function AgentTimeline(props: { agents: TimelineAgent[]; window?: number;
                             </div>
                             {mode === 'steps' && agent.steps ? (
                                 <div className="pb-2">
-                                    {agent.steps.map((step) => (
-                                        <div key={`${step.from}-${step.label}`} className="flex min-h-7 items-center gap-3 px-4">
-                                            <span className="w-[84px] shrink-0 truncate text-footnote text-[var(--social-fg-muted)] sm:w-28 sm:pl-9">{step.label}</span>
+                                    {agent.steps.map((s) => (
+                                        <div key={`${s.from}-${s.label}`} className="flex min-h-7 items-center gap-3 px-4">
+                                            <FitText kind="title" lines={1} text={s.label} className="w-[84px] shrink-0 text-footnote text-[var(--social-fg-muted)] sm:w-28 sm:pl-9" />
                                             <span className="relative h-7 flex-1">
-                                                <Span span={step} window={window} thin />
+                                                <Span span={s} window={window} thin />
                                             </span>
                                         </div>
                                     ))}
@@ -132,7 +168,7 @@ export function AgentTimeline(props: { agents: TimelineAgent[]; window?: number;
                     ))}
                 </div>
             </div>
-            <span className="text-caption text-[var(--social-fg-subtle)]">{t('report.timeline.planHint')}</span>
+            {hasPlan ? <span className="text-caption text-[var(--social-fg-subtle)]">{t('report.timeline.planHint')}</span> : null}
         </div>
     )
 }

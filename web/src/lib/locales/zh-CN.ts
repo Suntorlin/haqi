@@ -1723,6 +1723,11 @@ export default {
   'report.story.back': '‹ 点左边回去',
   'report.story.next': '点一下继续 ›',
   'report.story.end': '看完了',
+  'taskRun.story.open': '用故事卡看',
+  'taskRun.story.result': '结论',
+  'report.timeline.minutes': '{n} 分',
+  'report.timeline.hours': '{n} 小时',
+  'report.timeline.planHint': '虚线是计划',
   'report.timeline.agents': '{n} 个 agent',
   'report.timeline.waiting': '{n} 个等你',
   'report.timeline.view': '时间线视图',
@@ -1730,7 +1735,6 @@ export default {
   'report.timeline.steps': '步骤',
   'report.timeline.now': '现在',
   'report.timeline.decide': '去决定',
-  'report.timeline.planHint': '单位：分钟 · 虚线是计划',
 
   // Scheduled tasks
   'scheduled.title': '定时任务',

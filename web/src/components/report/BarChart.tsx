@@ -1,4 +1,5 @@
 import type { BarDatum } from './types'
+import { FitText } from '@/components/ui/FitText'
 import { cn } from '@/lib/utils'
 
 /**
@@ -29,9 +30,7 @@ export function BarChart(props: { title: string; lede?: string; data: BarDatum[]
             </div>
             <div className="mt-1.5 flex gap-2 sm:gap-4">
                 {props.data.map((d) => (
-                    <span key={d.label} className={cn('min-w-0 flex-1 truncate text-center text-caption', d.highlight ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')}>
-                        {d.label}
-                    </span>
+                    <FitText key={d.label} kind="label" lines={1} text={d.label} className={cn('min-w-0 flex-1 text-center text-caption', d.highlight ? 'font-semibold text-[var(--social-fg)]' : 'text-[var(--social-fg-muted)]')} />
                 ))}
             </div>
         </figure>

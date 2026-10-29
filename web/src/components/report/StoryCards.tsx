@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { FitText } from '@/components/ui/FitText'
 import { Orb } from '@/components/mobile/SessionAvatar'
 import { CloseIcon } from '@/components/mobile/icons'
 import { IconButton } from '@/components/ui/IconButton'
@@ -35,7 +36,7 @@ export function StoryCards(props: { title: string; seed: string; stories: Story[
             <div className="flex items-center gap-3 px-4 py-2">
                 <Orb seed={story.seed ?? props.seed} size={28} />
                 <div className="min-w-0 flex-1 leading-tight">
-                    <div className="truncate text-footnote font-semibold text-[var(--social-fg)]">{props.title}</div>
+                    <FitText kind="title" lines={1} text={props.title} className="text-footnote font-semibold text-[var(--social-fg)]" />
                     <div className="text-caption tabular-nums text-[var(--social-fg-muted)]">{story.label} · {index + 1}/{count}</div>
                 </div>
                 {props.onClose ? (

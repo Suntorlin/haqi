@@ -1721,6 +1721,11 @@ export default {
   'report.story.back': '‹ Tap left to go back',
   'report.story.next': 'Tap to go on ›',
   'report.story.end': 'That is all',
+  'taskRun.story.open': 'View as cards',
+  'taskRun.story.result': 'Result',
+  'report.timeline.minutes': '{n} min',
+  'report.timeline.hours': '{n} h',
+  'report.timeline.planHint': 'Dashed outline: the plan',
   'report.timeline.agents': '{n} agents',
   'report.timeline.waiting': '{n} waiting for you',
   'report.timeline.view': 'Timeline view',
@@ -1728,7 +1733,6 @@ export default {
   'report.timeline.steps': 'Steps',
   'report.timeline.now': 'Now',
   'report.timeline.decide': 'Decide',
-  'report.timeline.planHint': 'Minutes before now · dashed outline: the plan',
 
   // Scheduled tasks
   'scheduled.title': 'Scheduled tasks',

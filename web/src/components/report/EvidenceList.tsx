@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FitText } from '@/components/ui/FitText'
 import { Badge } from '@/components/ui/badge'
 import { ChevronDownIcon, ExternalLinkIcon, FileIcon, TerminalIcon } from '@/components/mobile/icons'
 import { cn } from '@/lib/utils'
@@ -22,10 +23,10 @@ function EvidenceRow(props: { item: EvidenceItem }) {
                     <Icon className="h-4 w-4" />
                 </span>
                 <span className="min-w-0 flex-1 leading-snug">
-                    <span className="block truncate text-body text-[var(--social-fg)]">{item.title}</span>
-                    <span className="block truncate text-footnote text-[var(--social-fg-muted)]">
-                        <span className="font-mono">{item.meta}</span>
-                        {item.when ? <span className="text-[var(--social-fg-subtle)]"> · {item.when}</span> : null}
+                    <FitText kind="title" lines={1} text={item.title} className="text-body text-[var(--social-fg)]" />
+                    <span className="flex min-w-0 gap-1 text-footnote text-[var(--social-fg-muted)]">
+                        <FitText kind="id" text={item.meta} className="min-w-0 font-mono" />
+                        {item.when ? <span className="shrink-0 text-[var(--social-fg-subtle)]">· {item.when}</span> : null}
                     </span>
                 </span>
                 {item.status ? <Badge variant={item.status.tone}>{item.status.label}</Badge> : null}
