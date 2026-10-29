@@ -17,6 +17,7 @@ import { FitText } from '@/components/ui/FitText'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
 import { Switch } from '@/components/ui/Switch'
 import { useScheduleActions } from '@/hooks/mutations/useScheduleActions'
+import { useEmployees } from '@/hooks/queries/useEmployees'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useClaudeAccountPool, useSchedule } from '@/hooks/queries/useSchedules'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
@@ -122,6 +123,7 @@ export default function ScheduledDetailPage() {
     const { scheduleId } = useParams({ from: '/scheduled/$scheduleId' })
     const { schedule, runs, isLoading, error } = useSchedule(api, scheduleId)
     const { machines } = useMachines(api, true)
+    const { employees } = useEmployees(schedule?.employeeId ? api : null)
     const pool = useClaudeAccountPool(api, schedule?.machineId ?? null, schedule?.agent === 'claude')
     const { update, remove, runNow } = useScheduleActions(api)
     const [editOpen, setEditOpen] = useState(false)
@@ -157,6 +159,10 @@ export default function ScheduledDetailPage() {
     const machine = machines.find((item) => item.id === schedule.machineId)
     const machineName = machine ? getMachineTitle(machine) : t('scheduled.form.machineOffline', { id: schedule.machineId.slice(0, 8) })
     const emailOf = (accountId: string | null) => accountId ? pool?.profiles.find((profile) => profile.id === accountId)?.email ?? accountId : null
+    const employeeName = (employeeId: string) => {
+        const employee = employees.find((item) => item.id === employeeId)
+        return employee ? `${employee.emoji ? `${employee.emoji} ` : ''}${employee.name}` : t('scheduled.form.employeeMissing', { id: employeeId.slice(0, 8) })
+    }
     const permission = !schedule.permissionMode || schedule.permissionMode === 'default'
         ? t('permissionMode.default')
         : schedule.permissionMode === 'bypassPermissions' ? t('scheduled.permission.bypassPermissions') : t(`permissionMode.${schedule.permissionMode}`)
@@ -220,6 +226,12 @@ export default function ScheduledDetailPage() {
                                 <InfoRow label={t('scheduled.form.account')} value={emailOf(schedule.accountId) ?? t('scheduled.form.accountDefault')} />
                             ) : null}
                             <InfoRow label={t('misc.permissionMode')} value={permission} />
+                            {schedule.employeeId ? (
+                                <InfoRow
+                                    label={t('scheduled.form.employee')}
+                                    value={employeeName(schedule.employeeId)}
+                                />
+                            ) : null}
                             <InfoRow label={t('scheduled.detail.worktree')} value={schedule.worktree ? t('scheduled.detail.yes') : t('scheduled.detail.no')} />
                             <InfoRow label={t('scheduled.detail.timeout')} value={t('scheduled.time.minutes', { n: schedule.maxMinutes })} />
                         </ListGroup>
