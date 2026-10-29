@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { I18nProvider } from '@/lib/i18n-context'
-import { AgentTimeline, Checklist, CompareTable, DecisionCard, EvidenceList, LeadComposer, ProgressList, VerdictBar } from './index'
+import { AgentTimeline, Checklist, CompareTable, DecisionCard, DetailSwitch, DetailText, EvidenceList, LeadComposer, PinnedShot, ProgressList, ReportBlock, ReportDetailProvider, SinceVisit, StoryCards, VerdictBar } from './index'
 import type { Decision, ProgressItem } from './types'
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -174,5 +174,55 @@ describe('CompareTable and EvidenceList', () => {
         expect(row).toHaveAttribute('aria-expanded', 'false')
         fireEvent.click(row)
         expect(row).toHaveAttribute('aria-expanded', 'true')
+    })
+})
+
+describe('less-text report parts', () => {
+    it('opens the points and the full text as the detail level rises', () => {
+        renderWithProviders(
+            <ReportDetailProvider>
+                <DetailSwitch />
+                <DetailText brief="能上线" points={['验收 5/6']} full="原因在退款流程" />
+            </ReportDetailProvider>
+        )
+        const hidden = (text: string) => screen.getByText(text).closest('[aria-hidden]')?.getAttribute('aria-hidden')
+        expect(hidden('验收 5/6')).toBe('true')
+        fireEvent.click(screen.getByRole('radio', { name: '要点' }))
+        expect(hidden('验收 5/6')).toBe('false')
+        expect(hidden('原因在退款流程')).toBe('true')
+        fireEvent.click(screen.getByRole('radio', { name: '全文' }))
+        expect(hidden('原因在退款流程')).toBe('false')
+    })
+
+    it('folds unchanged blocks until the reader asks for everything', () => {
+        renderWithProviders(
+            <SinceVisit minutes={40} changed={['a']}>
+                <ReportBlock id="a" title="结论">新内容</ReportBlock>
+                <ReportBlock id="b" title="进度">旧内容</ReportBlock>
+            </SinceVisit>
+        )
+        expect(screen.getByText('新内容')).toBeInTheDocument()
+        expect(screen.queryByText('旧内容')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: '没变 · 进度' }))
+        expect(screen.getByText('旧内容')).toBeInTheDocument()
+    })
+
+    it('shows a pin\'s line on tap and hides it on Escape', () => {
+        renderWithProviders(<PinnedShot pins={[{ x: 10, y: 10, label: '按钮不再折行' }]}><div>图</div></PinnedShot>)
+        fireEvent.click(screen.getByRole('button', { name: /第 1 处/ }))
+        expect(screen.getByRole('status')).toHaveTextContent('按钮不再折行')
+        fireEvent.keyDown(document, { key: 'Escape' })
+        expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('moves through the stories with the arrow keys', () => {
+        renderWithProviders(<StoryCards title="定价页" seed="p" stories={[{ id: '1', label: '结论', content: '一' }, { id: '2', label: '等你', content: '二' }]} />)
+        expect(screen.getByText('一')).toBeInTheDocument()
+        fireEvent.keyDown(document, { key: 'ArrowRight' })
+        expect(screen.getByText('二')).toBeInTheDocument()
+        fireEvent.keyDown(document, { key: 'ArrowRight' })
+        expect(screen.getByText('二')).toBeInTheDocument()
+        fireEvent.keyDown(document, { key: 'ArrowLeft' })
+        expect(screen.getByText('一')).toBeInTheDocument()
     })
 })

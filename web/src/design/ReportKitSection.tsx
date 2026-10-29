@@ -1,6 +1,15 @@
 import { useState, type ReactNode } from 'react'
+import { Button } from '@/components/ui/button'
 import {
     AgentTimeline,
+    AtDetail,
+    DetailSwitch,
+    DetailText,
+    PinnedShot,
+    ReportBlock,
+    ReportDetailProvider,
+    SinceVisit,
+    StoryCards,
     BarChart,
     CompareTable,
     EvidenceList,
@@ -72,6 +81,84 @@ const DEMO_EVIDENCE: EvidenceItem[] = [
     { id: 'link', kind: 'link', title: '按席位计费的官方说明', meta: 'stripe.com/docs', when: '2026-10', status: { label: '引用', tone: 'default' },
         quote: 'Per-seat pricing charges customers based on the number of users.', source: 'stripe.com · Billing' }
 ]
+
+/** A drawn stand-in for a screenshot, so the showcase needs no image file. */
+function DemoPricingShot() {
+    return (
+        <div className="grid grid-cols-3 gap-2 bg-[var(--social-hover)] p-4">
+            {[['A 低价', '$8', '1 人免费'], ['B 中价', '$12', '3 人免费'], ['C 高价', '$20', '企业']].map(([name, price, note], i) => (
+                <div key={name} className={i === 1 ? 'rounded-xl border-2 border-[var(--social-fg)] bg-[var(--social-surface)] p-3' : 'rounded-xl border border-[var(--social-border)] bg-[var(--social-surface)] p-3'}>
+                    <div className="text-caption text-[var(--social-fg-muted)]">{name}</div>
+                    <div className="text-title font-semibold text-[var(--social-fg)]">{price}</div>
+                    <div className="text-caption text-[var(--social-fg-subtle)]">{note}</div>
+                    <div className="mt-2 h-6 rounded-full bg-[var(--social-muted)]" />
+                </div>
+            ))}
+        </div>
+    )
+}
+
+const DEMO_PINS = [
+    { x: 50, y: 12, label: '推荐方案加了黑框，第一眼落在这里' },
+    { x: 84, y: 46, label: '高价方案的价格从 $25 降到 $20' },
+    { x: 18, y: 82, label: '按钮在 390px 宽度下不再折行' }
+]
+
+function LessTextDemo() {
+    return (
+        <ReportDetailProvider initial="brief">
+            <div className="flex flex-col gap-4">
+                <DetailSwitch />
+                <SinceVisit minutes={40} changed={['result', 'proof']} decisions={1}>
+                    <ReportBlock id="result" title="结论">
+                        <DetailText
+                            brief="定价页能上线，只差你选一个标题方向。"
+                            points={['验收 6 条达到 5 条', '测试 52 个，38 个通过，失败的都在退款流程', '预计周五上线，比计划晚 1 天']}
+                            full="失败的 14 个测试都和降级退款有关，工程师判断是同一个舍入问题，预计 30 分钟修完。标题方向不影响上线时间，但会影响首屏文案。"
+                        />
+                        <AtDetail from="points">
+                            <div className="pt-1"><StatTiles stats={[{ value: '5/6', label: '验收达到' }, { value: '38/52', label: '测试通过' }, { value: '周五', label: '预计上线' }]} /></div>
+                        </AtDetail>
+                    </ReportBlock>
+                    <ReportBlock id="progress" title="进度">
+                        <ProgressList items={DEMO_PROGRESS.slice(0, 3)} onOpen={() => {}} />
+                    </ReportBlock>
+                    <ReportBlock id="proof" title="证据">
+                        <DetailText brief="手机版定价页改了 3 处，点数字看。" />
+                        <PinnedShot pins={DEMO_PINS} caption="定价页 · 390px · 2 分钟前">
+                            <DemoPricingShot />
+                        </PinnedShot>
+                    </ReportBlock>
+                </SinceVisit>
+            </div>
+        </ReportDetailProvider>
+    )
+}
+
+function StoryDemo() {
+    const [open, setOpen] = useState(true)
+    return (
+        <div className="mx-auto h-[620px] w-full max-w-[380px] overflow-hidden rounded-[28px] border border-[var(--social-border)]">
+            {open ? (
+                <StoryCards
+                    title="发布新定价页"
+                    seed="pricing"
+                    onClose={() => setOpen(false)}
+                    stories={[
+                        { id: 's1', label: '结论', content: <div className="flex flex-col gap-4"><p className="m-0 text-title font-semibold leading-snug text-[var(--social-fg)]">能上线，只差你选标题方向。</p><StatTiles stats={[{ value: '5/6', label: '验收' }, { value: '38/52', label: '测试' }, { value: '周五', label: '上线' }]} /></div> },
+                        { id: 's2', label: '等你', content: <div className="flex flex-col gap-3"><p className="m-0 text-title font-semibold leading-snug text-[var(--social-fg)]">1 件等你拍板</p><DecisionPeek decision={DEMO_PEEK} onOpen={() => {}} /></div> },
+                        { id: 's3', label: '进度', content: <div className="flex flex-col gap-3"><p className="m-0 text-title font-semibold leading-snug text-[var(--social-fg)]">3 件在跑，1 件卡住</p><ProgressList items={DEMO_PROGRESS} onOpen={() => {}} /></div> },
+                        { id: 's4', label: '证据', content: <div className="flex flex-col gap-3"><p className="m-0 text-title font-semibold leading-snug text-[var(--social-fg)]">改了 3 处，点数字看</p><PinnedShot pins={DEMO_PINS}><DemoPricingShot /></PinnedShot></div> }
+                    ]}
+                />
+            ) : (
+                <div className="flex h-full items-center justify-center">
+                    <Button onClick={() => setOpen(true)}>再看一遍</Button>
+                </div>
+            )}
+        </div>
+    )
+}
 
 function Spec(props: { label: string; children: ReactNode }) {
     return (
@@ -151,6 +238,14 @@ export function ReportKitSection() {
                     <CheckRing state="wait" />
                     <CheckRing state="todo" />
                 </div>
+            </Spec>
+
+            <Spec label="少写字 · 详略三档 + 你离开后变了什么 + 截图钉注">
+                <LessTextDemo />
+            </Spec>
+
+            <Spec label="StoryCards · 手机上一张张翻（点右边继续，点左边回去，也能左右滑）">
+                <StoryDemo />
             </Spec>
 
             <Spec label="AgentTimeline · 谁在做什么，同一条时间轴（可切换结论 / 步骤）">
