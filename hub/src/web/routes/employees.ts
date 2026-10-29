@@ -27,6 +27,11 @@ const scoreSchema = z.object({
     comment: z.string().trim().max(2000).optional()
 })
 
+const identitySchema = z.object({
+    file: z.enum(['soul', 'agents']),
+    content: z.string().max(100_000)
+})
+
 const compactionSchema = z.object({
     sessionId: z.string().min(1),
     phase: z.enum(['pre', 'post']),
@@ -203,6 +208,24 @@ export function createEmployeeRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return run(c, async () => ({
             review: await ctx.employees.scoreReview(c.get('namespace'), c.req.param('id'), c.req.param('reviewId'), parsed.data)
         }))
+    })
+
+    /** The identity tab: SOUL.md and AGENTS.md, the files the user writes. */
+    app.get('/employees/:id/identity', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        return run(c, async () => await ctx.employees.identity(c.get('namespace'), c.req.param('id')))
+    })
+
+    app.put('/employees/:id/identity', async (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const parsed = identitySchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400)
+        return run(c, async () => {
+            await ctx.employees.writeIdentity(c.get('namespace'), c.req.param('id'), parsed.data.file, parsed.data.content)
+            return { ok: true }
+        })
     })
 
     /** The memory tab: the MEMORY.md snapshot and the employee's own memory rows. */

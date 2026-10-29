@@ -48,6 +48,23 @@ export function useEmployee(api: ApiClient | null, employeeId: string | null) {
 }
 
 /** The employee's MEMORY.md snapshot and its own memory rows; employee-updated events keep it fresh. */
+export function useEmployeeIdentity(api: ApiClient | null, employeeId: string | null, enabled = true) {
+    const query = useQuery({
+        queryKey: queryKeys.employeeIdentity(employeeId ?? ''),
+        queryFn: async () => {
+            if (!api || !employeeId) throw new Error('No API client or employee ID')
+            return await api.getEmployeeIdentity(employeeId)
+        },
+        enabled: Boolean(api && employeeId && enabled),
+    })
+    return {
+        identity: query.data ?? null,
+        isLoading: query.isLoading,
+        error: errorText(query.error, 'Failed to load employee identity'),
+        refetch: query.refetch,
+    }
+}
+
 export function useEmployeeMemory(api: ApiClient | null, employeeId: string | null, enabled = true) {
     const { data, isLoading, error } = useQuery({
         queryKey: queryKeys.employeeMemory(employeeId ?? ''),

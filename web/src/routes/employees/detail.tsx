@@ -13,10 +13,11 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { FeedRow } from '@/components/ui/FeedRow'
 import { FitText } from '@/components/ui/FitText'
 import { ListGroup, ListRow } from '@/components/ui/ListRow'
+import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Switch } from '@/components/ui/Switch'
 import { TextField } from '@/components/ui/TextField'
 import { useEmployeeActions } from '@/hooks/mutations/useEmployeeActions'
-import { useEmployee, useEmployeeMemory, useEmployeeMetrics, useEmployeeReviews } from '@/hooks/queries/useEmployees'
+import { useEmployee, useEmployeeIdentity, useEmployeeMemory, useEmployeeMetrics, useEmployeeReviews } from '@/hooks/queries/useEmployees'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSessions } from '@/hooks/queries/useSessions'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
@@ -37,7 +38,7 @@ function InfoRow(props: { label: string; value: ReactNode; long?: boolean }) {
     return <ListRow title={props.label} trailing={trailing} />
 }
 
-const SECTIONS = ['overview', 'memory', 'performance', 'sessions'] as const
+const SECTIONS = ['overview', 'identity', 'memory', 'performance', 'sessions'] as const
 type Section = typeof SECTIONS[number]
 
 /** 概览: the switch, the settings and the delete; the other sections live in their own components below. */
@@ -103,6 +104,62 @@ function OverviewSection(props: {
 }
 
 /** 记忆: the MEMORY.md snapshot, the employee's own memory rows, and the file actions. */
+/** One identity file: the saved text, a draft box and a save button. */
+function IdentityEditor(props: { label: string; hint: string; value: string; busy: boolean; onSave: (content: string) => void }) {
+    const { t } = useTranslation()
+    const [draft, setDraft] = useState(props.value)
+    const dirty = draft !== props.value
+    return (
+        <ListGroup title={props.label}>
+            <div className="flex flex-col gap-2 px-4 py-3">
+                <p className="text-caption text-[var(--social-fg-muted)]">{props.hint}</p>
+                <AutoTextarea
+                    minRows={6}
+                    maxRows={18}
+                    className="w-full resize-none rounded-xl bg-[var(--social-muted)] p-3 text-footnote leading-relaxed text-[var(--social-fg)] outline-none"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                />
+                <div>
+                    <Button variant="secondary" disabled={props.busy || !dirty} onClick={() => props.onSave(draft)}>
+                        {t('employees.detail.identitySave')}
+                    </Button>
+                </div>
+            </div>
+        </ListGroup>
+    )
+}
+
+function IdentitySection(props: { employee: Employee; onNotice: (text: string) => void; onError: (err: unknown) => void }) {
+    const { api } = useAppContext()
+    const { t } = useTranslation()
+    const { identity, isLoading, error, refetch } = useEmployeeIdentity(api, props.employee.id)
+    const [saving, setSaving] = useState(false)
+
+    const save = async (file: 'soul' | 'agents', content: string) => {
+        if (!api) return
+        setSaving(true)
+        try {
+            await api.saveEmployeeIdentity(props.employee.id, file, content)
+            await refetch()
+            props.onNotice(t('employees.detail.identitySaved'))
+        } catch (cause) {
+            props.onError(cause)
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    if (isLoading) return <LoadingState className="flex w-full justify-center py-10" />
+    if (error || !identity) return <EmptyState variant="inline" title={t('employees.detail.identityLoadFailed')} subtitle={error ?? undefined} />
+    return (
+        <>
+            <IdentityEditor label="SOUL.md" hint={t('employees.detail.soulHint')} value={identity.soul} busy={saving} onSave={(content) => void save('soul', content)} />
+            <IdentityEditor label="AGENTS.md" hint={t('employees.detail.agentsHint')} value={identity.agents} busy={saving} onSave={(content) => void save('agents', content)} />
+        </>
+    )
+}
+
 function MemorySection(props: {
     employee: Employee
     busy: boolean
@@ -426,6 +483,8 @@ export default function EmployeeDetailPage() {
                                 onToggle={handleToggle}
                                 onDelete={() => setDeleteOpen(true)}
                             />
+                        ) : section === 'identity' ? (
+                            <IdentitySection employee={employee} onNotice={report} onError={fail} />
                         ) : section === 'memory' ? (
                             <MemorySection
                                 employee={employee}

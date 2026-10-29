@@ -215,6 +215,27 @@ export class EmployeeService {
         return { view: view ? { content: view.content, generatedAt: view.generatedAt } : null, memories }
     }
 
+    /** The identity files the user writes (SOUL.md, AGENTS.md), read from the one machine. */
+    async identity(namespace: string, id: string): Promise<{ soul: string; agents: string }> {
+        const employee = this.get(namespace, id)
+        if (!this.host.machineOnline(namespace, employee.machineId)) {
+            throw new EmployeeError('员工的默认机器不在线，身份文件暂时读不到', 503)
+        }
+        const [soul, agents] = await Promise.all([
+            this.host.fs.read(employee.machineId, { home: employee.homePath, path: 'SOUL.md' }),
+            this.host.fs.read(employee.machineId, { home: employee.homePath, path: 'AGENTS.md' })
+        ])
+        return { soul: soul.exists ? soul.content : '', agents: agents.exists ? agents.content : '' }
+    }
+
+    async writeIdentity(namespace: string, id: string, file: 'soul' | 'agents', content: string): Promise<void> {
+        const employee = this.get(namespace, id)
+        if (!this.host.machineOnline(namespace, employee.machineId)) {
+            throw new EmployeeError('员工的默认机器不在线，身份文件暂时写不了', 503)
+        }
+        await this.host.fs.write(employee.machineId, { home: employee.homePath, path: file === 'soul' ? 'SOUL.md' : 'AGENTS.md', content })
+    }
+
     // ─── Wake ────────────────────────────────────────────────────────────────────
 
     /**

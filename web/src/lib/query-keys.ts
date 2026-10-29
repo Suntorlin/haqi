@@ -39,6 +39,7 @@ export const queryKeys = {
     employees: ['employees'] as const,
     /** Under `employees`, so an employee-updated event refreshes it with the list. */
     employee: (employeeId: string) => ['employees', employeeId] as const,
+    employeeIdentity: (employeeId: string) => ['employees', employeeId, 'identity'] as const,
     employeeMemory: (employeeId: string) => ['employees', employeeId, 'memory'] as const,
     employeeMetrics: (employeeId: string) => ['employees', employeeId, 'metrics'] as const,
     employeeReviews: (employeeId: string) => ['employees', employeeId, 'reviews'] as const,

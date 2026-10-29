@@ -468,6 +468,14 @@ export class ApiClient {
         return await this.request<{ changed: boolean }>(`/api/employees/${encodeURIComponent(id)}/maintain`, { method: 'POST', body: JSON.stringify({}) })
     }
 
+    async getEmployeeIdentity(id: string): Promise<{ soul: string; agents: string }> {
+        return await this.request<{ soul: string; agents: string }>(`/api/employees/${encodeURIComponent(id)}/identity`)
+    }
+
+    async saveEmployeeIdentity(id: string, file: 'soul' | 'agents', content: string): Promise<{ ok: boolean }> {
+        return await this.request<{ ok: boolean }>(`/api/employees/${encodeURIComponent(id)}/identity`, { method: 'PUT', body: JSON.stringify({ file, content }) })
+    }
+
     async getEmployeeMemory(id: string): Promise<import('../types/api').EmployeeMemoryResponse> {
         return await this.request<import('../types/api').EmployeeMemoryResponse>(`/api/employees/${encodeURIComponent(id)}/memory`)
     }
