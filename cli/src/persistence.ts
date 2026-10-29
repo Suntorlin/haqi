@@ -19,6 +19,8 @@ interface Settings {
   cliApiToken?: string
   experimentalClaudeLoginShell?: boolean
   codexReportPromptEnabled?: boolean
+  // Hold a Claude turn end once when the last reply has no report share link (`/share/r/<token>`)
+  requireShareLink?: boolean
   // API URL for server connections (priority: env HAPI_API_URL > this > default)
   apiUrl?: string
   // Legacy field name (for migration, read-only)

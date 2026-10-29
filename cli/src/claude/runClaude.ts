@@ -9,6 +9,9 @@ import { parseSpecialCommand } from '@/parsers/specialCommands';
 import { getEnvironmentInfo } from '@/ui/doctor';
 import { startHappyServer } from '@/claude/utils/startHappyServer';
 import { startHookServer } from '@/claude/utils/startHookServer';
+import { shareLinkReminder } from '@/claude/utils/shareLinkReminder';
+import { readSettings } from '@/persistence';
+import type { HookResponse } from '@/claude/hooks';
 import { generateHookSettingsFile, cleanupHookSettingsFile } from '@/modules/common/hooks/generateHookSettings';
 import { registerKillSessionHandler } from './registerKillSessionHandler';
 import type { Session } from './session';
@@ -185,8 +188,14 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     // Start Hook server for receiving Claude session notifications
     const hookServer = await startHookServer({
-        onClaudeHook: (sessionId, data) => {
+        onClaudeHook: async (sessionId, data): Promise<HookResponse | void | undefined> => {
             logger.debug(`[START] Session hook received: ${sessionId}`, data);
+
+            if (data.hook_event_name === 'Stop') {
+                // A held Stop is not a turn end: Claude goes on, so the session must not read as ready.
+                const held = shareLinkReminder(data, (await readSettings()).requireShareLink === true);
+                if (held) return held;
+            }
 
             return currentSessionRef.current?.applyClaudeHookEvent(data);
         }

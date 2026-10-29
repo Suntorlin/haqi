@@ -307,14 +307,12 @@ function getLivePendingCount(session: SessionSummary): number {
     return session.active ? session.pendingRequestsCount : 0
 }
 
-/** The compliance light, shown only when it is not green: one tinted shield, no words (the reason sits in the session info sheet). */
+/** The compliance light, shown only when red: one tinted shield, no words (yellow and the reason sit in the session info sheet). */
 function FeedGuardStatus(props: { session: SessionSummary }) {
     const { t } = useTranslation()
-    const guard = props.session.guard
-    if (!guard || guard.status === 'ok') return null
-    const toneClass = guard.status === 'alert' ? 'text-[var(--social-danger)]' : 'text-[var(--social-warning)]'
+    if (props.session.guard?.status !== 'alert') return null
     return (
-        <span role="img" aria-label={t(guard.status === 'alert' ? 'session.guard.alert' : 'session.guard.warn')} className={`shrink-0 ${toneClass}`}>
+        <span role="img" aria-label={t('session.guard.alert')} className="shrink-0 text-[var(--social-danger)]">
             <ShieldAlertIcon className="h-[15px] w-[15px]" />
         </span>
     )
