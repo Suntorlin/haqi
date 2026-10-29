@@ -3,7 +3,7 @@ import type { Database } from 'bun:sqlite'
 import { safeJsonParse } from './json'
 import type { StoredSessionGuard } from './types'
 
-/** One compliance light per session: its status, the last violated memory, and a strike count per memory. */
+/** One compliance light per session: its status, the last violated memory, and the recent strikes per memory. */
 export const GUARD_SCHEMA_SQL = `
     CREATE TABLE IF NOT EXISTS session_guards (
         session_id TEXT PRIMARY KEY,
@@ -36,15 +36,25 @@ type GuardRow = {
     updated_at: number
 }
 
+/** Strikes as turn numbers per memory; a count stored before they were turn numbers starts over. */
+function parseStrikes(raw: string): Record<string, number[]> {
+    const parsed = safeJsonParse(raw)
+    if (!parsed || typeof parsed !== 'object') return {}
+    const strikes: Record<string, number[]> = {}
+    for (const [memoryId, turns] of Object.entries(parsed as Record<string, unknown>)) {
+        if (Array.isArray(turns)) strikes[memoryId] = turns.filter((n): n is number => typeof n === 'number')
+    }
+    return strikes
+}
+
 function toGuard(row: GuardRow): StoredSessionGuard {
-    const strikes = safeJsonParse(row.strikes)
     return {
         sessionId: row.session_id,
         namespace: row.namespace,
         status: row.status === 'alert' ? 'alert' : row.status === 'warn' ? 'warn' : 'ok',
         reason: row.reason,
         memoryId: row.memory_id,
-        strikes: strikes && typeof strikes === 'object' ? strikes as Record<string, number> : {},
+        strikes: parseStrikes(row.strikes),
         cleanStreak: row.clean_streak,
         checkedEndSeq: row.checked_end_seq,
         checkedTurns: row.checked_turns,

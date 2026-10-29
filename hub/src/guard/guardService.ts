@@ -2,7 +2,7 @@ import { askJev, JevError, yesProbability } from '../memory/jev'
 import { projectNameFor } from '../memory/harvest'
 import type { Store, StoredMemory, StoredSessionGuard } from '../store'
 import { classifyMessage, type ClassifierAsk } from '../tasks/plugins/classifier/classifier'
-import { GUARD, nextGuard, ruleQuestions, type GuardRule, type GuardState, type GuardViolation } from './guard'
+import { agentAnswer, GUARD, nextGuard, ruleQuestions, type GuardRule, type GuardState, type GuardViolation } from './guard'
 
 /** A thinking flap right at the turn's end settles before the check reads the turn. */
 const DEBOUNCE_MS = 2_000
@@ -69,6 +69,12 @@ export class GuardService {
         if (!turn || turn.agentEndSeq === null || !turn.assistantPreview) return
         const prev = this.store.guards.get(sessionId)
         if (prev && turn.agentEndSeq <= prev.checkedEndSeq) return
+        const answer = agentAnswer(turn.assistantPreview)
+        if (!answer) {
+            // Nothing the agent said to judge (an aborted turn, a usage-limit notice); mark it seen, keep the light.
+            if (prev) this.store.guards.upsert({ ...prev, checkedEndSeq: turn.agentEndSeq, updatedAt: Date.now() })
+            return
+        }
         const apiKey = await this.options.jevKey()
         if (!apiKey) return
 
@@ -79,7 +85,7 @@ export class GuardService {
         const before = turns.length > 1 ? turns[0]!.assistantPreview : null
         let costUsd = 0
         const [violations, corrected] = await Promise.all([
-            this.findViolations(apiKey, rules, turn.userPreview, turn.assistantPreview, project).then((result) => {
+            this.findViolations(apiKey, rules, turn.userPreview, answer, project).then((result) => {
                 costUsd += result.costUsd
                 return result.violations
             }),
@@ -92,13 +98,15 @@ export class GuardService {
         const prevState: GuardState | null = prev
             ? { status: prev.status, reason: prev.reason, memoryId: prev.memoryId, strikes: prev.strikes, cleanStreak: prev.cleanStreak }
             : null
-        const next = nextGuard(prevState, { violations, corrected })
+        const checkedTurns = (prev?.checkedTurns ?? 0) + 1
+        const ruleTexts = Object.fromEntries(rules.map((rule) => [rule.id, rule.text]))
+        const next = nextGuard(prevState, { violations, corrected, ruleTexts }, checkedTurns)
         const guard: StoredSessionGuard = {
             sessionId,
             namespace: session.namespace,
             ...next,
             checkedEndSeq: turn.agentEndSeq,
-            checkedTurns: (prev?.checkedTurns ?? 0) + 1,
+            checkedTurns,
             costUsd: (prev?.costUsd ?? 0) + costUsd,
             updatedAt: Date.now()
         }
@@ -128,8 +136,14 @@ export class GuardService {
                 fetchFn: this.options.fetchFn
             })
             const violations = rules
-                .map((rule, index) => ({ memoryId: rule.id, text: rule.text, yes: yesProbability(result.answers[`rule${index}`]) }))
-                .filter((entry) => entry.yes >= GUARD.violate)
+                .map((rule, index) => ({
+                    memoryId: rule.id,
+                    text: rule.text,
+                    yes: yesProbability(result.answers[`rule${index}`]),
+                    applies: yesProbability(result.answers[`applies${index}`])
+                }))
+                .filter((entry) => entry.yes >= GUARD.violate && entry.applies >= GUARD.applies)
+                .map(({ applies: _applies, ...violation }) => violation)
             return { violations, costUsd: result.costUsd }
         } catch (error) {
             if (!(error instanceof JevError)) throw error
