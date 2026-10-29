@@ -174,6 +174,13 @@ export class CodexAppServerClient {
         return response as TurnInterruptResponse;
     }
 
+    /** Asks the app server to compact the thread's context now. It takes no keep requirements; those go in compact_prompt. */
+    async compactStart(threadId: string): Promise<void> {
+        await this.sendRequest('thread/compact/start', { threadId }, {
+            timeoutMs: 60_000
+        });
+    }
+
     async setThreadGoal(params: ThreadGoalSetParams): Promise<ThreadGoalSetResponse> {
         const response = await this.sendRequest('thread/goal/set', params, {
             timeoutMs: 30_000

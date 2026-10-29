@@ -20,6 +20,8 @@ import { formatMessageWithAttachments } from '@/utils/attachmentFormatter';
 import { findClaudeThinkEffortFromArgs, type ClaudeThinkEffort, resolveClaudeModelSelection } from './modelMode';
 import { normalizeClaudeModelValue } from '@hapi/protocol';
 import { isPureContextModeEnabled } from '@/agent/utils/haqiAgentInstructions';
+import { CompactPilot, employeeFromEnv } from '@/claude/utils/compactPilot';
+import { requestHubJson } from '@/api/hubHttp';
 
 export interface StartOptions {
     model?: string
@@ -862,6 +864,60 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         }
     });
 
+    // The employee compaction pilot: watches usage, flushes the run log and compacts at the threshold (design §8.2).
+    const employeeEnv = employeeFromEnv();
+    const compactPilot = employeeEnv
+        ? new CompactPilot(employeeEnv, {
+            pushMessage: (text) => {
+                const enhancedMode: EnhancedMode = {
+                    permissionMode: currentPermissionMode ?? 'default',
+                    model: currentModel,
+                    thinkEffort: currentThinkEffort,
+                    fallbackModel: currentFallbackModel,
+                    customSystemPrompt: currentCustomSystemPrompt,
+                    appendSystemPrompt: currentAppendSystemPrompt,
+                    allowedTools: currentAllowedTools,
+                    disallowedTools: currentDisallowedTools
+                };
+                // deferUserMessageUntilDequeue keeps the injected message visible in the hub chat for auditing.
+                messageQueue.push(text, enhancedMode, { isolate: true, deferUserMessageUntilDequeue: true });
+            },
+            fetchStatePackage: async () => {
+                const payload = await requestHubJson(`/api/employees/whoami?sessionId=${encodeURIComponent(sessionInfo.id)}`);
+                return typeof payload.statePackage === 'string' ? payload.statePackage : null;
+            },
+            reportCompaction: async (input) => {
+                await requestHubJson('/api/employees/compaction', {
+                    method: 'POST',
+                    body: JSON.stringify({ sessionId: sessionInfo.id, ...input })
+                });
+            }
+        })
+        : null;
+    compactPilot?.start();
+
+    const attachCompactPilot = (sessionInstance: Session): void => {
+        if (!compactPilot) return;
+        sessionInstance.setSessionStartContext((source) => compactPilot.sessionStartContext(source));
+        sessionInstance.setCompactionListener((event) => {
+            if (event.phase === 'pre') compactPilot.notePreCompact(event.trigger);
+            else compactPilot.notePostCompact(event.trigger, event.summary);
+        });
+        sessionInstance.setSdkMessageListener((raw) => {
+            const message = raw as { type?: string; parent_tool_use_id?: string; message?: { usage?: unknown }; modelUsage?: Record<string, { contextWindow?: unknown }> };
+            if (message?.type === 'assistant' && !message.parent_tool_use_id) {
+                compactPilot.noteAssistantUsage(message.message?.usage);
+            }
+            if (message?.type === 'result') {
+                const windows = Object.values(message.modelUsage ?? {})
+                    .map((entry) => entry?.contextWindow)
+                    .filter((value): value is number => typeof value === 'number' && value > 0);
+                if (windows.length > 0) compactPilot.noteContextWindow(Math.max(...windows));
+                compactPilot.noteTurnEnd();
+            }
+        });
+    };
+
     const allowedTools = Array.from(new Set(
         happyServer.toolNames.flatMap((toolName) => [
             `mcp__haqi__${toolName}`,
@@ -884,6 +940,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
             onSessionReady: (sessionInstance) => {
                 currentSessionRef.current = sessionInstance;
                 syncSessionModes();
+                attachCompactPilot(sessionInstance);
             },
             mcpServers: {
                 'haqi': {

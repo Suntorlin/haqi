@@ -16,6 +16,7 @@ type Harness = {
     files: Map<string, { content: string; mtimeMs: number }>
     fsCalls: string[]
     spawns: number
+    archived: string[]
     setOnline: (online: boolean) => void
     slowSpawn: (ms: number) => void
 }
@@ -29,6 +30,7 @@ function harness(): Harness {
     let clock = 1_000_000
     const state = { spawns: 0 }
     const liveSessions = new Set<string>()
+    const archived: string[] = []
 
     const key = (machineId: string, home: string, path: string) => `${machineId}:${home}/${path}`
     const host: EmployeeHost = {
@@ -41,7 +43,8 @@ function harness(): Harness {
         },
         resume: async () => null,
         send: async () => true,
-        session: (_namespace, sessionId) => liveSessions.has(sessionId) ? { active: true, summaryText: null } : null,
+        session: (_namespace, sessionId) => liveSessions.has(sessionId) ? { active: true, busy: false, summaryText: null } : null,
+        archive: async (sessionId) => { liveSessions.delete(sessionId); archived.push(sessionId) },
         sessionEmployeeId: () => store.employees.listAll()[0]?.id ?? null,
         rename: async () => {},
         tag: async () => {},
@@ -78,6 +81,7 @@ function harness(): Harness {
         store,
         files,
         fsCalls,
+        archived,
         get spawns() { return state.spawns },
         setOnline: (value) => { online = value },
         slowSpawn: (ms) => { spawnDelay = ms }
@@ -161,6 +165,33 @@ describe('EmployeeService', () => {
         expect(regenerated.content).toContain('改过的事实')
         expect(regenerated.content).toContain('用户手写的经验')
         expect(regenerated.content).not.toContain('会被删掉的事实')
+    })
+
+    it('counts compactions and starts a fresh main session on the wake after the fourth', async () => {
+        const h = harness()
+        const employee = await makeEmployee(h)
+        const first = await h.service.wake('default', employee.id, { source: 'test' })
+
+        // Three compactions: the main session is still resumed/reused.
+        for (let i = 0; i < 3; i++) {
+            await h.service.noteCompaction('default', first.sessionId, { phase: 'post', trigger: 'manual', summary: `第 ${i + 1} 次` })
+        }
+        expect(h.store.employees.get(employee.id, 'default')?.mainSessionCompactions).toBe(3)
+        const still = await h.service.wake('default', employee.id, { source: 'test' })
+        expect(still.sessionId).toBe(first.sessionId)
+
+        // The fourth compaction crosses the limit: the next wake archives the old session and spawns a new one.
+        await h.service.noteCompaction('default', first.sessionId, { phase: 'post', trigger: 'auto', summary: '第 4 次' })
+        const fresh = await h.service.wake('default', employee.id, { source: 'test' })
+        expect(fresh.outcome).toBe('created')
+        expect(fresh.sessionId).not.toBe(first.sessionId)
+        expect(h.archived).toContain(first.sessionId)
+        expect(h.store.employees.get(employee.id, 'default')?.mainSessionCompactions).toBe(0)
+
+        // The summaries landed in the run log, on the employee's one machine.
+        const log = [...h.files.entries()].find(([key]) => key.includes('/memory/'))
+        expect(log?.[1].content).toContain('压缩摘要')
+        expect(log?.[1].content).toContain('第 4 次')
     })
 
     it('routes every file operation to the one machine and pauses when it is offline', async () => {

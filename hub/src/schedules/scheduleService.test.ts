@@ -63,6 +63,10 @@ type Harness = {
     alerts: ScheduleAlert[]
     archived: string[]
     activity: Map<string, number>
+    wakes: Array<{ employeeId: string; text: string }>
+    sentTexts: Array<{ sessionId: string; text: string }>
+    employeeRunLog: Array<{ sessionId: string; line: string }>
+    taggedSessions: Map<string, string>
     setNow: (at: number) => void
     setMachineOnline: (online: boolean) => void
     spawnResult: { value: { error: string } | null }
@@ -77,6 +81,10 @@ function harness(start: number): Harness {
     const activity = new Map<string, number>()
     let now = start
     let online = true
+    const wakes: Harness['wakes'] = []
+    const sentTexts: Harness['sentTexts'] = []
+    const employeeRunLog: Harness['employeeRunLog'] = []
+    const taggedSessions = new Map<string, string>()
     const spawnResult: Harness['spawnResult'] = { value: null }
     const host: ScheduleHost = {
         spawn: async (input) => {
@@ -92,11 +100,24 @@ function harness(start: number): Harness {
         archive: async (sessionId) => { archived.push(sessionId) },
         changed: () => {},
         alert: async (_namespace, alert) => { alerts.push(alert) },
+        wakeEmployee: async (_namespace, employeeId, text) => {
+            wakes.push({ employeeId, text })
+            const sessionId = `main-${employeeId}`
+            sessions.set(sessionId, { active: true, thinking: false, pendingRequests: 0 })
+            return { sessionId }
+        },
+        sendText: async (_namespace, sessionId, text) => {
+            sentTexts.push({ sessionId, text })
+            return sessions.get(sessionId)?.active ?? false
+        },
+        findSessionByTag: (_namespace, tag) => taggedSessions.get(tag) ?? null,
+        employeeRunStarted: async (_namespace, _employeeId, sessionId, text) => { employeeRunLog.push({ sessionId, line: `goal: ${text}` }) },
+        employeeRunFinished: async (_namespace, sessionId, status, summary) => { employeeRunLog.push({ sessionId, line: `done: [${status}] ${summary}` }) },
         now: () => now
     }
     return {
         service: new ScheduleService(store, host),
-        store, sessions, spawns, alerts, archived, activity, spawnResult,
+        store, sessions, spawns, alerts, archived, activity, wakes, sentTexts, employeeRunLog, taggedSessions, spawnResult,
         setNow: (at) => { now = at },
         setMachineOnline: (value) => { online = value }
     }
@@ -349,5 +370,66 @@ describe('ScheduleService', () => {
         expect(first).not.toBeNull()
         expect(second).toBeNull()
         expect(MINUTE).toBe(60_000)
+    })
+})
+
+function makeEmployee(h: Harness) {
+    return h.store.employees.insert({
+        namespace: 'default', name: '小鱼', emoji: null, status: 'active', homePath: 'HAQI/员工/小鱼',
+        machineId: 'm1', directory: '/Users/me/project', agent: 'claude', model: null, permissionMode: null,
+        accountGroup: null, timezone: TOKYO, dailyResetHour: 4, compactThreshold: 0.75, webhookSlug: null
+    })
+}
+
+/** Design guards: a bound task reuses the one scheduled-run pipeline; an isolated result never reaches the main session. */
+describe('ScheduleService with an employee', () => {
+    it('runs a bound task through the same pipeline, under the employee identity', async () => {
+        const h = harness(tokyo('2026-10-25T08:00:00'))
+        const employee = makeEmployee(h)
+        const task = h.service.create('default', { ...BASE, employeeId: employee.id })
+        h.setNow(tokyo('2026-10-25T09:05:10'))
+        await h.service.tick()
+
+        // One run row, one spawn — the same fire/run/watchdog pipeline, no second path.
+        expect(h.spawns).toHaveLength(1)
+        const spawn = h.spawns[0]!
+        expect(spawn.employee).toMatchObject({ id: employee.id, name: '小鱼', home: 'HAQI/员工/小鱼' })
+        expect(spawn.tags).toContain(`employee:${employee.id}`)
+        expect((spawn.meta.scheduledTask as { runId?: string }).runId).toBeTruthy()
+        expect(spawn.text).toContain('scheduled_run_done')
+        expect(spawn.text).toContain('小鱼')
+        const { runs } = h.service.get('default', task.id)
+        expect(runs).toHaveLength(1)
+        expect(runs[0]!.status).toBe('running')
+        // The run log opened with the goal line.
+        expect(h.employeeRunLog.some((entry) => entry.sessionId === 's1' && entry.line.startsWith('goal:'))).toBe(true)
+    })
+
+    it('writes an isolated run result to the run log only, never to the main session', async () => {
+        const h = harness(tokyo('2026-10-25T08:00:00'))
+        const employee = makeEmployee(h)
+        h.service.create('default', { ...BASE, employeeId: employee.id })
+        h.setNow(tokyo('2026-10-25T09:05:10'))
+        await h.service.tick()
+
+        h.service.reportDone('default', { sessionId: 's1', status: 'success', summary: '日报已发' })
+        expect(h.employeeRunLog).toContainEqual({ sessionId: 's1', line: 'done: [success] 日报已发' })
+        // The main session heard nothing: no wake, no text into any other session.
+        expect(h.wakes).toHaveLength(0)
+        expect(h.sentTexts).toHaveLength(0)
+    })
+
+    it('session_target=main rides the employee wake pipeline instead of a fresh spawn', async () => {
+        const h = harness(tokyo('2026-10-25T08:00:00'))
+        const employee = makeEmployee(h)
+        const task = h.service.create('default', { ...BASE, employeeId: employee.id, sessionTarget: 'main' })
+        h.setNow(tokyo('2026-10-25T09:05:10'))
+        await h.service.tick()
+
+        expect(h.spawns).toHaveLength(0)
+        expect(h.wakes).toHaveLength(1)
+        expect(h.wakes[0]!.employeeId).toBe(employee.id)
+        const { runs } = h.service.get('default', task.id)
+        expect(runs[0]!.sessionId).toBe(`main-${employee.id}`)
     })
 })

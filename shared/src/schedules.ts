@@ -33,6 +33,13 @@ export type ScheduledRunTrigger = 'schedule' | 'catchup' | 'manual'
  * self_reported: the session reported failed.
  */
 export type ScheduledRunFailure = 'no_start' | 'timeout' | 'no_result' | 'self_reported'
+
+/**
+ * Where a run bound to an employee goes. isolated: a fresh session each run, its result only enters the run log
+ * (never the main session); main: the employee's main session; named:<key>: one long-lived session per key.
+ */
+export const SessionTargetSchema = z.string().regex(/^(isolated|main|named:[A-Za-z0-9_-]{1,40})$/, 'Use isolated, main or named:<key>')
+export type SessionTarget = z.infer<typeof SessionTargetSchema>
 /** What the session said with scheduled_run_done. skipped: it found nothing to do, such as a report already sent. */
 export type ScheduledRunReport = 'success' | 'failed' | 'skipped'
 
@@ -84,6 +91,10 @@ export type ScheduledTask = {
     worktree: boolean
     /** A run still open after this many minutes fails and its session stops. */
     maxMinutes: number
+    /** The digital employee this task belongs to; its runs carry the employee identity. Null: a plain task. */
+    employeeId: string | null
+    /** Only read when employeeId is set; isolated is the default. */
+    sessionTarget: SessionTarget
     spec: ScheduleSpec
     /** IANA name; the schedule's times are wall-clock times in it. */
     timezone: string
@@ -109,6 +120,8 @@ const scheduledTaskFields = {
     accountId: z.string().regex(/^[a-z0-9_-]{1,40}$/).nullable().optional(),
     worktree: z.boolean().optional(),
     maxMinutes: z.number().int().min(1).max(24 * 60).optional(),
+    employeeId: z.string().trim().min(1).max(40).nullable().optional(),
+    sessionTarget: SessionTargetSchema.optional(),
     spec: ScheduleSpecSchema,
     timezone: z.string().trim().min(1).max(80),
     enabled: z.boolean().optional()

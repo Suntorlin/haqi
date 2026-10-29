@@ -168,6 +168,7 @@ class ClaudeRemoteLauncher extends RemoteLauncherBase {
         function onMessage(message: SDKMessage) {
             formatClaudeMessageForInk(message, messageBuffer);
             permissionHandler.onMessage(message);
+            session.notifySdkMessage(message);
 
             if ((message as { type?: string }).type === 'rate_limit_event') {
                 const info = (message as { rate_limit_info?: unknown }).rate_limit_info;

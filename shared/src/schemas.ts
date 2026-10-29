@@ -707,7 +707,9 @@ const employeeFields = {
 export const EmployeeSpawnRefSchema = z.object({
     id: z.string(),
     name: z.string(),
-    home: z.string()
+    home: z.string(),
+    /** Context share at which the CLI compacts the session itself; default 0.75 when absent. */
+    compactThreshold: z.number().optional()
 })
 export type EmployeeSpawnRef = z.infer<typeof EmployeeSpawnRefSchema>
 

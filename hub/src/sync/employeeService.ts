@@ -22,8 +22,13 @@ export class EmployeeError extends Error {
 
 export type EmployeeSessionState = {
     active: boolean
+    /** Mid-turn or waiting on a permission: the daily reset leaves a busy main session alone. */
+    busy: boolean
     summaryText: string | null
 }
+
+/** After this many compactions the next wake starts a fresh main session (repeated summaries drift). */
+const MAX_MAIN_SESSION_COMPACTIONS = 3
 
 export type EmployeeWakeResult = {
     sessionId: string
@@ -45,6 +50,8 @@ export interface EmployeeHost {
     /** Resume a hub session; null when it could not come back. Returns the session's id, which may be a new one. */
     resume(namespace: string, sessionId: string): Promise<string | null>
     send(sessionId: string, text: string): Promise<boolean>
+    /** Stops a session; its history stays. Used by the daily reset and the over-compacted main session swap. */
+    archive(sessionId: string): Promise<void>
     session(namespace: string, sessionId: string): EmployeeSessionState | null
     /** The employee a session belongs to, from its metadata. */
     sessionEmployeeId(namespace: string, sessionId: string): string | null
@@ -71,6 +78,10 @@ export class EmployeeService {
     private readonly runLogs = new Map<string, { employeeId: string; path: string }>()
     /** The day (employee timezone) each employee's nightly pass last ran; in memory, so a hub restart reruns it once at most. */
     private readonly nightlyDone = new Map<string, string>()
+    /** The day the daily main-session reset last ran per employee. */
+    private readonly dailyResetDone = new Map<string, string>()
+    /** The main session the daily reset archived, so the next state package still carries its summary. */
+    private readonly previousMainSessions = new Map<string, string>()
     private sweeping = false
 
     constructor(
@@ -164,7 +175,10 @@ export class EmployeeService {
         if (employee.status !== 'active') throw new EmployeeError(`员工状态是 ${employee.status}，不能唤醒`, 409)
         const text = options.text?.trim()
 
-        if (employee.mainSessionId) {
+        // Compacted over the limit: the next wake starts fresh with the state package instead of resuming.
+        if (employee.mainSessionId && employee.mainSessionCompactions > MAX_MAIN_SESSION_COMPACTIONS) {
+            await this.host.archive(employee.mainSessionId).catch(() => {})
+        } else if (employee.mainSessionId) {
             const state = this.host.session(namespace, employee.mainSessionId)
             if (state?.active) {
                 if (text) await this.host.send(employee.mainSessionId, text)
@@ -213,8 +227,9 @@ export class EmployeeService {
             `你是数字员工「${employee.name}」（id ${employee.id}）。`,
             `你的员工目录（SOUL.md、AGENTS.md、MEMORY.md、运行日志都在这里）：vault 内的 ${employee.homePath}。`
         ]
-        if (employee.mainSessionId) {
-            const previous = this.host.session(namespace, employee.mainSessionId)
+        const previousId = employee.mainSessionId ?? this.previousMainSessions.get(employee.id)
+        if (previousId) {
+            const previous = this.host.session(namespace, previousId)
             if (previous?.summaryText) lines.push(`上一个主会话的摘要：${previous.summaryText}`)
         }
         const open = this.store.employees.issues(namespace, employee.id, 'open')
@@ -308,7 +323,43 @@ export class EmployeeService {
         return { message, issue, logged }
     }
 
-    private async appendRunLog(namespace: string, employee: StoredEmployee, sessionId: string, kind: EmployeeLogKind, text: string, ref?: string): Promise<boolean> {
+    /**
+     * A compaction the CLI saw in an employee session. post on the main session bumps the count (past
+     * MAX_MAIN_SESSION_COMPACTIONS the next wake starts fresh) and saves the summary into the run log.
+     */
+    async noteCompaction(namespace: string, sessionId: string, input: { phase: 'pre' | 'post'; trigger: string; summary?: string }): Promise<{ compactions: number }> {
+        const employee = this.employeeForSession(namespace, sessionId)
+        let compactions = employee.mainSessionCompactions
+        if (input.phase === 'post' && employee.mainSessionId === sessionId) {
+            compactions += 1
+            this.store.employees.update(employee.id, namespace, { mainSessionCompactions: compactions })
+            this.host.changed(namespace, employee.id)
+        }
+        const summary = input.summary?.trim().slice(0, 4000).replace(/\n/g, '\n  ')
+        const text = input.phase === 'pre'
+            ? `压缩开始（${input.trigger}）`
+            : `压缩完成（${input.trigger}）${employee.mainSessionId === sessionId ? `，主会话第 ${compactions} 次` : ''}${summary ? `\n  压缩摘要：\n  ${summary}` : ''}`
+        await this.appendRunLog(namespace, employee, sessionId, 'compact', text)
+        return { compactions }
+    }
+
+    /** A scheduled run spawned under this employee: open its run log with the goal line. */
+    async noteRunStart(namespace: string, employeeId: string, sessionId: string, text: string): Promise<void> {
+        const employee = this.get(namespace, employeeId)
+        this.registerRunLog(sessionId, employee)
+        await this.appendRunLog(namespace, employee, sessionId, 'goal', text)
+    }
+
+    /**
+     * A scheduled run's result. It goes into the run log only — never into the main session — so the main context
+     * stays clean; the next wake's state package carries it (design §9.2).
+     */
+    async noteRunResult(namespace: string, sessionId: string, status: string, summary: string): Promise<boolean> {
+        const employee = this.employeeForSession(namespace, sessionId)
+        return await this.appendRunLog(namespace, employee, sessionId, 'done', `[${status}] ${summary}`)
+    }
+
+    private async appendRunLog(namespace: string, employee: StoredEmployee, sessionId: string, kind: EmployeeLogKind | 'compact', text: string, ref?: string): Promise<boolean> {
         if (!this.host.machineOnline(namespace, employee.machineId)) return false
         let entry = this.runLogs.get(sessionId)
         if (!entry || entry.employeeId !== employee.id) {
@@ -456,6 +507,7 @@ export class EmployeeService {
                 if (employee.status === 'retired') continue
                 await this.syncMemoryFile(employee.namespace, employee.id).catch(() => {})
                 await this.nightlyIfDue(employee).catch(() => {})
+                await this.dailyResetIfDue(employee).catch(() => {})
             }
             await this.escalateOverdueIssues().catch(() => {})
         } finally {
@@ -473,6 +525,26 @@ export class EmployeeService {
         if (!this.host.machineOnline(employee.namespace, employee.machineId)) return
         await this.consolidate(employee.namespace, employee.id)
         this.nightlyDone.set(employee.id, today)
+    }
+
+    /**
+     * At the employee's daily reset hour, an idle main session is archived and forgotten (its compaction count
+     * with it), so the next wake starts a fresh session with the state package (§8.4). A busy session gets another
+     * chance on the next sweep inside the hour.
+     */
+    private async dailyResetIfDue(employee: StoredEmployee): Promise<void> {
+        if (!employee.mainSessionId) return
+        const now = this.now()
+        const today = dayInZone(now, employee.timezone)
+        if (this.dailyResetDone.get(employee.id) === today) return
+        if (hourInZone(now, employee.timezone) !== employee.dailyResetHour) return
+        const state = this.host.session(employee.namespace, employee.mainSessionId)
+        if (state?.active && state.busy) return
+        this.dailyResetDone.set(employee.id, today)
+        this.previousMainSessions.set(employee.id, employee.mainSessionId)
+        if (state?.active) await this.host.archive(employee.mainSessionId).catch(() => {})
+        this.store.employees.update(employee.id, employee.namespace, { mainSessionId: null, mainSessionCompactions: 0 })
+        this.host.changed(employee.namespace, employee.id)
     }
 
     private async escalateOverdueIssues(): Promise<void> {

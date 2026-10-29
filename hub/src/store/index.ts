@@ -73,7 +73,7 @@ export { GuardStore } from './guardStore'
 export { HandoffExportStore } from './handoffExportStore'
 export { EmployeeStore } from './employeeStore'
 
-const SCHEMA_VERSION: number = 17
+const SCHEMA_VERSION: number = 18
 const REQUIRED_TABLES = [
     'sessions',
     'machines',
@@ -330,6 +330,13 @@ export class Store {
         if (currentVersion === 16 && SCHEMA_VERSION >= 17) {
             this.migrateFromV16ToV17()
             this.setUserVersion(17)
+            this.migrateSchema()
+            return
+        }
+
+        if (currentVersion === 17 && SCHEMA_VERSION >= 18) {
+            this.migrateFromV17ToV18()
+            this.setUserVersion(18)
             this.migrateSchema()
             return
         }
@@ -739,6 +746,8 @@ export class Store {
                 account_id TEXT,
                 worktree INTEGER NOT NULL DEFAULT 0,
                 max_minutes INTEGER NOT NULL DEFAULT 90,
+                employee_id TEXT,
+                session_target TEXT NOT NULL DEFAULT 'isolated',
                 spec TEXT NOT NULL,
                 timezone TEXT NOT NULL,
                 enabled INTEGER NOT NULL DEFAULT 1,
@@ -1323,6 +1332,21 @@ export class Store {
             this.db.exec('ROLLBACK')
             const message = error instanceof Error ? error.message : String(error)
             throw new Error(`SQLite schema migration v16->v17 failed: ${message}`)
+        }
+    }
+
+    /** Scheduled tasks can belong to an employee and pick where their runs go. */
+    private migrateFromV17ToV18(): void {
+        try {
+            this.db.exec('BEGIN')
+            const columns = new Set((this.db.prepare('PRAGMA table_info(scheduled_tasks)').all() as Array<{ name: string }>).map((row) => row.name))
+            if (!columns.has('employee_id')) this.db.exec('ALTER TABLE scheduled_tasks ADD COLUMN employee_id TEXT')
+            if (!columns.has('session_target')) this.db.exec("ALTER TABLE scheduled_tasks ADD COLUMN session_target TEXT NOT NULL DEFAULT 'isolated'")
+            this.db.exec('COMMIT')
+        } catch (error) {
+            this.db.exec('ROLLBACK')
+            const message = error instanceof Error ? error.message : String(error)
+            throw new Error(`SQLite schema migration v17->v18 failed: ${message}`)
         }
     }
 

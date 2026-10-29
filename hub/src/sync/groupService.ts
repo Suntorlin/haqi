@@ -121,13 +121,14 @@ function uniqueStrings(values: string[]): string[] {
 }
 
 function extractMentionTokens(command: string): string[] {
-    return Array.from(command.matchAll(/\B@([A-Za-z0-9._:-]+)/g))
+    // CJK is part of a mention token: employees carry Chinese names, such as @小鱼.
+    return Array.from(command.matchAll(/\B@([A-Za-z0-9._:-]+|[\u4e00-\u9fff]+)/g))
         .map((match) => (match[1] ?? '').trim())
         .filter((token) => token.length > 0)
 }
 
 function sanitizeMentionAlias(value: string): string {
-    return value.replace(/[^A-Za-z0-9._:-]/g, '')
+    return value.replace(/[^A-Za-z0-9._:\u4e00-\u9fff-]/g, '')
 }
 
 function toMentionAliasKey(value: string): string {
@@ -1138,12 +1139,17 @@ export class GroupService {
         }
 
         const onlineSessionMembers = sessionMembers.filter((sessionId) => this.isSessionMentionable(sessionId, namespace))
-        const onlineSessionMembersSet = new Set(onlineSessionMembers)
-        const aliasLookup = this.buildMentionAliasLookup(onlineSessionMembers, namespace)
+        // An offline employee session stays mentionable: the dispatcher wakes the employee instead of failing.
+        const wakeableMembers = sessionMembers.filter(
+            (sessionId) => !onlineSessionMembers.includes(sessionId) && this.isWakeableEmployeeSession(sessionId, namespace)
+        )
+        const reachableMembers = [...onlineSessionMembers, ...wakeableMembers]
+        const onlineSessionMembersSet = new Set(reachableMembers)
+        const aliasLookup = this.buildMentionAliasLookup(reachableMembers, namespace)
 
         if (explicitTargets && explicitTargets.length > 0) {
             return uniqueStrings(explicitTargets).filter(
-                (sessionId) => onlineSessionMembers.includes(sessionId) && sessionId !== originSessionId
+                (sessionId) => reachableMembers.includes(sessionId) && sessionId !== originSessionId
             )
         }
 
@@ -1174,6 +1180,15 @@ export class GroupService {
             return false
         }
         return session.active
+    }
+
+    /** An inactive session that belongs to an active employee: a mention wakes the employee instead of going nowhere. */
+    private isWakeableEmployeeSession(sessionId: string, namespace: string): boolean {
+        const session = this.store.sessions.getSessionByNamespace(sessionId, namespace)
+        const metadata = (session?.metadata && typeof session.metadata === 'object') ? session.metadata as Record<string, unknown> : null
+        const employeeId = typeof metadata?.employeeId === 'string' ? metadata.employeeId : null
+        if (!employeeId) return false
+        return this.store.employees.get(employeeId, namespace)?.status === 'active'
     }
 
     private resolveOriginSessionId(source: string, actorSessionId: string | null): string | null {

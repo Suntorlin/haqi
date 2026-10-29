@@ -408,7 +408,10 @@ export async function startRunner(): Promise<void> {
             ...extraEnv,
             HAPI_EMPLOYEE_ID: options.employee.id,
             HAPI_EMPLOYEE_NAME: options.employee.name,
-            HAPI_EMPLOYEE_DIR: resolvePath(vaultRoot, options.employee.home)
+            HAPI_EMPLOYEE_DIR: resolvePath(vaultRoot, options.employee.home),
+            ...(typeof options.employee.compactThreshold === 'number'
+              ? { HAPI_EMPLOYEE_COMPACT_THRESHOLD: String(options.employee.compactThreshold) }
+              : {})
           };
         }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
-import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView, MachineLoad } from '@hapi/protocol/schemas'
+import type { AttachmentMetadata, ClaudeAccountSelection, ClaudeAccountPoolView, EmployeeSpawnRef, MachineLoad } from '@hapi/protocol/schemas'
 import { ClaudeAccountPoolSchema } from '@hapi/protocol/schemas'
 /**
  * Sync Engine for HAPI Telegram Bot (Direct Connect)
@@ -714,6 +714,31 @@ export class SyncEngine {
         })
         this.scheduleService = new ScheduleService(store, {
             spawn: (input) => this.spawnScheduledRun(input),
+            wakeEmployee: async (namespace, employeeId, text) => {
+                try {
+                    const woken = await this.employeeService.wake(namespace, employeeId, { source: 'schedule', text })
+                    return { sessionId: woken.sessionId }
+                } catch (error) {
+                    return { error: error instanceof Error ? error.message : String(error) }
+                }
+            },
+            sendText: async (namespace, sessionId, text) => {
+                if (!this.getSessionByNamespace(sessionId, namespace)?.active) return false
+                await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta: { source: 'scheduled-task' } })
+                return true
+            },
+            findSessionByTag: (namespace, tag) => {
+                const live = this.getSessionsByNamespace(namespace)
+                    .filter((session) => session.active && (session.metadata?.tags ?? []).includes(tag))
+                    .sort((a, b) => b.createdAt - a.createdAt)
+                return live[0]?.id ?? null
+            },
+            employeeRunStarted: async (namespace, employeeId, sessionId, text) => {
+                await this.employeeService.noteRunStart(namespace, employeeId, sessionId, text)
+            },
+            employeeRunFinished: async (namespace, sessionId, status, summary) => {
+                await this.employeeService.noteRunResult(namespace, sessionId, status, summary)
+            },
             session: (namespace, sessionId) => {
                 const session = this.getSessionByNamespace(sessionId, namespace)
                 if (!session) return null
@@ -744,7 +769,7 @@ export class SyncEngine {
                 const result = await this.spawnAndPrompt(employee.machineId, employee.directory, {
                     agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
                     model: employee.model ?? undefined,
-                    employee: { id: employee.id, name: employee.name, home: employee.homePath }
+                    employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold }
                 }, {
                     text,
                     meta: { source: 'employee-wake', employeeId: employee.id },
@@ -764,9 +789,14 @@ export class SyncEngine {
             session: (namespace, sessionId) => {
                 const session = this.getSessionByNamespace(sessionId, namespace)
                 if (!session) return null
-                return { active: session.active, summaryText: session.metadata?.summary?.text ?? null }
+                return {
+                    active: session.active,
+                    busy: session.thinking || Object.keys(session.agentState?.requests ?? {}).length > 0,
+                    summaryText: session.metadata?.summary?.text ?? null
+                }
             },
             sessionEmployeeId: (namespace, sessionId) => this.getSessionByNamespace(sessionId, namespace)?.metadata?.employeeId ?? null,
+            archive: async (sessionId) => { await this.archiveSession(sessionId) },
             rename: async (sessionId, name) => { await this.renameSession(sessionId, name) },
             tag: async (sessionId, tags) => { await this.setSessionTags(sessionId, tags) },
             fs: {
@@ -2059,15 +2089,25 @@ export class SyncEngine {
         targetSessionId: string
         command: string
     }): Promise<void> {
-        const session = this.getSession(payload.targetSessionId)
-        if (!session) {
-            throw new Error('Target session not found')
-        }
-        if (session.namespace !== payload.namespace) {
+        let targetSessionId = payload.targetSessionId
+        let session = this.getSession(targetSessionId)
+        if (session && session.namespace !== payload.namespace) {
             throw new Error('Target session access denied')
         }
-        if (!session.active) {
-            throw new Error('Target session is inactive')
+        if (!session?.active) {
+            // An @ at an offline employee session wakes the employee instead of failing: the main session
+            // resumes, or a fresh one starts with the state package, and the command goes there.
+            const employeeId = session?.metadata?.employeeId ?? null
+            const employee = employeeId ? this.store.employees.get(employeeId, payload.namespace) : null
+            if (!employee) {
+                throw new Error(session ? 'Target session is inactive' : 'Target session not found')
+            }
+            const woken = await this.employeeService.wake(payload.namespace, employee.id, { source: 'group-mention' })
+            targetSessionId = woken.sessionId
+            session = this.getSession(targetSessionId)
+            if (!session?.active) {
+                throw new Error('员工唤醒了，但会话没有上线')
+            }
         }
 
         const flavor = session.metadata?.flavor
@@ -2076,21 +2116,21 @@ export class SyncEngine {
             taskId: payload.taskId,
             traceId: payload.traceId,
             source: payload.source,
-            targetSessionIds: [payload.targetSessionId]
+            targetSessionIds: [targetSessionId]
         }
 
         if (flavor === 'claude') {
             // Pre-register route in both maps. queuePendingRoutes prevents the
             // user-message echo (which lacks routeContext) from clearing the route.
-            this.activeGroupRoutesBySession.set(payload.targetSessionId, routeContext)
-            this.queuePendingRoutes.set(payload.targetSessionId, routeContext)
-            const result = await this.enqueueClaudeMessage(payload.targetSessionId, {
+            this.activeGroupRoutesBySession.set(targetSessionId, routeContext)
+            this.queuePendingRoutes.set(targetSessionId, routeContext)
+            const result = await this.enqueueClaudeMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
             })
             if (!result.success) {
-                this.activeGroupRoutesBySession.delete(payload.targetSessionId)
-                this.queuePendingRoutes.delete(payload.targetSessionId)
+                this.activeGroupRoutesBySession.delete(targetSessionId)
+                this.queuePendingRoutes.delete(targetSessionId)
                 throw new Error(result.error ?? 'Failed to enqueue Claude task')
             }
             return
@@ -2098,15 +2138,15 @@ export class SyncEngine {
 
         if (flavor === 'gemini') {
             // Same treatment as claude
-            this.activeGroupRoutesBySession.set(payload.targetSessionId, routeContext)
-            this.queuePendingRoutes.set(payload.targetSessionId, routeContext)
-            const result = await this.enqueueCodexMessage(payload.targetSessionId, {
+            this.activeGroupRoutesBySession.set(targetSessionId, routeContext)
+            this.queuePendingRoutes.set(targetSessionId, routeContext)
+            const result = await this.enqueueCodexMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
             })
             if (!result.success) {
-                this.activeGroupRoutesBySession.delete(payload.targetSessionId)
-                this.queuePendingRoutes.delete(payload.targetSessionId)
+                this.activeGroupRoutesBySession.delete(targetSessionId)
+                this.queuePendingRoutes.delete(targetSessionId)
                 throw new Error(result.error ?? 'Failed to enqueue Gemini task')
             }
             return
@@ -2114,7 +2154,7 @@ export class SyncEngine {
 
         if (flavor === 'codex') {
             // Codex echoes routeContext in its messages, so no pre-registration needed
-            const result = await this.enqueueCodexMessage(payload.targetSessionId, {
+            const result = await this.enqueueCodexMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
             })
@@ -2125,7 +2165,7 @@ export class SyncEngine {
         }
 
         // opencode and unknown flavors: fall back to direct send
-        await this.sendMessage(payload.targetSessionId, {
+        await this.sendMessage(targetSessionId, {
             text: payload.command,
             sentFrom: 'webapp',
             meta: { routeContext }
@@ -2279,7 +2319,7 @@ ${note.content}
         previewUrl?: string | null,
         claudeAccount?: ClaudeAccountSelection,
         sourceClaudeAccountId?: string,
-        employee?: { id: string; name: string; home: string }
+        employee?: EmployeeSpawnRef
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
         // The system switch overrides each caller: the task lead, a resume, the new-session form.
@@ -2737,7 +2777,9 @@ ${note.content}
         const pinnedAccount = flavor === 'claude' ? metadata.claudeAccount : undefined
         // An employee session wakes as that employee: the new process needs the identity env again.
         const ownerEmployee = metadata.employeeId ? this.store.employees.get(metadata.employeeId, namespace) : null
-        const employeeRef = ownerEmployee ? { id: ownerEmployee.id, name: ownerEmployee.name, home: ownerEmployee.homePath } : undefined
+        const employeeRef = ownerEmployee
+            ? { id: ownerEmployee.id, name: ownerEmployee.name, home: ownerEmployee.homePath, compactThreshold: ownerEmployee.compactThreshold }
+            : undefined
 
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
@@ -2828,7 +2870,7 @@ ${note.content}
             claudeAccount?: ClaudeAccountSelection
             sessionType?: 'simple' | 'worktree'
             worktreeName?: string
-            employee?: { id: string; name: string; home: string }
+            employee?: EmployeeSpawnRef
         },
         prompt: { text: string; meta?: Record<string, unknown>; files?: TaskFileContent[]; permissionMode?: PermissionMode }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
@@ -2923,7 +2965,8 @@ ${note.content}
             ...(input.thinkEffort ? { thinkEffort: input.thinkEffort as 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh' } : {}),
             yolo,
             sessionType: input.worktree ? 'worktree' as const : 'simple' as const,
-            ...(input.worktree ? { worktreeName: `scheduled-${Date.now().toString(36)}` } : {})
+            ...(input.worktree ? { worktreeName: `scheduled-${Date.now().toString(36)}` } : {}),
+            ...(input.employee ? { employee: input.employee } : {})
         }
         const prompt = {
             text: input.text,
@@ -2953,7 +2996,8 @@ ${note.content}
             if (result.type === 'success') {
                 await this.renameSession(result.sessionId, input.name).catch(() => {})
                 const tags = this.getSession(result.sessionId)?.metadata?.tags ?? []
-                if (!tags.includes('scheduled')) await this.setSessionTags(result.sessionId, [...tags, 'scheduled']).catch(() => {})
+                const wanted = ['scheduled', ...(input.tags ?? [])].filter((tag) => !tags.includes(tag))
+                if (wanted.length > 0) await this.setSessionTags(result.sessionId, [...tags, ...wanted]).catch(() => {})
                 const accountId = this.getSession(result.sessionId)?.metadata?.claudeAccount?.id ?? candidate?.id ?? null
                 return {
                     sessionId: result.sessionId,

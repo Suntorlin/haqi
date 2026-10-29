@@ -32,6 +32,8 @@ type ScheduleRow = {
     account_id: string | null
     worktree: number
     max_minutes: number
+    employee_id: string | null
+    session_target: string
     spec: string
     timezone: string
     enabled: number
@@ -75,6 +77,8 @@ function toSchedule(row: ScheduleRow): StoredSchedule {
         accountId: row.account_id,
         worktree: row.worktree === 1,
         maxMinutes: row.max_minutes,
+        employeeId: row.employee_id,
+        sessionTarget: (row.session_target || 'isolated') as StoredSchedule['sessionTarget'],
         spec: (safeJsonParse(row.spec) ?? { kind: 'manual' }) as ScheduleSpec,
         timezone: row.timezone,
         enabled: row.enabled === 1,
@@ -137,9 +141,9 @@ export class ScheduleStore {
         const id = randomUUID()
         this.db.prepare(`
             INSERT INTO scheduled_tasks (id, namespace, name, prompt, prompt_file, machine_id, directory, agent, model,
-                think_effort, permission_mode, account_id, worktree, max_minutes, spec, timezone, enabled, next_run_at, created_at, updated_at)
+                think_effort, permission_mode, account_id, worktree, max_minutes, employee_id, session_target, spec, timezone, enabled, next_run_at, created_at, updated_at)
             VALUES (@id, @namespace, @name, @prompt, @prompt_file, @machine_id, @directory, @agent, @model,
-                @think_effort, @permission_mode, @account_id, @worktree, @max_minutes, @spec, @timezone, @enabled, @next_run_at, @created_at, @updated_at)
+                @think_effort, @permission_mode, @account_id, @worktree, @max_minutes, @employee_id, @session_target, @spec, @timezone, @enabled, @next_run_at, @created_at, @updated_at)
         `).run({ id, namespace, ...this.columns(input), created_at: now, updated_at: now })
         return this.get(namespace, id)!
     }
@@ -148,7 +152,8 @@ export class ScheduleStore {
         this.db.prepare(`
             UPDATE scheduled_tasks SET name = @name, prompt = @prompt, prompt_file = @prompt_file, machine_id = @machine_id,
                 directory = @directory, agent = @agent, model = @model, think_effort = @think_effort,
-                permission_mode = @permission_mode, account_id = @account_id, worktree = @worktree, max_minutes = @max_minutes, spec = @spec,
+                permission_mode = @permission_mode, account_id = @account_id, worktree = @worktree, max_minutes = @max_minutes,
+                employee_id = @employee_id, session_target = @session_target, spec = @spec,
                 timezone = @timezone, enabled = @enabled, next_run_at = @next_run_at, updated_at = @updated_at
             WHERE namespace = @namespace AND id = @id
         `).run({ id, namespace, ...this.columns(input), updated_at: Date.now() })
@@ -293,6 +298,8 @@ export class ScheduleStore {
             account_id: input.accountId,
             worktree: input.worktree ? 1 : 0,
             max_minutes: input.maxMinutes,
+            employee_id: input.employeeId,
+            session_target: input.sessionTarget,
             spec: JSON.stringify(input.spec),
             timezone: input.timezone,
             enabled: input.enabled ? 1 : 0,

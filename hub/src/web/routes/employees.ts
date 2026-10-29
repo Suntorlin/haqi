@@ -20,6 +20,13 @@ const logSchema = z.object({
     ref: z.string().trim().min(1).max(500).optional()
 })
 
+const compactionSchema = z.object({
+    sessionId: z.string().min(1),
+    phase: z.enum(['pre', 'post']),
+    trigger: z.string().trim().min(1).max(40),
+    summary: z.string().trim().min(1).max(20_000).optional()
+})
+
 async function run(c: Context<WebAppEnv>, work: () => unknown | Promise<unknown>): Promise<Response> {
     try {
         return c.json(await work() as object)
@@ -69,6 +76,16 @@ export function createEmployeeRoutes(getSyncEngine: () => SyncEngine | null): Ho
             const openIssues = ctx.employees.issues(namespace, employee.id, 'open')
             return { employee, openIssues, statePackage }
         })
+    })
+
+    /** The CLI reports a compaction in an employee session: count it and save the summary into the run log. */
+    app.post('/employees/compaction', async (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const parsed = compactionSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400)
+        const { sessionId, phase, trigger, summary } = parsed.data
+        return run(c, async () => await ctx.employees.noteCompaction(c.get('namespace'), sessionId, { phase, trigger, summary }))
     })
 
     /** One run-log line from an employee session; the employee_log tool. */

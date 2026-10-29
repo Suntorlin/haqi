@@ -25,6 +25,8 @@ import { buildThreadStartParams, buildTurnStartParams } from './utils/appServerC
 import { TurnChangeTracker } from './utils/turnChangeTracker';
 import { buildCodexSystemPrompt } from './utils/systemPrompt';
 import { parseGoal, type GoalCommandResult } from '@/parsers/specialCommands';
+import { employeeFromEnv } from '@/agent/utils/employeeEnv';
+import { requestHubJson } from '@/api/hubHttp';
 import {
     LIVE_ACTIVITY_EVENT_TYPES,
     LIVE_ACTIVITY_GRACE_MS,
@@ -96,6 +98,49 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
     private currentThreadId: string | null = null;
     private currentTurnId: string | null = null;
     private turnChangeTracker: TurnChangeTracker = new TurnChangeTracker();
+    /** Employee sessions compact themselves: context share from thread/tokenUsage/updated, trigger on turn end. */
+    private readonly employeeEnv = employeeFromEnv();
+    private employeeUsedTokens = 0;
+    private employeeContextWindow = 0;
+    private employeeCompacting = false;
+
+    private noteEmployeeTokenUsage(params: unknown): void {
+        if (!this.employeeEnv) return;
+        const record = (params && typeof params === 'object') ? params as Record<string, unknown> : null;
+        const usage = (record?.tokenUsage && typeof record.tokenUsage === 'object') ? record.tokenUsage as Record<string, unknown> : record;
+        const last = (usage?.last && typeof usage.last === 'object') ? usage.last as Record<string, unknown> : null;
+        if (typeof last?.totalTokens === 'number') this.employeeUsedTokens = last.totalTokens;
+        const window = usage?.modelContextWindow ?? record?.modelContextWindow;
+        if (typeof window === 'number' && window > 0) this.employeeContextWindow = window;
+    }
+
+    /** Over the threshold once the turn ended: ask the app server to compact (compact_prompt carries the keep list). */
+    private maybeCompactEmployeeThread(): void {
+        if (!this.employeeEnv || this.employeeCompacting) return;
+        if (!this.appServerClient || !this.currentThreadId || this.employeeContextWindow <= 0) return;
+        if (this.employeeUsedTokens / this.employeeContextWindow < this.employeeEnv.compactThreshold) return;
+        logger.debug(`[codex] employee compact: ${this.employeeUsedTokens}/${this.employeeContextWindow}`);
+        this.employeeCompacting = true;
+        this.reportEmployeeCompaction('pre');
+        this.appServerClient.compactStart(this.currentThreadId).catch((error) => {
+            logger.debug('[codex] compactStart failed', error);
+            this.employeeCompacting = false;
+        });
+    }
+
+    private noteEmployeeCompacted(): void {
+        if (!this.employeeEnv) return;
+        this.employeeCompacting = false;
+        this.employeeUsedTokens = 0;
+        this.reportEmployeeCompaction('post');
+    }
+
+    private reportEmployeeCompaction(phase: 'pre' | 'post'): void {
+        void requestHubJson('/api/employees/compaction', {
+            method: 'POST',
+            body: JSON.stringify({ sessionId: this.session.client.sessionId, phase, trigger: 'auto' })
+        }).catch((error) => logger.debug('[codex] compaction report failed', error));
+    }
 
     constructor(session: CodexSession) {
         super(process.env.DEBUG ? session.logPath : undefined);
@@ -721,10 +766,12 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
                 messageBuffer.addMessage(`Model rerouted: ${from} -> ${to}`, 'status');
             } else if (msgType === 'context_compacted') {
                 messageBuffer.addMessage('Context compacted', 'status');
+                this.noteEmployeeCompacted();
             } else if (msgType === 'task_started') {
                 messageBuffer.addMessage('Starting task...', 'status');
             } else if (msgType === 'task_complete') {
                 messageBuffer.addMessage('Task completed', 'status');
+                this.maybeCompactEmployeeThread();
                 sendReady();
             } else if (msgType === 'turn_aborted') {
                 messageBuffer.addMessage('Turn aborted', 'status');
@@ -1022,6 +1069,7 @@ class CodexRemoteLauncher extends RemoteLauncherBase {
             });
 
             appServerClient.setNotificationHandler((method, params) => {
+                if (method === 'thread/tokenUsage/updated') this.noteEmployeeTokenUsage(params);
                 const events = appServerEventConverter.handleNotification(method, params);
                 for (const event of events) {
                     const eventRecord = asRecord(event) ?? { type: undefined };
