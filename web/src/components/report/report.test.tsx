@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { I18nProvider } from '@/lib/i18n-context'
-import { Checklist, DecisionCard, LeadComposer, ProgressList, VerdictBar } from './index'
+import { AgentTimeline, Checklist, CompareTable, DecisionCard, EvidenceList, LeadComposer, ProgressList, VerdictBar } from './index'
 import type { Decision, ProgressItem } from './types'
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -135,5 +135,44 @@ describe('LeadComposer', () => {
         )
         fireEvent.click(screen.getByRole('button', { name: '发送' }))
         expect(onSend).toHaveBeenCalled()
+    })
+})
+
+describe('AgentTimeline', () => {
+    const agents = [
+        { id: 'w', name: '写手', tone: 'wait' as const, progress: 0.5, spans: [{ from: -12, to: 0, state: 'wait' as const, label: '等你选标题' }], steps: [{ from: -12, to: 0, state: 'wait' as const, label: '等你选' }] },
+        { id: 'e', name: '工程师', tone: 'live' as const, progress: 0.7, spans: [{ from: -25, to: 0, state: 'live' as const, label: '跑测试' }] }
+    ]
+
+    it('counts who waits and opens the decision from the waiting stretch', () => {
+        const onDecide = vi.fn()
+        renderWithProviders(<AgentTimeline agents={agents} onDecide={onDecide} />)
+        expect(screen.getByText(/1 个等你/)).toBeInTheDocument()
+        fireEvent.click(screen.getByRole('button', { name: /等你选标题/ }))
+        expect(onDecide).toHaveBeenCalledWith(agents[0])
+    })
+
+    it('shows the steps only in the steps view', () => {
+        renderWithProviders(<AgentTimeline agents={agents} />)
+        expect(screen.queryByText('等你选')).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole('radio', { name: '步骤' }))
+        expect(screen.getByText('等你选')).toBeInTheDocument()
+    })
+})
+
+describe('CompareTable and EvidenceList', () => {
+    it('marks the recommended option', () => {
+        renderWithProviders(
+            <CompareTable title="方案" columns={[{ id: 'a', label: 'A' }, { id: 'b', label: 'B', recommended: true }]} rows={[{ label: '月费', values: { a: '$8', b: '$12' } }]} />
+        )
+        expect(screen.getAllByText('建议').length).toBeGreaterThan(0)
+    })
+
+    it('folds evidence until the row is opened', () => {
+        renderWithProviders(<EvidenceList items={[{ id: 'c', kind: 'command', title: '52 个测试', meta: 'bun test', lines: ['✗ webhook retries'] }]} />)
+        const row = screen.getByRole('button', { name: /52 个测试/ })
+        expect(row).toHaveAttribute('aria-expanded', 'false')
+        fireEvent.click(row)
+        expect(row).toHaveAttribute('aria-expanded', 'true')
     })
 })

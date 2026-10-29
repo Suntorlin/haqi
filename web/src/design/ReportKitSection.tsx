@@ -1,5 +1,9 @@
 import { useState, type ReactNode } from 'react'
 import {
+    AgentTimeline,
+    BarChart,
+    CompareTable,
+    EvidenceList,
     Checklist,
     DecisionCard,
     DecisionConfirmation,
@@ -15,7 +19,9 @@ import {
     VerdictBar,
     type Decision,
     type LatestMessage,
-    type ProgressItem
+    type ProgressItem,
+    type TimelineAgent,
+    type EvidenceItem
 } from '@/components/report'
 
 // Demo data for the showcase only. Business pages feed real hub data instead.
@@ -44,6 +50,27 @@ const DEMO_PROGRESS: ProgressItem[] = [
     { id: 'voice', name: '语音输入', status: '在 iPhone 上试录音', tone: 'live', done: 2, total: 4 },
     { id: 'logs', name: '日志清理', status: '25 分钟没进展', tone: 'stuck', done: 1, total: 3 },
     { id: 'docs', name: '文档迁移', status: '做完了', tone: 'done', done: 3, total: 3, when: '10:42', unread: true }
+]
+
+
+const DEMO_TIMELINE: TimelineAgent[] = [
+    { id: 'research', name: '研究员', model: 'Sonnet', tone: 'done', progress: 1,
+        spans: [{ from: -40, to: -22, state: 'done', label: '竞品定价对比' }],
+        steps: [{ from: -40, to: -33, state: 'done', label: '搜 5 家竞品' }, { from: -33, to: -26, state: 'done', label: '抓定价页' }, { from: -26, to: -22, state: 'done', label: '整理成表' }] },
+    { id: 'writer', name: '写手', model: 'Opus', tone: 'wait', progress: 0.6, plan: { from: -21, to: -6 },
+        spans: [{ from: -21, to: -12, state: 'done', label: '草拟文案' }, { from: -12, to: 0, state: 'wait', label: '等你选标题' }],
+        steps: [{ from: -21, to: -16, state: 'done', label: '读竞品表' }, { from: -16, to: -12, state: 'done', label: '写 3 版标题' }, { from: -12, to: 0, state: 'wait', label: '等你选' }] },
+    { id: 'eng', name: '工程师', model: 'GPT-6', tone: 'live', progress: 0.73, plan: { from: -25, to: -5 },
+        spans: [{ from: -25, to: 0, state: 'live', label: '接入 Stripe · 测试 38/52' }],
+        steps: [{ from: -25, to: -12, state: 'done', label: '接入 Stripe' }, { from: -12, to: 0, state: 'live', label: '跑测试' }] }
+]
+
+const DEMO_EVIDENCE: EvidenceItem[] = [
+    { id: 'shot', kind: 'shot', title: '定价页手机版', meta: 'pricing-mobile.png', when: '2 分钟前', status: { label: '通过', tone: 'success' }, image: '/pwa-192x192.png' },
+    { id: 'cmd', kind: 'command', title: '52 个测试，38 个通过', meta: 'bun test pricing', when: '4 分钟前', status: { label: '退出码 1', tone: 'destructive' },
+        lines: ['✓ seat price rounds to cents', '✓ annual discount 20%', '✗ webhook retries on 502', '✗ proration on downgrade', '38 pass · 14 fail · 52 total'] },
+    { id: 'link', kind: 'link', title: '按席位计费的官方说明', meta: 'stripe.com/docs', when: '2026-10', status: { label: '引用', tone: 'default' },
+        quote: 'Per-seat pricing charges customers based on the number of users.', source: 'stripe.com · Billing' }
 ]
 
 function Spec(props: { label: string; children: ReactNode }) {
@@ -124,6 +151,35 @@ export function ReportKitSection() {
                     <CheckRing state="wait" />
                     <CheckRing state="todo" />
                 </div>
+            </Spec>
+
+            <Spec label="AgentTimeline · 谁在做什么，同一条时间轴（可切换结论 / 步骤）">
+                <AgentTimeline agents={DEMO_TIMELINE} onDecide={() => {}} />
+            </Spec>
+
+            <Spec label="BarChart + CompareTable · 标题即结论；推荐列">
+                <div className="flex flex-col gap-3">
+                    <BarChart
+                        title="竞品月费中位数 $12，我们定 $12，卡在中间"
+                        lede="5 家竞品单人月费 · 研究员 22 分钟前整理"
+                        format={(v) => `$${v}`}
+                        data={[{ label: '竞品 1', value: 8 }, { label: '竞品 2', value: 10 }, { label: '竞品 3', value: 12 }, { label: '竞品 4', value: 15 }, { label: '竞品 5', value: 20 }, { label: '我们', value: 12, highlight: true }]}
+                    />
+                    <CompareTable
+                        title="三种方案"
+                        columns={[{ id: 'a', label: 'A 低价' }, { id: 'b', label: 'B 中价', recommended: true }, { id: 'c', label: 'C 高价' }]}
+                        rows={[
+                            { label: '单人月费', values: { a: '$8', b: '$12', c: '$20' }, numeric: true },
+                            { label: '年付折扣', values: { a: '无', b: '20%', c: '20%' } },
+                            { label: '免费人数', values: { a: '1', b: '3', c: '无' }, numeric: true },
+                            { label: '适合', values: { a: '个人', b: '小团队', c: '企业' } }
+                        ]}
+                    />
+                </div>
+            </Spec>
+
+            <Spec label="EvidenceList · 证据，一行一条，点开看截图 / 输出 / 原文">
+                <EvidenceList items={DEMO_EVIDENCE} />
             </Spec>
 
             <Spec label="LeadComposer + VerdictBar · 底部对话与验收">

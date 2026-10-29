@@ -1706,6 +1706,14 @@ export default {
   'report.verdict.change': 'Needs changes',
   'report.reopen.note': 'Accepted. The task is closed.',
   'report.reopen.action': 'Reopen',
+  'report.timeline.agents': '{n} agents',
+  'report.timeline.waiting': '{n} waiting for you',
+  'report.timeline.view': 'Timeline view',
+  'report.timeline.summary': 'Summary',
+  'report.timeline.steps': 'Steps',
+  'report.timeline.now': 'Now',
+  'report.timeline.decide': 'Decide',
+  'report.timeline.planHint': 'Minutes before now · dashed outline: the plan',
 
   // Scheduled tasks
   'scheduled.title': 'Scheduled tasks',

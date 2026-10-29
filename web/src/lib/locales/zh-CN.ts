@@ -1708,6 +1708,14 @@ export default {
   'report.verdict.change': '要改',
   'report.reopen.note': '已通过，任务结束了',
   'report.reopen.action': '重新打开',
+  'report.timeline.agents': '{n} 个 agent',
+  'report.timeline.waiting': '{n} 个等你',
+  'report.timeline.view': '时间线视图',
+  'report.timeline.summary': '结论',
+  'report.timeline.steps': '步骤',
+  'report.timeline.now': '现在',
+  'report.timeline.decide': '去决定',
+  'report.timeline.planHint': '单位：分钟 · 虚线是计划',
 
   // Scheduled tasks
   'scheduled.title': '定时任务',

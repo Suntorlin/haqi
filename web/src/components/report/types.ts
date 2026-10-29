@@ -81,3 +81,55 @@ export type Shot = {
     src: string
     caption: string
 }
+
+/** A stretch of work on the agent timeline, in minutes relative to now (now = 0, earlier < 0). */
+export type TimelineSpan = {
+    from: number
+    to: number
+    /** done: finished; live: running now; wait: waiting for the user; stuck: no progress or failed. */
+    state: 'done' | 'live' | 'wait' | 'stuck'
+    label: string
+}
+
+/** One agent row on the timeline. */
+export type TimelineAgent = {
+    id: string
+    /** Orb seed; defaults to `id`. */
+    seed?: string
+    name: string
+    /** Small second line, e.g. the model. */
+    model?: string
+    tone: ReportTone
+    /** 0..1, fills the orb ring. */
+    progress: number
+    spans: TimelineSpan[]
+    /** The planned stretch, drawn as a dashed pill behind the spans. */
+    plan?: { from: number; to: number }
+    /** Finer spans shown in the "steps" view. */
+    steps?: TimelineSpan[]
+}
+
+/** A comparison of a few options side by side. */
+export type CompareColumn = { id: string; label: string; recommended?: boolean }
+export type CompareRow = { label: string; values: Record<string, string>; numeric?: boolean }
+
+/** One bar in a small bar chart. */
+export type BarDatum = { label: string; value: number; highlight?: boolean }
+
+/** One piece of evidence: a screenshot, a command's output, or a quoted link. */
+export type EvidenceItem = {
+    id: string
+    kind: 'shot' | 'command' | 'link'
+    title: string
+    /** File name, command or domain, shown in mono. */
+    meta: string
+    when?: string
+    status?: { label: string; tone: 'success' | 'destructive' | 'default' }
+    /** command: the last lines of output; lines starting with ✗ are shown as failures. */
+    lines?: string[]
+    /** shot: image URL. */
+    image?: string
+    /** link: the quoted sentence and its source. */
+    quote?: string
+    source?: string
+}

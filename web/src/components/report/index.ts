@@ -7,3 +7,7 @@ export { DecisionCard, DecisionPeek, DecisionConfirmation, Checklist } from './D
 export { ProgressList, ProgressRow } from './ProgressList'
 export { LatestLine, LeadComposer } from './LeadComposer'
 export { ReopenBar, VerdictBar } from './VerdictBar'
+export { AgentTimeline } from './AgentTimeline'
+export { CompareTable } from './CompareTable'
+export { BarChart } from './BarChart'
+export { EvidenceList } from './EvidenceList'
