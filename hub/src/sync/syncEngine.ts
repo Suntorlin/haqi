@@ -746,7 +746,9 @@ export class SyncEngine {
         this.employeeService = new EmployeeService(store, {
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
             spawn: async ({ employee, text, meta }) => {
-                const result = await this.spawnAndPrompt(employee.machineId, employee.directory, {
+                // On the machine's account pool, like task and scheduled sessions: a spent account
+                // moves the wake to the next one instead of greeting the employee with a quota wall.
+                const result = await this.spawnOnAccountPool(employee.machineId, employee.directory, {
                     agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
                     model: employee.model ?? undefined,
                     employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold }
@@ -754,7 +756,7 @@ export class SyncEngine {
                     text,
                     meta: { source: 'employee-wake', employeeId: employee.id, ...(meta ?? {}) },
                     permissionMode: (employee.permissionMode ?? undefined) as PermissionMode | undefined
-                })
+                }, null)
                 return result.type === 'success' ? { sessionId: result.sessionId } : { error: result.message }
             },
             resume: async (namespace, sessionId) => {
