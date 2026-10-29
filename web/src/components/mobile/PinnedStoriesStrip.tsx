@@ -130,9 +130,10 @@ export function PinnedStoriesStrip(props: {
     return (
         <div className="pb-1" role="group" aria-label={t('mobile.stories.pinned')}>
             {/* The inner row carries the side padding (WebKit leaves a scroller's own end padding out of
-                its scroll width) and moves with the edge bounce. */}
+                its scroll width) and moves with the edge bounce. 11px start = the 20px page gutter minus the
+                9px each side of a 46px circle in its 64px item, so the first circle lines up with the title. */}
             <div ref={scrollerRef} className="overflow-x-auto overscroll-x-none">
-                <div ref={rowRef} className="flex w-max gap-2 px-4 pb-3 pt-1">
+                <div ref={rowRef} className="flex w-max gap-2 pb-3 pl-[11px] pr-4 pt-1">
                     <button
                         type="button"
                         onClick={props.onNewSession}
