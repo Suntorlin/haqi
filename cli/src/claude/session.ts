@@ -6,7 +6,7 @@ import type { AgentStateRunningAgent, SessionModelMode, TeamMember, TeamState, T
 import type { EnhancedMode } from './loop';
 import type { PermissionMode } from './loop';
 import type { LocalLaunchExitReason } from '@/agent/localLaunchPolicy';
-import type { ClaudeHookEvent as SessionHookData } from './hooks';
+import { hookAdditionalContext, type ClaudeHookEvent as SessionHookData, type HookResponse, type SessionStartSource } from './hooks';
 import { readClaudeTeamSnapshotForSession } from './utils/claudeTeamSnapshot';
 import { applyRateLimitEvent, type SdkRateLimitInfo } from './utils/rateLimitSnapshot';
 import type { ClaudeUsageLimit } from '@hapi/protocol/schemas';
@@ -33,6 +33,7 @@ export class Session extends AgentSessionBase<EnhancedMode> {
     private teamSnapshotActivityKeys = new Set<string>();
     private teamSnapshotPoller: NodeJS.Timeout | null = null;
     private permissionModeChangeListeners = new Set<(mode: PermissionMode) => void>();
+    private sessionStartContext: ((source: SessionStartSource | undefined) => string | null) | null = null;
 
     constructor(opts: {
         api: ApiClient;
@@ -228,7 +229,12 @@ export class Session extends AgentSessionBase<EnhancedMode> {
         return entries.length === 0 ? undefined : entries[entries.length - 1];
     };
 
-    applyClaudeHookEvent = (data: SessionHookData): void => {
+    /** Text Claude gets as extra context when a conversation starts, resumes or comes back from compaction. */
+    setSessionStartContext = (provider: ((source: SessionStartSource | undefined) => string | null) | null): void => {
+        this.sessionStartContext = provider;
+    }
+
+    applyClaudeHookEvent = (data: SessionHookData): HookResponse | void => {
         if (data.hook_event_name === 'SessionStart') {
             const sessionId = data.session_id;
             if (sessionId && this.sessionId !== sessionId) {
@@ -236,7 +242,8 @@ export class Session extends AgentSessionBase<EnhancedMode> {
             }
             this.refreshClaudeTeamSnapshot();
             this.ensureClaudeTeamSnapshotPolling();
-            return;
+            const context = this.sessionStartContext?.(data.source);
+            return context ? hookAdditionalContext('SessionStart', context) : undefined;
         }
 
         if (data.hook_event_name === 'Notification') {

@@ -181,10 +181,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         onClaudeHook: (sessionId, data) => {
             logger.debug(`[START] Session hook received: ${sessionId}`, data);
 
-            const currentSession = currentSessionRef.current;
-            if (currentSession) {
-                currentSession.applyClaudeHookEvent(data);
-            }
+            return currentSessionRef.current?.applyClaudeHookEvent(data);
         }
     });
     logger.debug(`[START] Hook server started on port ${hookServer.port}`);
