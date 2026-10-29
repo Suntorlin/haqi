@@ -26,6 +26,9 @@ interface Settings {
   // Cloudflare Access service token, for a hub behind Access (env HAPI_CF_ACCESS_CLIENT_ID/SECRET win)
   cfAccessClientId?: string
   cfAccessClientSecret?: string
+  // Root of the notes vault (Obsidian) on this machine; employee homes live under it. Interim until the
+  // multi-machine module provides it.
+  vaultRoot?: string
 }
 
 const defaultSettings: Settings = {}

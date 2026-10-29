@@ -44,6 +44,7 @@ import { MemoryService, type MemoryNotice } from '../memory/service'
 import { TaskService, type TaskSession, type TaskSessionSettings } from '../tasks/taskService'
 import type { MachinesOffered } from '../tasks/plugins/context/machines'
 import { ACCOUNT_NOTE, SCHEDULE_TICK_MS, ScheduleService, type ScheduleAlert, type ScheduleSpawnInput, type ScheduleSpawnResult } from '../schedules/scheduleService'
+import { EMPLOYEE_SWEEP_INTERVAL_MS, EmployeeService } from './employeeService'
 import { TaskFiles, type TaskFileContent } from '../tasks/taskFiles'
 import { LoadService } from '../tasks/loadService'
 import { GuardService } from '../guard/guardService'
@@ -510,6 +511,8 @@ export class SyncEngine {
     private taskObserverTimer: NodeJS.Timeout | null = null
     private readonly scheduleService: ScheduleService
     private scheduleTimer: NodeJS.Timeout | null = null
+    private readonly employeeService: EmployeeService
+    private employeeSweepTimer: NodeJS.Timeout | null = null
 
     constructor(
         store: Store,
@@ -735,10 +738,56 @@ export class SyncEngine {
                 }
             }
         })
+        this.employeeService = new EmployeeService(store, {
+            machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
+            spawn: async ({ employee, text }) => {
+                const result = await this.spawnAndPrompt(employee.machineId, employee.directory, {
+                    agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
+                    model: employee.model ?? undefined,
+                    employee: { id: employee.id, name: employee.name, home: employee.homePath }
+                }, {
+                    text,
+                    meta: { source: 'employee-wake', employeeId: employee.id },
+                    permissionMode: (employee.permissionMode ?? undefined) as PermissionMode | undefined
+                })
+                return result.type === 'success' ? { sessionId: result.sessionId } : { error: result.message }
+            },
+            resume: async (namespace, sessionId) => {
+                const result = await this.resumeSession(sessionId, namespace)
+                return result.type === 'success' ? result.sessionId : null
+            },
+            send: async (sessionId, text) => {
+                if (!this.getSession(sessionId)?.active) return false
+                await this.sendMessage(sessionId, { text, sentFrom: 'webapp', meta: { source: 'employee-wake' } })
+                return true
+            },
+            session: (namespace, sessionId) => {
+                const session = this.getSessionByNamespace(sessionId, namespace)
+                if (!session) return null
+                return { active: session.active, summaryText: session.metadata?.summary?.text ?? null }
+            },
+            sessionEmployeeId: (namespace, sessionId) => this.getSessionByNamespace(sessionId, namespace)?.metadata?.employeeId ?? null,
+            rename: async (sessionId, name) => { await this.renameSession(sessionId, name) },
+            tag: async (sessionId, tags) => { await this.setSessionTags(sessionId, tags) },
+            fs: {
+                init: async (machineId, params) => { await this.rpcGateway.employeeDirInit(machineId, params) },
+                read: (machineId, params) => this.rpcGateway.employeeFsRead(machineId, params),
+                write: (machineId, params) => this.rpcGateway.employeeFsWrite(machineId, params),
+                stat: (machineId, params) => this.rpcGateway.employeeFsStat(machineId, params),
+                list: async (machineId, params) => (await this.rpcGateway.employeeFsList(machineId, params)).entries
+            },
+            maintain: (namespace) => this.memoryService.maintain(namespace),
+            changed: (namespace, employeeId) => this.eventPublisher.emit({ type: 'employee-updated', namespace, employeeId }),
+            alert: async (namespace, alert) => { await this.pushNotifier?.(namespace, { ...alert, tag: `employee:${alert.url}` }) },
+            timezone: () => Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
         if (store.getDatabasePath() !== ':memory:') {
             this.scheduleTimer = setInterval(() => {
                 void this.scheduleService.tick().catch((error: unknown) => console.warn('[Schedules] tick failed', error))
             }, SCHEDULE_TICK_MS)
+            this.employeeSweepTimer = setInterval(() => {
+                void this.employeeService.sweep().catch((error: unknown) => console.warn('[Employees] sweep failed', error))
+            }, EMPLOYEE_SWEEP_INTERVAL_MS)
             this.memoryHarvestKickoff = setTimeout(() => this.harvestMemories(), MEMORY_HARVEST_FIRST_DELAY_MS)
             this.memoryHarvestTimer = setInterval(() => this.harvestMemories(), MEMORY_HARVEST_INTERVAL_MS)
             this.taskObserverTimer = setInterval(() => this.observeTasks(), TASK_OBSERVER_INTERVAL_MS)
@@ -756,6 +805,10 @@ export class SyncEngine {
 
     getScheduleService(): ScheduleService {
         return this.scheduleService
+    }
+
+    getEmployeeService(): EmployeeService {
+        return this.employeeService
     }
 
     getHandoffService(): HandoffService {
@@ -829,6 +882,10 @@ export class SyncEngine {
         if (this.scheduleTimer) {
             clearInterval(this.scheduleTimer)
             this.scheduleTimer = null
+        }
+        if (this.employeeSweepTimer) {
+            clearInterval(this.employeeSweepTimer)
+            this.employeeSweepTimer = null
         }
         this.guardService.stop()
         this.handoffService.stop()
@@ -2221,7 +2278,8 @@ ${note.content}
         resumeSessionId?: string,
         previewUrl?: string | null,
         claudeAccount?: ClaudeAccountSelection,
-        sourceClaudeAccountId?: string
+        sourceClaudeAccountId?: string,
+        employee?: { id: string; name: string; home: string }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
         const resolvedAgent = agent ?? this.inferSpawnFlavor(machineId, directory)
         // The system switch overrides each caller: the task lead, a resume, the new-session form.
@@ -2238,7 +2296,8 @@ ${note.content}
             worktreeName,
             resumeSessionId,
             claudeAccount,
-            sourceClaudeAccountId
+            sourceClaudeAccountId,
+            employee
         )
 
         // The agent reports its permission mode only once it is running; remember the requested one now so a
@@ -2676,6 +2735,9 @@ ${note.content}
         // Both attempts keep it: if the runner lacks the account, the wake fails with the reason instead of
         // silently starting on the default login without the transcript.
         const pinnedAccount = flavor === 'claude' ? metadata.claudeAccount : undefined
+        // An employee session wakes as that employee: the new process needs the identity env again.
+        const ownerEmployee = metadata.employeeId ? this.store.employees.get(metadata.employeeId, namespace) : null
+        const employeeRef = ownerEmployee ? { id: ownerEmployee.id, name: ownerEmployee.name, home: ownerEmployee.homePath } : undefined
 
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
             targetMachine.id,
@@ -2689,7 +2751,8 @@ ${note.content}
             undefined,
             resumeSessionId,
             pinnedAccount ? { accountId: pinnedAccount.id, automatic: pinnedAccount.automatic } : undefined,
-            resumeSessionId ? pinnedAccount?.id : undefined
+            resumeSessionId ? pinnedAccount?.id : undefined,
+            employeeRef
         )
 
         // Sessions that never produced a native transcript have no resume token, and
@@ -2765,6 +2828,7 @@ ${note.content}
             claudeAccount?: ClaudeAccountSelection
             sessionType?: 'simple' | 'worktree'
             worktreeName?: string
+            employee?: { id: string; name: string; home: string }
         },
         prompt: { text: string; meta?: Record<string, unknown>; files?: TaskFileContent[]; permissionMode?: PermissionMode }
     ): Promise<{ type: 'success'; sessionId: string } | { type: 'error'; message: string }> {
@@ -2780,7 +2844,9 @@ ${note.content}
             options.worktreeName,
             undefined,
             undefined,
-            options.claudeAccount
+            options.claudeAccount,
+            undefined,
+            options.employee
         )
         if (spawned.type === 'error') return spawned
         if (!await this.waitForSessionActive(spawned.sessionId)) {

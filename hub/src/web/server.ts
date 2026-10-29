@@ -31,6 +31,7 @@ import type { ReportPublicBaseUrlSettings } from '../config/reportPublicBaseUrl'
 import { createSessionTaskRoutes } from './routes/sessionTasks'
 import { createTaskRoutes } from './routes/tasks'
 import { createScheduleRoutes } from './routes/schedules'
+import { createEmployeeRoutes } from './routes/employees'
 import { createInsightsRoutes } from './routes/insights'
 import { createSettingsRoutes } from './routes/settings'
 import type { SSEManager } from '../sse/sseManager'
@@ -144,6 +145,7 @@ function createWebApp(options: {
     app.route('/api', createSessionTaskRoutes(options.store))
     app.route('/api', createTaskRoutes(options.getSyncEngine))
     app.route('/api', createScheduleRoutes(options.getSyncEngine))
+    app.route('/api', createEmployeeRoutes(options.getSyncEngine))
     app.route('/api', createInsightsRoutes(options.getSyncEngine))
     const reportPublicBaseUrlState: { value: ReportPublicBaseUrlSettings } = {
         value: options.reportPublicBaseUrl

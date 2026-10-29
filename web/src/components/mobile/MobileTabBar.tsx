@@ -77,8 +77,9 @@ export function MobileTabBar(props: { active: MobileTab; sessionsBadge?: number 
 
 function getActiveTab(pathname: string): MobileTab {
     if (pathname.startsWith('/groups')) return 'groups'
-    // Review loops have no entry of their own any more; their pages light 我 (settings).
+    // Review loops and employees have no entry of their own; their pages light 我 (settings).
     if (pathname.startsWith('/review-loops')) return 'settings'
+    if (pathname.startsWith('/employees')) return 'settings'
     if (pathname.startsWith('/scheduled')) return 'scheduled'
     if (pathname.startsWith('/memory')) return 'memory'
     if (pathname.startsWith('/settings')) return 'settings'

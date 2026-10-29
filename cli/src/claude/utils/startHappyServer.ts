@@ -25,6 +25,10 @@ import {
     MEMORY_SEARCH_DESCRIPTION,
     memoryProposeInputSchema,
     memorySearchInputSchema,
+    EMPLOYEE_WHOAMI_DESCRIPTION,
+    EMPLOYEE_LOG_DESCRIPTION,
+    employeeWhoamiInputSchema,
+    employeeLogInputSchema,
     reportAddAssetInputSchema,
     reportCreateInputSchema,
     handoffFoldersInputSchema,
@@ -321,7 +325,8 @@ export async function startHappyServer(client: ApiSessionClient) {
         inputSchema: memorySearchInputSchema
     }, async (args: { query: string; limit?: number; tag?: string }) => {
         try {
-            const query = new URLSearchParams({ q: args.query, limit: String(args.limit ?? 8) });
+            // The session id scopes the search: an employee session sees the shared pool plus its own memories only.
+            const query = new URLSearchParams({ q: args.query, limit: String(args.limit ?? 8), sessionId: client.sessionId });
             if (args.tag) query.set('tag', args.tag);
             const payload = await requestHubJson(`/api/memories/search?${query.toString()}`);
             const hits = Array.isArray(payload.hits) ? payload.hits as JsonObject[] : [];
@@ -329,6 +334,36 @@ export async function startHappyServer(client: ApiSessionClient) {
             return { content: [{ type: 'text' as const, text: lines.length > 0 ? lines.join('\n') : 'No matching memory.' }], isError: false };
         } catch (error) {
             return buildToolError('Failed to search memory', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('employee_whoami', {
+        description: EMPLOYEE_WHOAMI_DESCRIPTION,
+        title: 'Employee Identity',
+        inputSchema: employeeWhoamiInputSchema
+    }, async () => {
+        try {
+            const payload = await requestHubJson(`/api/employees/whoami?sessionId=${encodeURIComponent(client.sessionId)}`);
+            return { content: [{ type: 'text' as const, text: summarizeJson(payload) }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to resolve employee identity', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('employee_log', {
+        description: EMPLOYEE_LOG_DESCRIPTION,
+        title: 'Employee Run Log',
+        inputSchema: employeeLogInputSchema
+    }, async (args: { kind: string; text: string; ref?: string }) => {
+        try {
+            const payload = await requestHubJson('/api/employees/log', {
+                method: 'POST',
+                body: JSON.stringify({ sessionId: client.sessionId, kind: args.kind, text: args.text, ref: args.ref })
+            });
+            const message = typeof payload.message === 'string' ? payload.message : 'Logged.';
+            return { content: [{ type: 'text' as const, text: message }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to write employee log', error);
         }
     });
 
@@ -765,6 +800,8 @@ export async function startHappyServer(client: ApiSessionClient) {
             'change_title',
             'memory_propose',
             'memory_search',
+            'employee_whoami',
+            'employee_log',
             'report_create',
             'report_update',
             'report_get',

@@ -406,6 +406,28 @@ export type ScheduleDetailResponse = {
     runs: import('@hapi/protocol/schedules').ScheduledRun[]
 }
 
+// ---- Digital employee types ----
+
+export type {
+    Employee,
+    EmployeeInput,
+    EmployeePatch,
+    EmployeeIssue
+} from '@hapi/protocol/schemas'
+
+export type EmployeesResponse = { employees: import('@hapi/protocol/schemas').Employee[] }
+
+export type EmployeeDetailResponse = {
+    employee: import('@hapi/protocol/schemas').Employee
+    openIssues: import('@hapi/protocol/schemas').EmployeeIssue[]
+}
+
+export type EmployeeWakeResponse = {
+    sessionId: string
+    /** sent = into the live session; resumed = woke it; created = a fresh main session with the state package. */
+    outcome: 'sent' | 'resumed' | 'created'
+}
+
 // ---- ReviewLoop types ----
 
 export type ReviewLoopStatus = 'executing' | 'reviewing' | 'waiting_user' | 'paused' | 'accepted' | 'aborted' | 'canceled'
@@ -530,6 +552,10 @@ export type MemoryItem = {
     jev: MemoryJevVerdict | null
     overridden: { level?: MemoryLevel; scope?: string } | null
     replaces: string | null
+    /** Owning employee; null = shared memory, visible to everyone. */
+    employeeId: string | null
+    /** Pinned memories are never merged, retired or rewritten by maintenance. */
+    pinned: boolean
     /** Tags of the session or task the memory came from. */
     tags: string[]
     version: number

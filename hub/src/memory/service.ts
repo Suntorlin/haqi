@@ -32,6 +32,8 @@ export type ProposeInput = {
     sourceRef?: string | null
     /** Tags for the memory; by default the user tags of `sessionId`. */
     tags?: string[]
+    /** The employee whose memory this is; null or absent = shared. */
+    employeeId?: string | null
 }
 
 /** One choice the user made in a task's guide step: the situation, the options, and what they chose. */
@@ -54,6 +56,8 @@ export type SearchFilter = {
     /** Global memories plus the ones scoped to this repository. */
     project?: string
     tag?: string
+    /** Absent: every memory (admin view). null: shared only. A string: shared plus that employee's own. */
+    employeeId?: string | null
 }
 
 export type ProposeResult = {
@@ -223,7 +227,10 @@ export class MemoryService {
             return { action: 'rejected', memoryId: null, message: '没记：内容里像是有密钥，原文没有保存，也没有发出去。' }
         }
 
-        const pool = this.store.memories.list(input.namespace).filter((m) => m.scope === '' || m.scope === input.project)
+        const employeeId = input.employeeId ?? null
+        // The candidate pool is the shared memories plus the proposing employee's own; another employee's stay invisible.
+        const pool = this.store.memories.list(input.namespace)
+            .filter((m) => (m.scope === '' || m.scope === input.project) && (m.employeeId === null || m.employeeId === employeeId))
         const apiKey = resolveJevApiKey(settings.jevApiKey)
         const vector = apiKey ? await this.embedOne(apiKey, text) : null
         const similar = this.neighbours(input.namespace, text, vector, pool)
@@ -251,7 +258,7 @@ export class MemoryService {
             const memory = this.store.memories.insert({
                 namespace: input.namespace, text, level: said ? 'principle' : 'experience', scope: said ? '' : input.project ?? '',
                 status, reason: `Jev 没判断：${jevProblem}`, source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId,
-                said, support: 1, jev: null, overridden: null, replaces: null, tags
+                said, support: 1, jev: null, overridden: null, replaces: null, tags, employeeId
             })
             this.saveVector(input.namespace, memory, vector)
             this.log({ ...base, memoryId: memory.id, action: status, text, reason: memory.reason, jev: null, costUsd: 0, latencyMs: 0 })
@@ -293,7 +300,7 @@ export class MemoryService {
         const memory = this.store.memories.insert({
             namespace: input.namespace, text, level: decision.level, scope, status: decision.status, reason: decision.reason,
             source: input.source, sourceLabel: input.sourceLabel, sessionId: input.sessionId, said, support: 1,
-            jev, overridden: null, replaces: null, tags
+            jev, overridden: null, replaces: null, tags, employeeId
         })
         this.saveVector(input.namespace, memory, vector)
         if (decision.link) {
@@ -344,7 +351,7 @@ export class MemoryService {
         return tags.filter((tag): tag is string => typeof tag === 'string' && !tag.includes(':'))
     }
 
-    edit(namespace: string, id: string, patch: { text?: string; level?: MemoryLevel; scope?: string }): StoredMemory | null {
+    edit(namespace: string, id: string, patch: { text?: string; level?: MemoryLevel; scope?: string; pinned?: boolean }): StoredMemory | null {
         const current = this.store.memories.get(id, namespace)
         if (!current) return null
         const jev = current.jev as StoredJev | null
@@ -357,6 +364,7 @@ export class MemoryService {
         if (jev && scope !== jevScope) overridden.scope = scope
         const updated = this.store.memories.update(id, namespace, {
             text, level, scope,
+            ...(patch.pinned !== undefined ? { pinned: patch.pinned } : {}),
             overridden: Object.keys(overridden).length > 0 ? overridden : null,
             bumpVersion: text !== current.text
         })
@@ -624,6 +632,7 @@ export class MemoryService {
                 if (memory.tags.length === 0 && memory.sessionId) {
                     this.store.memories.addTags(namespace, memory.id, this.sessionTags(namespace, memory.sessionId))
                 }
+                if (memory.pinned) continue
                 const next = this.underRule(memory, approved, backed)
                 if (!next) continue
                 this.store.memories.update(memory.id, namespace, next)
@@ -639,6 +648,7 @@ export class MemoryService {
             const now = Date.now()
             const mentions = this.store.memories.mentions(namespace, now - TRIAL.windowDays * DAY_MS)
             for (const memory of this.store.memories.list(namespace)) {
+                if (memory.pinned) continue
                 if (memory.status === 'candidate') {
                     const state = mentions.get(memory.id) ?? { recent: 0, lastAt: memory.createdAt }
                     if (this.promoteIfDue(namespace, memory.id, state)) result.promoted += 1
@@ -651,7 +661,8 @@ export class MemoryService {
                     const offer = this.store.memories.insert({
                         namespace, text: memory.text, level: 'principle', scope: memory.scope, status: 'pending',
                         reason: `这条经验被提到 ${memory.support} 次，要不要升为原则？`, source: memory.source, sourceLabel: memory.sourceLabel,
-                        sessionId: memory.sessionId, said: memory.said, support: memory.support, jev: memory.jev, overridden: null, replaces: memory.id
+                        sessionId: memory.sessionId, said: memory.said, support: memory.support, jev: memory.jev, overridden: null, replaces: memory.id,
+                        employeeId: memory.employeeId
                     })
                     this.quietLog(namespace, offer.id, 'pending', offer.text, offer.reason)
                     result.offered += 1
@@ -1051,6 +1062,8 @@ function matchesFilter(memory: StoredMemory, filter: SearchFilter): boolean {
     if (filter.statuses && !filter.statuses.includes(memory.status)) return false
     if (filter.project !== undefined && memory.scope !== '' && memory.scope !== filter.project) return false
     if (filter.tag && !memory.tags.includes(filter.tag.toLowerCase())) return false
+    // Absent: no employee filtering (the admin view). null: shared only. A string: shared plus that employee's own.
+    if (filter.employeeId !== undefined && memory.employeeId !== null && memory.employeeId !== filter.employeeId) return false
     return true
 }
 
@@ -1062,6 +1075,8 @@ function matchesFilter(memory: StoredMemory, filter: SearchFilter): boolean {
  */
 function mayMerge(a: StoredMemory, b: StoredMemory): boolean {
     const openOffer = (m: StoredMemory) => m.status === 'pending' && m.replaces !== null
+    // Each employee's memories stay their own: no merge across employees or into the shared pool. Pinned ones stay as written.
+    if (a.employeeId !== b.employeeId || a.pinned || b.pinned) return false
     return a.id !== b.id && a.replaces !== b.id && b.replaces !== a.id && !openOffer(a) && !openOffer(b)
 }
 

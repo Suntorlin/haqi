@@ -313,6 +313,27 @@ describe('Claude Session running agent state', () => {
         session.stopKeepAlive()
     })
 
+    it('answers SessionStart with the context provider text as additionalContext', () => {
+        const { session } = createSession()
+        const start = (source: 'startup' | 'compact') => session.applyClaudeHookEvent({
+            hook_event_name: 'SessionStart',
+            session_id: 'claude-session-1',
+            source
+        })
+
+        expect(start('compact')).toBeUndefined()
+
+        session.setSessionStartContext((source) => source === 'compact' ? 'state pack' : null)
+        expect(start('startup')).toBeUndefined()
+        const response = start('compact')
+        expect(response).toMatchObject({ exit_code: 0 })
+        expect(JSON.parse(response!.stdout!)).toEqual({
+            hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: 'state pack' }
+        })
+        session.stopClaudeTeamSnapshotPolling()
+        session.stopKeepAlive()
+    })
+
     it('forwards Elicitation as a session message and signals ready', () => {
         const { session, client } = createSession()
 
