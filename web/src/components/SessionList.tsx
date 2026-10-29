@@ -53,6 +53,9 @@ import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
 import type { SessionListDensity } from '@/hooks/useSessionListDensity'
 import { SessionAvatar, getProjectName, getSessionProjectPath } from '@/components/mobile/SessionAvatar'
+import { useEmployees } from '@/hooks/queries/useEmployees'
+import { tagLabel } from '@/lib/employee-tags'
+import type { Employee } from '@/types/api'
 import { getSnoozeUntil, getUserTags, isSessionPinned, isSessionSnoozed, withUserTags } from '@/lib/session-pins'
 import { formatSnoozeStatus } from '@/lib/session-snooze'
 import { SessionSnoozeDialog } from '@/components/SessionSnoozeDialog'
@@ -340,13 +343,13 @@ function FeedPreviewStatus(props: { session: SessionSummary; active: boolean; th
     )
 }
 
-function feedPreviewText(s: SessionSummary): string {
+function feedPreviewText(s: SessionSummary, employees: readonly Employee[]): string {
     const projectName = getProjectName(getSessionProjectPath(s))
     const model = s.metadata?.model?.trim() || s.modelMode || ''
     return [
         projectName,
         model && model !== 'default' ? shortModelName(model) : null,
-        ...getUserTags(s).map((tag) => `#${tag}`)
+        ...getUserTags(s).map((tag) => `#${tagLabel(tag, employees)}`)
     ].filter(Boolean).join(' · ')
 }
 
@@ -433,6 +436,7 @@ function SessionItem(props: {
     const snoozeUntil = isSessionSnoozed(s) ? getSnoozeUntil(s) : null
     const snoozeStatus = snoozeUntil === null ? null : formatSnoozeStatus(snoozeUntil, Date.now(), locale, t)
     const updateSnooze = (until: number | null) => snoozeSession(s, until)
+    const { employees } = useEmployees(props.api)
     const userTags = getUserTags(s)
     // Editing tags must not drop the pin or the snooze (both are stored as system tags).
     const saveUserTags = (tags: string[]) => setTags(withUserTags(s, tags))
@@ -521,7 +525,7 @@ function SessionItem(props: {
                                 <FeedPreviewStatus session={s} active={effectiveActive} thinking={effectiveThinking} />
                             </>
                         )}
-                        subtitle={feedPreviewText(s)}
+                        subtitle={feedPreviewText(s, employees)}
                         end={<FeedProgress session={s} />}
                     />
                 ) : (
@@ -579,7 +583,7 @@ function SessionItem(props: {
                                         key={tag}
                                         className="rounded-full bg-[var(--social-muted)] px-2 py-0.5 text-caption text-[var(--social-fg-muted)]"
                                     >
-                                        #{tag}
+                                        #{tagLabel(tag, employees)}
                                     </span>
                                 ))}
                             </div>

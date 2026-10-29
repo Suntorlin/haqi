@@ -53,6 +53,7 @@ import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useMessages } from '@/hooks/queries/useMessages'
 import { useConversationTurns } from '@/hooks/queries/useConversationTurns'
+import { useEmployees } from '@/hooks/queries/useEmployees'
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useSession } from '@/hooks/queries/useSession'
 import { useSessions } from '@/hooks/queries/useSessions'
@@ -88,6 +89,7 @@ import { safeCopyToClipboard } from '@/lib/clipboard'
 import { cn } from '@/lib/utils'
 import { ProgressOrb, type ReportTone } from '@/components/report'
 import { filterSessionsBySearch } from '@/lib/session-search'
+import { tagLabel } from '@/lib/employee-tags'
 import { getUserTags, isSessionPinned, isSessionSnoozed } from '@/lib/session-pins'
 import { useMinuteClock } from '@/hooks/useMinuteClock'
 import { useSessionPin, useSessionSnooze } from '@/hooks/mutations/useSessionPin'
@@ -146,8 +148,8 @@ function toNewSessionSearch(preset?: NewSessionPreset): NewSessionSearch {
     return next
 }
 
-function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: () => void }) {
-    const { tag, selected, onSelect } = props
+function SortableSessionTag(props: { tag: string; label: string; selected: boolean; onSelect: () => void }) {
+    const { tag, label, selected, onSelect } = props
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tag })
 
     return (
@@ -160,7 +162,7 @@ function SortableSessionTag(props: { tag: string; selected: boolean; onSelect: (
             style={{ transform: CSS.Transform.toString(transform), transition }}
             className={`${tagChipClass(selected)} cursor-grab select-none active:cursor-grabbing ${isDragging ? 'z-10 opacity-70' : ''}`}
         >
-            <FitText kind="label" lines={1} text={`#${tag}`} />
+            <FitText kind="label" lines={1} text={`#${label}`} />
         </button>
     )
 }
@@ -234,6 +236,7 @@ function persistMobileSessionListMode(mode: MobileSessionListMode): void {
 
 function SessionsPage() {
     const { api } = useAppContext()
+    const { employees } = useEmployees(api)
     const navigate = useNavigate()
     const queryClient = useQueryClient()
     const pathname = useLocation({ select: location => location.pathname })
@@ -578,7 +581,7 @@ function SessionsPage() {
                             onClick={() => selectTagView(tag)}
                             className={tagChipClass(selectedSessionTag === tag)}
                         >
-                            <FitText kind="label" lines={1} text={`#${tag}`} />
+                            <FitText kind="label" lines={1} text={`#${tagLabel(tag, employees)}`} />
                         </button>
                     )) : (
                         // Desktop keeps drag-to-reorder for tag filters.
@@ -588,6 +591,7 @@ function SessionsPage() {
                                     <SortableSessionTag
                                         key={tag}
                                         tag={tag}
+                                        label={tagLabel(tag, employees)}
                                         selected={selectedSessionTag === tag}
                                         onSelect={() => selectTagView(tag)}
                                     />
