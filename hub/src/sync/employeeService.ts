@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 
-import type { EmployeeInput, EmployeeLogKind, EmployeePatch } from '@hapi/protocol/schemas'
+import type { EmployeeInput, EmployeeLogKind, EmployeePatch, EmployeeSessionView } from '@hapi/protocol/schemas'
 import type { Store, StoredEmployee, StoredEmployeeIssue } from '../store'
-import type { StoredEmployeeReview, StoredMemory } from '../store/types'
+import type { StoredEmployeeReview, StoredEmployeeSession, StoredMemory } from '../store/types'
 import { changedLines, dayInZone, diffMemoryView, hourInZone, renderMemoryView, timeInZone, weekdayInZone } from './employeeMemoryView'
 
 /** Open this long without a fix, the user hears about it once; then again after every reminder gap. */
@@ -52,7 +52,14 @@ export type EmployeeSessionState = {
     /** Mid-turn or waiting on a permission: the daily reset leaves a busy main session alone. */
     busy: boolean
     summaryText: string | null
+    /** The session's display name; null when it has none yet. */
+    title?: string | null
+    tags?: string[]
+    createdAt?: number
 }
+
+/** Clones running at once per employee; one more is refused, so a loop of spawns cannot run up the bill. */
+export const MAX_LIVE_CLONES = 5
 
 /** After this many compactions the next wake starts a fresh main session (repeated summaries drift). */
 const MAX_MAIN_SESSION_COMPACTIONS = 3
@@ -66,6 +73,32 @@ export type EmployeeWakeResult = {
 /** Extra message meta a wake carries into the session (e.g. the inbound taint); merged over the default wake meta. */
 export type WakeMeta = Record<string, unknown>
 
+export type EmployeeCloneResult = {
+    sessionId: string
+    /** created: a new clone; sent: a live clone with the same key got the job. */
+    outcome: 'created' | 'sent'
+}
+
+/** What a line into the employee's work group is: a note for the record, or a message the target sessions receive. */
+export type EmployeeGroupLine =
+    | { kind: 'system'; text: string }
+    | { kind: 'command'; fromSessionId: string; targetSessionIds: string[]; text: string }
+
+export type EmployeeSendResult = {
+    delivered: string[]
+    failed: Array<{ sessionId: string; error: string }>
+}
+
+/**
+ * The employee's work group: one chat group per employee that every main session and clone joins. Messages between
+ * the sessions go through it, so the user reads them on one timeline and the group routing wakes offline targets.
+ */
+export interface EmployeeGroupHost {
+    ensure(namespace: string, employee: StoredEmployee): string
+    join(namespace: string, groupId: string, sessionIds: string[]): void
+    post(namespace: string, groupId: string, line: EmployeeGroupLine): Promise<EmployeeSendResult>
+}
+
 export type EmployeeFs = {
     init(machineId: string, params: { home: string; name: string; emoji?: string | null }): Promise<void>
     read(machineId: string, params: { home: string; path: string }): Promise<{ exists: boolean; content: string; mtimeMs: number }>
@@ -76,7 +109,7 @@ export type EmployeeFs = {
 
 export interface EmployeeHost {
     machineOnline(namespace: string, machineId: string): boolean
-    spawn(input: { namespace: string; employee: StoredEmployee; text: string; meta?: WakeMeta }): Promise<{ sessionId: string } | { error: string }>
+    spawn(input: { namespace: string; employee: StoredEmployee; text: string; meta?: WakeMeta; role: 'main' | 'clone' }): Promise<{ sessionId: string } | { error: string }>
     /** Resume a hub session; null when it could not come back. Returns the session's id, which may be a new one. */
     resume(namespace: string, sessionId: string): Promise<string | null>
     send(sessionId: string, text: string, meta?: WakeMeta): Promise<boolean>
@@ -88,6 +121,7 @@ export interface EmployeeHost {
     rename(sessionId: string, name: string): Promise<void>
     tag(sessionId: string, tags: string[]): Promise<void>
     fs: EmployeeFs
+    group: EmployeeGroupHost
     /** The memory housekeeping pass (MemoryService.maintain), reused for the nightly consolidation. */
     maintain(namespace: string): Promise<unknown>
     changed(namespace: string, employeeId: string): void
@@ -243,8 +277,13 @@ export class EmployeeService {
      * main_session_id back, so two triggers cannot race into two main sessions.
      */
     async wake(namespace: string, employeeId: string, options: { source: string; text?: string; meta?: WakeMeta }): Promise<EmployeeWakeResult> {
+        return await this.withLock(employeeId, () => this.wakeLocked(namespace, employeeId, options))
+    }
+
+    /** Wakes and clone spawns of one employee share one lock: the clone count and main_session_id never race. */
+    private async withLock<T>(employeeId: string, work: () => Promise<T>): Promise<T> {
         const previous = this.wakeLocks.get(employeeId) ?? Promise.resolve()
-        const run = previous.catch(() => {}).then(() => this.wakeLocked(namespace, employeeId, options))
+        const run = previous.catch(() => {}).then(work)
         this.wakeLocks.set(employeeId, run.catch(() => {}))
         return await run
     }
@@ -282,7 +321,7 @@ export class EmployeeService {
         }
         const statePackage = await this.buildStatePackage(namespace, employee)
         const first = [statePackage, text].filter(Boolean).join('\n\n')
-        const spawned = await this.host.spawn({ namespace, employee, text: first, meta: options.meta })
+        const spawned = await this.host.spawn({ namespace, employee, text: first, meta: options.meta, role: 'main' })
         if ('error' in spawned) throw new EmployeeError(`主会话启动失败：${spawned.error}`, 502)
         this.store.employees.update(employeeId, namespace, {
             mainSessionId: spawned.sessionId,
@@ -292,8 +331,218 @@ export class EmployeeService {
         await this.host.rename(spawned.sessionId, `${employee.emoji ? `${employee.emoji} ` : ''}${employee.name}`).catch(() => {})
         await this.host.tag(spawned.sessionId, [`employee:${employee.id}`]).catch(() => {})
         this.registerRunLog(spawned.sessionId, employee)
+        this.joinWorkGroup(namespace, employee, [spawned.sessionId])
         this.host.changed(namespace, employeeId)
         return { sessionId: spawned.sessionId, outcome: 'created' }
+    }
+
+    // ─── Clones: side sessions, one job each ─────────────────────────────────────
+
+    /**
+     * A clone: a new session with the employee's identity that does one job next to the main session. The user
+     * (spawnedBy null) or the employee's main session can send one; a clone or task session cannot, so there is only
+     * one level. A named clone (key) takes the next job with the same key while it is alive.
+     */
+    async spawnClone(namespace: string, employeeId: string, input: { text: string; title?: string; key?: string; spawnedBy: string | null }): Promise<EmployeeCloneResult> {
+        return await this.withLock(employeeId, () => this.spawnCloneLocked(namespace, employeeId, input))
+    }
+
+    private async spawnCloneLocked(namespace: string, employeeId: string, input: { text: string; title?: string; key?: string; spawnedBy: string | null }): Promise<EmployeeCloneResult> {
+        const employee = this.get(namespace, employeeId)
+        if (employee.status !== 'active') throw new EmployeeError(`员工状态是 ${employee.status}，不能开分身`, 409)
+        const text = input.text.trim()
+        if (!text) throw new EmployeeError('分身要有一件具体的事', 400)
+        if (input.spawnedBy) {
+            const row = this.store.employees.session(input.spawnedBy, namespace)
+            const owner = row?.employeeId ?? this.host.sessionEmployeeId(namespace, input.spawnedBy)
+            if (owner !== employeeId) throw new EmployeeError('只能给自己开分身', 403)
+            if (row) {
+                throw new EmployeeError(`${row.role === 'clone' ? '分身' : '任务会话'}不能再开分身。活太大就用 task_escalate 拆成任务。`, 409)
+            }
+        }
+
+        const clones = this.store.employees.sessions(namespace, employeeId, 100).filter((row) => row.role === 'clone')
+        if (input.key) {
+            const named = clones.find((row) => row.key === input.key && this.host.session(namespace, row.sessionId)?.active)
+            if (named && await this.host.send(named.sessionId, this.cloneJob(text, input.spawnedBy), { source: 'employee-clone' })) {
+                await this.appendRunLog(namespace, employee, named.sessionId, 'goal', `新任务：${excerpt(text, 200)}`)
+                return { sessionId: named.sessionId, outcome: 'sent' }
+            }
+        }
+        const running = clones.filter((row) => this.host.session(namespace, row.sessionId)?.active).length
+        if (running >= MAX_LIVE_CLONES) {
+            throw new EmployeeError(`已有 ${running} 个分身在跑（上限 ${MAX_LIVE_CLONES}）。等它们做完，或先关掉一个。`, 429)
+        }
+        if (!this.host.machineOnline(namespace, employee.machineId)) {
+            throw new EmployeeError('员工的默认机器不在线，无法开分身', 503)
+        }
+
+        const title = excerpt(input.title?.trim() || text, 40)
+        const statePackage = await this.buildStatePackage(namespace, employee)
+        const brief = this.cloneBrief(employee, text, input.spawnedBy)
+        const spawned = await this.host.spawn({
+            namespace, employee, text: `${statePackage}\n\n${brief}`, meta: { source: 'employee-clone' }, role: 'clone'
+        })
+        if ('error' in spawned) throw new EmployeeError(`分身启动失败：${spawned.error}`, 502)
+        const sessionId = spawned.sessionId
+        await this.host.rename(sessionId, `${employee.emoji ? `${employee.emoji} ` : ''}${employee.name} · ${title}`).catch(() => {})
+        await this.host.tag(sessionId, [
+            `employee:${employee.id}`, 'employee-clone', ...(input.key ? [`employee:${employee.id}:${input.key}`] : [])
+        ]).catch(() => {})
+        this.store.employees.insertSession({
+            sessionId, namespace, employeeId, role: 'clone', title, task: text, spawnedBy: input.spawnedBy, key: input.key ?? null, createdAt: this.now()
+        })
+        this.registerRunLog(sessionId, employee)
+        await this.appendRunLog(namespace, employee, sessionId, 'goal', `分身任务：${excerpt(text, 200)}`)
+
+        const groupId = this.joinWorkGroup(namespace, employee, [employee.mainSessionId, input.spawnedBy, sessionId])
+        if (groupId) {
+            const who = input.spawnedBy ? this.describeSession(namespace, employee, input.spawnedBy) : '用户'
+            await this.host.group.post(namespace, groupId, {
+                kind: 'system', text: `${who} 开了分身「${title}」（${sessionId.slice(0, 8)}）：${excerpt(text, 200)}`
+            }).catch(() => {})
+        }
+        this.host.changed(namespace, employeeId)
+        return { sessionId, outcome: 'created' }
+    }
+
+    /** What a clone is told after the state package: it is a clone, its one job, where the result goes, the rules. */
+    private cloneBrief(employee: StoredEmployee, text: string, spawnedBy: string | null): string {
+        const replyTo = spawnedBy
+            ? `做完用 employee_send 把结果发给派活的会话（to = ${spawnedBy}）。`
+            : '派活的是用户：结果写进 employee_log 的 done，用户在网页上看。'
+        return [
+            '[HAQI 分身任务]',
+            `你是「${employee.name}」的分身，不是总管。总管是主会话${employee.mainSessionId ? ` ${employee.mainSessionId}` : '（现在没有在线的主会话）'}。`,
+            `派你来的：${spawnedBy ? `会话 ${spawnedBy}` : '用户'}。`,
+            '你的任务：',
+            text,
+            '',
+            '规则：',
+            '1. 只做这一件事。开始用 employee_log 记 goal，做完记 done，写清结果。',
+            `2. ${replyTo}`,
+            '3. 要别的分身或总管配合：employee_sessions 看谁在线，employee_send 发消息。',
+            '4. 你不能再开分身。活太大，用 task_escalate 拆成任务。',
+            '5. 不要直接改 SOUL.md、AGENTS.md、MEMORY.md。值得长期记住的经验用 memory_propose 提交，由 HAQI 统一写进 MEMORY.md。'
+        ].join('\n')
+    }
+
+    /** A job for a live named clone: the same rules, a new task. */
+    private cloneJob(text: string, spawnedBy: string | null): string {
+        return [
+            '[HAQI 分身新任务]',
+            text,
+            '',
+            spawnedBy ? `做完用 employee_send 把结果发给派活的会话（to = ${spawnedBy}）。` : '做完用 employee_log 记 done，写清结果。'
+        ].join('\n')
+    }
+
+    /**
+     * Every session of the employee with its role: the main session, clones and task sessions (rows), scheduled runs
+     * (tag). Live ones first, then newest first.
+     */
+    sessions(namespace: string, employeeId: string): EmployeeSessionView[] {
+        const employee = this.get(namespace, employeeId)
+        const rows = new Map(this.store.employees.sessions(namespace, employeeId, 100).map((row) => [row.sessionId, row]))
+        const ids = new Set<string>([...this.store.sessions.idsForEmployee(namespace, employeeId), ...rows.keys()])
+        if (employee.mainSessionId) ids.add(employee.mainSessionId)
+        const views: EmployeeSessionView[] = []
+        for (const sessionId of ids) {
+            const state = this.host.session(namespace, sessionId)
+            const row = rows.get(sessionId)
+            if (!state && !row) continue
+            views.push(this.toView(employee, sessionId, state, row ?? null))
+        }
+        return views.sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt)
+    }
+
+    private toView(employee: StoredEmployee, sessionId: string, state: EmployeeSessionState | null, row: StoredEmployeeSession | null): EmployeeSessionView {
+        const role = sessionId === employee.mainSessionId
+            ? 'main'
+            : row?.role ?? ((state?.tags ?? []).includes('scheduled') ? 'scheduled' : 'other')
+        return {
+            sessionId,
+            role,
+            title: row?.title ?? state?.title ?? sessionId.slice(0, 8),
+            task: row?.task ?? null,
+            spawnedBy: row ? (row.spawnedBy ?? 'user') : null,
+            active: state?.active ?? false,
+            busy: state?.busy ?? false,
+            result: row?.result ?? null,
+            resultAt: row?.resultAt ?? null,
+            createdAt: row?.createdAt ?? state?.createdAt ?? 0
+        }
+    }
+
+    /** 总管, 分身「x」 or 任务会话「x」: how one session of the employee is named to the others. */
+    private describeSession(namespace: string, employee: StoredEmployee, sessionId: string): string {
+        if (sessionId === employee.mainSessionId) return '总管'
+        const row = this.store.employees.session(sessionId, namespace)
+        if (row) return `${row.role === 'clone' ? '分身' : '任务会话'}「${row.title}」`
+        return `会话 ${sessionId.slice(0, 8)}`
+    }
+
+    /**
+     * A message from one session of the employee to another: `main` (woken if needed), `all` live sessions, or one
+     * session id (a unique 8-character prefix works). It goes through the work group, so the user sees it on the
+     * timeline and an offline target is woken.
+     */
+    async send(namespace: string, fromSessionId: string, to: string, text: string): Promise<EmployeeSendResult & { message: string }> {
+        const employee = this.employeeForSession(namespace, fromSessionId)
+        const body = text.trim()
+        if (!body) throw new EmployeeError('消息是空的', 400)
+        let targets: string[]
+        if (to === 'main') {
+            if (employee.mainSessionId === fromSessionId) throw new EmployeeError('你就是总管。给分身发消息要写分身的会话 id（employee_sessions 里有）', 400)
+            targets = [(await this.wake(namespace, employee.id, { source: 'employee-send' })).sessionId]
+        } else if (to === 'all') {
+            targets = this.sessions(namespace, employee.id)
+                .filter((view) => view.active && view.sessionId !== fromSessionId && (view.role === 'main' || view.role === 'clone'))
+                .map((view) => view.sessionId)
+            if (targets.length === 0) throw new EmployeeError('没有别的在线会话', 404)
+        } else {
+            const matches = this.sessions(namespace, employee.id).filter((view) => view.sessionId === to || (to.length >= 8 && view.sessionId.startsWith(to)))
+            if (matches.length !== 1) {
+                throw new EmployeeError(matches.length === 0 ? `「${to}」不是你的会话。用 employee_sessions 看列表` : `「${to}」对上了 ${matches.length} 个会话，写完整 id`, 404)
+            }
+            if (matches[0]!.sessionId === fromSessionId) throw new EmployeeError('不能发给自己', 400)
+            targets = [matches[0]!.sessionId]
+        }
+
+        const groupId = this.joinWorkGroup(namespace, employee, [fromSessionId, ...targets])
+        if (!groupId) throw new EmployeeError('员工工作群建不起来，消息没发出去', 502)
+        const from = this.describeSession(namespace, employee, fromSessionId)
+        const result = await this.host.group.post(namespace, groupId, {
+            kind: 'command',
+            fromSessionId,
+            targetSessionIds: targets,
+            text: `[${from}（${fromSessionId}）发来] ${body}\n（要回复就用 employee_send 发回 to = ${fromSessionId}）`
+        })
+        await this.appendRunLog(namespace, employee, fromSessionId, 'note',
+            `发给 ${targets.map((id) => this.describeSession(namespace, employee, id)).join('、')}：${excerpt(body, 200)}`)
+        const message = result.failed.length === 0
+            ? `已发给 ${result.delivered.length} 个会话。`
+            : `送达 ${result.delivered.length} 个，失败 ${result.failed.length} 个：${result.failed.map((item) => `${item.sessionId.slice(0, 8)} ${item.error}`).join('；')}`
+        return { ...result, message }
+    }
+
+    /** Puts the sessions into the employee's work group; returns the group id, or null when the group failed (best effort). */
+    private joinWorkGroup(namespace: string, employee: StoredEmployee, sessionIds: Array<string | null>): string | null {
+        try {
+            const groupId = this.host.group.ensure(namespace, employee)
+            const ids = [...new Set(sessionIds.filter((id): id is string => Boolean(id)))]
+            if (ids.length > 0) this.host.group.join(namespace, groupId, ids)
+            return groupId
+        } catch (error) {
+            console.warn('[Employees] work group failed', error)
+            return null
+        }
+    }
+
+    /** The work group id when it exists already, for the web link; never creates one. */
+    workGroupId(namespace: string, employeeId: string): string | null {
+        return this.store.groups.getGroupsByNamespace(namespace)
+            .find((group) => group.kind === 'chat' && group.employeeId === employeeId)?.id ?? null
     }
 
     /**
@@ -324,6 +573,12 @@ export class EmployeeService {
             for (const review of lessons) {
                 lines.push(`- [${dayInZone(review.periodEnd, employee.timezone)} · ${review.score} 分] ${review.lesson}`)
             }
+        }
+        const clones = this.store.employees.sessions(namespace, employee.id, 100)
+            .filter((row) => row.role === 'clone' && this.host.session(namespace, row.sessionId)?.active)
+        if (clones.length > 0) {
+            lines.push('正在运行的分身（用 employee_send 联系，employee_sessions 看详情）：')
+            for (const row of clones) lines.push(`- ${row.title}（${row.sessionId}）：${excerpt(row.task, 120)}`)
         }
         const logs = await this.recentRunLogExcerpts(namespace, employee, 2)
         if (logs.length > 0) {
@@ -383,7 +638,7 @@ export class EmployeeService {
 
     /** The employee a session acts as, from its metadata; sessions without one get an error from the tools. */
     employeeForSession(namespace: string, sessionId: string): StoredEmployee {
-        const employeeId = this.host.sessionEmployeeId(namespace, sessionId)
+        const employeeId = this.host.sessionEmployeeId(namespace, sessionId) ?? this.store.employees.session(sessionId, namespace)?.employeeId ?? null
         const employee = employeeId ? this.store.employees.get(employeeId, namespace) : null
         if (!employee) throw new EmployeeError('这个会话不属于任何数字员工', 404)
         return employee
@@ -407,6 +662,10 @@ export class EmployeeService {
             issue = this.store.employees.closeIssue(namespace, employee.id, text, ref)
             message = issue ? `已关闭遗留问题（出现过 ${issue.seenCount} 次）。` : '没找到对应的 open 问题，只写了日志。'
             if (issue) this.host.changed(namespace, employee.id)
+        }
+        if (kind === 'done' && this.store.employees.session(sessionId, namespace)) {
+            this.store.employees.setSessionResult(sessionId, namespace, text, this.now())
+            this.host.changed(namespace, employee.id)
         }
         const logged = await this.appendRunLog(namespace, employee, sessionId, kind, text, ref)
         if (!logged) message += ' 日志文件暂时写不进去（机器离线）。'
@@ -853,6 +1112,11 @@ export class EmployeeService {
             }
         }
     }
+}
+
+function excerpt(text: string, max: number): string {
+    const flat = text.replace(/\s+/g, ' ').trim()
+    return flat.length > max ? `${flat.slice(0, max - 1)}…` : flat
 }
 
 function sanitizePathSegment(name: string): string {

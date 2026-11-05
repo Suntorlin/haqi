@@ -55,7 +55,11 @@ export function createScheduleRoutes(getSyncEngine: () => SyncEngine | null): Ho
                 machineId: metadata?.machineId,
                 directory: metadata?.worktree?.basePath ?? metadata?.path,
                 agent: metadata?.flavor ?? 'claude',
-                ...(metadata?.model ? { model: metadata.model } : {})
+                ...(metadata?.model ? { model: metadata.model } : {}),
+                // An employee's session schedules work for that employee: the runs carry its identity.
+                ...(metadata?.employeeId && ctx.engine.getEmployeeService().list(namespace).some((employee) => employee.id === metadata.employeeId)
+                    ? { employeeId: metadata.employeeId }
+                    : {})
             }
         }
         const parsed = ScheduledTaskInputSchema.safeParse({ ...defaults, ...body })

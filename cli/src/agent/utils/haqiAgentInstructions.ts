@@ -229,8 +229,32 @@ export function loadEmployeeIdentityBlock(): string | null {
         Act by SOUL.md (persona and boundaries) and AGENTS.md (duties and standards); MEMORY.md is your long-term memory.
         Record what you do with the mcp__haqi__employee_log tool (goal / done / decision / todo / issue_open / issue_close / note).
         Call mcp__haqi__employee_whoami when you need your own identity or current state.
+        mcp__haqi__employee_sessions lists your other sessions; mcp__haqi__employee_send messages one of them.
+        HAQI writes MEMORY.md from the memory database: do not edit it yourself; propose a lasting lesson with mcp__haqi__memory_propose. Change SOUL.md or AGENTS.md only when the user asks.
     `)
-    return [preface, ...blocks].join('\n\n')
+    return [preface, employeeRoleLine(process.env.HAPI_EMPLOYEE_ROLE?.trim()), ...blocks].filter(Boolean).join('\n\n')
+}
+
+/** What this session is among the employee's sessions; the runner sets HAPI_EMPLOYEE_ROLE at spawn. */
+function employeeRoleLine(role: string | undefined): string | null {
+    switch (role) {
+        case 'main':
+            return trimIdent(`
+                You are the main session: you take the user's requests and keep the overview.
+                For an independent job that can run in parallel, start a clone with mcp__haqi__employee_spawn (at most 5 at once); the clone reports back to you.
+                For a large code change, use mcp__haqi__task_escalate.
+            `)
+        case 'clone':
+            return trimIdent(`
+                You are a clone: a side session that does the one job in your first message, not the main session.
+                When the job is done, log it as done and report the result with mcp__haqi__employee_send to the session that sent you (the user, when none did, reads the log).
+                You cannot start clones. If the job is too large, use mcp__haqi__task_escalate.
+            `)
+        case 'worker':
+            return 'You work on a HAQI task for this employee. The task instructions in your first message come first; your identity sets the tone and the standards.'
+        default:
+            return null
+    }
 }
 
 export function buildPromptWithHaqiAgentInstructions(basePrompt: string, startDir: string): string {

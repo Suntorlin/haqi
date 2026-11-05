@@ -711,9 +711,31 @@ export const EmployeeSpawnRefSchema = z.object({
     name: z.string(),
     home: z.string(),
     /** Context share at which the CLI compacts the session itself; default 0.75 when absent. */
-    compactThreshold: z.number().optional()
+    compactThreshold: z.number().optional(),
+    /** main: the employee's main session; clone: a side session doing one job; worker: a task session for the employee. */
+    role: z.enum(['main', 'clone', 'worker']).optional()
 })
 export type EmployeeSpawnRef = z.infer<typeof EmployeeSpawnRefSchema>
+
+export const EmployeeSessionRoleSchema = z.enum(['main', 'clone', 'worker', 'scheduled', 'other'])
+export type EmployeeSessionRole = z.infer<typeof EmployeeSessionRoleSchema>
+
+/** One session of an employee as the sessions list shows it: what it is for, who sent it, and what it reported. */
+export type EmployeeSessionView = {
+    sessionId: string
+    role: EmployeeSessionRole
+    title: string
+    /** The job a clone or task session was given; null for the main session and unknown ones. */
+    task: string | null
+    /** The session that sent the job; `user` for the web; `task:<id>` for a task session. */
+    spawnedBy: string | null
+    active: boolean
+    busy: boolean
+    /** The last `done` line the session logged. */
+    result: string | null
+    resultAt: number | null
+    createdAt: number
+}
 
 export const EmployeeInputSchema = z.object({
     ...employeeFields,

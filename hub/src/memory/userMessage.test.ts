@@ -36,6 +36,11 @@ describe('realUserText', () => {
         expect(realUserText(message('[HAQI 状态包] 你是数字员工「小鱼」。'))).toBeNull()
         expect(realUserText(message('[HAQI 任务交付] 任务完成。'))).toBeNull()
         expect(realUserText(message('[HAQI 入站消息 · webhook] 下面的内容来自外部。'))).toBeNull()
+        // Clones and the messages between an employee's sessions.
+        expect(realUserText(message('再看一次 CI', { source: 'employee-clone' }))).toBeNull()
+        expect(realUserText(message('[HAQI 分身新任务]\n再看一次 CI'))).toBeNull()
+        expect(realUserText(message('[分身「跑回归」（abc12345-0000）发来] 回归全过了'))).toBeNull()
+        expect(realUserText(message('[总管（abc12345-0000）发来] 再查一下日志'))).toBeNull()
         expect(realUserText(message('上下文快满了。用 employee_log 工具把当前目标、已做决策、待办和遗留问题记进运行日志，不要做别的事。'))).toBeNull()
     })
 

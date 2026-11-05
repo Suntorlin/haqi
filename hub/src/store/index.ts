@@ -51,6 +51,7 @@ export type {
     StoredEmployee,
     StoredEmployeeIssue,
     StoredEmployeeMemoryView,
+    StoredEmployeeSession,
     StoredSession,
     StoredSessionGuard,
     StoredHandoffExport,
@@ -110,7 +111,8 @@ const REQUIRED_TABLES = [
     'employees',
     'employee_issues',
     'employee_memory_views',
-    'employee_reviews'
+    'employee_reviews',
+    'employee_sessions'
 ] as const
 
 export class Store {

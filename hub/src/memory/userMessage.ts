@@ -9,7 +9,7 @@ import { userText } from './extract'
 const INJECTED_META = ['routeContext', 'teamControl', 'taskGuide', 'taskWork'] as const
 
 /** `meta.source` values of messages HAQI sends into employee sessions (wakes, scheduled prompts, deliveries, inbound). */
-const INJECTED_SOURCES = new Set(['employee-wake', 'scheduled-task', 'task-deliver', 'inbound'])
+const INJECTED_SOURCES = new Set(['employee-wake', 'employee-clone', 'scheduled-task', 'task-deliver', 'inbound'])
 
 /**
  * Claude echoes a queued message back without its meta, so the injected ones are also known by their text.
@@ -25,6 +25,9 @@ const INJECTED_TEXT = [
     /^\[HAQI 状态包\]/,
     /^\[HAQI 任务交付\]/,
     /^\[HAQI 入站消息/,
+    /^\[HAQI 分身新任务\]/,
+    // employee_send: one session of an employee messaging another (EmployeeService.send).
+    /^\[(?:总管|分身「|任务会话「|会话 )[^\]\n]*发来\]/,
     // The compaction flush prompt the CLI injects before /compact (compactPilot's FLUSH_MESSAGE).
     /^上下文快满了。用 employee_log 工具/
 ]

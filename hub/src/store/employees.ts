@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite'
 import { randomUUID } from 'node:crypto'
 
-import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView, StoredEmployeeReview } from './types'
+import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView, StoredEmployeeReview, StoredEmployeeSession } from './types'
 
 /**
  * Digital employees, their open loose ends (issues live apart from memories: an issue opens, repeats and closes,
@@ -76,6 +76,23 @@ export const EMPLOYEE_SCHEMA_SQL = `
     );
     CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_reviews_period
         ON employee_reviews(employee_id, period_start);
+
+    CREATE TABLE IF NOT EXISTS employee_sessions (
+        session_id TEXT PRIMARY KEY,
+        namespace TEXT NOT NULL DEFAULT 'default',
+        employee_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        title TEXT NOT NULL,
+        task TEXT NOT NULL,
+        spawned_by TEXT,
+        key TEXT,
+        result TEXT,
+        result_at INTEGER,
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_employee_sessions_employee
+        ON employee_sessions(employee_id, created_at);
 `
 
 type DbEmployeeRow = {
@@ -461,4 +478,62 @@ export function saveEmployeeMemoryView(db: Database, namespace: string, employee
         VALUES (@employee_id, @namespace, @content, @now)
         ON CONFLICT(employee_id) DO UPDATE SET content = @content, generated_at = @now, namespace = @namespace
     `).run({ employee_id: employeeId, namespace, content, now })
+}
+
+type DbEmployeeSessionRow = {
+    session_id: string
+    namespace: string
+    employee_id: string
+    role: string
+    title: string
+    task: string
+    spawned_by: string | null
+    key: string | null
+    result: string | null
+    result_at: number | null
+    created_at: number
+}
+
+function toStoredEmployeeSession(row: DbEmployeeSessionRow): StoredEmployeeSession {
+    return {
+        sessionId: row.session_id,
+        namespace: row.namespace,
+        employeeId: row.employee_id,
+        role: row.role === 'worker' ? 'worker' : 'clone',
+        title: row.title,
+        task: row.task,
+        spawnedBy: row.spawned_by,
+        key: row.key,
+        result: row.result,
+        resultAt: row.result_at,
+        createdAt: row.created_at
+    }
+}
+
+export function insertEmployeeSession(db: Database, input: Omit<StoredEmployeeSession, 'result' | 'resultAt' | 'createdAt'> & { createdAt?: number }): StoredEmployeeSession {
+    db.prepare(`
+        INSERT OR REPLACE INTO employee_sessions (session_id, namespace, employee_id, role, title, task, spawned_by, key, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(input.sessionId, input.namespace, input.employeeId, input.role, input.title, input.task, input.spawnedBy, input.key, input.createdAt ?? Date.now())
+    return getEmployeeSession(db, input.sessionId, input.namespace)!
+}
+
+export function getEmployeeSession(db: Database, sessionId: string, namespace: string): StoredEmployeeSession | null {
+    const row = db.prepare('SELECT * FROM employee_sessions WHERE session_id = ? AND namespace = ?').get(sessionId, namespace) as DbEmployeeSessionRow | null
+    return row ? toStoredEmployeeSession(row) : null
+}
+
+export function listEmployeeSessions(db: Database, namespace: string, employeeId: string, limit = 50): StoredEmployeeSession[] {
+    const rows = db.prepare('SELECT * FROM employee_sessions WHERE namespace = ? AND employee_id = ? ORDER BY created_at DESC LIMIT ?')
+        .all(namespace, employeeId, limit) as DbEmployeeSessionRow[]
+    return rows.map(toStoredEmployeeSession)
+}
+
+export function setEmployeeSessionResult(db: Database, sessionId: string, namespace: string, result: string, now = Date.now()): void {
+    db.prepare('UPDATE employee_sessions SET result = ?, result_at = ? WHERE session_id = ? AND namespace = ?').run(result, now, sessionId, namespace)
+}
+
+/** A resume that came back under a new session id keeps the row: same job, same sender. */
+export function moveEmployeeSession(db: Database, fromSessionId: string, toSessionId: string, namespace: string): void {
+    db.prepare('UPDATE employee_sessions SET session_id = ? WHERE session_id = ? AND namespace = ?').run(toSessionId, fromSessionId, namespace)
 }

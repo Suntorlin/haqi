@@ -66,6 +66,7 @@ export class GroupStore {
             role?: string
         }>
         task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null; employeeId?: string | null }
+        employeeId?: string | null
     }): StoredGroup {
         return createGroup(this.db, options)
     }

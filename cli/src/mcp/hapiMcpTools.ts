@@ -65,6 +65,25 @@ export const employeeLogInputSchema: z.ZodTypeAny = z.object({
 
 export const EMPLOYEE_LOG_DESCRIPTION = 'Write one line into your run log as a digital employee: goal, done, decision, todo, note, or issue_open / issue_close for loose ends. The same open issue logged again only raises its count; it is never duplicated or re-alerted.'
 
+export const employeeSpawnInputSchema: z.ZodTypeAny = z.object({
+    task: z.string().min(1).max(20_000).describe('The one job the clone does, with everything it needs to know'),
+    title: z.string().min(1).max(80).optional().describe('Short name of the job; shown in the session list'),
+    key: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/).optional().describe('Optional name of a long-lived clone: the next job with the same key goes to it while it is alive')
+})
+
+export const EMPLOYEE_SPAWN_DESCRIPTION = 'Start a clone of yourself: a new session with your identity that does one job in parallel and reports back to you with employee_send. Only the main session can do this, at most 5 clones run at once, and a clone cannot start clones. Use it for independent jobs; use task_escalate for big code changes.'
+
+export const employeeSessionsInputSchema: z.ZodTypeAny = z.object({})
+
+export const EMPLOYEE_SESSIONS_DESCRIPTION = "List the sessions of your digital employee: the main session, clones, task sessions and scheduled runs, with each one's job, who sent it, whether it is online, and the last result it logged."
+
+export const employeeSendInputSchema: z.ZodTypeAny = z.object({
+    to: z.string().min(1).max(80).describe('"main" for the main session (woken if needed), "all" for every other live session, or a session id from employee_sessions'),
+    text: z.string().min(1).max(20_000).describe('The message: a job, a question, or a result')
+})
+
+export const EMPLOYEE_SEND_DESCRIPTION = "Send a message to another session of your digital employee. It goes through the employee's work group, so the user sees it; an offline target is woken. Clones report results to the session that sent them with this tool."
+
 export const reportUpdateInputSchema: z.ZodTypeAny = z.object({
     report_id: z.string().min(1).max(255),
     task_id: z.string().min(1).max(120).optional(),
@@ -261,7 +280,9 @@ const scheduleFields = {
     model: z.string().min(1).max(100).optional(),
     permission_mode: z.enum(['default', 'acceptEdits', 'bypassPermissions', 'plan']).optional().describe('bypassPermissions runs without permission prompts'),
     max_minutes: z.number().int().min(1).max(1440).optional().describe('A run still open after this fails and stops (default 90)'),
-    enabled: z.boolean().optional()
+    enabled: z.boolean().optional(),
+    session_target: z.string().regex(/^(isolated|main|named:[A-Za-z0-9_-]{1,40})$/).optional()
+        .describe('Digital employees only: where each run goes. isolated (default): a fresh session; main: your main session; named:<key>: one long-lived session per key')
 }
 
 export const scheduleCreateInputSchema: z.ZodTypeAny = z.object({
@@ -321,6 +342,9 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
         description: EMPLOYEE_LOG_DESCRIPTION,
         inputSchema: employeeLogInputSchema
     },
+    { name: 'employee_spawn', title: 'Start a Clone', description: EMPLOYEE_SPAWN_DESCRIPTION, inputSchema: employeeSpawnInputSchema },
+    { name: 'employee_sessions', title: 'List My Sessions', description: EMPLOYEE_SESSIONS_DESCRIPTION, inputSchema: employeeSessionsInputSchema },
+    { name: 'employee_send', title: 'Message My Sessions', description: EMPLOYEE_SEND_DESCRIPTION, inputSchema: employeeSendInputSchema },
     {
         name: 'report_update',
         title: 'Update Report',

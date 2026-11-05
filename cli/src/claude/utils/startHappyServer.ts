@@ -29,6 +29,12 @@ import {
     EMPLOYEE_LOG_DESCRIPTION,
     employeeWhoamiInputSchema,
     employeeLogInputSchema,
+    EMPLOYEE_SPAWN_DESCRIPTION,
+    EMPLOYEE_SESSIONS_DESCRIPTION,
+    EMPLOYEE_SEND_DESCRIPTION,
+    employeeSpawnInputSchema,
+    employeeSessionsInputSchema,
+    employeeSendInputSchema,
     reportAddAssetInputSchema,
     reportCreateInputSchema,
     handoffFoldersInputSchema,
@@ -295,6 +301,64 @@ export async function startHappyServer(client: ApiSessionClient) {
         }
     });
 
+    mcp.registerTool<any, any>('employee_spawn', {
+        description: EMPLOYEE_SPAWN_DESCRIPTION,
+        title: 'Start a Clone',
+        inputSchema: employeeSpawnInputSchema
+    }, async (args: { task: string; title?: string; key?: string }) => {
+        try {
+            const payload = await requestHubJson('/api/employees/clones', {
+                method: 'POST',
+                body: JSON.stringify({ sessionId: client.sessionId, text: args.task, title: args.title, key: args.key })
+            });
+            const summary = payload.outcome === 'sent'
+                ? `The live clone ${String(payload.sessionId)} got the job.`
+                : `Clone started: ${String(payload.sessionId)}. It reports back to you with employee_send; go on with your other work.`;
+            return buildToolResult(payload, summary);
+        } catch (error) {
+            return buildToolError('Failed to start the clone', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('employee_sessions', {
+        description: EMPLOYEE_SESSIONS_DESCRIPTION,
+        title: 'List My Sessions',
+        inputSchema: employeeSessionsInputSchema
+    }, async () => {
+        try {
+            const payload = await requestHubJson(`/api/employees/sessions?sessionId=${encodeURIComponent(client.sessionId)}`);
+            const sessions = Array.isArray(payload.sessions) ? payload.sessions as JsonObject[] : [];
+            const lines = sessions.slice(0, 30).map((view) => {
+                const self = view.sessionId === client.sessionId ? ' (you)' : '';
+                const state = view.active ? (view.busy ? 'busy' : 'online') : 'offline';
+                const job = typeof view.task === 'string' ? ` · job: ${view.task.replace(/\s+/g, ' ').slice(0, 160)}` : '';
+                const result = typeof view.result === 'string' ? ` · result: ${view.result.replace(/\s+/g, ' ').slice(0, 200)}` : '';
+                return `- ${String(view.sessionId)}${self} · ${String(view.role)} · ${state} · ${String(view.title)}${job}${result}`;
+            });
+            return { content: [{ type: 'text' as const, text: lines.length > 0 ? lines.join('\n') : 'No sessions.' }], isError: false };
+        } catch (error) {
+            return buildToolError('Failed to list the sessions', error);
+        }
+    });
+
+    mcp.registerTool<any, any>('employee_send', {
+        description: EMPLOYEE_SEND_DESCRIPTION,
+        title: 'Message My Sessions',
+        inputSchema: employeeSendInputSchema
+    }, async (args: { to: string; text: string }) => {
+        try {
+            const payload = await requestHubJson('/api/employees/send', {
+                method: 'POST',
+                body: JSON.stringify({ sessionId: client.sessionId, to: args.to, text: args.text })
+            });
+            const failed = Array.isArray(payload.failed) ? payload.failed : [];
+            const message = typeof payload.message === 'string' ? payload.message : 'Sent.';
+            return { content: [{ type: 'text' as const, text: message }], isError: failed.length > 0 && !(Array.isArray(payload.delivered) && payload.delivered.length > 0) };
+        } catch (error) {
+            return buildToolError('Failed to send the message', error);
+        }
+    });
+
     mcp.registerTool<any, any>('report_update', {
         description: 'Update report title/status/markdown/metadata',
         title: 'Update Report',
@@ -492,6 +556,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     type ScheduleArgs = {
         id?: string; name?: string; prompt?: string; prompt_file?: string; cron?: string; run_at?: string; timezone?: string
         directory?: string; model?: string; permission_mode?: string; max_minutes?: number; enabled?: boolean; manual?: boolean
+        session_target?: string
     };
     const scheduleBody = (args: ScheduleArgs, creating: boolean): JsonObject => {
         const body: JsonObject = {};
@@ -503,6 +568,7 @@ export async function startHappyServer(client: ApiSessionClient) {
         if (args.permission_mode !== undefined) body.permissionMode = args.permission_mode;
         if (args.max_minutes !== undefined) body.maxMinutes = args.max_minutes;
         if (args.enabled !== undefined) body.enabled = args.enabled;
+        if (args.session_target !== undefined) body.sessionTarget = args.session_target;
         if (args.run_at) {
             const at = Date.parse(args.run_at);
             if (!Number.isFinite(at)) throw new Error(`run_at is not an ISO 8601 time: ${args.run_at}`);
@@ -754,6 +820,9 @@ export async function startHappyServer(client: ApiSessionClient) {
             'memory_search',
             'employee_whoami',
             'employee_log',
+            'employee_spawn',
+            'employee_sessions',
+            'employee_send',
             'report_create',
             'report_update',
             'report_get',

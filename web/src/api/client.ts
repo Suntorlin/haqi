@@ -456,6 +456,17 @@ export class ApiClient {
         })
     }
 
+    async spawnEmployeeClone(id: string, text: string): Promise<import('../types/api').EmployeeCloneResponse> {
+        return await this.request<import('../types/api').EmployeeCloneResponse>(`/api/employees/${encodeURIComponent(id)}/clones`, {
+            method: 'POST',
+            body: JSON.stringify({ text })
+        })
+    }
+
+    async getEmployeeSessions(id: string): Promise<import('../types/api').EmployeeSessionsResponse> {
+        return await this.request<import('../types/api').EmployeeSessionsResponse>(`/api/employees/${encodeURIComponent(id)}/sessions`)
+    }
+
     async generateEmployeeMemory(id: string): Promise<{ content: string; changed: boolean }> {
         return await this.request<{ content: string; changed: boolean }>(`/api/employees/${encodeURIComponent(id)}/memory/generate`, { method: 'POST', body: JSON.stringify({}) })
     }

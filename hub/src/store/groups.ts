@@ -216,6 +216,8 @@ export function createGroup(
         }>
         /** A task: 12 characters, so `task:<id>` style references stay short. */
         task?: { id: string; tag: string; status: StoredTaskStatus; repoPath?: string | null; machineId?: string | null; employeeId?: string | null }
+        /** A chat group that belongs to an employee: its work group. */
+        employeeId?: string | null
     }
 ): StoredGroup {
     const now = Date.now()
@@ -240,7 +242,7 @@ export function createGroup(
             status: options.task?.status ?? null,
             repo_path: options.task?.repoPath ?? null,
             machine_id: options.task?.machineId ?? null,
-            employee_id: options.task?.employeeId ?? null,
+            employee_id: options.task?.employeeId ?? options.employeeId ?? null,
             created_at: now,
             updated_at: now
         })

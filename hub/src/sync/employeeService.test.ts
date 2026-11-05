@@ -19,6 +19,9 @@ type Harness = {
     spawnInputs: Array<{ text: string; meta?: Record<string, unknown> }>
     sends: Array<{ sessionId: string; text: string; meta?: Record<string, unknown> }>
     archived: string[]
+    roles: string[]
+    groupPosts: Array<{ groupId: string; line: Parameters<EmployeeHost['group']['post']>[2] }>
+    groupMembers: Set<string>
     setOnline: (online: boolean) => void
     slowSpawn: (ms: number) => void
 }
@@ -35,6 +38,9 @@ function harness(): Harness {
     const archived: string[] = []
 
     const spawnInputs: Array<{ text: string; meta?: Record<string, unknown> }> = []
+    const roles: string[] = []
+    const groupPosts: Harness['groupPosts'] = []
+    const groupMembers = new Set<string>()
     const sends: Array<{ sessionId: string; text: string; meta?: Record<string, unknown> }> = []
     const key = (machineId: string, home: string, path: string) => `${machineId}:${home}/${path}`
     const host: EmployeeHost = {
@@ -43,6 +49,7 @@ function harness(): Harness {
             state.spawns += 1
             if (spawnDelay > 0) await new Promise((resolve) => setTimeout(resolve, spawnDelay))
             spawnInputs.push({ text: input.text, meta: input.meta })
+            roles.push(input.role)
             liveSessions.add(`session-${state.spawns}`)
             return { sessionId: `session-${state.spawns}` }
         },
@@ -86,6 +93,14 @@ function harness(): Harness {
                 return [...entries.entries()].map(([name, dir]) => ({ name, dir }))
             }
         },
+        group: {
+            ensure: () => 'group-1',
+            join: (_namespace, _groupId, sessionIds) => { for (const id of sessionIds) groupMembers.add(id) },
+            post: async (_namespace, groupId, line) => {
+                groupPosts.push({ groupId, line })
+                return { delivered: line.kind === 'command' ? line.targetSessionIds : [], failed: [] }
+            }
+        },
         maintain: async () => ({}),
         changed: () => {},
         alert: async () => {},
@@ -100,6 +115,9 @@ function harness(): Harness {
         spawnInputs,
         sends,
         archived,
+        roles,
+        groupPosts,
+        groupMembers,
         get spawns() { return state.spawns },
         setOnline: (value) => { online = value },
         slowSpawn: (ms) => { spawnDelay = ms }
@@ -398,5 +416,66 @@ describe('EmployeeService', () => {
         expect(metrics.guard).toMatchObject({ sessions: 1, warnings: 1, alerts: 0 })
         expect(metrics.issues).toMatchObject({ opened: 1, closed: 1, open: 0 })
         expect(metrics.corrections.count).toBe(2)
+    })
+
+    it('a clone does one job next to the main session: own row, own role, joins the work group', async () => {
+        const h = harness()
+        const employee = await makeEmployee(h)
+        const main = await h.service.wake('default', employee.id, { source: 'test' })
+        const clone = await h.service.spawnClone('default', employee.id, { text: '查一下昨天的报错', spawnedBy: main.sessionId })
+
+        expect(clone.outcome).toBe('created')
+        expect(h.roles).toEqual(['main', 'clone'])
+        expect(h.spawnInputs[1]!.text).toContain('[HAQI 分身任务]')
+        expect(h.spawnInputs[1]!.text).toContain(`to = ${main.sessionId}`)
+        expect(h.store.employees.session(clone.sessionId, 'default')).toMatchObject({ role: 'clone', spawnedBy: main.sessionId })
+        expect([...h.groupMembers].sort()).toEqual([main.sessionId, clone.sessionId].sort())
+        expect(h.groupPosts.some((post) => post.line.kind === 'system' && post.line.text.includes('总管 开了分身'))).toBe(true)
+
+        const views = h.service.sessions('default', employee.id)
+        expect(views.find((view) => view.sessionId === main.sessionId)?.role).toBe('main')
+        expect(views.find((view) => view.sessionId === clone.sessionId)).toMatchObject({ role: 'clone', task: '查一下昨天的报错', active: true })
+    })
+
+    it('only one level: a clone cannot start clones', async () => {
+        const h = harness()
+        const employee = await makeEmployee(h)
+        const clone = await h.service.spawnClone('default', employee.id, { text: '整理周报', spawnedBy: null })
+        await expect(h.service.spawnClone('default', employee.id, { text: '再拆一个', spawnedBy: clone.sessionId }))
+            .rejects.toThrow('分身不能再开分身')
+        expect(h.spawns).toBe(1)
+    })
+
+    it('refuses the sixth live clone, and a named clone takes the next job instead of a new session', async () => {
+        const h = harness()
+        const employee = await makeEmployee(h)
+        const named = await h.service.spawnClone('default', employee.id, { text: '盯 CI', key: 'ci', spawnedBy: null })
+        const again = await h.service.spawnClone('default', employee.id, { text: '再看一次 CI', key: 'ci', spawnedBy: null })
+        expect(again).toEqual({ sessionId: named.sessionId, outcome: 'sent' })
+        expect(h.sends.at(-1)?.text).toContain('再看一次 CI')
+
+        for (let i = 0; i < 4; i += 1) await h.service.spawnClone('default', employee.id, { text: `活 ${i}`, spawnedBy: null })
+        await expect(h.service.spawnClone('default', employee.id, { text: '第六个', spawnedBy: null })).rejects.toThrow('上限 5')
+        expect(h.spawns).toBe(5)
+    })
+
+    it('send goes through the work group; a done line becomes the clone\'s result', async () => {
+        const h = harness()
+        const employee = await makeEmployee(h)
+        const clone = await h.service.spawnClone('default', employee.id, { text: '跑一遍回归', spawnedBy: null })
+
+        // No main session yet: sending to main wakes one first.
+        const sent = await h.service.send('default', clone.sessionId, 'main', '回归全过了')
+        const mainId = h.store.employees.get(employee.id, 'default')!.mainSessionId!
+        expect(sent.delivered).toEqual([mainId])
+        const command = h.groupPosts.find((post) => post.line.kind === 'command')!.line
+        expect(command).toMatchObject({ kind: 'command', fromSessionId: clone.sessionId, targetSessionIds: [mainId] })
+        expect(command.kind === 'command' && command.text).toContain('回归全过了')
+
+        await expect(h.service.send('default', clone.sessionId, clone.sessionId, 'x')).rejects.toThrow('不能发给自己')
+        await expect(h.service.send('default', clone.sessionId, 'nope-nope-nope', 'x')).rejects.toThrow('不是你的会话')
+
+        await h.service.log('default', clone.sessionId, 'done', '回归 120 条全过')
+        expect(h.service.sessions('default', employee.id).find((view) => view.sessionId === clone.sessionId)?.result).toBe('回归 120 条全过')
     })
 })

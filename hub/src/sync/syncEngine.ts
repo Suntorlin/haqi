@@ -513,6 +513,8 @@ export class SyncEngine {
     private scheduleTimer: NodeJS.Timeout | null = null
     private readonly employeeService: EmployeeService
     private employeeSweepTimer: NodeJS.Timeout | null = null
+    /** Employee sessions this hub just started or resumed, by when: a queued message may beat their queue handler. */
+    private readonly freshEmployeeSessions = new Map<string, number>()
 
     constructor(
         store: Store,
@@ -745,23 +747,27 @@ export class SyncEngine {
         })
         this.employeeService = new EmployeeService(store, {
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
-            spawn: async ({ employee, text, meta }) => {
+            spawn: async ({ employee, text, meta, role }) => {
                 // On the machine's account pool, like task and scheduled sessions: a spent account
                 // moves the wake to the next one instead of greeting the employee with a quota wall.
                 const result = await this.spawnOnAccountPool(employee.machineId, employee.directory, {
                     agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
                     model: employee.model ?? undefined,
-                    employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold }
+                    employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold, role }
                 }, {
                     text,
                     meta: { source: 'employee-wake', employeeId: employee.id, ...(meta ?? {}) },
                     permissionMode: (employee.permissionMode ?? undefined) as PermissionMode | undefined
                 }, null)
-                return result.type === 'success' ? { sessionId: result.sessionId } : { error: result.message }
+                if (result.type !== 'success') return { error: result.message }
+                this.markFreshEmployeeSession(result.sessionId)
+                return { sessionId: result.sessionId }
             },
             resume: async (namespace, sessionId) => {
                 const result = await this.resumeSession(sessionId, namespace)
-                return result.type === 'success' ? result.sessionId : null
+                if (result.type !== 'success') return null
+                this.markFreshEmployeeSession(result.sessionId)
+                return result.sessionId
             },
             send: async (sessionId, text, meta) => {
                 if (!this.getSession(sessionId)?.active) return false
@@ -774,7 +780,10 @@ export class SyncEngine {
                 return {
                     active: session.active,
                     busy: session.thinking || Object.keys(session.agentState?.requests ?? {}).length > 0,
-                    summaryText: session.metadata?.summary?.text ?? null
+                    summaryText: session.metadata?.summary?.text ?? null,
+                    title: session.metadata?.name ?? session.metadata?.summary?.text ?? null,
+                    tags: session.metadata?.tags ?? [],
+                    createdAt: session.createdAt
                 }
             },
             sessionEmployeeId: (namespace, sessionId) => this.getSessionByNamespace(sessionId, namespace)?.metadata?.employeeId ?? null,
@@ -787,6 +796,52 @@ export class SyncEngine {
                 write: (machineId, params) => this.rpcGateway.employeeFsWrite(machineId, params),
                 stat: (machineId, params) => this.rpcGateway.employeeFsStat(machineId, params),
                 list: async (machineId, params) => (await this.rpcGateway.employeeFsList(machineId, params)).entries
+            },
+            group: {
+                ensure: (namespace, employee) => {
+                    const existing = this.store.groups.getGroupsByNamespace(namespace)
+                        .find((group) => group.kind === 'chat' && group.employeeId === employee.id)
+                    if (existing) return existing.id
+                    return this.groupService.createGroup({
+                        namespace,
+                        name: `${employee.emoji ? `${employee.emoji} ` : ''}${employee.name} 工作群`,
+                        description: `数字员工「${employee.name}」的总管和分身在这里互相派活、回报结果。`,
+                        employeeId: employee.id
+                    }).group.id
+                },
+                join: (namespace, groupId, sessionIds) => {
+                    const members = new Set(this.store.groups.getGroupMembersByNamespace(groupId, namespace).map((member) => member.sessionId))
+                    for (const sessionId of sessionIds) {
+                        if (!members.has(sessionId)) this.groupService.addMember({ groupId, namespace, sessionId })
+                    }
+                },
+                post: async (namespace, groupId, line) => {
+                    if (line.kind === 'system') {
+                        await this.groupService.addTimelineMessage({ groupId, namespace, type: 'system', source: 'system:employee', payload: { text: line.text } })
+                        return { delivered: [], failed: [] }
+                    }
+                    const from = this.getSessionByNamespace(line.fromSessionId, namespace)
+                    const { createdTasks } = await this.groupService.addTimelineMessage({
+                        groupId,
+                        namespace,
+                        type: 'command',
+                        source: `session:${line.fromSessionId}`,
+                        actorSessionId: line.fromSessionId,
+                        actorName: from?.metadata?.name ?? null,
+                        targetSessionIds: line.targetSessionIds,
+                        payload: { text: line.text }
+                    })
+                    const delivered: string[] = []
+                    const failed: Array<{ sessionId: string; error: string }> = []
+                    for (const sessionId of line.targetSessionIds) {
+                        const created = createdTasks.find((task) => task.targetSessionId === sessionId)
+                        const task = created ? this.store.groups.getGroupTaskByNamespace(groupId, created.id, namespace) : null
+                        if (!task) failed.push({ sessionId, error: '会话不在线，也唤不醒' })
+                        else if (task.status === 'failed') failed.push({ sessionId, error: task.error ?? '投递失败' })
+                        else delivered.push(sessionId)
+                    }
+                    return { delivered, failed }
+                }
             },
             maintain: (namespace) => this.memoryService.maintain(namespace),
             changed: (namespace, employeeId) => this.eventPublisher.emit({ type: 'employee-updated', namespace, employeeId }),
@@ -2076,6 +2131,22 @@ export class SyncEngine {
         this.emitMirroredGroupMessage(route, sessionId, namespace, payload)
     }
 
+    private markFreshEmployeeSession(sessionId: string): void {
+        const now = Date.now()
+        for (const [id, at] of this.freshEmployeeSessions) if (now - at > 60_000) this.freshEmployeeSessions.delete(id)
+        this.freshEmployeeSessions.set(sessionId, now)
+    }
+
+    /** A session that just came back registers its queue handlers a moment after it goes active: retry for up to 10 s. */
+    private async enqueueAfterWake<T extends { success: boolean; error?: string }>(woke: boolean, enqueue: () => Promise<T>): Promise<T> {
+        let result = await enqueue()
+        for (let waited = 0; woke && !result.success && /unavailable/i.test(result.error ?? '') && waited < 10_000; waited += 500) {
+            await new Promise((resolve) => setTimeout(resolve, 500))
+            result = await enqueue()
+        }
+        return result
+    }
+
     private async dispatchGroupTask(payload: {
         groupId: string
         namespace: string
@@ -2087,20 +2158,33 @@ export class SyncEngine {
     }): Promise<void> {
         let targetSessionId = payload.targetSessionId
         let session = this.getSession(targetSessionId)
+        let woke = Date.now() - (this.freshEmployeeSessions.get(targetSessionId) ?? 0) < 60_000
         if (session && session.namespace !== payload.namespace) {
             throw new Error('Target session access denied')
         }
         if (!session?.active) {
             // An @ at an offline employee session wakes the employee instead of failing: the main session
             // resumes, or a fresh one starts with the state package, and the command goes there.
-            const employeeId = session?.metadata?.employeeId ?? null
+            const row = this.store.employees.session(targetSessionId, payload.namespace)
+            const employeeId = session?.metadata?.employeeId ?? row?.employeeId ?? null
             const employee = employeeId ? this.store.employees.get(employeeId, payload.namespace) : null
-            if (!employee) {
+            if (!employee || employee.status !== 'active') {
                 throw new Error(session ? 'Target session is inactive' : 'Target session not found')
             }
-            const woken = await this.employeeService.wake(payload.namespace, employee.id, { source: 'group-mention' })
-            targetSessionId = woken.sessionId
+            // A clone or task session comes back itself, so the message reaches the session it was meant for; only
+            // when that fails (or the target was the main session) does the employee's main session take it.
+            const resumed = session && row && targetSessionId !== employee.mainSessionId
+                ? await this.resumeSession(targetSessionId, payload.namespace)
+                : null
+            if (resumed?.type === 'success') {
+                if (resumed.sessionId !== targetSessionId) this.store.employees.moveSession(targetSessionId, resumed.sessionId, payload.namespace)
+                targetSessionId = resumed.sessionId
+            } else {
+                const woken = await this.employeeService.wake(payload.namespace, employee.id, { source: 'group-mention' })
+                targetSessionId = woken.sessionId
+            }
             session = this.getSession(targetSessionId)
+            woke = true
             if (!session?.active) {
                 throw new Error('员工唤醒了，但会话没有上线')
             }
@@ -2120,10 +2204,10 @@ export class SyncEngine {
             // user-message echo (which lacks routeContext) from clearing the route.
             this.activeGroupRoutesBySession.set(targetSessionId, routeContext)
             this.queuePendingRoutes.set(targetSessionId, routeContext)
-            const result = await this.enqueueClaudeMessage(targetSessionId, {
+            const result = await this.enqueueAfterWake(woke, () => this.enqueueClaudeMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
-            })
+            }))
             if (!result.success) {
                 this.activeGroupRoutesBySession.delete(targetSessionId)
                 this.queuePendingRoutes.delete(targetSessionId)
@@ -2136,10 +2220,10 @@ export class SyncEngine {
             // Same treatment as claude
             this.activeGroupRoutesBySession.set(targetSessionId, routeContext)
             this.queuePendingRoutes.set(targetSessionId, routeContext)
-            const result = await this.enqueueCodexMessage(targetSessionId, {
+            const result = await this.enqueueAfterWake(woke, () => this.enqueueCodexMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
-            })
+            }))
             if (!result.success) {
                 this.activeGroupRoutesBySession.delete(targetSessionId)
                 this.queuePendingRoutes.delete(targetSessionId)
@@ -2150,10 +2234,10 @@ export class SyncEngine {
 
         if (flavor === 'codex') {
             // Codex echoes routeContext in its messages, so no pre-registration needed
-            const result = await this.enqueueCodexMessage(targetSessionId, {
+            const result = await this.enqueueAfterWake(woke, () => this.enqueueCodexMessage(targetSessionId, {
                 text: payload.command,
                 meta: { routeContext }
-            })
+            }))
             if (!result.success) {
                 throw new Error(result.error ?? 'Failed to enqueue Codex task')
             }
@@ -2773,8 +2857,12 @@ ${note.content}
         const pinnedAccount = flavor === 'claude' ? metadata.claudeAccount : undefined
         // An employee session wakes as that employee: the new process needs the identity env again.
         const ownerEmployee = metadata.employeeId ? this.store.employees.get(metadata.employeeId, namespace) : null
+        const employeeRow = ownerEmployee ? this.store.employees.session(sessionId, namespace) : null
         const employeeRef = ownerEmployee
-            ? { id: ownerEmployee.id, name: ownerEmployee.name, home: ownerEmployee.homePath, compactThreshold: ownerEmployee.compactThreshold }
+            ? {
+                id: ownerEmployee.id, name: ownerEmployee.name, home: ownerEmployee.homePath, compactThreshold: ownerEmployee.compactThreshold,
+                role: employeeRow?.role ?? (ownerEmployee.mainSessionId === sessionId ? 'main' as const : undefined)
+            }
             : undefined
 
         const spawn = async (resumeSessionId?: string) => await this.rpcGateway.spawnSession(
@@ -2938,10 +3026,29 @@ ${note.content}
         base: { yolo?: boolean; sessionType?: 'simple' | 'worktree'; worktreeName?: string }
     ): Promise<{ sessionId: string } | { error: string }> {
         const task = this.taskSpawn(input.meta, input.machineId)
-        const result = await this.spawnOnAccountPool(input.machineId, input.directory, task.options(base), task.prompt(input), null)
+        // A task escalated by an employee is the employee's work: its sessions carry the tag, and on the employee's
+        // own machine (where its home folder lives) the identity too, so they log into its run log.
+        const employee = task.employee
+        const options = employee && employee.machineId === input.machineId
+            ? { ...task.options(base), employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold, role: 'worker' as const } }
+            : task.options(base)
+        const result = await this.spawnOnAccountPool(input.machineId, input.directory, options, task.prompt(input), null)
         if (result.type === 'error') return { error: result.message }
         await this.renameSession(result.sessionId, input.name).catch(() => {})
-        await this.setSessionTags(result.sessionId, input.tags).catch(() => {})
+        await this.setSessionTags(result.sessionId, employee ? [...input.tags, `employee:${employee.id}`] : input.tags).catch(() => {})
+        if (employee && task.taskId) {
+            this.store.employees.insertSession({
+                sessionId: result.sessionId,
+                namespace: employee.namespace,
+                employeeId: employee.id,
+                role: 'worker',
+                title: input.name,
+                task: `任务 ${task.taskId}`,
+                spawnedBy: `task:${task.taskId}`,
+                key: null
+            })
+            this.eventPublisher.emit({ type: 'employee-updated', namespace: employee.namespace, employeeId: employee.id })
+        }
         return { sessionId: result.sessionId }
     }
 
@@ -2951,7 +3058,11 @@ ${note.content}
         const namespace = this.machineCache.getMachine(machineId)?.namespace ?? null
         const settings: TaskSessionSettings = taskId && namespace ? this.taskService.sessionSettings(namespace, taskId) : {}
         const files = taskId ? this.taskService.fileContents(taskId) : []
+        const employeeId = taskId && namespace ? this.store.groups.getGroupByNamespace(taskId, namespace)?.employeeId ?? null : null
+        const employee = employeeId && namespace ? this.store.employees.get(employeeId, namespace) : null
         return {
+            taskId,
+            employee,
             options: <T extends { yolo?: boolean }>(base: T) => ({
                 ...base,
                 thinkEffort: settings.thinkEffort ?? 'medium' as const,
