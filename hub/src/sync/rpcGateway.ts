@@ -623,13 +623,13 @@ export class RpcGateway {
     async readSessionFile(
         sessionId: string,
         path: string,
-        options?: { maxBytes?: number; allowOutsideWorkingDirectory?: boolean }
+        options?: { maxBytes?: number; allowOutsideWorkingDirectory?: boolean; timeoutMs?: number }
     ): Promise<RpcReadFileResponse> {
         return await this.sessionRpc(sessionId, 'readFile', {
             path,
             maxBytes: options?.maxBytes,
             allowOutsideWorkingDirectory: options?.allowOutsideWorkingDirectory
-        }) as RpcReadFileResponse
+        }, options?.timeoutMs) as RpcReadFileResponse
     }
 
     async listDirectory(sessionId: string, path: string): Promise<RpcListDirectoryResponse> {
@@ -686,15 +686,15 @@ export class RpcGateway {
         }
     }
 
-    private async sessionRpc(sessionId: string, method: string, params: unknown): Promise<unknown> {
-        return await this.rpcCall(`${sessionId}:${method}`, params)
+    private async sessionRpc(sessionId: string, method: string, params: unknown, timeoutMs?: number): Promise<unknown> {
+        return await this.rpcCall(`${sessionId}:${method}`, params, timeoutMs)
     }
 
     private async machineRpc(machineId: string, method: string, params: unknown): Promise<unknown> {
         return await this.rpcCall(`${machineId}:${method}`, params)
     }
 
-    private async rpcCall(method: string, params: unknown): Promise<unknown> {
+    private async rpcCall(method: string, params: unknown, timeoutMs: number = 30_000): Promise<unknown> {
         const socketId = this.rpcRegistry.getSocketIdForMethod(method)
         if (!socketId) {
             throw new Error(`RPC handler not registered: ${method}`)
@@ -705,7 +705,7 @@ export class RpcGateway {
             throw new Error(`RPC socket disconnected: ${method}`)
         }
 
-        const response = await socket.timeout(30_000).emitWithAck('rpc-request', {
+        const response = await socket.timeout(timeoutMs).emitWithAck('rpc-request', {
             method,
             params: JSON.stringify(params)
         }) as unknown

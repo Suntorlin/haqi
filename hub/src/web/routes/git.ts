@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { isAbsolute } from 'node:path'
 import { z } from 'zod'
-import { encryptFileForDownload, MAX_FILE_DOWNLOAD_BYTES } from '@hapi/protocol/fileTransfer'
+import { encryptFileForDownload, FILE_DOWNLOAD_RPC_TIMEOUT_MS, MAX_FILE_DOWNLOAD_BYTES } from '@hapi/protocol/fileTransfer'
 import type { SyncEngine } from '../../sync/syncEngine'
 import type { WebAppEnv } from '../middleware/auth'
 import { requireSessionFromParam, requireSyncEngine } from './guards'
@@ -231,7 +231,8 @@ export function createGitRoutes(getSyncEngine: () => SyncEngine | null): Hono<We
 
         const result = await runRpc(() => engine.readSessionFile(sessionResult.sessionId, parsed.data.path, {
             maxBytes: MAX_FILE_DOWNLOAD_BYTES,
-            allowOutsideWorkingDirectory
+            allowOutsideWorkingDirectory,
+            timeoutMs: FILE_DOWNLOAD_RPC_TIMEOUT_MS
         }))
         if (!result.success) {
             return c.json({ success: false, error: result.error ?? 'Failed to read file' }, 502)

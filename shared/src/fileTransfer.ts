@@ -10,7 +10,11 @@
  */
 
 export const FILE_TRANSFER_VERSION = 1
-export const MAX_FILE_DOWNLOAD_BYTES = 50 * 1024 * 1024
+export const MAX_FILE_DOWNLOAD_BYTES = 200 * 1024 * 1024
+/** The CLI sends the file to the hub as base64 inside a JSON ack, about 4/3 of the file size. */
+export const MAX_FILE_DOWNLOAD_SOCKET_BYTES = Math.ceil(MAX_FILE_DOWNLOAD_BYTES * 4 / 3) + 1024 * 1024
+/** Time the hub waits for the CLI to read and send a download. Large files over a remote link need more than the default RPC timeout. */
+export const FILE_DOWNLOAD_RPC_TIMEOUT_MS = 180_000
 
 const PUBLIC_KEY_BYTES = 65
 const SALT_BYTES = 16

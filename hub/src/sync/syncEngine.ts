@@ -3475,7 +3475,7 @@ ${note.content}
     async readSessionFile(
         sessionId: string,
         path: string,
-        options?: { maxBytes?: number; allowOutsideWorkingDirectory?: boolean }
+        options?: { maxBytes?: number; allowOutsideWorkingDirectory?: boolean; timeoutMs?: number }
     ): Promise<RpcReadFileResponse> {
         return await this.rpcGateway.readSessionFile(sessionId, path, options)
     }

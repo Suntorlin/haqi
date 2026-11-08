@@ -12,6 +12,7 @@ import { RpcRegistry } from './rpcRegistry'
 import type { SyncEvent } from '../sync/syncEngine'
 import { TerminalRegistry } from './terminalRegistry'
 import type { CliSocketWithData, SocketData, SocketServer } from './socketTypes'
+import { MAX_FILE_DOWNLOAD_SOCKET_BYTES } from '@hapi/protocol/fileTransfer'
 
 const jwtPayloadSchema = z.object({
     uid: z.number(),
@@ -20,7 +21,8 @@ const jwtPayloadSchema = z.object({
 
 const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60_000
 const DEFAULT_MAX_TERMINALS = 4
-const MAX_SOCKET_PAYLOAD_BYTES = 80 * 1024 * 1024
+// Must hold the largest file download (base64 in one ack); see MAX_FILE_DOWNLOAD_SOCKET_BYTES.
+const MAX_SOCKET_PAYLOAD_BYTES = Math.max(80 * 1024 * 1024, MAX_FILE_DOWNLOAD_SOCKET_BYTES)
 
 function resolveEnvNumber(name: string, fallback: number): number {
     const raw = process.env[name]
