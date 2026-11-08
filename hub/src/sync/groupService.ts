@@ -271,6 +271,8 @@ export class GroupService {
         description?: string | null
         noteSessionId?: string | null
         sessionMemberIds?: string[]
+        /** An employee's work group. */
+        employeeId?: string | null
     }): GroupWithDetails {
         const sessionMemberIds = uniqueStrings(options.sessionMemberIds ?? [])
         const resolvedNoteSessionId = options.noteSessionId ?? sessionMemberIds[0] ?? null
@@ -285,7 +287,8 @@ export class GroupService {
             name: options.name,
             description: options.description ?? null,
             noteSessionId: resolvedNoteSessionId,
-            members
+            members,
+            employeeId: options.employeeId ?? null
         })
 
         const groupData = {

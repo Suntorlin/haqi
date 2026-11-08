@@ -115,3 +115,22 @@ export function useEmployeeReviews(api: ApiClient | null, employeeId: string | n
         error: errorText(error, 'Failed to load employee reviews'),
     }
 }
+
+/** Every session of the employee with its role, job and result; polled, because a session going offline is not an employee event. */
+export function useEmployeeSessions(api: ApiClient | null, employeeId: string | null, enabled = true) {
+    const query = useQuery({
+        queryKey: queryKeys.employeeSessions(employeeId ?? ''),
+        queryFn: async () => {
+            if (!api || !employeeId) throw new Error('No API client or employee ID')
+            return await api.getEmployeeSessions(employeeId)
+        },
+        enabled: Boolean(api && employeeId && enabled),
+        refetchInterval: 10_000,
+    })
+    return {
+        sessions: query.data?.sessions ?? [],
+        groupId: query.data?.groupId ?? null,
+        isLoading: query.isLoading,
+        error: errorText(query.error, 'Failed to load sessions'),
+    }
+}

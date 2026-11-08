@@ -22,6 +22,20 @@ const logSchema = z.object({
     ref: z.string().trim().min(1).max(500).optional()
 })
 
+const cloneSchema = z.object({
+    text: z.string().trim().min(1).max(20_000),
+    title: z.string().trim().min(1).max(80).optional(),
+    key: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, 'Use letters, digits, _ or -').optional()
+})
+
+const sessionCloneSchema = cloneSchema.extend({ sessionId: z.string().min(1) })
+
+const sendSchema = z.object({
+    sessionId: z.string().min(1),
+    to: z.string().trim().min(1).max(80),
+    text: z.string().trim().min(1).max(20_000)
+})
+
 const scoreSchema = z.object({
     score: z.number().int().min(1).max(5),
     comment: z.string().trim().max(2000).optional()
@@ -90,6 +104,43 @@ export function createEmployeeRoutes(getSyncEngine: () => SyncEngine | null): Ho
         })
     })
 
+    /** The employee_spawn tool: the main session sends a clone off on one job. */
+    app.post('/employees/clones', async (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const parsed = sessionCloneSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400)
+        const namespace = c.get('namespace')
+        const { sessionId, ...input } = parsed.data
+        return run(c, async () => {
+            const employee = ctx.employees.employeeForSession(namespace, sessionId)
+            return await ctx.employees.spawnClone(namespace, employee.id, { ...input, spawnedBy: sessionId })
+        })
+    })
+
+    /** The employee_sessions tool: every session of the caller's employee, with role, job and result. */
+    app.get('/employees/sessions', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const sessionId = c.req.query('sessionId')
+        if (!sessionId) return c.json({ error: 'sessionId is required' }, 400)
+        const namespace = c.get('namespace')
+        return run(c, () => {
+            const employee = ctx.employees.employeeForSession(namespace, sessionId)
+            return { self: sessionId, sessions: ctx.employees.sessions(namespace, employee.id) }
+        })
+    })
+
+    /** The employee_send tool: one session of an employee messages another through the work group. */
+    app.post('/employees/send', async (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const parsed = sendSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400)
+        const { sessionId, to, text } = parsed.data
+        return run(c, async () => await ctx.employees.send(c.get('namespace'), sessionId, to, text))
+    })
+
     /** The CLI reports a compaction in an employee session: count it and save the summary into the run log. */
     app.post('/employees/compaction', async (c) => {
         const ctx = withEmployees(c)
@@ -147,6 +198,24 @@ export function createEmployeeRoutes(getSyncEngine: () => SyncEngine | null): Ho
             source: parsed.data.source ?? 'api',
             text: parsed.data.text
         }))
+    })
+
+    /** The user sends a clone off on one job from the web. */
+    app.post('/employees/:id/clones', async (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const parsed = cloneSchema.safeParse(await c.req.json().catch(() => null))
+        if (!parsed.success) return c.json({ error: firstIssue(parsed.error) }, 400)
+        return run(c, async () => await ctx.employees.spawnClone(c.get('namespace'), c.req.param('id'), { ...parsed.data, spawnedBy: null }))
+    })
+
+    /** The sessions tab: main session, clones, task sessions and scheduled runs; plus the work group, if any. */
+    app.get('/employees/:id/sessions', (c) => {
+        const ctx = withEmployees(c)
+        if (ctx instanceof Response) return ctx
+        const namespace = c.get('namespace')
+        const id = c.req.param('id')
+        return run(c, () => ({ sessions: ctx.employees.sessions(namespace, id), groupId: ctx.employees.workGroupId(namespace, id) }))
     })
 
     app.get('/employees/:id/issues', (c) => {

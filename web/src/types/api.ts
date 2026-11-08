@@ -412,7 +412,8 @@ export type {
     Employee,
     EmployeeInput,
     EmployeePatch,
-    EmployeeIssue
+    EmployeeIssue,
+    EmployeeSessionView
 } from '@hapi/protocol/schemas'
 
 export type EmployeesResponse = { employees: import('@hapi/protocol/schemas').Employee[] }
@@ -426,6 +427,18 @@ export type EmployeeWakeResponse = {
     sessionId: string
     /** sent = into the live session; resumed = woke it; created = a fresh main session with the state package. */
     outcome: 'sent' | 'resumed' | 'created'
+}
+
+export type EmployeeCloneResponse = {
+    sessionId: string
+    /** created = a new clone; sent = the live clone with the same key got the job. */
+    outcome: 'created' | 'sent'
+}
+
+/** The sessions tab: every session of the employee with its role, plus the work group once one exists. */
+export type EmployeeSessionsResponse = {
+    sessions: import('@hapi/protocol/schemas').EmployeeSessionView[]
+    groupId: string | null
 }
 
 /** The memory tab of one employee: the MEMORY.md snapshot and the employee's own memory rows. */

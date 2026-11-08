@@ -38,6 +38,11 @@ export function useEmployeeActions(api: ApiClient | null) {
         onSettled: invalidate,
     })
 
+    const spawnClone = useMutation({
+        mutationFn: async (args: { id: string; text: string }) => await requireApi(api).spawnEmployeeClone(args.id, args.text),
+        onSettled: invalidate,
+    })
+
     const generateMemory = useMutation({
         mutationFn: async (id: string) => await requireApi(api).generateEmployeeMemory(id),
         onSettled: invalidate,
@@ -64,5 +69,5 @@ export function useEmployeeActions(api: ApiClient | null) {
         onSettled: invalidate,
     })
 
-    return { create, update, remove, wake, generateMemory, syncMemory, maintain, generateReview, scoreReview }
+    return { create, update, remove, wake, spawnClone, generateMemory, syncMemory, maintain, generateReview, scoreReview }
 }

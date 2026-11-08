@@ -472,6 +472,23 @@ export type StoredEmployeeMemoryView = {
 }
 
 /** One week of an employee's work: the metrics snapshot, and the user's score once given. */
+/** A clone or task session of an employee; the main session and scheduled runs have no row. */
+export type StoredEmployeeSession = {
+    sessionId: string
+    namespace: string
+    employeeId: string
+    role: 'clone' | 'worker'
+    title: string
+    task: string
+    /** The session that sent the job; null for the user; `task:<id>` for a task session. */
+    spawnedBy: string | null
+    /** A named clone: the next job with the same key goes to it while it is alive. */
+    key: string | null
+    result: string | null
+    resultAt: number | null
+    createdAt: number
+}
+
 export type StoredEmployeeReview = {
     id: string
     namespace: string

@@ -43,6 +43,7 @@ export const queryKeys = {
     employeeMemory: (employeeId: string) => ['employees', employeeId, 'memory'] as const,
     employeeMetrics: (employeeId: string) => ['employees', employeeId, 'metrics'] as const,
     employeeReviews: (employeeId: string) => ['employees', employeeId, 'reviews'] as const,
+    employeeSessions: (employeeId: string) => ['employees', employeeId, 'sessions'] as const,
     reviewLoops: ['review-loops'] as const,
     reviewLoop: (loopId: string) => ['review-loop', loopId] as const,
 }

@@ -10,23 +10,28 @@ import {
     getEmployeeMemoryView,
     getEmployeeReview,
     getEmployeeReviewForPeriod,
+    getEmployeeSession,
     insertEmployee,
     insertEmployeeReview,
+    insertEmployeeSession,
     listAllEmployees,
     listEmployeeIssues,
     listEmployeeLessons,
     listEmployeeReviews,
+    listEmployeeSessions,
     listEmployees,
     listOverdueEmployeeIssues,
     markEmployeeIssueEscalated,
+    moveEmployeeSession,
     openEmployeeIssue,
     saveEmployeeMemoryView,
     scoreEmployeeReview,
+    setEmployeeSessionResult,
     updateEmployee,
     type EmployeeDbPatch,
     type NewEmployee
 } from './employees'
-import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView, StoredEmployeeReview } from './types'
+import type { StoredEmployee, StoredEmployeeIssue, StoredEmployeeMemoryView, StoredEmployeeReview, StoredEmployeeSession } from './types'
 
 export class EmployeeStore {
     constructor(private readonly db: Database) {}
@@ -53,4 +58,10 @@ export class EmployeeStore {
     reviews(namespace: string, employeeId: string, limit?: number): StoredEmployeeReview[] { return listEmployeeReviews(this.db, namespace, employeeId, limit) }
     scoreReview(id: string, namespace: string, input: { score: number; comment: string | null; lesson: string | null; skillPath: string | null }): StoredEmployeeReview | null { return scoreEmployeeReview(this.db, id, namespace, input) }
     lessons(namespace: string, employeeId: string, limit?: number): StoredEmployeeReview[] { return listEmployeeLessons(this.db, namespace, employeeId, limit) }
+    /** Clone and task sessions: the job, the sender and the reported result of each. */
+    insertSession(input: Parameters<typeof insertEmployeeSession>[1]): StoredEmployeeSession { return insertEmployeeSession(this.db, input) }
+    session(sessionId: string, namespace: string): StoredEmployeeSession | null { return getEmployeeSession(this.db, sessionId, namespace) }
+    sessions(namespace: string, employeeId: string, limit?: number): StoredEmployeeSession[] { return listEmployeeSessions(this.db, namespace, employeeId, limit) }
+    setSessionResult(sessionId: string, namespace: string, result: string, now?: number): void { setEmployeeSessionResult(this.db, sessionId, namespace, result, now) }
+    moveSession(fromSessionId: string, toSessionId: string, namespace: string): void { moveEmployeeSession(this.db, fromSessionId, toSessionId, namespace) }
 }

@@ -18,15 +18,13 @@ import { AutoTextarea } from '@/components/ui/AutoTextarea'
 import { Switch } from '@/components/ui/Switch'
 import { TextField } from '@/components/ui/TextField'
 import { useEmployeeActions } from '@/hooks/mutations/useEmployeeActions'
-import { useEmployee, useEmployeeIdentity, useEmployeeMemory, useEmployeeMetrics, useEmployeeReviews } from '@/hooks/queries/useEmployees'
+import { useEmployee, useEmployeeIdentity, useEmployeeMemory, useEmployeeMetrics, useEmployeeReviews, useEmployeeSessions } from '@/hooks/queries/useEmployees'
 import { useMachines } from '@/hooks/queries/useMachines'
-import { useSessions } from '@/hooks/queries/useSessions'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useAppContext } from '@/lib/app-context'
 import { apiErrorText } from '@/lib/schedules'
-import { getSessionTitle } from '@/lib/session-title'
 import { useTranslation } from '@/lib/use-translation'
-import type { Employee, EmployeeIssue, EmployeeMetrics } from '@/types/api'
+import type { Employee, EmployeeIssue, EmployeeMetrics, EmployeeSessionView } from '@/types/api'
 
 /** A label on the left, its value on the right; long values (paths) wrap under the label. */
 function InfoRow(props: { label: string; value: ReactNode; long?: boolean }) {
@@ -342,39 +340,63 @@ function PerformanceSection(props: { employee: Employee; onError: (err: unknown)
     )
 }
 
-/** 会话: every session spawned for this employee (the main one and the scheduled runs), newest first. */
+/** Who sent a clone or task session its job, in the user's words. */
+function spawnedByLabel(view: EmployeeSessionView, sessions: EmployeeSessionView[], t: ReturnType<typeof useTranslation>['t']): string | null {
+    if (!view.spawnedBy) return null
+    if (view.spawnedBy === 'user') return t('employees.detail.spawnedBy.user')
+    if (view.spawnedBy.startsWith('task:')) return t('employees.detail.spawnedBy.task')
+    const sender = sessions.find((item) => item.sessionId === view.spawnedBy)
+    return sender?.role === 'main' ? t('employees.detail.spawnedBy.main') : t('employees.detail.spawnedBy.session', { id: view.spawnedBy.slice(0, 8) })
+}
+
+/** 会话: the main session, the clones, task sessions and scheduled runs, live ones first; each with its job and result. */
 function SessionsSection(props: { employee: Employee }) {
     const { api } = useAppContext()
     const { t } = useTranslation()
     const navigate = useNavigate()
-    const { sessions, isLoading } = useSessions(api)
-
-    const own = sessions
-        .filter((session) => session.metadata?.employeeId === props.employee.id)
-        .sort((a, b) => b.updatedAt - a.updatedAt)
+    const { sessions, groupId, isLoading } = useEmployeeSessions(api, props.employee.id)
 
     return (
-        <ListGroup title={t('employees.detail.sessions', { n: own.length })}>
-            {isLoading ? (
-                <LoadingState className="flex w-full justify-center py-6" />
-            ) : own.length === 0 ? (
-                <ListRow title={t('employees.detail.noSessions')} />
-            ) : own.map((session) => (
-                <FeedRow
-                    key={session.id}
-                    title={getSessionTitle(session)}
-                    aside={formatRelativeTime(session.updatedAt, t) ?? undefined}
-                    status={(
-                        <>
-                            {session.id === props.employee.mainSessionId ? <Badge>{t('employees.detail.mainSession')}</Badge> : null}
-                            {session.active ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--social-success,#34c759)]" aria-label={t('employees.detail.sessionActive')} /> : null}
-                        </>
-                    )}
-                    subtitle={session.metadata?.path}
-                    onClick={() => navigate({ to: '/sessions/$sessionId', params: { sessionId: session.id } })}
-                />
-            ))}
-        </ListGroup>
+        <>
+            {groupId ? (
+                <ListGroup>
+                    <ListRow
+                        title={t('employees.detail.workGroup')}
+                        subtitle={t('employees.detail.workGroupHint')}
+                        onClick={() => navigate({ to: '/groups/$groupId', params: { groupId } })}
+                    />
+                </ListGroup>
+            ) : null}
+            <ListGroup title={t('employees.detail.sessions', { n: sessions.length })}>
+                {isLoading ? (
+                    <LoadingState className="flex w-full justify-center py-6" />
+                ) : sessions.length === 0 ? (
+                    <ListRow title={t('employees.detail.noSessions')} />
+                ) : sessions.map((view) => {
+                    const sender = spawnedByLabel(view, sessions, t)
+                    const subtitle = view.result
+                        ? t('employees.detail.sessionResult', { text: view.result })
+                        : view.task ? `${sender ? `${sender} · ` : ''}${view.task}` : undefined
+                    return (
+                        <FeedRow
+                            key={view.sessionId}
+                            title={view.title}
+                            aside={formatRelativeTime(view.resultAt ?? view.createdAt, t) ?? undefined}
+                            status={(
+                                <>
+                                    <Badge variant={view.role === 'main' ? 'info' : view.role === 'clone' ? 'success' : 'default'}>
+                                        {t(`employees.detail.role.${view.role}`)}
+                                    </Badge>
+                                    {view.active ? <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--social-success,#34c759)]" aria-label={t('employees.detail.sessionActive')} /> : null}
+                                </>
+                            )}
+                            subtitle={subtitle}
+                            onClick={() => navigate({ to: '/sessions/$sessionId', params: { sessionId: view.sessionId } })}
+                        />
+                    )
+                })}
+            </ListGroup>
+        </>
     )
 }
 
@@ -385,7 +407,7 @@ export default function EmployeeDetailPage() {
     const { employeeId } = useParams({ from: '/employees/$employeeId' })
     const { employee, openIssues, isLoading, error } = useEmployee(api, employeeId)
     const { machines } = useMachines(api, true)
-    const { update, remove, wake, generateMemory, syncMemory, maintain } = useEmployeeActions(api)
+    const { update, remove, wake, spawnClone, generateMemory, syncMemory, maintain } = useEmployeeActions(api)
     const [wakeText, setWakeText] = useState('')
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [notice, setNotice] = useState<string | null>(null)
@@ -432,6 +454,19 @@ export default function EmployeeDetailPage() {
             onError: fail
         })
     }
+    const handleClone = () => {
+        const text = wakeText.trim()
+        if (!text) return
+        setNotice(null)
+        spawnClone.mutate({ id: employee.id, text }, {
+            onSuccess: (result) => {
+                setWakeText('')
+                report(t(`employees.detail.clone.${result.outcome}`))
+                navigate({ to: '/sessions/$sessionId', params: { sessionId: result.sessionId } })
+            },
+            onError: fail
+        })
+    }
     const handleToggle = (active: boolean) => {
         setNotice(null)
         update.mutate({ id: employee.id, patch: { status: active ? 'active' : 'paused' } }, { onError: fail })
@@ -458,6 +493,15 @@ export default function EmployeeDetailPage() {
                             <div className="flex gap-2">
                                 <Button className="flex-1 sm:flex-none" onClick={handleWake} disabled={wake.isPending || employee.status !== 'active'}>
                                     {wake.isPending ? t('employees.detail.waking') : t('employees.detail.wakeNow')}
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    className="flex-1 sm:flex-none"
+                                    onClick={handleClone}
+                                    disabled={spawnClone.isPending || employee.status !== 'active' || !wakeText.trim()}
+                                    title={t('employees.detail.cloneHint')}
+                                >
+                                    {spawnClone.isPending ? t('employees.detail.cloning') : t('employees.detail.cloneNow')}
                                 </Button>
                                 {employee.mainSessionId ? (
                                     <Button variant="secondary" onClick={() => navigate({ to: '/sessions/$sessionId', params: { sessionId: employee.mainSessionId! } })}>
