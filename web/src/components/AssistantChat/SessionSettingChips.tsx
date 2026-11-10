@@ -11,7 +11,7 @@ export type ComposerThinkEffortOption = { value: SessionThinkEffort; label: stri
 export function buildClaudeModelOptions(currentModel: string | undefined): ComposerModelOption[] {
     const options: ComposerModelOption[] = [
         { value: 'auto', label: 'Default (recommended)' },
-        { value: 'claude-fable-5', label: 'Fable 5' },
+        { value: 'claude-fable-5-2', label: 'Fable 5.2' },
         { value: 'sonnet', label: 'Sonnet (latest)' },
         { value: 'opus', label: 'Opus (latest)' },
         { value: 'haiku', label: 'Haiku (latest)' },
