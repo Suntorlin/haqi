@@ -41,7 +41,7 @@ export function getThinkEffortOptions(agent: AgentType): { value: ThinkEffort; l
 export const MODEL_OPTIONS: Record<AgentType, ModelOption[]> = {
     claude: [
         { value: 'auto', label: 'Default (recommended)' },
-        { value: 'claude-fable-5', label: 'Fable 5' },
+        { value: 'claude-fable-5-2', label: 'Fable 5.2' },
         { value: 'sonnet', label: 'Sonnet (latest)' },
         { value: 'opus', label: 'Opus (latest)' },
         { value: 'haiku', label: 'Haiku (latest)' },

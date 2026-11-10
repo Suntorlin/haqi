@@ -6,7 +6,7 @@ describe('NewSession model options', () => {
         const claudeValues = MODEL_OPTIONS.claude.map((option) => option.value)
         expect(claudeValues).toEqual([
             'auto',
-            'claude-fable-5',
+            'claude-fable-5-2',
             'sonnet',
             'opus',
             'haiku',
