@@ -39,7 +39,8 @@ export function useEmployeeActions(api: ApiClient | null) {
     })
 
     const spawnClone = useMutation({
-        mutationFn: async (args: { id: string; text: string }) => await requireApi(api).spawnEmployeeClone(args.id, args.text),
+        mutationFn: async (args: { id: string; text: string; model?: string; thinkEffort?: string }) =>
+            await requireApi(api).spawnEmployeeClone(args.id, args.text, { model: args.model, thinkEffort: args.thinkEffort }),
         onSettled: invalidate,
     })
 
