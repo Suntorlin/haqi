@@ -1776,6 +1776,8 @@ export default {
   'employees.detail.openMainSession': '打开主会话',
   'employees.detail.cloneNow': '新建分身',
   'employees.detail.cloning': '开分身中…',
+  'employees.detail.cloneModel': '分身模型',
+  'employees.detail.cloneThink': '分身思考程度',
   'employees.detail.cloneHint': '另开一个带身份的会话，专做上面写的这件事，和主会话并行',
   'employees.detail.clone.created': '分身已开，正在做这件事。',
   'employees.detail.clone.sent': '同名分身还在线，任务发给了它。',

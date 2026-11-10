@@ -3,6 +3,9 @@ import { useNavigate, useParams } from '@tanstack/react-router'
 import { LoadingState } from '@/components/LoadingState'
 import { formatRelativeTime } from '@/components/SessionList'
 import { getMachineTitle } from '@/components/NewSession/MachineSelector'
+import { resolveSpawnModel, resolveSpawnThinkEffort } from '@/components/NewSession/spawnPayload'
+import { getModelOptionsForAgent, getThinkEffortOptions, type AgentType, type ThinkEffort } from '@/components/NewSession/types'
+import { SettingsSelectRow } from '@/components/settings/SettingsParts'
 import { DesktopPaneHeader } from '@/components/mobile/DesktopPaneHeader'
 import { Orb } from '@/components/mobile/SessionAvatar'
 import { SubPageHeader } from '@/components/mobile/SubPageHeader'
@@ -22,6 +25,7 @@ import { useEmployee, useEmployeeIdentity, useEmployeeMemory, useEmployeeMetrics
 import { useMachines } from '@/hooks/queries/useMachines'
 import { useIsMobileLayout } from '@/hooks/useIsMobileLayout'
 import { useAppContext } from '@/lib/app-context'
+import { modelOptionText, thinkEffortText } from '@/lib/option-labels'
 import { apiErrorText } from '@/lib/schedules'
 import { useTranslation } from '@/lib/use-translation'
 import type { Employee, EmployeeIssue, EmployeeMetrics, EmployeeSessionView } from '@/types/api'
@@ -409,6 +413,8 @@ export default function EmployeeDetailPage() {
     const { machines } = useMachines(api, true)
     const { update, remove, wake, spawnClone, generateMemory, syncMemory, maintain } = useEmployeeActions(api)
     const [wakeText, setWakeText] = useState('')
+    const [cloneModel, setCloneModel] = useState('auto')
+    const [cloneThink, setCloneThink] = useState<ThinkEffort>('auto')
     const [deleteOpen, setDeleteOpen] = useState(false)
     const [notice, setNotice] = useState<string | null>(null)
     const [section, setSection] = useState<Section>('overview')
@@ -458,7 +464,10 @@ export default function EmployeeDetailPage() {
         const text = wakeText.trim()
         if (!text) return
         setNotice(null)
-        spawnClone.mutate({ id: employee.id, text }, {
+        const agent = employee.agent as AgentType
+        const model = resolveSpawnModel(agent, cloneModel, '')
+        const thinkEffort = resolveSpawnThinkEffort(agent, cloneThink)
+        spawnClone.mutate({ id: employee.id, text, ...(model ? { model } : {}), ...(thinkEffort ? { thinkEffort } : {}) }, {
             onSuccess: (result) => {
                 setWakeText('')
                 report(t(`employees.detail.clone.${result.outcome}`))
@@ -471,6 +480,13 @@ export default function EmployeeDetailPage() {
         setNotice(null)
         update.mutate({ id: employee.id, patch: { status: active ? 'active' : 'paused' } }, { onError: fail })
     }
+
+    const cloneModelOptions = getModelOptionsForAgent(employee.agent as AgentType)
+        .map((option) => ({ value: option.value, label: modelOptionText(option.value, option.label, t) }))
+    const cloneThinkOptions = getThinkEffortOptions(employee.agent as AgentType)
+        .map((option) => ({ value: option.value, label: thinkEffortText(option.value, option.label, t) }))
+    const labelOf = (options: ReadonlyArray<{ value: string; label: string }>, value: string) =>
+        options.find((option) => option.value === value)?.label ?? value
 
     const memoryBusy = generateMemory.isPending || syncMemory.isPending || maintain.isPending
 
@@ -490,6 +506,28 @@ export default function EmployeeDetailPage() {
                                 placeholder={t('employees.detail.wakePlaceholder')}
                                 onChange={(event) => setWakeText(event.target.value)}
                             />
+                            {cloneModelOptions.length > 0 || cloneThinkOptions.length > 0 ? (
+                                <ListGroup>
+                                    {cloneModelOptions.length > 0 ? (
+                                        <SettingsSelectRow
+                                            title={t('employees.detail.cloneModel')}
+                                            valueLabel={labelOf(cloneModelOptions, cloneModel)}
+                                            options={cloneModelOptions}
+                                            value={cloneModel}
+                                            onChange={setCloneModel}
+                                        />
+                                    ) : null}
+                                    {cloneThinkOptions.length > 0 ? (
+                                        <SettingsSelectRow
+                                            title={t('employees.detail.cloneThink')}
+                                            valueLabel={labelOf(cloneThinkOptions, cloneThink)}
+                                            options={cloneThinkOptions}
+                                            value={cloneThink}
+                                            onChange={setCloneThink}
+                                        />
+                                    ) : null}
+                                </ListGroup>
+                            ) : null}
                             <div className="flex gap-2">
                                 <Button className="flex-1 sm:flex-none" onClick={handleWake} disabled={wake.isPending || employee.status !== 'active'}>
                                     {wake.isPending ? t('employees.detail.waking') : t('employees.detail.wakeNow')}

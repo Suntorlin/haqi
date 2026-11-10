@@ -25,7 +25,9 @@ const logSchema = z.object({
 const cloneSchema = z.object({
     text: z.string().trim().min(1).max(20_000),
     title: z.string().trim().min(1).max(80).optional(),
-    key: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, 'Use letters, digits, _ or -').optional()
+    key: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, 'Use letters, digits, _ or -').optional(),
+    model: z.string().trim().min(1).max(200).optional(),
+    thinkEffort: z.enum(['low', 'medium', 'high', 'max', 'xhigh']).optional()
 })
 
 const sessionCloneSchema = cloneSchema.extend({ sessionId: z.string().min(1) })
