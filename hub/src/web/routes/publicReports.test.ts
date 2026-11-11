@@ -182,6 +182,74 @@ describe('public report markdown rendering', () => {
     })
 })
 
+describe('public report inline media', () => {
+    it('plays video and audio in the text and keeps only unused assets in the Assets list', async () => {
+        const store = new Store(':memory:')
+        const report = store.reports.createReport({ namespace: 'default', title: 'Media Report', markdown: '' })
+        const share = store.reports.createShare({ reportId: report.id, namespace: 'default' })
+        const add = (fileName: string, mimeType: string) => store.reports.createAsset({
+            reportId: report.id, namespace: 'default', fileName, storageKey: fileName, mimeType, size: 1
+        })
+        const video = add('demo.mp4', 'video/mp4')
+        const audio = add('voice.mp3', 'audio/mpeg')
+        const shot = add('shot.png', 'image/png')
+        const pdf = add('spec.pdf', 'application/pdf')
+        const unused = add('extra.png', 'image/png')
+        store.reports.updateReport({
+            id: report.id,
+            namespace: 'default',
+            markdown: [
+                '![Demo run](asset://' + video.id + ')',
+                '![Voice](asset://' + audio.id + ')',
+                // An agent pasted the share asset link of another share in place of asset://<id>.
+                '![Shot](https://haqi.example.com/share/r/old-token/assets/' + shot.id + ')',
+                '![Spec](asset://' + pdf.id + ')'
+            ].join('\n\n')
+        })
+
+        const app = createPublicReportsRoutes({ store, reportsStorageDir: '/tmp' })
+        const html = await (await app.request(`http://localhost/share/r/${share.token}`)).text()
+        const [body, assetsList = ''] = html.split('<h2>Assets</h2>')
+
+        expect(body).toContain(`<video controls playsinline preload="metadata" src="/share/r/${share.token}/assets/${video.id}"></video><figcaption>Demo run</figcaption>`)
+        expect(body).toContain(`<audio controls preload="metadata" src="/share/r/${share.token}/assets/${audio.id}"></audio>`)
+        expect(body).toContain(`<img src="/share/r/${share.token}/assets/${shot.id}"`)
+        expect(body).toContain(`<a href="/share/r/${share.token}/assets/${pdf.id}" target="_blank" rel="noreferrer">Spec</a>`)
+        expect(assetsList).toContain(unused.id)
+        for (const used of [video, audio, shot, pdf]) expect(assetsList).not.toContain(used.id)
+
+        closeStore(store)
+    })
+
+    it('answers a byte range with 206 so Safari can play video', async () => {
+        const store = new Store(':memory:')
+        const report = store.reports.createReport({ namespace: 'default', title: 'Range Report', markdown: '' })
+        const share = store.reports.createShare({ reportId: report.id, namespace: 'default' })
+        const asset = store.reports.createAsset({
+            reportId: report.id, namespace: 'default', fileName: 'demo.mp4', storageKey: 'demo.mp4', mimeType: 'video/mp4', size: 10
+        })
+        const storageRoot = join(tmpdir(), `haqi-report-range-${Date.now()}`)
+        await mkdir(join(storageRoot, report.id), { recursive: true })
+        await writeFile(join(storageRoot, report.id, asset.storageKey), '0123456789', 'utf8')
+        const app = createPublicReportsRoutes({ store, reportsStorageDir: storageRoot })
+        const url = `http://localhost/share/r/${share.token}/assets/${asset.id}`
+
+        const partial = await app.request(url, { headers: { Range: 'bytes=2-5' } })
+        expect(partial.status).toBe(206)
+        expect(partial.headers.get('content-range')).toBe('bytes 2-5/10')
+        expect(await partial.text()).toBe('2345')
+
+        const full = await app.request(url)
+        expect(full.status).toBe(200)
+        expect(full.headers.get('accept-ranges')).toBe('bytes')
+        expect(await full.text()).toBe('0123456789')
+
+        expect((await app.request(url, { headers: { Range: 'bytes=20-' } })).status).toBe(416)
+
+        closeStore(store)
+    })
+})
+
 describe('public report page', () => {
     it('shows the full HTML page at the same share link after every update, sandboxed', async () => {
         const store = new Store(':memory:')

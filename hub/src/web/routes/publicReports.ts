@@ -24,48 +24,87 @@ function isShareActive(share: StoredReportShare): boolean {
     return true
 }
 
-function sanitizeLink(rawUrl: string, resolveAssetUrl: (assetId: string) => string): string {
+/** A report asset as the markdown sees it: where the reader gets it, and its type when the report has it. */
+type AssetLink = { url: string; mimeType: string | null }
+type AssetResolver = (assetId: string) => AssetLink
+
+/** The id in a share asset link (`https://<host>/share/r/<token>/assets/<id>`) that an agent pasted in place of asset://<id>. */
+const SHARE_ASSET_PATH = /^\/share\/r\/[^/]+\/assets\/([^/]+)$/
+
+function resolveLink(rawUrl: string, resolveAsset: AssetResolver): AssetLink {
     const trimmed = rawUrl.trim()
     if (!trimmed) {
-        return '#'
+        return { url: '#', mimeType: null }
     }
 
     if (trimmed.startsWith('asset://')) {
         const assetId = trimmed.slice('asset://'.length).trim()
         if (!assetId) {
-            return '#'
+            return { url: '#', mimeType: null }
         }
-        return resolveAssetUrl(assetId)
+        return resolveAsset(assetId)
     }
 
     if (trimmed.startsWith('#') || trimmed.startsWith('/')) {
-        return trimmed
+        return { url: trimmed, mimeType: null }
     }
 
     try {
         const parsed = new URL(trimmed)
         if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || parsed.protocol === 'mailto:') {
-            return parsed.toString()
+            const shareAssetId = SHARE_ASSET_PATH.exec(parsed.pathname)?.[1]
+            if (shareAssetId) {
+                const asset = resolveAsset(decodeURIComponent(shareAssetId))
+                if (asset.mimeType !== null) {
+                    return asset
+                }
+            }
+            return { url: parsed.toString(), mimeType: null }
         }
-        return '#'
+        return { url: '#', mimeType: null }
     } catch {
-        return '#'
+        return { url: '#', mimeType: null }
     }
 }
 
-function renderMarkdown(markdown: string, resolveAssetUrl: (assetId: string) => string): string {
+function mediaKind(mimeType: string | null): 'image' | 'video' | 'audio' | 'file' | null {
+    if (mimeType === null) return null
+    const mime = mimeType.toLowerCase()
+    if (mime.startsWith('image/')) return 'image'
+    if (mime.startsWith('video/')) return 'video'
+    if (mime.startsWith('audio/')) return 'audio'
+    return 'file'
+}
+
+function renderMediaFigure(media: string, caption: string): string {
+    const figcaption = caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ''
+    return `<figure class="inline-media">${media}${figcaption}</figure>`
+}
+
+function renderMarkdown(markdown: string, resolveAsset: AssetResolver): string {
     const renderer = new marked.Renderer()
     const defaultLink = renderer.link.bind(renderer)
     const defaultImage = renderer.image.bind(renderer)
 
     renderer.link = (token: Tokens.Link) => {
-        const href = sanitizeLink(token.href, resolveAssetUrl)
-        return defaultLink({ ...token, href })
+        const { url } = resolveLink(token.href, resolveAsset)
+        return defaultLink({ ...token, href: url })
     }
 
+    // ![caption](asset://<id>) shows the asset where it stands: a player for video and audio, a link for other files.
     renderer.image = (token: Tokens.Image) => {
-        const href = sanitizeLink(token.href, resolveAssetUrl)
-        return defaultImage({ ...token, href })
+        const { url, mimeType } = resolveLink(token.href, resolveAsset)
+        const src = escapeHtml(url)
+        switch (mediaKind(mimeType)) {
+            case 'video':
+                return renderMediaFigure(`<video controls playsinline preload="metadata" src="${src}"></video>`, token.text)
+            case 'audio':
+                return renderMediaFigure(`<audio controls preload="metadata" src="${src}"></audio>`, token.text)
+            case 'file':
+                return `<a href="${src}" target="_blank" rel="noreferrer">${escapeHtml(token.text || url)}</a>`
+            default:
+                return defaultImage({ ...token, href: url })
+        }
     }
 
     renderer.html = (token: Tokens.HTML | Tokens.Tag) => escapeHtml(token.text)
@@ -99,6 +138,21 @@ function toContentDisposition(fileName: string, mode: 'inline' | 'attachment'): 
     return `${mode}; filename="${safeFileName}"`
 }
 
+/** One `bytes=start-end` range (end inclusive). Several ranges or a malformed header read as no range: the whole file. */
+export function parseByteRange(header: string | undefined, size: number): { start: number; end: number } | 'unsatisfiable' | null {
+    const match = header ? /^bytes=(\d*)-(\d*)$/.exec(header.trim()) : null
+    if (!match || (match[1] === '' && match[2] === '')) return null
+    if (match[1] === '') {
+        const suffix = Number(match[2])
+        if (suffix === 0 || size === 0) return 'unsatisfiable'
+        return { start: Math.max(0, size - suffix), end: size - 1 }
+    }
+    const start = Number(match[1])
+    const end = match[2] === '' ? size - 1 : Math.min(Number(match[2]), size - 1)
+    if (start >= size || end < start) return 'unsatisfiable'
+    return { start, end }
+}
+
 function normalizeAssetExt(fileName: string): string {
     const match = /\.([a-z0-9]+)$/i.exec(fileName.trim())
     return match?.[1]?.toUpperCase() ?? 'FILE'
@@ -119,7 +173,6 @@ function renderAssetCard(token: string, asset: StoredReportAsset): string {
     const viewUrl = isTextAsset(asset) ? toPublicAssetViewUrl(token, asset.id) : inlineUrl
     const downloadUrl = toPublicAssetDownloadUrl(token, asset.id)
     const label = escapeHtml(asset.caption ?? asset.fileName)
-    const ref = `asset://${escapeHtml(asset.id)}`
     const meta = `${normalizeAssetExt(asset.fileName)} · ${escapeHtml(asset.mimeType)}`
 
     if (isImageAsset(asset)) {
@@ -130,9 +183,25 @@ function renderAssetCard(token: string, asset: StoredReportAsset): string {
             <figcaption>
                 <div class="asset-title">${label}</div>
                 <div class="muted">${meta}</div>
-                <div class="muted">${ref}</div>
                 <div class="asset-actions">
                     <a href="${escapeHtml(viewUrl)}" target="_blank" rel="noreferrer">Open</a>
+                    <a href="${escapeHtml(downloadUrl)}">Download</a>
+                </div>
+            </figcaption>
+        </figure>`
+    }
+
+    const kind = mediaKind(asset.mimeType)
+    if (kind === 'video' || kind === 'audio') {
+        const player = kind === 'video'
+            ? `<video controls playsinline preload="metadata" src="${escapeHtml(inlineUrl)}"></video>`
+            : `<audio controls preload="metadata" src="${escapeHtml(inlineUrl)}"></audio>`
+        return `<figure class="asset-card">
+            <div class="asset-preview asset-preview-media">${player}</div>
+            <figcaption>
+                <div class="asset-title">${label}</div>
+                <div class="muted">${meta}</div>
+                <div class="asset-actions">
                     <a href="${escapeHtml(downloadUrl)}">Download</a>
                 </div>
             </figcaption>
@@ -150,7 +219,6 @@ function renderAssetCard(token: string, asset: StoredReportAsset): string {
         <figcaption>
             <div class="asset-title">${label}</div>
             <div class="muted">${meta}</div>
-            <div class="muted">${ref}</div>
             <div class="asset-actions">
                 ${isTextAsset(asset)
                     ? `<a href="${escapeHtml(viewUrl)}" target="_blank" rel="noreferrer">Open</a>`
@@ -223,10 +291,12 @@ function buildSharePageHtml(options: {
     markdown: string
     assets: StoredReportAsset[]
 }): string {
+    const assetsById = new Map(options.assets.map((asset) => [asset.id, asset]))
     const usedAssetIds = new Set<string>()
     const markdownHtml = renderMarkdown(options.markdown, (assetId) => {
-        usedAssetIds.add(assetId)
-        return toPublicAssetUrl(options.token, assetId)
+        const asset = assetsById.get(assetId)
+        if (asset) usedAssetIds.add(assetId)
+        return { url: toPublicAssetUrl(options.token, assetId), mimeType: asset?.mimeType ?? null }
     })
 
     const extraAssets = options.assets.filter((asset) => !usedAssetIds.has(asset.id))
@@ -272,6 +342,10 @@ function buildSharePageHtml(options: {
     th, td { border: 1px solid #8884; padding: 6px 8px; text-align: left; }
     input[type='checkbox'] { pointer-events: none; }
     img { max-width: 100%; border-radius: 8px; }
+    .inline-media { margin: 12px 0; }
+    .inline-media video { display: block; width: 100%; max-height: 80vh; border-radius: 8px; background: #000; }
+    .inline-media audio { width: 100%; }
+    .inline-media figcaption { margin-top: 4px; color: #888; font-size: 13px; }
     .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
     .asset-card { margin: 0; border: 1px solid #8883; border-radius: 10px; overflow: hidden; }
     .asset-card figcaption { padding: 10px; font-size: 12px; }
@@ -279,6 +353,8 @@ function buildSharePageHtml(options: {
     .asset-preview { display: flex; align-items: center; justify-content: center; min-height: 180px; text-decoration: none; color: inherit; background: #8881; }
     .asset-preview-image { background: transparent; }
     .asset-preview-generic { padding: 20px; }
+    .asset-preview-media { padding: 8px; }
+    .asset-preview-media video, .asset-preview-media audio { width: 100%; max-height: 240px; }
     .asset-ext { font-size: 28px; font-weight: 800; letter-spacing: 1px; }
     .asset-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
     .asset-actions a { color: inherit; text-decoration: none; }
@@ -375,7 +451,10 @@ export function createPublicReportsRoutes(options: {
         }
 
         const contentHtml = normalizeAssetExt(asset.fileName) === 'MD'
-            ? renderMarkdown(raw, (linkedAssetId) => toPublicAssetUrl(token, linkedAssetId))
+            ? renderMarkdown(raw, (linkedAssetId) => ({
+                url: toPublicAssetUrl(token, linkedAssetId),
+                mimeType: options.store.reports.getAsset(report.id, linkedAssetId)?.mimeType ?? null
+            }))
             : `<pre><code>${escapeHtml(raw)}</code></pre>`
 
         return c.html(buildAssetPageHtml({
@@ -406,15 +485,31 @@ export function createPublicReportsRoutes(options: {
             return c.text('Asset not found', 404)
         }
 
-        const filePath = reportAssetPath(options.reportsStorageDir, report.id, asset.storageKey)
-        return new Response(Bun.file(filePath), {
-            headers: {
-                'Content-Type': asset.mimeType,
-                'Cache-Control': 'public, max-age=3600',
-                'X-Content-Type-Options': 'nosniff',
-                'Content-Disposition': toContentDisposition(asset.fileName, download ? 'attachment' : 'inline')
-            }
-        })
+        const file = Bun.file(reportAssetPath(options.reportsStorageDir, report.id, asset.storageKey))
+        const headers: Record<string, string> = {
+            'Content-Type': asset.mimeType,
+            'Cache-Control': 'public, max-age=3600',
+            'X-Content-Type-Options': 'nosniff',
+            'Content-Disposition': toContentDisposition(asset.fileName, download ? 'attachment' : 'inline'),
+            'Accept-Ranges': 'bytes'
+        }
+
+        // Safari plays a <video> only when the server answers byte ranges with 206.
+        const range = parseByteRange(c.req.header('range'), file.size)
+        if (range === 'unsatisfiable') {
+            return new Response(null, { status: 416, headers: { ...headers, 'Content-Range': `bytes */${file.size}` } })
+        }
+        if (range) {
+            return new Response(file.slice(range.start, range.end + 1), {
+                status: 206,
+                headers: {
+                    ...headers,
+                    'Content-Range': `bytes ${range.start}-${range.end}/${file.size}`,
+                    'Content-Length': `${range.end - range.start + 1}`
+                }
+            })
+        }
+        return new Response(file, { headers })
     })
 
     return app

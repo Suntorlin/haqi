@@ -40,7 +40,7 @@ export const REPORT_INSTRUCTION = trimIdent(`
     - Preferred flow:
       1) functions.haqi__report_create (it creates a public share by default),
       2) functions.haqi__report_add_asset (attach screenshots/log images when available),
-      3) functions.haqi__report_update (final markdown polish).
+      3) functions.haqi__report_update: put each asset in the text where the reader needs it, with ![caption](asset://<id>) from markdownRef. Video and audio play in the text. Do not tell the reader to look at the Assets list at the end.
     - Screenshot/file hygiene for report assets:
       - Never save screenshots under the project/workspace directory.
       - Always use an organized external directory such as:

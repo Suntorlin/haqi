@@ -39,6 +39,8 @@ import {
     reportCreateInputSchema,
     handoffFoldersInputSchema,
     HANDOFF_FOLDERS_DESCRIPTION,
+    REPORT_ADD_ASSET_DESCRIPTION,
+    REPORT_CREATE_DESCRIPTION,
     reportCreateShareInputSchema,
     reportGetInputSchema,
     reportListInputSchema,
@@ -194,7 +196,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     });
 
     mcp.registerTool<any, any>('report_create', {
-        description: 'Create a markdown report and a public share link. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
+        description: REPORT_CREATE_DESCRIPTION,
         title: 'Create Report',
         inputSchema: reportCreateInputSchema
     }, async (args: {
@@ -447,7 +449,7 @@ export async function startHappyServer(client: ApiSessionClient) {
     });
 
     mcp.registerTool<any, any>('report_add_asset', {
-        description: 'Attach image/file asset to a report using base64/data-url/source-path',
+        description: REPORT_ADD_ASSET_DESCRIPTION,
         title: 'Add Report Asset',
         inputSchema: reportAddAssetInputSchema
     }, async (args: {

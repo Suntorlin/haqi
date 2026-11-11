@@ -24,6 +24,10 @@ export const reportHandoffSchema: z.ZodTypeAny = z.object({
 
 export const handoffFoldersInputSchema: z.ZodTypeAny = z.object({})
 
+export const REPORT_CREATE_DESCRIPTION = 'Create a markdown report and a public share link. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq). To show a screenshot, a video or an audio file in the text, first call report_add_asset for each file. Then call report_update with markdown that puts ![caption](asset://<id>) at the correct place in the text.'
+
+export const REPORT_ADD_ASSET_DESCRIPTION = 'Add an image, video, audio or other file to a report. Give the file as source_path, content_base64 or content_data_url. The result contains markdownRef, which is asset://<id>. Put each file in the report text at the place where the reader needs it. Use ![caption](asset://<id>) for an image, a video or an audio file. Use [name](asset://<id>) for other files. Then call report_update with the new markdown. The share page shows images in the text and plays video and audio in the text. The page puts each file that the markdown does not use in an Assets list at the end of the page. Do not tell the reader to look at that list or at "the attachment below".'
+
 export const HANDOFF_FOLDERS_DESCRIPTION = "List the folders of the user's notes folder that a handoff report of this session can go to: the folders this project used before, then the folders the notes index links to. Use one of them as handoff.folder in report_create or report_update."
 
 export const reportCreateInputSchema: z.ZodTypeAny = z.object({
@@ -315,7 +319,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'report_create',
         title: 'Create Report',
-        description: 'Create a markdown report and a public share link. Public links use /share/r/<token> (for example <report-public-base-url>/share/r/FrG7h-uOFtuKw0Ay1S8NNWhuBB9uNgDq).',
+        description: REPORT_CREATE_DESCRIPTION,
         inputSchema: reportCreateInputSchema
     },
     {
@@ -366,7 +370,7 @@ export const HAPI_MCP_TOOL_DEFINITIONS: HapiMcpToolDefinition[] = [
     {
         name: 'report_add_asset',
         title: 'Add Report Asset',
-        description: 'Attach image/file asset to a report using base64/data-url/source-path',
+        description: REPORT_ADD_ASSET_DESCRIPTION,
         inputSchema: reportAddAssetInputSchema
     },
     {

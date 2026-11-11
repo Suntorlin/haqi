@@ -5,7 +5,7 @@ const SHARE_LINK = /https:\/\/[^\s)>\]]+\/share\/r\/[A-Za-z0-9_-]{16,}/;
 
 const REASON = [
     '最终回复里没有公网链接。按用户的规则，每次对话的最终回复都要带公网链接。',
-    '请用 haqi MCP 的 report_create（截图用 report_add_asset）发布本轮的结论或证据，',
+    '请用 haqi MCP 的 report_create（截图、录屏用 report_add_asset，并用 ![说明](asset://<id>) 插进正文对应位置）发布本轮的结论或证据，',
     '用 curl 确认链接返回 200，再把 /share/r/<token> 链接写进最终回复。'
 ].join('');
 
