@@ -25,6 +25,8 @@ const CUSTOM_MODEL = '__custom__'
  * choices (menu on desktop, drawer on phones), like the settings page.
  */
 export function SessionParams(props: {
+    /** Section heading; the new-session form's own when unset. */
+    title?: string
     api: ApiClient
     agent: AgentType
     machineId: string | null
@@ -59,7 +61,7 @@ export function SessionParams(props: {
     const showCustom = customOpen || customModel.length > 0
 
     return (
-        <Section title={t('newSession.params')}>
+        <Section title={props.title ?? t('newSession.params')}>
             <ListGroup>
                 {props.agent === 'claude' ? (
                     <ClaudeAccountRow

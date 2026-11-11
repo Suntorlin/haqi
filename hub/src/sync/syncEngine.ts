@@ -134,6 +134,16 @@ const CODEX_TOOL_PROCESS_EVENT_TYPES = new Set([
     'plan-update'
 ])
 
+/**
+ * The mode an employee session starts in. A clone's YOLO switch wins over the employee's own mode: on is
+ * bypassPermissions, off turns a bypassPermissions employee back to asking.
+ */
+function employeePermissionMode(own: string | null, yolo: boolean | undefined): PermissionMode | undefined {
+    if (yolo === true) return 'bypassPermissions'
+    if (yolo === false && own === 'bypassPermissions') return 'default'
+    return (own ?? undefined) as PermissionMode | undefined
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
     if (!value || typeof value !== 'object') {
         return null
@@ -747,19 +757,21 @@ export class SyncEngine {
         })
         this.employeeService = new EmployeeService(store, {
             machineOnline: (namespace, machineId) => this.machineCache.getOnlineMachinesByNamespace(namespace).some((machine) => machine.id === machineId),
-            spawn: async ({ employee, text, meta, role, model, thinkEffort }) => {
+            spawn: async ({ employee, text, meta, role, settings }) => {
                 // On the machine's account pool, like task and scheduled sessions: a spent account
                 // moves the wake to the next one instead of greeting the employee with a quota wall.
                 const result = await this.spawnOnAccountPool(employee.machineId, employee.directory, {
                     agent: employee.agent as 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode',
-                    model: model ?? employee.model ?? undefined,
-                    thinkEffort,
+                    model: settings?.model ?? employee.model ?? undefined,
+                    thinkEffort: settings?.thinkEffort,
+                    serviceTier: settings?.serviceTier,
+                    yolo: settings?.yolo,
                     employee: { id: employee.id, name: employee.name, home: employee.homePath, compactThreshold: employee.compactThreshold, role }
                 }, {
                     text,
                     meta: { source: 'employee-wake', employeeId: employee.id, ...(meta ?? {}) },
-                    permissionMode: (employee.permissionMode ?? undefined) as PermissionMode | undefined
-                }, null)
+                    permissionMode: employeePermissionMode(employee.permissionMode, settings?.yolo)
+                }, settings?.claudeAccountId ?? null)
                 if (result.type !== 'success') return { error: result.message }
                 this.markFreshEmployeeSession(result.sessionId)
                 return { sessionId: result.sessionId }
@@ -2951,6 +2963,7 @@ ${note.content}
             agent?: 'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'
             model?: string
             thinkEffort?: 'auto' | 'low' | 'medium' | 'high' | 'max' | 'xhigh'
+            serviceTier?: 'fast' | 'flex'
             yolo?: boolean
             claudeAccount?: ClaudeAccountSelection
             sessionType?: 'simple' | 'worktree'
@@ -2965,7 +2978,7 @@ ${note.content}
             options.agent ?? 'claude',
             options.model,
             options.thinkEffort,
-            undefined,
+            options.serviceTier,
             options.yolo,
             options.sessionType ?? 'simple',
             options.worktreeName,

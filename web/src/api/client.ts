@@ -456,7 +456,7 @@ export class ApiClient {
         })
     }
 
-    async spawnEmployeeClone(id: string, text: string, options: { model?: string; thinkEffort?: string } = {}): Promise<import('../types/api').EmployeeCloneResponse> {
+    async spawnEmployeeClone(id: string, text: string, options: { model?: string; thinkEffort?: string; serviceTier?: string; yolo?: boolean; claudeAccountId?: string } = {}): Promise<import('../types/api').EmployeeCloneResponse> {
         return await this.request<import('../types/api').EmployeeCloneResponse>(`/api/employees/${encodeURIComponent(id)}/clones`, {
             method: 'POST',
             body: JSON.stringify({ text, ...options })
