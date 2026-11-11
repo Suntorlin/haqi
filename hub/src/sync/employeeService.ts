@@ -73,8 +73,17 @@ export type EmployeeWakeResult = {
 /** Extra message meta a wake carries into the session (e.g. the inbound taint); merged over the default wake meta. */
 export type WakeMeta = Record<string, unknown>
 
-/** Model and think effort picked for one clone; unset falls back to the employee's model and the agent default. */
-export type CloneModelChoice = { model?: string; thinkEffort?: 'low' | 'medium' | 'high' | 'max' | 'xhigh' }
+/**
+ * What one clone runs with, picked on the web like a new session. Unset fields keep the employee's model and
+ * permission mode, the agent's defaults and the machine's account pool order.
+ */
+export type CloneSettings = {
+    model?: string
+    thinkEffort?: 'low' | 'medium' | 'high' | 'max' | 'xhigh'
+    serviceTier?: 'fast' | 'flex'
+    yolo?: boolean
+    claudeAccountId?: string
+}
 
 export type EmployeeCloneResult = {
     sessionId: string
@@ -112,7 +121,7 @@ export type EmployeeFs = {
 
 export interface EmployeeHost {
     machineOnline(namespace: string, machineId: string): boolean
-    spawn(input: { namespace: string; employee: StoredEmployee; text: string; meta?: WakeMeta; role: 'main' | 'clone' } & CloneModelChoice): Promise<{ sessionId: string } | { error: string }>
+    spawn(input: { namespace: string; employee: StoredEmployee; text: string; meta?: WakeMeta; role: 'main' | 'clone'; settings?: CloneSettings }): Promise<{ sessionId: string } | { error: string }>
     /** Resume a hub session; null when it could not come back. Returns the session's id, which may be a new one. */
     resume(namespace: string, sessionId: string): Promise<string | null>
     send(sessionId: string, text: string, meta?: WakeMeta): Promise<boolean>
@@ -346,11 +355,11 @@ export class EmployeeService {
      * (spawnedBy null) or the employee's main session can send one; a clone or task session cannot, so there is only
      * one level. A named clone (key) takes the next job with the same key while it is alive.
      */
-    async spawnClone(namespace: string, employeeId: string, input: { text: string; title?: string; key?: string; spawnedBy: string | null } & CloneModelChoice): Promise<EmployeeCloneResult> {
+    async spawnClone(namespace: string, employeeId: string, input: { text: string; title?: string; key?: string; spawnedBy: string | null } & CloneSettings): Promise<EmployeeCloneResult> {
         return await this.withLock(employeeId, () => this.spawnCloneLocked(namespace, employeeId, input))
     }
 
-    private async spawnCloneLocked(namespace: string, employeeId: string, input: { text: string; title?: string; key?: string; spawnedBy: string | null } & CloneModelChoice): Promise<EmployeeCloneResult> {
+    private async spawnCloneLocked(namespace: string, employeeId: string, input: { text: string; title?: string; key?: string; spawnedBy: string | null } & CloneSettings): Promise<EmployeeCloneResult> {
         const employee = this.get(namespace, employeeId)
         if (employee.status !== 'active') throw new EmployeeError(`员工状态是 ${employee.status}，不能开分身`, 409)
         const text = input.text.trim()
@@ -385,7 +394,7 @@ export class EmployeeService {
         const brief = this.cloneBrief(employee, text, input.spawnedBy)
         const spawned = await this.host.spawn({
             namespace, employee, text: `${statePackage}\n\n${brief}`, meta: { source: 'employee-clone' }, role: 'clone',
-            model: input.model, thinkEffort: input.thinkEffort
+            settings: { model: input.model, thinkEffort: input.thinkEffort, serviceTier: input.serviceTier, yolo: input.yolo, claudeAccountId: input.claudeAccountId }
         })
         if ('error' in spawned) throw new EmployeeError(`分身启动失败：${spawned.error}`, 502)
         const sessionId = spawned.sessionId

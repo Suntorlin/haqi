@@ -16,7 +16,7 @@ type Harness = {
     files: Map<string, { content: string; mtimeMs: number }>
     fsCalls: string[]
     spawns: number
-    spawnInputs: Array<{ text: string; meta?: Record<string, unknown>; model?: string; thinkEffort?: string }>
+    spawnInputs: Array<{ text: string; meta?: Record<string, unknown>; settings?: Record<string, unknown> }>
     sends: Array<{ sessionId: string; text: string; meta?: Record<string, unknown> }>
     archived: string[]
     roles: string[]
@@ -37,7 +37,7 @@ function harness(): Harness {
     const liveSessions = new Set<string>()
     const archived: string[] = []
 
-    const spawnInputs: Array<{ text: string; meta?: Record<string, unknown>; model?: string; thinkEffort?: string }> = []
+    const spawnInputs: Array<{ text: string; meta?: Record<string, unknown>; settings?: Record<string, unknown> }> = []
     const roles: string[] = []
     const groupPosts: Harness['groupPosts'] = []
     const groupMembers = new Set<string>()
@@ -48,7 +48,7 @@ function harness(): Harness {
         spawn: async (input) => {
             state.spawns += 1
             if (spawnDelay > 0) await new Promise((resolve) => setTimeout(resolve, spawnDelay))
-            spawnInputs.push({ text: input.text, meta: input.meta, model: input.model, thinkEffort: input.thinkEffort })
+            spawnInputs.push({ text: input.text, meta: input.meta, settings: input.settings })
             roles.push(input.role)
             liveSessions.add(`session-${state.spawns}`)
             return { sessionId: `session-${state.spawns}` }
@@ -437,14 +437,20 @@ describe('EmployeeService', () => {
         expect(views.find((view) => view.sessionId === clone.sessionId)).toMatchObject({ role: 'clone', task: '查一下昨天的报错', active: true })
     })
 
-    it('a clone runs on the model and think effort picked for it', async () => {
+    it('a clone runs with the settings picked for it', async () => {
         const h = harness()
         const employee = await makeEmployee(h)
-        await h.service.spawnClone('default', employee.id, { text: '难题', spawnedBy: null, model: 'claude-fable-5-2', thinkEffort: 'max' })
+        await h.service.spawnClone('default', employee.id, {
+            text: '难题', spawnedBy: null, model: 'claude-fable-5-2', thinkEffort: 'max', yolo: false, claudeAccountId: 'account-b'
+        })
         await h.service.spawnClone('default', employee.id, { text: '小事', spawnedBy: null })
 
-        expect(h.spawnInputs[0]).toMatchObject({ model: 'claude-fable-5-2', thinkEffort: 'max' })
-        expect(h.spawnInputs[1]).toMatchObject({ model: undefined, thinkEffort: undefined })
+        expect(h.spawnInputs[0]!.settings).toEqual({
+            model: 'claude-fable-5-2', thinkEffort: 'max', serviceTier: undefined, yolo: false, claudeAccountId: 'account-b'
+        })
+        expect(h.spawnInputs[1]!.settings).toEqual({
+            model: undefined, thinkEffort: undefined, serviceTier: undefined, yolo: undefined, claudeAccountId: undefined
+        })
     })
 
     it('only one level: a clone cannot start clones', async () => {

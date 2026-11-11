@@ -27,7 +27,10 @@ const cloneSchema = z.object({
     title: z.string().trim().min(1).max(80).optional(),
     key: z.string().regex(/^[A-Za-z0-9_-]{1,40}$/, 'Use letters, digits, _ or -').optional(),
     model: z.string().trim().min(1).max(200).optional(),
-    thinkEffort: z.enum(['low', 'medium', 'high', 'max', 'xhigh']).optional()
+    thinkEffort: z.enum(['low', 'medium', 'high', 'max', 'xhigh']).optional(),
+    serviceTier: z.enum(['fast', 'flex']).optional(),
+    yolo: z.boolean().optional(),
+    claudeAccountId: z.string().trim().min(1).max(200).optional()
 })
 
 const sessionCloneSchema = cloneSchema.extend({ sessionId: z.string().min(1) })
